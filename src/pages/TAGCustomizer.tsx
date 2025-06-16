@@ -3,6 +3,7 @@ import { useCart } from "../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../components/CartButton";
 import { useNavigate } from "react-router-dom";
+import logo2 from "../assets/logo2.png";
 
 interface IconOption {
   id: string;
@@ -153,11 +154,114 @@ const TAGCustomizer: React.FC = () => {
       category: icon.category
     }));
 
+  const renderGridCell = (index: number) => {
+    const icon = placedIcons.find((i) => i.position === index);
+    const text = iconTexts[index];
+    const isPIR = icon?.category === "PIR";
+
+    return (
+      <GridCell key={index} index={index} onClick={handlePlaceIcon}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            height: "100%",
+          }}
+        >
+          {icon && (
+            <>
+              <img
+                src={icon.src}
+                alt={icon.label}
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  objectFit: "contain",
+                  marginBottom: "5px",
+                }}
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteIcon(icon.id);
+                }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  background: "red",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "20px",
+                  height: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                ×
+              </button>
+            </>
+          )}
+          {text && (
+            <div style={{ 
+              fontSize: "12px", 
+              marginTop: "5px",
+              color: "#000000",
+              wordBreak: "break-word",
+              maxWidth: "90%"
+            }}>
+              {text}
+            </div>
+          )}
+          <input
+            type="text"
+            value={text || ""}
+            onChange={(e) => handleTextChange(e, index)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Enter text"
+            style={{
+              width: "90%",
+              padding: "4px",
+              fontSize: "12px",
+              textAlign: "center",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              marginTop: "5px",
+            }}
+          />
+        </div>
+      </GridCell>
+    );
+  };
+
   return (
     <div className="customizer-container">
-      <div style={{ position: "absolute", top: 20, right: 30 }}>
-        <CartButton />
+      <div style={{ 
+        position: 'absolute', 
+        top: 20, 
+        left: 30, 
+        zIndex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+      }}>
+        <img 
+          src={logo2} 
+          alt="Logo" 
+          style={{ 
+            height: '40px',
+            width: 'auto',
+          }} 
+        />
       </div>
+      <CartButton />
 
       <h2>Customize your TAG Panel</h2>
 
@@ -218,77 +322,7 @@ const TAGCustomizer: React.FC = () => {
         }}
       >
         <div style={{ display: "flex", flexWrap: "wrap" }}>
-          {Array.from({ length: 9 }).map((_, index) => (
-            <GridCell key={index} index={index} onClick={handlePlaceIcon}>
-              {(() => {
-                const icon = placedIcons.find((i) => i.position === index);
-                const text = iconTexts[index];
-                return (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      position: "relative",
-                      height: "100%",
-                    }}
-                  >
-                    {icon && (
-                      <img
-                        src={icon.src}
-                        alt={icon.label}
-                        style={{ width: "40px", height: "40px", objectFit: "contain" }}
-                      />
-                    )}
-                    {text && (
-                      <div style={{ fontSize: "12px", marginTop: "5px" }}>
-                        {text}
-                      </div>
-                    )}
-                    {icon && (
-                      <button
-                        onClick={() => handleDeleteIcon(icon.id)}
-                        style={{
-                          position: "absolute",
-                          top: "-5px",
-                          right: "-5px",
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          backgroundColor: "red",
-                          color: "white",
-                          fontSize: "14px",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: 0,
-                        }}
-                      >
-                        −
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
-              <input
-                type="text"
-                value={iconTexts[index] || ""}
-                onChange={(e) => handleTextChange(e, index)}
-                placeholder="Add text"
-                style={{
-                  position: "absolute",
-                  bottom: "5px",
-                  left: "5px",
-                  width: "90%",
-                  fontSize: "12px",
-                  textAlign: "center",
-                }}
-              />
-            </GridCell>
-          ))}
+          {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
         </div>
       </div>
 

@@ -1,6 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GridCell } from "../components/GridCell";
 import { Icon } from "../types/Icon";
+import { useCart } from "../contexts/CartContext";
+import "./Customizer.css";
+import CartButton from "../components/CartButton";
+import { useNavigate } from "react-router-dom";
+import logo2 from "../assets/logo2.png";
 
 interface PlacedIcon extends Icon {
   id: string;
@@ -24,7 +29,26 @@ const IDPVCustomizer: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="customizer-container">
+      <div style={{ 
+        position: 'absolute', 
+        top: 20, 
+        left: 30, 
+        zIndex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+      }}>
+        <img 
+          src={logo2} 
+          alt="Logo" 
+          style={{ 
+            height: '40px',
+            width: 'auto',
+          }} 
+        />
+      </div>
+      <CartButton />
       <div style={{ display: "flex", flexWrap: "wrap" }}>
         {Array.from({ length: 9 }).map((_, index) => (
           <GridCell key={index} index={index} onClick={handlePlaceIcon}>

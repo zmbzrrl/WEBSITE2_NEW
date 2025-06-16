@@ -1,5 +1,6 @@
 export interface Icon {
-  src: string;
-  label: string;
+  id: string;
+  name: string;
+  image: string;
   category: string;
 } 

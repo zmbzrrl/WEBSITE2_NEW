@@ -1,84 +1,277 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import {
+  Container,
+  Typography,
+  Grid,
+  Box,
+  Button,
+  LinearProgress,
+  useTheme,
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
 import DP from "../../assets/panels/DP.jpg";
-import X2V from "../../assets/panels/X2V_UP.png";
 import X2H from "../../assets/panels/X2RS.png";
 import IDPG from "../../assets/panels/IDPG_RN.png";
 import TAG from "../../assets/panels/TAG_PIR.png";
+import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 
-const PanelTypeSelector: React.FC = () => {
+const ProgressContainer = styled(Box)(({ theme }) => ({
+  width: '100%',
+  maxWidth: 800,
+  margin: '0 auto',
+  padding: theme.spacing(3),
+  marginBottom: theme.spacing(6),
+}));
+
+const ProgressText = styled(Typography)(({ theme }) => ({
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontWeight: 400,
+  marginBottom: theme.spacing(2),
+  letterSpacing: '0.5px',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+}));
+
+const PanelContainer = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    '& .panel-image': {
+      transform: 'scale(1.02)',
+    },
+    '& .panel-title': {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+    '& .panel-button': {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+  },
+}));
+
+const PanelImage = styled('img')(({ theme }) => ({
+  width: '100%',
+  height: 'auto',
+  maxHeight: 280,
+  objectFit: 'contain',
+  transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+  marginBottom: theme.spacing(2),
+}));
+
+const PanelTitle = styled(Typography)(({ theme }) => ({
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontWeight: 400,
+  letterSpacing: '0.5px',
+  marginTop: theme.spacing(2),
+  opacity: 0.8,
+  transform: 'translateY(10px)',
+  transition: 'all 0.3s ease',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+}));
+
+const StyledPanel = styled(motion.div)({
+  width: '100%'
+});
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.35
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { 
+    opacity: 0,
+    y: 20
+  },
+  visible: { 
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: [0.4, 0, 0.2, 1]
+    }
+  }
+};
+
+const PanelTypeSelector = () => {
+  const navigate = useNavigate();
+  const theme = useTheme();
+
+  const panelTypes = [
+    {
+      name: "Single Panel",
+      image: SP,
+      path: "/customizer/sp",
+    },
+    {
+      name: "Thermostat",
+      image: TAG,
+      path: "/customizer/tag",
+    },
+    {
+      name: "Double Panel",
+      image: DP,
+      path: "/panel/double",
+    },
+    {
+      name: "Corridor Panel - IDPG",
+      image: IDPG,
+      path: "/panel/idpg",
+    },
+    {
+      name: "Extended Panel",
+      image: X2H,
+      path: "/panel/extended",
+    },
+  ];
+
   return (
-    <div style={{ textAlign: "center", padding: "40px", position: "relative" }}>
-      <div style={{ position: "absolute", top: 20, right: 30 }}>
-        <CartButton />
-      </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #1a1f2c 0%, #2c3e50 100%)',
+        py: 8,
+      }}
+    >
+      <Container maxWidth="lg">
+        <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
+          <CartButton />
+        </Box>
 
-      <h2>Select a Panel Type</h2>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: "40px",
-          flexWrap: "wrap",
-        }}
-      >
-        <Link to="/customizer/sp">
-          <img
-            src={SP}
-            alt="SP Panel"
-            style={{ width: "200px", cursor: "pointer" }}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 20,
+            left: 30,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <img 
+            src={logo} 
+            alt="Logo" 
+            style={{ 
+              height: '40px',
+              width: 'auto',
+            }} 
           />
-          <p>Single Panel</p>
-        </Link>
+          <Typography
+            variant="h6"
+            component="h1"
+            sx={{
+              color: 'rgba(255, 255, 255, 0.95)',
+              fontWeight: 400,
+              letterSpacing: '1px',
+              textTransform: 'capitalize',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            }}
+          >
+            Design your panels
+          </Typography>
+        </Box>
 
-        <Link to="/customizer/tag">
-          <img
-            src={TAG}
-            alt="TAG Panel"
-            style={{ width: "200px", cursor: "pointer" }}
+        <ProgressContainer>
+          <ProgressText variant="h6">
+            1. Select your panel type
+          </ProgressText>
+          <LinearProgress 
+            variant="determinate" 
+            value={20} 
+            sx={{
+              height: 2,
+              borderRadius: 1,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 1,
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              },
+            }}
           />
-          <p>Thermostat</p>
-        </Link>
+        </ProgressContainer>
 
-        <Link to="/panel/idpg">
-          <img
-            src={IDPG}
-            alt="IDPG Panel"
-            style={{ width: "200px", cursor: "pointer" }}
-          />
-          <p>Corridor Panel - IDPG</p>
-        </Link>
-
-        <Link to="/panel/double">
-          <img
-            src={DP}
-            alt="Double Panel"
-            style={{ width: "400px", cursor: "pointer" }}
-          />
-          <p>Double Panel</p>
-        </Link>
-
-        <Link to="/panel/extended">
-          <img
-            src={X2H}
-            alt="Extended Panel"
-            style={{ width: "400px", cursor: "pointer" }}
-          />
-          <p>Extended Panel</p>
-        </Link>
-
-        <Link to="/customizer/x2v">
-          <img
-            src={X2V}
-            alt="X2V Panel"
-            style={{ width: "400px", cursor: "pointer" }}
-          />
-          <p>X2V Panel</p>
-        </Link>
-      </div>
-    </div>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          style={{ width: '100%' }}
+        >
+          <Grid container spacing={4} justifyContent="center">
+            {panelTypes.map((panel) => (
+              <Grid 
+                key={panel.name}
+                item 
+                xs={12} 
+                sm={6} 
+                md={4}
+                component="div"
+              >
+                <StyledPanel variants={itemVariants}>
+                  <PanelContainer
+                    onClick={() => navigate(panel.path)}
+                    sx={{
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      p: 3,
+                    }}
+                  >
+                    <PanelImage
+                      src={panel.image}
+                      alt={panel.name}
+                      className="panel-image"
+                    />
+                    <PanelTitle 
+                      variant="h5" 
+                      component="h2"
+                      className="panel-title"
+                      sx={{
+                        textAlign: 'center',
+                        mb: 2,
+                      }}
+                    >
+                      {panel.name}
+                    </PanelTitle>
+                    <Button
+                      variant="text"
+                      size="large"
+                      className="panel-button"
+                      sx={{
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        textTransform: 'none',
+                        fontWeight: 400,
+                        letterSpacing: '0.5px',
+                        opacity: 0,
+                        transform: 'translateY(10px)',
+                        transition: 'all 0.3s ease',
+                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                        '&:hover': {
+                          color: 'rgba(255, 255, 255, 1)',
+                          backgroundColor: 'transparent',
+                        },
+                      }}
+                    >
+                      Select Panel
+                    </Button>
+                  </PanelContainer>
+                </StyledPanel>
+              </Grid>
+            ))}
+          </Grid>
+        </motion.div>
+      </Container>
+    </Box>
   );
 };
 
