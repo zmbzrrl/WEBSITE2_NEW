@@ -1,10 +1,10 @@
 // Import necessary libraries and components
 import React, { useState, useEffect } from "react";
-import { useCart } from "../contexts/CartContext";
+import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
-import CartButton from "../components/CartButton";
+import CartButton from "../../components/CartButton";
 import { useNavigate } from "react-router-dom";
-import logo2 from "../assets/logo2.png";
+import logo2 from "../../assets/logo2.png";
 import {
   Container,
   Typography,
@@ -154,7 +154,7 @@ const SPCustomizer: React.FC = () => {
   const [iconCategories, setIconCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    import("../assets/iconLibrary").then((module) => {
+    import("../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
       setIconCategories(module.iconCategories);
     });

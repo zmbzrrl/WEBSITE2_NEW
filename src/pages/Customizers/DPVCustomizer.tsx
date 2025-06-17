@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useCart } from "../contexts/CartContext";
+import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
-import CartButton from "../components/CartButton";
+import CartButton from "../../components/CartButton";
 import { useNavigate } from "react-router-dom";
-import logo2 from "../assets/logo2.png";
+import { Icon } from "../../types/Icon";
+import logo2 from "../../assets/logo2.png";
 
 // Define types
 interface IconOption {
@@ -66,7 +67,7 @@ const GridCell: React.FC<GridCellProps> = ({ index, onClick, children }) => (
   </div>
 );
 
-const X2HCustomizer: React.FC = () => {
+const DPVCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
   const [icons, setIcons] = useState<Record<string, any>>({});
@@ -77,7 +78,7 @@ const X2HCustomizer: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   useEffect(() => {
-    import("../assets/iconLibrary").then((module) => {
+    import("../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
       setIconCategories(module.iconCategories);
     });
@@ -140,7 +141,7 @@ const X2HCustomizer: React.FC = () => {
 
   const handleAddToCart = (): void => {
     const design: Design = {
-      type: "X2H",
+      type: "DPV",
       icons: Array.from({ length: 9 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -277,46 +278,119 @@ const X2HCustomizer: React.FC = () => {
           }} 
         />
       </div>
-      <h1>X2H Customizer</h1>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap" }}>
-          {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
-        </div>
-      </div>
-      <div className="icon-options">
-        <div style={{ marginBottom: "10px" }}>
+      <CartButton />
+
+      <h2>Customize your Double Panel Vertical</h2>
+
+      <div style={{ marginBottom: "20px" }}>
+        <div style={{ display: "flex", gap: "10px", marginBottom: "10px", justifyContent: "center" }}>
           {iconCategories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
               style={{
-                margin: "0 5px",
-                backgroundColor: selectedCategory === category ? "#4caf50" : "#ccc",
+                padding: "8px 16px",
+                background: selectedCategory === category ? "#4CAF50" : "#e0e0e0",
+                color: selectedCategory === category ? "white" : "black",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
               }}
             >
               {category}
             </button>
           ))}
         </div>
-        <div className="icon-list">
+
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
           {categoryIcons.map((icon) => (
-            <img
+            <div
               key={icon.id}
-              src={icon.src}
-              alt={icon.label}
-              className="icon-option"
-              onClick={() => handleIconClick(icon)}
+              onClick={() => setSelectedIcon(icon)}
               style={{
-                border: selectedIcon?.id === icon.id ? "2px solid #4caf50" : "none",
+                padding: "10px",
+                background: selectedIcon?.id === icon.id ? "#4CAF50" : "#e0e0e0",
+                borderRadius: "8px",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                width: "80px",
               }}
-            />
+            >
+              <img
+                src={icon.src}
+                alt={icon.label}
+                style={{ width: "40px", height: "40px", objectFit: "contain" }}
+              />
+              <span style={{ fontSize: "12px", marginTop: "5px" }}>{icon.label}</span>
+            </div>
           ))}
         </div>
       </div>
-      <button onClick={handleAddToCart}>Add to Cart</button>
-      <CartButton />
+
+      <div
+        style={{
+          width: "350px",
+          background: "#f0f0f0",
+          padding: "10px",
+          border: "2px solid #ccc",
+          margin: "auto",
+        }}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
+        </div>
+      </div>
+
+      <button
+        onClick={handleAddToCart}
+        style={{
+          marginTop: "20px",
+          padding: "10px 20px",
+          background: "#4CAF50",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        Add to Cart
+      </button>
+
+      <button
+        onClick={() => navigate("/subtypes/double")}
+        style={{
+          marginTop: "20px",
+          marginLeft: "10px",
+          padding: "10px 20px",
+          background: "#666",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        Back to Double Panels
+      </button>
+
+      <button
+        onClick={() => navigate("/")}
+        style={{
+          marginTop: "20px",
+          marginLeft: "10px",
+          padding: "10px 20px",
+          background: "#666",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        Back to Panel Selection
+      </button>
     </div>
   );
 };
 
-export default X2HCustomizer; 
+export default DPVCustomizer; 

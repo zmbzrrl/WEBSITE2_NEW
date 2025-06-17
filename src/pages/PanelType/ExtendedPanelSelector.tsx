@@ -1,201 +1,282 @@
-import React from 'react';
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Typography,
   Grid,
   Box,
-  Card,
-  CardMedia,
-  CardActionArea,
   Button,
-  Paper,
+  LinearProgress,
   useTheme,
 } from '@mui/material';
-import X1H from "../../assets/panels/X1RS.jpg";
-import X2H from "../../assets/panels/X2RS.png";
-import X2V from "../../assets/panels/X2V_UP.png";
+import { styled } from '@mui/material/styles';
+import { motion } from 'framer-motion';
+import X1LS from "../../assets/panels/X1LS.png";
+import X1RS from "../../assets/panels/X1RS.jpg";
 import X1V from "../../assets/panels/X1V_UP.png";
+import X2LS from "../../assets/panels/X2LS.png";
+import X2RS from "../../assets/panels/X2RS.png";
+import X2V from "../../assets/panels/X2V_UP.png";
+import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 
-const horizontalPanels = [
-  {
-    name: "Extended Panel - Horizontal (1 socket)",
-    image: X1H,
-    path: "/customizer/X1H",
-    width: 400,
-  },
-  {
-    name: "Extended Panel - Horizontal (2 sockets)",
-    image: X2H,
-    path: "/customizer/X2H",
-    width: 500,
-  },
-];
+const ProgressContainer = styled(Box)(({ theme }) => ({
+  width: '100%',
+  maxWidth: 800,
+  margin: '0 auto',
+  padding: theme.spacing(3),
+  marginBottom: theme.spacing(6),
+}));
 
-const verticalPanels = [
-  {
-    name: "Extended Panel - Vertical (1 socket)",
-    image: X1V,
-    path: "/customizer/X1V",
-    width: 200,
-  },
-  {
-    name: "Extended Panel - Vertical (2 sockets)",
-    image: X2V,
-    path: "/customizer/X2V",
-    width: 200,
-  },
-];
+const ProgressText = styled(Typography)(({ theme }) => ({
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontWeight: 400,
+  marginBottom: theme.spacing(2),
+  letterSpacing: '0.5px',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+}));
 
-const ExtendedPanelSelector: React.FC = () => {
+const PanelContainer = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    '& .panel-image': {
+      transform: 'scale(1.02)',
+    },
+    '& .panel-title': {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+    '& .panel-button': {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+  },
+}));
+
+const PanelImage = styled('img')(({ theme }) => ({
+  width: '100%',
+  height: 'auto',
+  maxHeight: 280,
+  objectFit: 'contain',
+  transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+  marginBottom: theme.spacing(2),
+}));
+
+const PanelTitle = styled(Typography)(({ theme }) => ({
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontWeight: 400,
+  letterSpacing: '0.5px',
+  marginTop: theme.spacing(2),
+  opacity: 0.8,
+  transform: 'translateY(10px)',
+  transition: 'all 0.3s ease',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+}));
+
+const StyledPanel = styled(motion.div)({
+  width: '100%'
+});
+
+const containerVariants = {
+  hidden: { opacity: 1 },
+  visible: {
+    transition: {
+      staggerChildren: 0.35
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { 
+    opacity: 1,
+    y: 20
+  },
+  visible: { 
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: [0.4, 0, 0.2, 1]
+    }
+  }
+};
+
+const ExtendedPanelSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const [showPanels, setShowPanels] = useState(false);
 
-  const renderPanelSection = (title: string, panels: typeof horizontalPanels) => (
-    <Paper 
-      elevation={0}
-      sx={{ 
-        p: 4,
-        mb: 4,
-        borderRadius: 4,
-        background: 'linear-gradient(145deg, #ffffff 0%, #f5f5f5 100%)',
-        border: '1px solid rgba(27,146,209,0.1)',
-      }}
-    >
-      <Typography 
-        variant="h4" 
-        component="h2" 
-        align="center" 
-        gutterBottom
-        sx={{ 
-          mb: 4,
-          color: 'primary.main',
-          fontWeight: 600,
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: -8,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 60,
-            height: 3,
-            backgroundColor: 'primary.main',
-            borderRadius: 2,
-          }
-        }}
-      >
-        {title}
-      </Typography>
-      <Grid container spacing={4} justifyContent="center">
-        {panels.map((panel) => (
-          <Grid item xs={12} sm={6} md={4} key={panel.name}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Card 
-                sx={{ 
-                  width: panel.width,
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 12px 20px rgba(27,146,209,0.15)',
-                  },
-                  mb: 2,
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  background: 'white',
-                }}
-              >
-                <CardActionArea component={Link} to={panel.path}>
-                  <CardMedia
-                    component="img"
-                    image={panel.image}
-                    alt={panel.name}
-                    sx={{
-                      width: '100%',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      p: 2,
-                    }}
-                  />
-                </CardActionArea>
-              </Card>
-              <Typography 
-                variant="h6" 
-                component="div"
-                sx={{ 
-                  color: 'primary.main',
-                  fontWeight: 600,
-                  mt: 2,
-                  fontSize: '1.1rem',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                {panel.name}
-              </Typography>
-            </Box>
-          </Grid>
-        ))}
-      </Grid>
-    </Paper>
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowPanels(true);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const panelTypes = [
+    {
+      name: "Extended 1 Horizontal",
+      image: X1LS,
+      path: "/customizer/x1h",
+    },
+    {
+      name: "Extended 1 Vertical",
+      image: X1V,
+      path: "/customizer/x1v",
+    },
+    {
+      name: "Extended 2 Horizontal",
+      image: X2LS,
+      path: "/customizer/x2h",
+    },
+    {
+      name: "Extended 2 Vertical",
+      image: X2V,
+      path: "/customizer/x2v",
+    },
+  ];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 6, position: 'relative' }}>
-      <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
-        <CartButton />
-      </Box>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)',
+        py: 8,
+      }}
+    >
+      <Container maxWidth="lg">
+        <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
+          <CartButton />
+        </Box>
 
-      <Typography 
-        variant="h3" 
-        component="h1" 
-        align="center" 
-        gutterBottom
-        sx={{ 
-          mb: 6,
-          color: 'primary.main',
-          fontWeight: 600,
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: -12,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 80,
-            height: 4,
-            backgroundColor: 'primary.main',
-            borderRadius: 2,
-          }
-        }}
-      >
-        Select an Extended Panel
-      </Typography>
-
-      {renderPanelSection("Horizontal Panels", horizontalPanels)}
-      {renderPanelSection("Vertical Panels", verticalPanels)}
-
-      <Box sx={{ mt: 6, textAlign: 'center' }}>
-        <Button
-          variant="contained"
-          onClick={() => navigate("/")}
+        <Box
           sx={{
-            px: 6,
-            py: 1.5,
-            fontSize: '1.1rem',
-            borderRadius: 3,
-            background: 'linear-gradient(145deg, #1b92d1 0%, #1679b3 100%)',
-            boxShadow: '0 4px 12px rgba(27,146,209,0.2)',
-            '&:hover': {
-              background: 'linear-gradient(145deg, #1679b3 0%, #1b92d1 100%)',
-              boxShadow: '0 6px 16px rgba(27,146,209,0.3)',
-            },
+            position: 'absolute',
+            top: 20,
+            left: 30,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
           }}
         >
-          Back to Panel Selection
-        </Button>
-      </Box>
-    </Container>
+          <img 
+            src={logo} 
+            alt="Logo" 
+            style={{ 
+              height: '40px',
+              width: 'auto',
+            }} 
+          />
+          <Typography
+            variant="h6"
+            component="h1"
+            sx={{
+              color: 'rgba(255, 255, 255, 0.95)',
+              fontWeight: 400,
+              letterSpacing: '1px',
+              textTransform: 'capitalize',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            }}
+          >
+            Design your panels
+          </Typography>
+        </Box>
+
+        <ProgressContainer>
+          <ProgressText variant="h6">
+            1. Select your panel type
+          </ProgressText>
+          <LinearProgress 
+            variant="determinate" 
+            value={40} 
+            sx={{
+              height: 2,
+              borderRadius: 1,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 1,
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              },
+            }}
+          />
+        </ProgressContainer>
+
+        {showPanels && (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            style={{ width: '100%' }}
+          >
+            <Grid container spacing={4} justifyContent="center">
+              {panelTypes.map((panel) => (
+                <Grid 
+                  key={panel.name}
+                  item 
+                  xs={12} 
+                  sm={6} 
+                  md={4}
+                  component="div"
+                >
+                  <StyledPanel variants={itemVariants}>
+                    <PanelContainer
+                      onClick={() => navigate(panel.path)}
+                      sx={{
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        p: 3,
+                      }}
+                    >
+                      <PanelImage
+                        src={panel.image}
+                        alt={panel.name}
+                        className="panel-image"
+                      />
+                      <PanelTitle 
+                        variant="h5" 
+                        className="panel-title"
+                        sx={{
+                          textAlign: 'center',
+                          mb: 2,
+                        }}
+                      >
+                        {panel.name}
+                      </PanelTitle>
+                      <Button
+                        variant="text"
+                        size="large"
+                        className="panel-button"
+                        sx={{
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          textTransform: 'none',
+                          fontWeight: 400,
+                          letterSpacing: '0.5px',
+                          opacity: 0,
+                          transform: 'translateY(10px)',
+                          transition: 'all 0.3s ease',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                          '&:hover': {
+                            color: 'rgba(255, 255, 255, 1)',
+                            backgroundColor: 'transparent',
+                          },
+                        }}
+                      >
+                        Select
+                      </Button>
+                    </PanelContainer>
+                  </StyledPanel>
+                </Grid>
+              ))}
+            </Grid>
+          </motion.div>
+        )}
+      </Container>
+    </Box>
   );
 };
 

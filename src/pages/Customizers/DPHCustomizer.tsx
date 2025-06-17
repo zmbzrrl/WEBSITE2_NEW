@@ -1,22 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useCart } from "../contexts/CartContext";
+import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
-import CartButton from "../components/CartButton";
+import CartButton from "../../components/CartButton";
 import { useNavigate } from "react-router-dom";
-import { 
-  Button, 
-  TextField, 
-  Box, 
-  Typography, 
-  IconButton,
-  Paper,
-  Stack,
-  Container,
-  Grid
-} from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import logo2 from "../assets/logo2.png";
+import logo2 from "../../assets/logo2.png";
 
+// Define types
 interface IconOption {
   id: string;
   src: string;
@@ -57,10 +46,11 @@ interface Design {
   quantity: number;
 }
 
+// Component for each grid cell
 const GridCell: React.FC<GridCellProps> = ({ index, onClick, children }) => (
-  <Box
+  <div
     onClick={() => onClick(index)}
-    sx={{
+    style={{
       width: "30%",
       height: "100px",
       display: "inline-block",
@@ -70,44 +60,40 @@ const GridCell: React.FC<GridCellProps> = ({ index, onClick, children }) => (
       position: "relative",
       boxSizing: "border-box",
       verticalAlign: "top",
-      "&:hover": {
-        backgroundColor: "action.hover",
-        cursor: "pointer"
-      }
     }}
   >
     {children}
-  </Box>
+  </div>
 );
 
-const IDPG_RNCustomizer: React.FC = () => {
+const DPHCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
-
-  useEffect(() => {
-    import("../assets/iconLibrary").then((module) => {
-      setIcons(module.default);
-      setIconCategories(module.iconCategories);
-    });
-  }, []);
-
-  if (!cartContext) {
-    throw new Error("CartContext must be used within a CartProvider");
-  }
-
-  const { addToCart } = cartContext;
   const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
   const [placedIcons, setPlacedIcons] = useState<PlacedIcon[]>([]);
   const [iconTexts, setIconTexts] = useState<IconTexts>({});
   const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   useEffect(() => {
+    import("../../assets/iconLibrary").then((module) => {
+      setIcons(module.default);
+      setIconCategories(module.iconCategories);
+    });
+  }, []);
+
+  useEffect(() => {
     if (iconCategories.length > 0) {
       setSelectedCategory(iconCategories[0]);
     }
   }, [iconCategories]);
+
+  if (!cartContext) {
+    throw new Error("CartContext must be used within a CartProvider");
+  }
+
+  const { addToCart } = cartContext;
 
   const handlePlaceIcon = (cellIndex: number): void => {
     const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -154,7 +140,7 @@ const IDPG_RNCustomizer: React.FC = () => {
 
   const handleAddToCart = (): void => {
     const design: Design = {
-      type: "IDPG_RN",
+      type: "DPH",
       icons: Array.from({ length: 9 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -172,6 +158,7 @@ const IDPG_RNCustomizer: React.FC = () => {
     addToCart(design);
   };
 
+  // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
     .filter(([_, icon]) => icon.category === selectedCategory)
     .map(([id, icon]) => ({
@@ -188,8 +175,8 @@ const IDPG_RNCustomizer: React.FC = () => {
 
     return (
       <GridCell key={index} index={index} onClick={handlePlaceIcon}>
-        <Box
-          sx={{
+        <div
+          style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -210,43 +197,62 @@ const IDPG_RNCustomizer: React.FC = () => {
                   marginBottom: "5px",
                 }}
               />
-              <IconButton
-                size="small"
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteIcon(icon.id);
                 }}
-                sx={{
+                style={{
                   position: "absolute",
                   top: 0,
                   right: 0,
-                  color: "error.main",
-                  "&:hover": {
-                    backgroundColor: "error.light",
-                    color: "white"
-                  }
+                  background: "red",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "20px",
+                  height: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: "12px",
                 }}
               >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+                ×
+              </button>
             </>
           )}
           {text && !isPIR && (
-            <Typography variant="body2" sx={{ mt: 1, color: "text.primary" }}>
+            <div style={{ 
+              fontSize: "12px", 
+              marginTop: "5px",
+              color: "#000000",
+              wordBreak: "break-word",
+              maxWidth: "90%"
+            }}>
               {text}
-            </Typography>
+            </div>
           )}
           {!isPIR && (
-            <TextField
-              size="small"
+            <input
+              type="text"
               value={text || ""}
-              onChange={(e) => handleTextChange(e as React.ChangeEvent<HTMLInputElement>, index)}
+              onChange={(e) => handleTextChange(e, index)}
               onClick={(e) => e.stopPropagation()}
               placeholder="Enter text"
-              sx={{ width: "90%", mt: 1 }}
+              style={{
+                width: "90%",
+                padding: "4px",
+                fontSize: "12px",
+                textAlign: "center",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                marginTop: "5px",
+              }}
             />
           )}
-        </Box>
+        </div>
       </GridCell>
     );
   };
@@ -272,90 +278,118 @@ const IDPG_RNCustomizer: React.FC = () => {
         />
       </div>
       <CartButton />
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Customize your IDPG_RN Panel
-        </Typography>
 
-        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-          <Stack spacing={2}>
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "center" }}>
-              {iconCategories.map((category) => (
-                <Button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  variant={selectedCategory === category ? "contained" : "outlined"}
-                  color="primary"
-                  size="small"
-                >
-                  {category}
-                </Button>
-              ))}
-            </Box>
+      <h2>Customize your Double Panel Horizontal</h2>
 
-            <Box className="icon-list">
-              {categoryIcons.map((icon) => (
-                <Box
-                  key={icon.id}
-                  component="img"
-                  src={icon.src}
-                  alt={icon.label}
-                  onClick={() => handleIconClick(icon)}
-                  sx={{
-                    width: "40px",
-                    height: "40px",
-                    cursor: "pointer",
-                    border: selectedIcon?.id === icon.id ? "2px solid" : "none",
-                    borderColor: "primary.main",
-                    borderRadius: 1,
-                    p: 0.5,
-                    "&:hover": {
-                      backgroundColor: "action.hover"
-                    }
-                  }}
-                />
-              ))}
-            </Box>
-          </Stack>
-        </Paper>
+      <div style={{ marginBottom: "20px" }}>
+        <div style={{ display: "flex", gap: "10px", marginBottom: "10px", justifyContent: "center" }}>
+          {iconCategories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              style={{
+                padding: "8px 16px",
+                background: selectedCategory === category ? "#4CAF50" : "#e0e0e0",
+                color: selectedCategory === category ? "white" : "black",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
 
-        <Paper elevation={2} sx={{ p: 3, mb: 3, maxWidth: 400, mx: "auto" }}>
-          <Box sx={{ display: "flex", flexWrap: "wrap" }}>
-            {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
-          </Box>
-        </Paper>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+          {categoryIcons.map((icon) => (
+            <div
+              key={icon.id}
+              onClick={() => handleIconClick(icon)}
+              style={{
+                padding: "10px",
+                background: selectedIcon?.id === icon.id ? "#4CAF50" : "#e0e0e0",
+                borderRadius: "8px",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                width: "80px",
+              }}
+            >
+              <img
+                src={icon.src}
+                alt={icon.label}
+                style={{ width: "40px", height: "40px", objectFit: "contain" }}
+              />
+              <span style={{ fontSize: "12px", marginTop: "5px" }}>{icon.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-        <Stack direction="row" spacing={2} justifyContent="center">
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleAddToCart}
-            size="large"
-          >
-            Add to Cart
-          </Button>
+      <div
+        style={{
+          width: "350px",
+          background: "#f0f0f0",
+          padding: "10px",
+          border: "2px solid #ccc",
+          margin: "auto",
+        }}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
+        </div>
+      </div>
 
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => navigate("/subtypes/idpg")}
-            size="large"
-          >
-            Back to IDPG Panels
-          </Button>
+      <button
+        onClick={handleAddToCart}
+        style={{
+          marginTop: "20px",
+          padding: "10px 20px",
+          background: "#4CAF50",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        Add to Cart
+      </button>
 
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => navigate("/")}
-            size="large"
-          >
-            Back to Panel Selection
-          </Button>
-        </Stack>
-      </Container>
+      <button
+        onClick={() => navigate("/subtypes/double")}
+        style={{
+          marginTop: "20px",
+          marginLeft: "10px",
+          padding: "10px 20px",
+          background: "#666",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        Back to Double Panels
+      </button>
+
+      <button
+        onClick={() => navigate("/")}
+        style={{
+          marginTop: "20px",
+          marginLeft: "10px",
+          padding: "10px 20px",
+          background: "#666",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        Back to Panel Selection
+      </button>
     </div>
   );
 };
 
-export default IDPG_RNCustomizer; 
+export default DPHCustomizer; 

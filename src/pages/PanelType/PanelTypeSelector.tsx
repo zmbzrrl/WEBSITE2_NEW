@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -79,7 +79,7 @@ const StyledPanel = styled(motion.div)({
 });
 
 const containerVariants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
     transition: {
@@ -90,7 +90,7 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { 
-    opacity: 0,
+    opacity: 1,
     y: 20
   },
   visible: { 
@@ -106,6 +106,15 @@ const itemVariants = {
 const PanelTypeSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const [showPanels, setShowPanels] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowPanels(true);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const panelTypes = [
     {
@@ -139,7 +148,7 @@ const PanelTypeSelector = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1a1f2c 0%, #2c3e50 100%)',
+        background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)',
         py: 8,
       }}
     >
@@ -200,76 +209,78 @@ const PanelTypeSelector = () => {
           />
         </ProgressContainer>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          style={{ width: '100%' }}
-        >
-          <Grid container spacing={4} justifyContent="center">
-            {panelTypes.map((panel) => (
-              <Grid 
-                key={panel.name}
-                item 
-                xs={12} 
-                sm={6} 
-                md={4}
-                component="div"
-              >
-                <StyledPanel variants={itemVariants}>
-                  <PanelContainer
-                    onClick={() => navigate(panel.path)}
-                    sx={{
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      p: 3,
-                    }}
-                  >
-                    <PanelImage
-                      src={panel.image}
-                      alt={panel.name}
-                      className="panel-image"
-                    />
-                    <PanelTitle 
-                      variant="h5" 
-                      component="h2"
-                      className="panel-title"
+        {showPanels && (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            style={{ width: '100%' }}
+          >
+            <Grid container spacing={4} justifyContent="center">
+              {panelTypes.map((panel) => (
+                <Grid 
+                  key={panel.name}
+                  item 
+                  xs={12} 
+                  sm={6} 
+                  md={4}
+                  component="div"
+                >
+                  <StyledPanel variants={itemVariants}>
+                    <PanelContainer
+                      onClick={() => navigate(panel.path)}
                       sx={{
-                        textAlign: 'center',
-                        mb: 2,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        p: 3,
                       }}
                     >
-                      {panel.name}
-                    </PanelTitle>
-                    <Button
-                      variant="text"
-                      size="large"
-                      className="panel-button"
-                      sx={{
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        textTransform: 'none',
-                        fontWeight: 400,
-                        letterSpacing: '0.5px',
-                        opacity: 0,
-                        transform: 'translateY(10px)',
-                        transition: 'all 0.3s ease',
-                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                        '&:hover': {
-                          color: 'rgba(255, 255, 255, 1)',
-                          backgroundColor: 'transparent',
-                        },
-                      }}
-                    >
-                      Select Panel
-                    </Button>
-                  </PanelContainer>
-                </StyledPanel>
-              </Grid>
-            ))}
-          </Grid>
-        </motion.div>
+                      <PanelImage
+                        src={panel.image}
+                        alt={panel.name}
+                        className="panel-image"
+                      />
+                      <PanelTitle 
+                        variant="h5" 
+                        component="h2"
+                        className="panel-title"
+                        sx={{
+                          textAlign: 'center',
+                          mb: 2,
+                        }}
+                      >
+                        {panel.name}
+                      </PanelTitle>
+                      <Button
+                        variant="text"
+                        size="large"
+                        className="panel-button"
+                        sx={{
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          textTransform: 'none',
+                          fontWeight: 400,
+                          letterSpacing: '0.5px',
+                          opacity: 0,
+                          transform: 'translateY(10px)',
+                          transition: 'all 0.3s ease',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                          '&:hover': {
+                            color: 'rgba(255, 255, 255, 1)',
+                            backgroundColor: 'transparent',
+                          },
+                        }}
+                      >
+                        Select Panel
+                      </Button>
+                    </PanelContainer>
+                  </StyledPanel>
+                </Grid>
+              ))}
+            </Grid>
+          </motion.div>
+        )}
       </Container>
     </Box>
   );

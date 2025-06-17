@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useCart } from "../contexts/CartContext";
+import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
-import CartButton from "../components/CartButton";
+import CartButton from "../../components/CartButton";
 import { useNavigate } from "react-router-dom";
-import { Icon } from "../types/Icon";
-import logo2 from "../assets/logo2.png";
+import logo2 from "../../assets/logo2.png";
 
-// Define types
 interface IconOption {
   id: string;
   src: string;
@@ -20,7 +18,6 @@ interface PlacedIcon {
   src: string;
   label: string;
   position: number;
-  category: string;
 }
 
 interface GridCellProps {
@@ -47,42 +44,47 @@ interface Design {
   quantity: number;
 }
 
-// Component for each grid cell
 const GridCell: React.FC<GridCellProps> = ({ index, onClick, children }) => (
-    <div
-      onClick={() => onClick(index)}
-      style={{
+  <div
+    onClick={() => onClick(index)}
+    style={{
       width: "30%",
-        height: "100px",
+      height: "100px",
       display: "inline-block",
       textAlign: "center",
       background: "transparent",
       margin: "5px",
-        position: "relative",
+      position: "relative",
       boxSizing: "border-box",
       verticalAlign: "top",
-      }}
-    >
-      {children}
-    </div>
-  );
+    }}
+  >
+    {children}
+  </div>
+);
 
-const X2VCustomizer: React.FC = () => {
+const TAGCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
-  const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
-  const [placedIcons, setPlacedIcons] = useState<PlacedIcon[]>([]);
-  const [iconTexts, setIconTexts] = useState<IconTexts>({});
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   useEffect(() => {
-    import("../assets/iconLibrary").then((module) => {
+    import("../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
       setIconCategories(module.iconCategories);
     });
   }, []);
+
+  if (!cartContext) {
+    throw new Error("CartContext must be used within a CartProvider");
+  }
+
+  const { addToCart } = cartContext;
+  const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
+  const [placedIcons, setPlacedIcons] = useState<PlacedIcon[]>([]);
+  const [iconTexts, setIconTexts] = useState<IconTexts>({});
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -90,25 +92,9 @@ const X2VCustomizer: React.FC = () => {
     }
   }, [iconCategories]);
 
-  if (!cartContext) {
-    throw new Error("CartContext must be used within a CartProvider");
-  }
-
-  const { addToCart } = cartContext;
-
   const handlePlaceIcon = (cellIndex: number): void => {
     const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
     if (isOccupied || selectedIcon === null) return;
-
-    // Check if trying to place PIR icon
-    if (selectedIcon.category === "PIR") {
-      // Only allow placement in middle cell (4) or bottom middle cell (7)
-      if (cellIndex !== 4 && cellIndex !== 7) return;
-      
-      // Check if PIR icon is already placed
-      const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
-      if (hasPIR) return;
-    }
 
     const iconPosition: PlacedIcon = {
       id: Date.now(),
@@ -116,7 +102,6 @@ const X2VCustomizer: React.FC = () => {
       src: selectedIcon.src,
       label: selectedIcon.label,
       position: cellIndex,
-      category: selectedIcon.category
     };
 
     setPlacedIcons((prev) => [...prev, iconPosition]);
@@ -141,7 +126,7 @@ const X2VCustomizer: React.FC = () => {
 
   const handleAddToCart = (): void => {
     const design: Design = {
-      type: "X2V",
+      type: "TAG",
       icons: Array.from({ length: 9 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -224,7 +209,7 @@ const X2VCustomizer: React.FC = () => {
               </button>
             </>
           )}
-          {text && !isPIR && (
+          {text && (
             <div style={{ 
               fontSize: "12px", 
               marginTop: "5px",
@@ -235,24 +220,22 @@ const X2VCustomizer: React.FC = () => {
               {text}
             </div>
           )}
-          {!isPIR && (
-            <input
-              type="text"
-              value={text || ""}
-              onChange={(e) => handleTextChange(e, index)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Enter text"
-              style={{
-                width: "90%",
-                padding: "4px",
-                fontSize: "12px",
-                textAlign: "center",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                marginTop: "5px",
-              }}
-            />
-          )}
+          <input
+            type="text"
+            value={text || ""}
+            onChange={(e) => handleTextChange(e, index)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Enter text"
+            style={{
+              width: "90%",
+              padding: "4px",
+              fontSize: "12px",
+              textAlign: "center",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              marginTop: "5px",
+            }}
+          />
         </div>
       </GridCell>
     );
@@ -280,7 +263,7 @@ const X2VCustomizer: React.FC = () => {
       </div>
       <CartButton />
 
-      <h2>Customize your Extended Panel Vertical</h2>
+      <h2>Customize your TAG Panel</h2>
 
       <div style={{ marginBottom: "20px" }}>
         <div style={{ display: "flex", gap: "10px", marginBottom: "10px", justifyContent: "center" }}>
@@ -343,54 +326,40 @@ const X2VCustomizer: React.FC = () => {
         </div>
       </div>
 
-      <button
-        onClick={handleAddToCart}
-        style={{
-          marginTop: "20px",
-          padding: "10px 20px",
-          background: "#4CAF50",
-          color: "white",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-        }}
-      >
-        Add to Cart
-      </button>
+      <div style={{ marginTop: 20, display: "flex", gap: "10px", justifyContent: "center" }}>
+        <button
+          onClick={handleAddToCart}
+          style={{
+            marginTop: "20px",
+            padding: "10px 20px",
+            background: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Add to Cart
+        </button>
 
-      <button
-        onClick={() => navigate("/subtypes/extended")}
-        style={{
-          marginTop: "20px",
-          marginLeft: "10px",
-          padding: "10px 20px",
-          background: "#666",
-          color: "white",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-        }}
-      >
-        Back to Extended Panels
-      </button>
-
-      <button
-        onClick={() => navigate("/")}
-        style={{
-          marginTop: "20px",
-          marginLeft: "10px",
-          padding: "10px 20px",
-          background: "#666",
-          color: "white",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-        }}
-      >
-        Back to Panel Selection
-      </button>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            marginTop: "20px",
+            marginLeft: "10px",
+            padding: "10px 20px",
+            background: "#666",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Back to Panel Selection
+        </button>
+      </div>
     </div>
   );
 };
 
-export default X2VCustomizer; 
+export default TAGCustomizer; 

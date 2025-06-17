@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { GridCell } from "../components/GridCell";
-import { Icon } from "../types/Icon";
-import { useCart } from "../contexts/CartContext";
+import { GridCell } from "../../components/GridCell";
+import { Icon } from "../../types/Icon";
+import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
-import CartButton from "../components/CartButton";
+import CartButton from "../../components/CartButton";
 import { useNavigate } from "react-router-dom";
-import logo2 from "../assets/logo2.png";
+import logo2 from "../../assets/logo2.png";
 
 interface PlacedIcon extends Icon {
   id: string;

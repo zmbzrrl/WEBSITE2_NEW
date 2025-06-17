@@ -10,11 +10,11 @@ import {
   TextField,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import CartButton from "../components/CartButton";
-import { useCart } from "../contexts/CartContext";
-import { Icon } from "../types/Icon";
-import { icons } from "../data/icons";
-import logo2 from "../assets/logo2.png";
+import CartButton from "../../components/CartButton";
+import { useCart } from "../../contexts/CartContext";
+import { Icon } from "../../types/Icon";
+import { icons } from "../../data/icons";
+import logo2 from "../../assets/logo2.png";
 import "./Customizer.css";
 
 interface PlacedIcon {

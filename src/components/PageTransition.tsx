@@ -9,27 +9,23 @@ const TransitionWrapper = styled('div')({
   position: 'relative',
   width: '100%',
   height: '100%',
-  animation: 'fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-  '@keyframes fadeIn': {
+  animation: 'slideIn 1.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+  '@keyframes slideIn': {
     '0%': {
-      opacity: 0,
-      transform: 'scale(0.98) translateY(10px)'
+      transform: 'translateY(50vh)'
     },
     '100%': {
-      opacity: 1,
-      transform: 'scale(1) translateY(0)'
+      transform: 'translateY(0)'
     }
   },
   '&.exiting': {
-    animation: 'fadeOut 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-    '@keyframes fadeOut': {
+    animation: 'slideOut 1.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+    '@keyframes slideOut': {
       '0%': {
-        opacity: 1,
-        transform: 'scale(1) translateY(0)'
+        transform: 'translateY(0)'
       },
       '100%': {
-        opacity: 0,
-        transform: 'scale(0.98) translateY(-10px)'
+        transform: 'translateY(-50vh)'
       }
     }
   }
