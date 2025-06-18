@@ -23,6 +23,14 @@ const ProgressContainer = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(6),
 }));
 
+const ProgressText = styled(Typography)(({ theme }) => ({
+  color: '#1a1f2c',
+  fontWeight: 400,
+  marginBottom: theme.spacing(2),
+  letterSpacing: '0.5px',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+}));
+
 const ProgressSteps = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'space-between',
@@ -105,7 +113,7 @@ interface PlacedIcon {
 
 interface GridCellProps {
   index: number;
-  onClick: (index: number) => void;
+  onDrop: (index: number, iconId: string) => void;
   children: React.ReactNode;
 }
 
@@ -128,24 +136,38 @@ interface Design {
 }
 
 // Component for each grid cell
-const GridCell: React.FC<GridCellProps> = ({ index, onClick, children }) => (
-  <div
-    onClick={() => onClick(index)}
-    style={{
-      width: "30%",
-      height: "100px",
-      display: "inline-block",
-      textAlign: "center",
-      background: "transparent",
-      margin: "5px",
-      position: "relative",
-      boxSizing: "border-box",
-      verticalAlign: "top",
-    }}
-  >
-    {children}
-  </div>
-);
+const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const iconId = e.dataTransfer.getData('text/plain');
+    onDrop(index, iconId);
+  };
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      style={{
+        width: "30%",
+        height: "100px",
+        display: "inline-block",
+        textAlign: "center",
+        background: "transparent",
+        margin: "5px",
+        position: "relative",
+        boxSizing: "border-box",
+        verticalAlign: "top",
+        cursor: "copy",
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 const SPCustomizer: React.FC = () => {
   const cartContext = useCart();
@@ -169,6 +191,8 @@ const SPCustomizer: React.FC = () => {
   const [placedIcons, setPlacedIcons] = useState<PlacedIcon[]>([]);
   const [iconTexts, setIconTexts] = useState<IconTexts>({});
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [hoveredCell, setHoveredCell] = useState<number | null>(null);
+  const [editingCell, setEditingCell] = useState<number | null>(null);
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -249,33 +273,151 @@ const SPCustomizer: React.FC = () => {
       category: icon.category
     }));
 
+  const handleDragStart = (e: React.DragEvent, icon: IconOption | PlacedIcon) => {
+    if ('position' in icon) {
+      // This is a placed icon
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        type: 'placed',
+        id: icon.id,
+        position: icon.position
+      }));
+    } else {
+      // This is a new icon from the selection
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        type: 'new',
+        id: icon.id
+      }));
+    }
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDrop = (cellIndex: number, data: string) => {
+    try {
+      const dragData = JSON.parse(data);
+      
+      if (dragData.type === 'new') {
+        // Handle new icon placement
+        const icon = categoryIcons.find(i => i.id === dragData.id);
+        if (!icon) return;
+
+        // Check if trying to place PIR icon
+        if (icon.category === "PIR") {
+          if (cellIndex !== 4 && cellIndex !== 7) return;
+          const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
+          if (hasPIR) return;
+        }
+
+        const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
+        if (isOccupied) return;
+
+        const iconPosition: PlacedIcon = {
+          id: Date.now(),
+          iconId: icon.id,
+          src: icon.src,
+          label: icon.label,
+          position: cellIndex,
+          category: icon.category
+        };
+
+        setPlacedIcons((prev) => [...prev, iconPosition]);
+      } else if (dragData.type === 'placed') {
+        // Handle swapping placed icons
+        const sourceIcon = placedIcons.find(i => i.id === dragData.id);
+        const targetIcon = placedIcons.find(i => i.position === cellIndex);
+        
+        if (!sourceIcon) return;
+
+        // Check PIR restrictions
+        if (sourceIcon.category === "PIR") {
+          if (cellIndex !== 4 && cellIndex !== 7) return;
+        }
+        if (targetIcon?.category === "PIR") {
+          if (dragData.position !== 4 && dragData.position !== 7) return;
+        }
+
+        // Swap icon positions
+        setPlacedIcons(prev => prev.map(icon => {
+          if (icon.id === sourceIcon.id) {
+            return { ...icon, position: cellIndex };
+          }
+          if (icon.position === cellIndex) {
+            return { ...icon, position: dragData.position };
+          }
+          return icon;
+        }));
+
+        // Swap text between positions
+        setIconTexts(prev => {
+          const newTexts = { ...prev };
+          const sourceText = prev[dragData.position];
+          const targetText = prev[cellIndex];
+          
+          if (sourceText !== undefined) {
+            newTexts[cellIndex] = sourceText;
+          } else {
+            delete newTexts[cellIndex];
+          }
+          
+          if (targetText !== undefined) {
+            newTexts[dragData.position] = targetText;
+          } else {
+            delete newTexts[dragData.position];
+          }
+          
+          return newTexts;
+        });
+      }
+    } catch (error) {
+      console.error('Error handling drop:', error);
+    }
+  };
+
+  const handleTextClick = (index: number) => {
+    setEditingCell(index);
+  };
+
+  const handleTextBlur = () => {
+    setEditingCell(null);
+  };
+
   const renderGridCell = (index: number) => {
     const icon = placedIcons.find((i) => i.position === index);
     const text = iconTexts[index];
     const isPIR = icon?.category === "PIR";
+    const isEditing = editingCell === index;
+    const isHovered = hoveredCell === index;
 
     return (
-      <GridCell key={index} index={index} onClick={handlePlaceIcon}>
+      <GridCell key={index} index={index} onDrop={handleDrop}>
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-start",
             position: "relative",
             height: "100%",
+            paddingTop: "10px",
           }}
+          onMouseEnter={() => setHoveredCell(index)}
+          onMouseLeave={() => setHoveredCell(null)}
         >
           {icon && (
             <>
               <img
                 src={icon.src}
                 alt={icon.label}
+                draggable
+                onDragStart={(e) => handleDragStart(e, icon)}
                 style={{
-                  width: "40px",
-                  height: "40px",
+                  width: isPIR ? "40px" : "60px",
+                  height: isPIR ? "40px" : "60px",
                   objectFit: "contain",
                   marginBottom: "5px",
+                  position: "relative",
+                  zIndex: 1,
+                  marginTop: isPIR ? "20px" : "0",
+                  cursor: "move",
                 }}
               />
               <button
@@ -291,48 +433,74 @@ const SPCustomizer: React.FC = () => {
                   color: "white",
                   border: "none",
                   borderRadius: "50%",
-                  width: "20px",
-                  height: "20px",
+                  width: "16px",
+                  height: "16px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  fontSize: "12px",
+                  fontSize: "10px",
+                  padding: 0,
+                  lineHeight: 1,
+                  transform: "translate(50%, -50%)",
+                  zIndex: 2,
                 }}
               >
                 ×
               </button>
             </>
           )}
-          {text && !isPIR && (
-            <div style={{ 
-              fontSize: "12px", 
-              marginTop: "5px",
-              color: "#000000",
-              wordBreak: "break-word",
-              maxWidth: "90%"
-            }}>
-              {text}
-            </div>
-          )}
-          {!isPIR && (
-            <input
-              type="text"
-              value={text || ""}
-              onChange={(e) => handleTextChange(e, index)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Enter text"
-              style={{
-                width: "90%",
-                padding: "4px",
-                fontSize: "12px",
-                textAlign: "center",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                marginTop: "5px",
-              }}
-            />
-          )}
+          <div style={{ 
+            position: "absolute",
+            bottom: icon ? "5px" : "25px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "90%",
+            zIndex: 0,
+          }}>
+            {!isPIR && (
+              <>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={text || ""}
+                    onChange={(e) => handleTextChange(e, index)}
+                    onBlur={handleTextBlur}
+                    autoFocus
+                    style={{
+                      width: "100%",
+                      padding: "4px",
+                      fontSize: "12px",
+                      textAlign: "center",
+                      border: "1px solid #1a1f2c",
+                      borderRadius: "4px",
+                      outline: "none",
+                      boxShadow: "0 0 0 2px rgba(26, 31, 44, 0.1)",
+                      transition: "all 0.2s ease",
+                    }}
+                  />
+                ) : (
+                  <div 
+                    onClick={() => handleTextClick(index)}
+                    style={{ 
+                      fontSize: "12px", 
+                      color: text ? "#000000" : "#999999",
+                      wordBreak: "break-word",
+                      maxWidth: "100%",
+                      textAlign: "center",
+                      padding: "4px",
+                      cursor: "pointer",
+                      borderRadius: "4px",
+                      backgroundColor: isHovered ? "rgba(26, 31, 44, 0.05)" : "transparent",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {text || "Add text"}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </GridCell>
     );
@@ -384,21 +552,19 @@ const SPCustomizer: React.FC = () => {
           </Typography>
         </Box>
 
-        <ProgressContainer>
-          <ProgressSteps>
-            <ProgressStep>
-              <StepNumber completed>1</StepNumber>
-              <StepLabel completed>Select Panel Type</StepLabel>
-            </ProgressStep>
-            <ProgressStep>
-              <StepNumber current>2</StepNumber>
-              <StepLabel current>Customize Panel</StepLabel>
-            </ProgressStep>
-            <ProgressStep>
-              <StepNumber>3</StepNumber>
-              <StepLabel>Review & Add to Cart</StepLabel>
-            </ProgressStep>
-          </ProgressSteps>
+        <Box sx={{ mt: 8, mb: 4 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              color: '#1a1f2c',
+              fontWeight: 400,
+              mb: 2,
+              letterSpacing: '0.5px',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            }}
+          >
+            2. Customize your panel
+          </Typography>
           <LinearProgress 
             variant="determinate" 
             value={40} 
@@ -412,7 +578,7 @@ const SPCustomizer: React.FC = () => {
               },
             }}
           />
-        </ProgressContainer>
+        </Box>
 
         <Box sx={{ mt: 4 }}>
           <Typography
@@ -470,28 +636,28 @@ const SPCustomizer: React.FC = () => {
               {categoryIcons.map((icon) => (
                 <div
                   key={icon.id}
-                  onClick={() => handleIconClick(icon)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, icon)}
                   style={{
-                    padding: "4px",
+                    padding: "12px",
                     background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
                     borderRadius: "6px",
-                    cursor: "pointer",
+                    cursor: "grab",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
-                    width: "24px",
+                    width: "60px",
                     border: "1px solid #e0e0e0",
                     transition: "all 0.3s ease",
-                    '&:hover': {
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+                    "&:active": {
+                      cursor: "grabbing",
                     }
                   }}
                 >
                   <img
                     src={icon.src}
                     alt={icon.label}
-                    style={{ width: "10px", height: "10px", objectFit: "contain" }}
+                    style={{ width: "32px", height: "32px", objectFit: "contain" }}
                   />
                   <span style={{ 
                     fontSize: "14px", 
