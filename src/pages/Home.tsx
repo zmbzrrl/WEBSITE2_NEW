@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
   Button,
   styled,
+  TextField,
+  Paper,
 } from '@mui/material';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import logo from '../assets/logo2.png';
 import tagPir from '../assets/panels/TAG_PIR.png';
@@ -37,7 +40,9 @@ const ContentWrapper = styled(Box)({
   flexDirection: 'column',
   alignItems: 'center',
   gap: '2rem',
-  fontFamily: 'sans-serif'
+  fontFamily: 'sans-serif',
+  width: '100%',
+  maxWidth: '720px'
 });
 
 const Logo = styled('img')({
@@ -175,11 +180,71 @@ const FloatingImage = styled('img')({
   }
 });
 
+const ProjectPrompt = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(4),
+  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  borderRadius: '12px',
+  maxWidth: '600px',
+  width: '90%',
+  animation: 'fadeIn 0.5s ease-out',
+  '@keyframes fadeIn': {
+    '0%': {
+      opacity: 0,
+      transform: 'translateY(20px)'
+    },
+    '100%': {
+      opacity: 1,
+      transform: 'translateY(0)'
+    }
+  }
+}));
+
+const PromptForm = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '1.5rem',
+  marginTop: '1rem'
+});
+
+const FormRow = styled(Box)({
+  display: 'flex',
+  gap: '1.5rem',
+  '& > *': {
+    flex: 1
+  }
+});
+
+const FullWidthField = styled(TextField)({
+  width: '100%'
+});
+
 const Home = () => {
   const navigate = useNavigate();
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [projectDetails, setProjectDetails] = useState({
+    projectName: '',
+    location: '',
+    projectCode: '',
+    salesManager: '',
+    operator: '',
+    servicePartner: '',
+    email: ''
+  });
 
   const handleClick = () => {
-    navigate('/panel-type');
+    setShowPrompt(true);
+  };
+
+  const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProjectDetails(prev => ({
+      ...prev,
+      [field]: e.target.value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    navigate('/panel-type', { state: { projectDetails } });
   };
 
   return (
@@ -241,39 +306,134 @@ const Home = () => {
         }} 
       />
       <ContentWrapper>
-        <Logo src={logo} alt="Interel Logo" />
-        <AnimatedBox>
-          <Typography 
-            variant="h3" 
-            sx={{ 
-              fontWeight: 400,
-              fontFamily: 'sans-serif',
-              letterSpacing: '-0.04em',
-              fontSize: '2.5rem',
-              lineHeight: 1.05,
-              marginBottom: 0
-            }}
-          >
-            Design Your Panels
-          </Typography>
-        </AnimatedBox>
-        <ButtonContainer>
-          <StyledButton
-            variant="contained"
-            color="primary"
-            onClick={handleClick}
-            sx={{
-              fontFamily: 'sans-serif',
-              letterSpacing: '-0.02em',
-              fontWeight: 600,
-              fontSize: '1.4rem',
-              padding: '0.6rem 0'
-            }}
-          >
-            Start Customizing
-            <DownArrow sx={{ fontSize: '1.4rem' }} />
-          </StyledButton>
-        </ButtonContainer>
+        {!showPrompt ? (
+          <>
+            <Logo src={logo} alt="Interel Logo" />
+            <AnimatedBox>
+              <Typography 
+                variant="h3" 
+                sx={{ 
+                  fontWeight: 400,
+                  fontFamily: 'sans-serif',
+                  letterSpacing: '-0.04em',
+                  fontSize: '2.5rem',
+                  lineHeight: 1.05,
+                  marginBottom: 0
+                }}
+              >
+                Design Your Panels
+              </Typography>
+            </AnimatedBox>
+            <ButtonContainer>
+              <StyledButton
+                variant="contained"
+                color="primary"
+                onClick={handleClick}
+                sx={{
+                  fontFamily: 'sans-serif',
+                  letterSpacing: '-0.02em',
+                  fontWeight: 600,
+                  fontSize: '1.4rem',
+                  padding: '0.6rem 0'
+                }}
+              >
+                Get Started
+                <RocketLaunchIcon sx={{ 
+                  fontSize: '1.4rem',
+                  ml: 1
+                }} />
+              </StyledButton>
+            </ButtonContainer>
+          </>
+        ) : (
+          <ProjectPrompt>
+            <Typography variant="h4" sx={{ color: '#2c3e50', fontWeight: 500, mb: 3 }}>
+              Project Details
+            </Typography>
+            <form onSubmit={handleSubmit}>
+              <PromptForm>
+                <FullWidthField
+                  label="Project Name"
+                  variant="outlined"
+                  value={projectDetails.projectName}
+                  onChange={handleChange('projectName')}
+                  required
+                />
+                <FormRow>
+                  <TextField
+                    fullWidth
+                    label="Location"
+                    variant="outlined"
+                    value={projectDetails.location}
+                    onChange={handleChange('location')}
+                    required
+                  />
+                  <TextField
+                    fullWidth
+                    label="Project Code"
+                    variant="outlined"
+                    value={projectDetails.projectCode}
+                    onChange={handleChange('projectCode')}
+                    required
+                  />
+                </FormRow>
+                <FormRow>
+                  <TextField
+                    fullWidth
+                    label="INTEREL Sales Manager"
+                    variant="outlined"
+                    value={projectDetails.salesManager}
+                    onChange={handleChange('salesManager')}
+                    required
+                  />
+                  <TextField
+                    fullWidth
+                    label="Operator/End Client"
+                    variant="outlined"
+                    value={projectDetails.operator}
+                    onChange={handleChange('operator')}
+                    required
+                  />
+                </FormRow>
+                <FormRow>
+                  <TextField
+                    fullWidth
+                    label="Service Partner"
+                    variant="outlined"
+                    value={projectDetails.servicePartner}
+                    onChange={handleChange('servicePartner')}
+                    required
+                  />
+                  <TextField
+                    fullWidth
+                    label="Your Email"
+                    variant="outlined"
+                    type="email"
+                    value={projectDetails.email}
+                    onChange={handleChange('email')}
+                    required
+                  />
+                </FormRow>
+                <StyledButton
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  sx={{
+                    fontFamily: 'sans-serif',
+                    letterSpacing: '-0.02em',
+                    fontWeight: 600,
+                    fontSize: '1.4rem',
+                    padding: '0.6rem 0',
+                    mt: 2
+                  }}
+                >
+                  Start Customizing
+                  <DownArrow sx={{ fontSize: '1.4rem' }} />
+                </StyledButton>
+              </PromptForm>
+            </form>
+          </ProjectPrompt>
+        )}
       </ContentWrapper>
     </HomeContainer>
   );

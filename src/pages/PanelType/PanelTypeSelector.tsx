@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -16,7 +16,7 @@ import DP from "../../assets/panels/DP.jpg";
 import X2H from "../../assets/panels/X2RS.png";
 import IDPG from "../../assets/panels/IDPG_RN.png";
 import TAG from "../../assets/panels/TAG_PIR.png";
-import logo from "../../assets/logo.png";
+import logo from "../../assets/logo2.png";
 import CartButton from "../../components/CartButton";
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -83,21 +83,24 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.35
+      staggerChildren: 0.5,
+      delayChildren: 0.2
     }
   }
 };
 
 const itemVariants = {
   hidden: { 
-    opacity: 1,
-    y: 20
+    opacity: 0,
+    y: 30,
+    scale: 0.95
   },
   visible: { 
     opacity: 1,
     y: 0,
+    scale: 1,
     transition: {
-      duration: 0.5,
+      duration: 0.8,
       ease: [0.4, 0, 0.2, 1]
     }
   }
@@ -106,15 +109,7 @@ const itemVariants = {
 const PanelTypeSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const [showPanels, setShowPanels] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowPanels(true);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
+  const [showPanels] = useState(true);
 
   const panelTypes = [
     {
@@ -173,6 +168,7 @@ const PanelTypeSelector = () => {
             style={{ 
               height: '40px',
               width: 'auto',
+              filter: 'brightness(0) invert(0.3)'
             }} 
           />
           <Typography
@@ -244,7 +240,6 @@ const PanelTypeSelector = () => {
                       />
                       <PanelTitle 
                         variant="h5" 
-                        component="h2"
                         className="panel-title"
                         sx={{
                           textAlign: 'center',
