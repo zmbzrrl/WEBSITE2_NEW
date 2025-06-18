@@ -229,7 +229,7 @@ const ProjectPrompt = styled(Paper)<{ showPrompt?: boolean }>(({ theme, showProm
   maxWidth: '700px',
   width: '90%',
   boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
-  animation: showPrompt ? 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both' : 'none',
+  animation: showPrompt ? 'slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both' : 'none',
   '@keyframes slideUp': {
     '0%': {
       opacity: 0,
@@ -360,6 +360,13 @@ const Home = () => {
     setShowSalesManager(!showSalesManager);
   };
 
+  const handleGetStarted = () => {
+    setShowPrompt(true);
+    setTimeout(() => {
+      setShowPrompt(false);
+    }, 800);
+  };
+
   return (
     <HomeContainer>
       <FloatingImage 
@@ -473,12 +480,12 @@ const Home = () => {
               <PromptForm>
                 <FormRow>
                   <StyledTextField
-                    label="Project Name"
-                    variant="outlined"
-                    value={projectDetails.projectName}
-                    onChange={handleChange('projectName')}
-                    required
-                  />
+                  label="Project Name"
+                  variant="outlined"
+                  value={projectDetails.projectName}
+                  onChange={handleChange('projectName')}
+                  required
+                />
                   <StyledTextField
                     label="Location"
                     variant="outlined"
@@ -491,11 +498,11 @@ const Home = () => {
                   {!showSalesManager ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <StyledTextField
-                        label="Project Code"
-                        variant="outlined"
-                        value={projectDetails.projectCode}
-                        onChange={handleChange('projectCode')}
-                        required
+                    label="Project Code"
+                    variant="outlined"
+                    value={projectDetails.projectCode}
+                    onChange={handleChange('projectCode')}
+                    required
                       />
                       <HelpText onClick={handleHelpClick}>
                         Don't know the project code?
@@ -504,11 +511,11 @@ const Home = () => {
                   ) : (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <StyledTextField
-                        label="INTEREL Sales Manager"
-                        variant="outlined"
-                        value={projectDetails.salesManager}
-                        onChange={handleChange('salesManager')}
-                        required
+                    label="INTEREL Sales Manager"
+                    variant="outlined"
+                    value={projectDetails.salesManager}
+                    onChange={handleChange('salesManager')}
+                    required
                       />
                       <HelpText onClick={handleHelpClick}>
                         I have the project code
