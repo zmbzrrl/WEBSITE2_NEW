@@ -45,11 +45,11 @@ const ContentWrapper = styled(Box)({
   maxWidth: '720px'
 });
 
-const Logo = styled('img')({
+const Logo = styled('img')<{ showPrompt?: boolean }>(({ showPrompt }) => ({
   width: '400px',
   marginBottom: '2rem',
   marginTop: '-1rem',
-  animation: 'fadeIn 1.2s ease-out',
+  animation: showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out',
   position: 'relative',
   zIndex: 2,
   filter: 'brightness(0) invert(1)',
@@ -62,15 +62,25 @@ const Logo = styled('img')({
       opacity: 1,
       transform: 'translateY(0)'
     }
+  },
+  '@keyframes fadeOut': {
+    '0%': {
+      opacity: 1,
+      transform: 'translateY(0)'
+    },
+    '100%': {
+      opacity: 0,
+      transform: 'translateY(-20px)'
+    }
   }
-});
+}));
 
-const AnimatedBox = styled(Box)(({ theme }) => ({
+const AnimatedBox = styled(Box)<{ showPrompt?: boolean }>(({ theme, showPrompt }) => ({
   color: 'white',
   marginBottom: theme.spacing(3),
   marginTop: '-2rem',
   textAlign: 'center',
-  animation: 'fadeIn 1.2s ease-out 0.2s both',
+  animation: showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.2s both',
   position: 'relative',
   zIndex: 2,
   fontFamily: 'sans-serif',
@@ -83,10 +93,20 @@ const AnimatedBox = styled(Box)(({ theme }) => ({
       opacity: 1,
       transform: 'translateY(0)'
     }
+  },
+  '@keyframes fadeOut': {
+    '0%': {
+      opacity: 1,
+      transform: 'translateY(0)'
+    },
+    '100%': {
+      opacity: 0,
+      transform: 'translateY(-20px)'
+    }
   }
 }));
 
-const ButtonContainer = styled(Box)({
+const ButtonContainer = styled(Box)<{ showPrompt?: boolean }>(({ showPrompt }) => ({
   display: 'flex',
   flexDirection: 'column',
   gap: '1rem',
@@ -95,8 +115,29 @@ const ButtonContainer = styled(Box)({
   marginTop: '-0.5rem',
   position: 'relative',
   zIndex: 2,
-  fontFamily: 'sans-serif'
-});
+  fontFamily: 'sans-serif',
+  animation: showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.4s both',
+  '@keyframes fadeIn': {
+    '0%': {
+      opacity: 0,
+      transform: 'translateY(20px)'
+    },
+    '100%': {
+      opacity: 1,
+      transform: 'translateY(0)'
+    }
+  },
+  '@keyframes fadeOut': {
+    '0%': {
+      opacity: 1,
+      transform: 'translateY(0)'
+    },
+    '100%': {
+      opacity: 0,
+      transform: 'translateY(20px)'
+    }
+  }
+}));
 
 const StyledButton = styled(Button)(({ theme }) => ({
   width: '100%',
@@ -134,12 +175,13 @@ const DownArrow = styled(ArrowDownwardIcon)({
   }
 });
 
-const FloatingImage = styled('img')({
+const FloatingImage = styled('img')<{ showPrompt?: boolean }>(({ showPrompt }) => ({
   position: 'absolute',
-  width: '200px',
-  opacity: 1,
+  width: showPrompt ? '300px' : '200px',
+  opacity: showPrompt ? 0.3 : 1,
   filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',
-  animation: 'float 6s ease-in-out infinite',
+  animation: 'float 8s ease-in-out infinite',
+  transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   '&::before': {
     content: '""',
     position: 'absolute',
@@ -150,7 +192,7 @@ const FloatingImage = styled('img')({
     height: '30px',
     background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%)',
     borderRadius: '50%',
-    animation: 'shadowFloat 6s ease-in-out infinite',
+    animation: 'shadowFloat 8s ease-in-out infinite',
     zIndex: -1
   },
   '@keyframes float': {
@@ -158,7 +200,7 @@ const FloatingImage = styled('img')({
       transform: 'translateY(0px) rotate(0deg)',
     },
     '50%': {
-      transform: 'translateY(-20px) rotate(5deg)',
+      transform: 'translateY(-15px) rotate(3deg)',
     },
     '100%': {
       transform: 'translateY(0px) rotate(0deg)',
@@ -170,7 +212,7 @@ const FloatingImage = styled('img')({
       opacity: 0.4,
     },
     '50%': {
-      transform: 'translateX(-50%) scale(0.7)',
+      transform: 'translateX(-50%) scale(0.8)',
       opacity: 0.2,
     },
     '100%': {
@@ -178,16 +220,17 @@ const FloatingImage = styled('img')({
       opacity: 0.4,
     }
   }
-});
+}));
 
-const ProjectPrompt = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(4),
-  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-  borderRadius: '12px',
-  maxWidth: '600px',
+const ProjectPrompt = styled(Paper)<{ showPrompt?: boolean }>(({ theme, showPrompt }) => ({
+  padding: theme.spacing(5),
+  backgroundColor: 'rgba(255, 255, 255, 0.98)',
+  borderRadius: '20px',
+  maxWidth: '700px',
   width: '90%',
-  animation: 'fadeIn 0.5s ease-out',
-  '@keyframes fadeIn': {
+  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
+  animation: showPrompt ? 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both' : 'none',
+  '@keyframes slideUp': {
     '0%': {
       opacity: 0,
       transform: 'translateY(20px)'
@@ -202,25 +245,83 @@ const ProjectPrompt = styled(Paper)(({ theme }) => ({
 const PromptForm = styled(Box)({
   display: 'flex',
   flexDirection: 'column',
-  gap: '1.5rem',
-  marginTop: '1rem'
+  gap: '1.75rem',
+  marginTop: '1.5rem'
 });
 
 const FormRow = styled(Box)({
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, 1fr)',
   gap: '1.5rem',
-  '& > *': {
-    flex: 1
-  }
-});
-
-const FullWidthField = styled(TextField)({
   width: '100%'
 });
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '12px',
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+    },
+    '&.Mui-focused': {
+      backgroundColor: 'white',
+      boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)',
+    }
+  },
+  '& .MuiInputLabel-root': {
+    transform: 'translate(14px, -9px) scale(0.75)',
+    backgroundColor: 'white',
+    padding: '0 4px',
+    color: theme.palette.text.secondary,
+    fontSize: '1.1rem',
+    fontWeight: 500
+  },
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  }
+}));
+
+const FormTitle = styled(Typography)(({ theme }) => ({
+  color: theme.palette.text.primary,
+  fontWeight: 600,
+  fontSize: '1.75rem',
+  textAlign: 'center',
+  marginBottom: theme.spacing(4),
+  position: 'relative',
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    bottom: '-12px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '40px',
+    height: '3px',
+    backgroundColor: theme.palette.primary.main,
+    borderRadius: '2px'
+  }
+}));
+
+const HelpText = styled('span')(({ theme }) => ({
+  color: theme.palette.primary.main,
+  fontSize: '0.95rem',
+  cursor: 'pointer',
+  padding: '4px 8px',
+  fontFamily: 'sans-serif',
+  letterSpacing: '-0.02em',
+  fontWeight: 600,
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    opacity: 0.8,
+    transform: 'translateY(-1px)'
+  }
+}));
 
 const Home = () => {
   const navigate = useNavigate();
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showSalesManager, setShowSalesManager] = useState(false);
+  const [showError, setShowError] = useState(false);
   const [projectDetails, setProjectDetails] = useState({
     projectName: '',
     location: '',
@@ -240,11 +341,23 @@ const Home = () => {
       ...prev,
       [field]: e.target.value
     }));
+    // Clear error when user starts typing in either field
+    if (field === 'operator' || field === 'servicePartner') {
+      setShowError(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!projectDetails.operator && !projectDetails.servicePartner) {
+      setShowError(true);
+      return;
+    }
     navigate('/panel-type', { state: { projectDetails } });
+  };
+
+  const handleHelpClick = () => {
+    setShowSalesManager(!showSalesManager);
   };
 
   return (
@@ -252,64 +365,70 @@ const Home = () => {
       <FloatingImage 
         src={tagPir} 
         alt="TAG PIR" 
+        showPrompt={showPrompt}
         style={{ 
-          top: '15%', 
-          left: 'calc(5% - 10px)',
+          top: showPrompt ? '5%' : '15%', 
+          left: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',
           animationDelay: '0s'
         }} 
       />
       <FloatingImage 
         src={idpgRn} 
         alt="IDPG RN" 
+        showPrompt={showPrompt}
         style={{ 
-          bottom: '15%', 
-          right: 'calc(5% - 10px)',
+          bottom: showPrompt ? '0%' : '15%', 
+          right: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',
           animationDelay: '2s'
         }} 
       />
       <FloatingImage 
         src={idpg} 
         alt="IDPG" 
+        showPrompt={showPrompt}
         style={{ 
-          top: '25%', 
-          right: 'calc(10% - 10px)',
+          top: showPrompt ? '10%' : '25%', 
+          right: showPrompt ? 'calc(15% - 10px)' : 'calc(10% - 10px)',
           animationDelay: '1s'
         }} 
       />
       <FloatingImage 
         src={sp} 
         alt="SP" 
+        showPrompt={showPrompt}
         style={{ 
-          bottom: '25%', 
-          left: 'calc(10% - 10px)',
+          bottom: showPrompt ? '10%' : '25%', 
+          left: showPrompt ? 'calc(20% - 10px)' : 'calc(10% - 10px)',
           animationDelay: '3s'
         }} 
       />
       <FloatingImage 
         src={x2rs} 
         alt="X2RS" 
+        showPrompt={showPrompt}
         style={{ 
-          top: '40%', 
-          left: 'calc(15% - 20px)',
+          top: showPrompt ? '35%' : '40%', 
+          left: showPrompt ? 'calc(15% - 20px)' : 'calc(15% - 20px)',
           animationDelay: '1.5s',
-          width: '320px'
+          width: showPrompt ? '480px' : '320px'
         }} 
       />
       <FloatingImage 
         src={dpRt} 
         alt="DP RT" 
+        showPrompt={showPrompt}
         style={{ 
-          bottom: '40%', 
-          right: 'calc(15% + 40px)',
+          bottom: showPrompt ? '40%' : '40%', 
+          right: showPrompt ? 'calc(15% + 40px)' : 'calc(15% + 40px)',
           animationDelay: '2.5s',
-          width: '320px'
+          width: showPrompt ? '480px' : '320px'
         }} 
       />
       <ContentWrapper>
         {!showPrompt ? (
           <>
-            <Logo src={logo} alt="Interel Logo" />
-            <AnimatedBox>
+            <Logo src={logo} alt="Interel Logo" showPrompt={showPrompt} />
+            <AnimatedBox showPrompt={showPrompt}>
               <Typography 
                 variant="h3" 
                 sx={{ 
@@ -324,7 +443,7 @@ const Home = () => {
                 Design Your Panels
               </Typography>
             </AnimatedBox>
-            <ButtonContainer>
+            <ButtonContainer showPrompt={showPrompt}>
               <StyledButton
                 variant="contained"
                 color="primary"
@@ -346,66 +465,57 @@ const Home = () => {
             </ButtonContainer>
           </>
         ) : (
-          <ProjectPrompt>
-            <Typography variant="h4" sx={{ color: '#2c3e50', fontWeight: 500, mb: 3 }}>
+          <ProjectPrompt showPrompt={showPrompt}>
+            <FormTitle>
               Project Details
-            </Typography>
+            </FormTitle>
             <form onSubmit={handleSubmit}>
               <PromptForm>
-                <FullWidthField
-                  label="Project Name"
-                  variant="outlined"
-                  value={projectDetails.projectName}
-                  onChange={handleChange('projectName')}
-                  required
-                />
                 <FormRow>
-                  <TextField
-                    fullWidth
+                  <StyledTextField
+                    label="Project Name"
+                    variant="outlined"
+                    value={projectDetails.projectName}
+                    onChange={handleChange('projectName')}
+                    required
+                  />
+                  <StyledTextField
                     label="Location"
                     variant="outlined"
                     value={projectDetails.location}
                     onChange={handleChange('location')}
                     required
                   />
-                  <TextField
-                    fullWidth
-                    label="Project Code"
-                    variant="outlined"
-                    value={projectDetails.projectCode}
-                    onChange={handleChange('projectCode')}
-                    required
-                  />
                 </FormRow>
                 <FormRow>
-                  <TextField
-                    fullWidth
-                    label="INTEREL Sales Manager"
-                    variant="outlined"
-                    value={projectDetails.salesManager}
-                    onChange={handleChange('salesManager')}
-                    required
-                  />
-                  <TextField
-                    fullWidth
-                    label="Operator/End Client"
-                    variant="outlined"
-                    value={projectDetails.operator}
-                    onChange={handleChange('operator')}
-                    required
-                  />
-                </FormRow>
-                <FormRow>
-                  <TextField
-                    fullWidth
-                    label="Service Partner"
-                    variant="outlined"
-                    value={projectDetails.servicePartner}
-                    onChange={handleChange('servicePartner')}
-                    required
-                  />
-                  <TextField
-                    fullWidth
+                  {!showSalesManager ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <StyledTextField
+                        label="Project Code"
+                        variant="outlined"
+                        value={projectDetails.projectCode}
+                        onChange={handleChange('projectCode')}
+                        required
+                      />
+                      <HelpText onClick={handleHelpClick}>
+                        Don't know the project code?
+                      </HelpText>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <StyledTextField
+                        label="INTEREL Sales Manager"
+                        variant="outlined"
+                        value={projectDetails.salesManager}
+                        onChange={handleChange('salesManager')}
+                        required
+                      />
+                      <HelpText onClick={handleHelpClick}>
+                        I have the project code
+                      </HelpText>
+                    </Box>
+                  )}
+                  <StyledTextField
                     label="Your Email"
                     variant="outlined"
                     type="email"
@@ -414,6 +524,32 @@ const Home = () => {
                     required
                   />
                 </FormRow>
+                <FormRow>
+                  <StyledTextField
+                    label="Operator/End Client"
+                    variant="outlined"
+                    value={projectDetails.operator}
+                    onChange={handleChange('operator')}
+                  />
+                  <StyledTextField
+                    label="Service Partner"
+                    variant="outlined"
+                    value={projectDetails.servicePartner}
+                    onChange={handleChange('servicePartner')}
+                  />
+                </FormRow>
+                {showError && (
+                  <Typography 
+                    color="error" 
+                    sx={{ 
+                      fontSize: '0.875rem',
+                      mt: -1,
+                      mb: 1
+                    }}
+                  >
+                    Please fill in at least one of these fields
+                  </Typography>
+                )}
                 <StyledButton
                   type="submit"
                   variant="contained"
@@ -421,14 +557,21 @@ const Home = () => {
                   sx={{
                     fontFamily: 'sans-serif',
                     letterSpacing: '-0.02em',
-                    fontWeight: 600,
-                    fontSize: '1.4rem',
-                    padding: '0.6rem 0',
-                    mt: 2
+                    fontWeight: 500,
+                    fontSize: '1.2rem',
+                    padding: '0.8rem 0',
+                    mt: 2,
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                    '&:hover': {
+                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.12)',
+                      transform: 'translateY(-1px)',
+                    },
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   Start Customizing
-                  <DownArrow sx={{ fontSize: '1.4rem' }} />
+                  <DownArrow sx={{ fontSize: '1.2rem', ml: 1 }} />
                 </StyledButton>
               </PromptForm>
             </form>
