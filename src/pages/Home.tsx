@@ -45,11 +45,11 @@ const ContentWrapper = styled(Box)({
   maxWidth: '720px'
 });
 
-const Logo = styled('img')<{ showPrompt?: boolean }>(({ showPrompt }) => ({
+const Logo = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   width: '400px',
   marginBottom: '2rem',
   marginTop: '-1rem',
-  animation: showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out',
+  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out',
   position: 'relative',
   zIndex: 2,
   filter: 'brightness(0) invert(1)',
@@ -75,12 +75,12 @@ const Logo = styled('img')<{ showPrompt?: boolean }>(({ showPrompt }) => ({
   }
 }));
 
-const AnimatedBox = styled(Box)<{ showPrompt?: boolean }>(({ theme, showPrompt }) => ({
+const AnimatedBox = styled(Box)<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
   color: 'white',
   marginBottom: theme.spacing(3),
   marginTop: '-2rem',
   textAlign: 'center',
-  animation: showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.2s both',
+  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.2s both',
   position: 'relative',
   zIndex: 2,
   fontFamily: 'sans-serif',
@@ -106,7 +106,7 @@ const AnimatedBox = styled(Box)<{ showPrompt?: boolean }>(({ theme, showPrompt }
   }
 }));
 
-const ButtonContainer = styled(Box)<{ showPrompt?: boolean }>(({ showPrompt }) => ({
+const ButtonContainer = styled(Box)<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   display: 'flex',
   flexDirection: 'column',
   gap: '1rem',
@@ -116,7 +116,7 @@ const ButtonContainer = styled(Box)<{ showPrompt?: boolean }>(({ showPrompt }) =
   position: 'relative',
   zIndex: 2,
   fontFamily: 'sans-serif',
-  animation: showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.4s both',
+  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.4s both',
   '@keyframes fadeIn': {
     '0%': {
       opacity: 0,
@@ -175,10 +175,10 @@ const DownArrow = styled(ArrowDownwardIcon)({
   }
 });
 
-const FloatingImage = styled('img')<{ showPrompt?: boolean }>(({ showPrompt }) => ({
+const FloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   position: 'absolute',
-  width: showPrompt ? '300px' : '200px',
-  opacity: showPrompt ? 0.3 : 1,
+  width: $showPrompt ? '300px' : '200px',
+  opacity: $showPrompt ? 0.3 : 1,
   filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',
   animation: 'float 8s ease-in-out infinite',
   transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -222,14 +222,14 @@ const FloatingImage = styled('img')<{ showPrompt?: boolean }>(({ showPrompt }) =
   }
 }));
 
-const ProjectPrompt = styled(Paper)<{ showPrompt?: boolean }>(({ theme, showPrompt }) => ({
+const ProjectPrompt = styled(Paper)<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
   padding: theme.spacing(5),
   backgroundColor: 'rgba(255, 255, 255, 0.98)',
   borderRadius: '20px',
   maxWidth: '700px',
   width: '90%',
   boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
-  animation: showPrompt ? 'slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both' : 'none',
+  animation: $showPrompt ? 'slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both' : 'none',
   '@keyframes slideUp': {
     '0%': {
       opacity: 0,
@@ -372,7 +372,7 @@ const Home = () => {
       <FloatingImage 
         src={tagPir} 
         alt="TAG PIR" 
-        showPrompt={showPrompt}
+        $showPrompt={showPrompt}
         style={{ 
           top: showPrompt ? '5%' : '15%', 
           left: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',
@@ -382,7 +382,7 @@ const Home = () => {
       <FloatingImage 
         src={idpgRn} 
         alt="IDPG RN" 
-        showPrompt={showPrompt}
+        $showPrompt={showPrompt}
         style={{ 
           bottom: showPrompt ? '0%' : '15%', 
           right: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',
@@ -392,7 +392,7 @@ const Home = () => {
       <FloatingImage 
         src={idpg} 
         alt="IDPG" 
-        showPrompt={showPrompt}
+        $showPrompt={showPrompt}
         style={{ 
           top: showPrompt ? '10%' : '25%', 
           right: showPrompt ? 'calc(15% - 10px)' : 'calc(10% - 10px)',
@@ -402,7 +402,7 @@ const Home = () => {
       <FloatingImage 
         src={sp} 
         alt="SP" 
-        showPrompt={showPrompt}
+        $showPrompt={showPrompt}
         style={{ 
           bottom: showPrompt ? '10%' : '25%', 
           left: showPrompt ? 'calc(20% - 10px)' : 'calc(10% - 10px)',
@@ -412,7 +412,7 @@ const Home = () => {
       <FloatingImage 
         src={x2rs} 
         alt="X2RS" 
-        showPrompt={showPrompt}
+        $showPrompt={showPrompt}
         style={{ 
           top: showPrompt ? '35%' : '40%', 
           left: showPrompt ? 'calc(15% - 20px)' : 'calc(15% - 20px)',
@@ -423,7 +423,7 @@ const Home = () => {
       <FloatingImage 
         src={dpRt} 
         alt="DP RT" 
-        showPrompt={showPrompt}
+        $showPrompt={showPrompt}
         style={{ 
           bottom: showPrompt ? '40%' : '40%', 
           right: showPrompt ? 'calc(15% + 40px)' : 'calc(15% + 40px)',
@@ -434,8 +434,8 @@ const Home = () => {
       <ContentWrapper>
         {!showPrompt ? (
           <>
-            <Logo src={logo} alt="Interel Logo" showPrompt={showPrompt} />
-            <AnimatedBox showPrompt={showPrompt}>
+            <Logo src={logo} alt="Interel Logo" $showPrompt={showPrompt} />
+            <AnimatedBox $showPrompt={showPrompt}>
               <Typography 
                 variant="h3" 
                 sx={{ 
@@ -450,7 +450,7 @@ const Home = () => {
                 Design Your Panels
               </Typography>
             </AnimatedBox>
-            <ButtonContainer showPrompt={showPrompt}>
+            <ButtonContainer $showPrompt={showPrompt}>
               <StyledButton
                 variant="contained"
                 color="primary"
@@ -472,7 +472,7 @@ const Home = () => {
             </ButtonContainer>
           </>
         ) : (
-          <ProjectPrompt showPrompt={showPrompt}>
+          <ProjectPrompt $showPrompt={showPrompt}>
             <FormTitle>
               Project Details
             </FormTitle>
