@@ -355,7 +355,7 @@ const X2VCustomizer: React.FC = () => {
           cursor: "pointer",
         }}
       >
-        Add to Cart
+        Add to Project
       </button>
 
       <button

@@ -6,7 +6,6 @@ import {
   Grid,
   Box,
   Button,
-  LinearProgress,
   useTheme,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -111,6 +110,60 @@ const PanelTypeSelector = () => {
   const theme = useTheme();
   const [showPanels] = useState(true);
 
+  const customizerSteps = [
+    { step: 1, label: 'Select Panel Type' },
+    { step: 2, label: 'Select your icons' },
+    { step: 3, label: 'Select Panel Design' },
+    { step: 4, label: 'Review panel details' },
+  ];
+  const activeStep = 0; // Step 1 is active on this page
+
+  const ProgressBar = () => (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 4, mt: 4 }}>
+      {customizerSteps.map((s, idx) => (
+        <React.Fragment key={s.step}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120 }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: idx === activeStep ? 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)' : '#e0e0e0',
+                color: idx === activeStep ? '#fff' : '#999',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 18,
+                boxShadow: idx === activeStep ? '0 2px 8px #1976d233' : 'none',
+                border: idx === activeStep ? '2px solid #1976d2' : '2px solid #e0e0e0',
+                mb: 1,
+                transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+              }}
+            >
+              {s.step}
+            </Box>
+            <Typography
+              sx={{
+                color: idx === activeStep ? '#1976d2' : '#666',
+                fontWeight: idx === activeStep ? 600 : 400,
+                fontSize: 14,
+                textAlign: 'center',
+                maxWidth: 110,
+                letterSpacing: 0.2,
+              }}
+            >
+              {s.label}
+            </Typography>
+          </Box>
+          {idx < customizerSteps.length - 1 && (
+            <Box sx={{ flex: 1, height: 2, background: '#e0e0e0', mx: 1, minWidth: 24, borderRadius: 1 }} />
+          )}
+        </React.Fragment>
+      ))}
+    </Box>
+  );
+
   const panelTypes = [
     {
       name: "Single Panel",
@@ -187,22 +240,7 @@ const PanelTypeSelector = () => {
         </Box>
 
         <ProgressContainer>
-          <ProgressText variant="h6">
-            1. Select your panel type
-          </ProgressText>
-          <LinearProgress 
-            variant="determinate" 
-            value={20} 
-            sx={{
-              height: 2,
-              borderRadius: 1,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 1,
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-              },
-            }}
-          />
+          <ProgressBar />
         </ProgressContainer>
 
         {showPanels && (

@@ -332,7 +332,7 @@ const IDPG_RNCustomizer: React.FC = () => {
             onClick={handleAddToCart}
             size="large"
           >
-            Add to Cart
+            Add to Project
           </Button>
 
           <Button

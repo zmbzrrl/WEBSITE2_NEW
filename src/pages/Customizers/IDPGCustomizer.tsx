@@ -313,7 +313,7 @@ const IDPGCustomizer: React.FC = () => {
           ))}
         </div>
       </div>
-      <button onClick={handleAddToCart}>Add to Cart</button>
+      <button onClick={handleAddToCart}>Add to Project</button>
       <CartButton />
     </div>
   );

@@ -72,6 +72,7 @@ const X1VCustomizer: React.FC = () => {
         position: pi.position,
         text: iconTexts[pi.position] || "",
       })),
+      quantity: 1,
     };
     addToCart(design);
     navigate("/cart");
@@ -224,7 +225,7 @@ const X1VCustomizer: React.FC = () => {
             disabled={placedIcons.length === 0}
             sx={{ px: 4, py: 1.5, fontSize: "1.1rem" }}
           >
-            Add to Cart
+            Add to Project
           </Button>
         </Box>
       </Container>

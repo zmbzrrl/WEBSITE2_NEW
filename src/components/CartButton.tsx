@@ -16,7 +16,7 @@ const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true })
       onClick={() => navigate("/cart")}
       style={{ position: "relative", ...style }}
     >
-      {showLabel && "View Cart"}
+      {showLabel && "View Project Panels"}
       <span
         style={{
           position: "absolute",

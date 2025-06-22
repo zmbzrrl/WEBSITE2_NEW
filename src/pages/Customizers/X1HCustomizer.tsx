@@ -76,6 +76,7 @@ const X1HCustomizer: React.FC = () => {
   const [placedIcons, setPlacedIcons] = useState<PlacedIcon[]>([]);
   const [iconTexts, setIconTexts] = useState<IconTexts>({});
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [fontSize, setFontSize] = useState<string>("12px");
 
   useEffect(() => {
     import("../../assets/iconLibrary").then((module) => {
@@ -226,7 +227,7 @@ const X1HCustomizer: React.FC = () => {
           )}
           {text && !isPIR && (
             <div style={{ 
-              fontSize: "12px", 
+              fontSize: fontSize, 
               marginTop: "5px",
               color: "#000000",
               wordBreak: "break-word",
@@ -245,7 +246,7 @@ const X1HCustomizer: React.FC = () => {
               style={{
                 width: "90%",
                 padding: "4px",
-                fontSize: "12px",
+                fontSize: fontSize,
                 textAlign: "center",
                 border: "1px solid #ccc",
                 borderRadius: "4px",
@@ -329,6 +330,33 @@ const X1HCustomizer: React.FC = () => {
         </div>
       </div>
 
+      <div style={{ marginBottom: "20px", textAlign: "center" }}>
+        <div style={{ marginBottom: "10px", fontWeight: "bold" }}>Font Size:</div>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+          {["10px", "12px", "14px", "16px"].map((size) => (
+            <button
+              key={size}
+              onClick={() => setFontSize(size)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '4px',
+                border: fontSize === size ? '2px solid #4CAF50' : '1px solid #ccc',
+                background: fontSize === size ? '#e8f5e8' : '#fff',
+                color: fontSize === size ? '#4CAF50' : '#333',
+                cursor: 'pointer',
+                fontSize: size,
+                fontWeight: fontSize === size ? '600' : '400',
+                transition: 'all 0.2s ease',
+                minWidth: '40px',
+                textAlign: 'center',
+              }}
+            >
+              {size.replace('px', '')}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div
         style={{
           width: "350px",
@@ -355,7 +383,7 @@ const X1HCustomizer: React.FC = () => {
           cursor: "pointer",
         }}
       >
-        Add to Cart
+        Add to Project
       </button>
 
       <button

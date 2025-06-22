@@ -18,6 +18,7 @@ interface PlacedIcon {
   src: string;
   label: string;
   position: number;
+  category: string;
 }
 
 interface GridCellProps {
@@ -102,6 +103,7 @@ const TAGCustomizer: React.FC = () => {
       src: selectedIcon.src,
       label: selectedIcon.label,
       position: cellIndex,
+      category: selectedIcon.category,
     };
 
     setPlacedIcons((prev) => [...prev, iconPosition]);
@@ -339,7 +341,7 @@ const TAGCustomizer: React.FC = () => {
             cursor: "pointer",
           }}
         >
-          Add to Cart
+          Add to Project
         </button>
 
         <button

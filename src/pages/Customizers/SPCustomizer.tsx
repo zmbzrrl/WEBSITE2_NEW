@@ -228,6 +228,26 @@ const SPCustomizer: React.FC = () => {
   const iconNames = Array.from(new Set(placedIcons.map(icon => icon.iconId)));
   const [currentStep, setCurrentStep] = useState(2); // 2, 3, or 4
 
+  // Fields for step 3
+  const [panelDesign, setPanelDesign] = useState({
+    backgroundColor: '',
+    fonts: '',
+    backlight: '',
+    iconColor: '#000000',
+    plasticColor: '',
+    textColor: '#000000',
+    fontSize: '12px',
+  });
+  // Fields for step 4
+  const [backbox, setBackbox] = useState('');
+  const [extraComments, setExtraComments] = useState('');
+  const [backboxError, setBackboxError] = useState('');
+  const [allGoogleFonts, setAllGoogleFonts] = useState<string[]>(FALLBACK_GOOGLE_FONTS);
+  const [fontSearch, setFontSearch] = useState('');
+  const [showFontDropdown, setShowFontDropdown] = useState(false);
+  const [fontsLoading, setFontsLoading] = useState(false);
+  const fontDropdownRef = useRef<HTMLDivElement>(null);
+
   const ICON_COLOR_FILTERS: { [key: string]: string } = {
     '#000000': 'brightness(0) saturate(100%)',
     '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
@@ -287,6 +307,12 @@ const SPCustomizer: React.FC = () => {
   };
 
   const handleAddToCart = (): void => {
+    // Check if backbox details are provided
+    if (!backbox.trim()) {
+      setBackboxError('Please provide backbox details before adding the panel to your project.');
+      return;
+    }
+
     const design: Design = {
       type: "SP",
       icons: Array.from({ length: 9 })
@@ -429,6 +455,7 @@ const SPCustomizer: React.FC = () => {
     const isPIR = icon?.category === "PIR";
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
+    const [isIconHovered, setIsIconHovered] = useState(false);
 
     return (
       <GridCell key={index} index={index} onDrop={handleDrop}>
@@ -446,7 +473,14 @@ const SPCustomizer: React.FC = () => {
           onMouseLeave={() => setHoveredCell(null)}
         >
           {icon && (
-            <>
+            <div
+              style={{
+                position: "relative",
+                display: "inline-block",
+              }}
+              onMouseEnter={() => setIsIconHovered(true)}
+              onMouseLeave={() => setIsIconHovered(false)}
+            >
               <img
                 src={icon.src}
                 alt={icon.label}
@@ -472,28 +506,42 @@ const SPCustomizer: React.FC = () => {
                 }}
                 style={{
                   position: "absolute",
-                  top: 0,
-                  right: 0,
-                  background: "red",
+                  top: "-8px",
+                  right: "-8px",
+                  background: "rgba(220, 53, 69, 0.9)",
                   color: "white",
-                  border: "none",
+                  border: "2px solid rgba(255, 255, 255, 0.8)",
                   borderRadius: "50%",
-                  width: "16px",
-                  height: "16px",
+                  width: "20px",
+                  height: "20px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  fontSize: "10px",
+                  fontSize: "12px",
                   padding: 0,
                   lineHeight: 1,
-                  transform: "translate(50%, -50%)",
-                  zIndex: 2,
+                  zIndex: 3,
+                  opacity: isIconHovered ? 1 : 0,
+                  transform: isIconHovered ? "scale(1)" : "scale(0.8)",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+                  fontWeight: "bold",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(220, 53, 69, 1)";
+                  e.currentTarget.style.transform = "scale(1.1)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(220, 53, 69, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(220, 53, 69, 0.9)";
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
                 }}
               >
                 ×
               </button>
-            </>
+            </div>
           )}
           <div style={{ 
             position: "absolute",
@@ -515,7 +563,7 @@ const SPCustomizer: React.FC = () => {
                     style={{
                       width: "100%",
                       padding: "4px",
-                      fontSize: "12px",
+                      fontSize: panelDesign.fontSize || "12px",
                       textAlign: "center",
                       border: "1px solid rgba(255, 255, 255, 0.2)",
                       borderRadius: "4px",
@@ -530,7 +578,7 @@ const SPCustomizer: React.FC = () => {
                   <div 
                     onClick={() => handleTextClick(index)}
                     style={{ 
-                      fontSize: "12px", 
+                      fontSize: panelDesign.fontSize || "12px", 
                       color: text ? panelDesign.textColor || "#000000" : "#999999",
                       wordBreak: "break-word",
                       maxWidth: "100%",
@@ -555,11 +603,12 @@ const SPCustomizer: React.FC = () => {
   };
 
   const customizerSteps = [
+    { step: 1, label: 'Select Panel Type' },
     { step: 2, label: 'Select your icons' },
     { step: 3, label: 'Select Panel Design' },
-    { step: 4, label: 'Backbox details' },
+    { step: 4, label: 'Review panel details' },
   ];
-  const activeStep = currentStep - 2; // 0-based index
+  const activeStep = currentStep - 1; // 0-based index
 
   const ProgressBar = () => (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 4, mt: 4 }}>
@@ -614,74 +663,90 @@ const SPCustomizer: React.FC = () => {
     
     return (
       <Box sx={{ 
-        maxWidth: 600, 
-        mx: 'auto', 
-        mb: 4, 
-        background: '#ffffff', 
-        borderRadius: 2, 
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-        border: '1px solid #e0e0e0',
-        overflow: 'hidden'
+        width: 400,
+        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+        borderRadius: 3,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08)',
+        border: '1px solid rgba(255,255,255,0.8)',
+        overflow: 'hidden',
+        position: 'relative'
       }}>
+        {/* Header */}
         <Box sx={{ 
           background: 'linear-gradient(135deg, #1a1f2c 0%, #2c3e50 100%)', 
           color: '#ffffff', 
-          p: 2,
-          textAlign: 'center'
+          p: 2.5,
+          textAlign: 'center',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)'
+          }
         }}>
-          <Typography variant="h6" sx={{ fontWeight: 500, letterSpacing: '0.5px' }}>
-            Selected Customization Details
+          <Typography variant="h6" sx={{ 
+            fontWeight: 600, 
+            letterSpacing: '0.5px', 
+            fontSize: '18px',
+            textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+          }}>
+            Panel Configuration Summary
           </Typography>
         </Box>
         
+        {/* Content */}
         <Box sx={{ p: 3 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             
             {/* Icons Section */}
             <Box sx={{ 
-              background: '#f8f9fa', 
-              p: 2, 
-              borderRadius: 1, 
-              border: '1px solid #e9ecef'
+              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
             }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#495057' }}>
-                Selected Icons ({placedIcons.length})
-              </Typography>
-              {placedIcons.length > 0 ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {placedIcons.map((icon, index) => (
-                    <Box key={icon.id} sx={{ 
+              <Typography variant="subtitle2" sx={{ 
+                fontWeight: 700, 
+                mb: 1.5, 
+                color: '#1a1f2c', 
+                fontSize: '15px',
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: 1,
-                      p: 1,
-                      background: '#ffffff',
-                      borderRadius: 1,
-                      border: '1px solid #dee2e6'
-                    }}>
-                      <img 
-                        src={icon.src} 
-                        alt={icon.label} 
-                        style={{ 
-                          width: '20px', 
-                          height: '20px', 
-                          objectFit: 'contain',
-                          filter: icon.category !== "PIR" ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined
-                        }} 
-                      />
-                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#212529' }}>
-                        {icon.label}
+                gap: 1
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: '#4CAF50',
+                  flexShrink: 0
+                }} />
+                Selected Icons ({placedIcons.length})
                       </Typography>
-                      {iconTexts[icon.position] && (
-                        <Typography variant="body2" sx={{ color: '#6c757d', fontStyle: 'italic' }}>
-                          "{iconTexts[icon.position]}"
-                        </Typography>
-                      )}
-                    </Box>
+              {placedIcons.length > 0 ? (
+                <Typography variant="body2" sx={{ 
+                  color: '#2c3e50', 
+                  fontSize: '14px', 
+                  fontWeight: 500,
+                  lineHeight: 1.4
+                }}>
+                  {placedIcons.map((icon, index) => (
+                    <span key={icon.id}>
+                      {icon.label}{index < placedIcons.length - 1 ? ', ' : ''}
+                    </span>
                   ))}
-                </Box>
+                </Typography>
               ) : (
-                <Typography variant="body2" sx={{ color: '#6c757d', fontStyle: 'italic' }}>
+                <Typography variant="body2" sx={{ 
+                  color: '#6c757d', 
+                  fontStyle: 'italic', 
+                  fontSize: '14px' 
+                }}>
                   No icons selected yet
                 </Typography>
               )}
@@ -689,54 +754,73 @@ const SPCustomizer: React.FC = () => {
 
             {/* Colors Section */}
             <Box sx={{ 
-              background: '#f8f9fa', 
-              p: 2, 
-              borderRadius: 1, 
-              border: '1px solid #e9ecef'
+              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
             }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#495057' }}>
-                Color Settings
+              <Typography variant="subtitle2" sx={{ 
+                fontWeight: 700, 
+                mb: 1.5, 
+                color: '#1a1f2c', 
+                fontSize: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: '#FF6B35',
+                  flexShrink: 0
+                }} />
+                Color Configuration
               </Typography>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {/* Panel Background */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Box sx={{ 
                     width: 20, 
                     height: 20, 
-                    borderRadius: 1, 
+                    borderRadius: 1.5, 
                     background: panelDesign.backgroundColor || '#ffffff',
-                    border: '1px solid #dee2e6'
+                    border: '2px solid #dee2e6',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                   }} />
-                  <Typography variant="body2" sx={{ color: '#212529' }}>
-                    Panel: {selectedRALColor ? `RAL ${selectedRALColor.code} (${selectedRALColor.name})` : 'Default'}
+                  <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
+                    Panel: {selectedRALColor ? `RAL ${selectedRALColor.code}` : 'Default'}
                   </Typography>
                 </Box>
 
                 {/* Icon Color */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Box sx={{ 
                     width: 20, 
                     height: 20, 
-                    borderRadius: 1, 
+                    borderRadius: 1.5, 
                     background: panelDesign.iconColor,
-                    border: '1px solid #dee2e6'
+                    border: '2px solid #dee2e6',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                   }} />
-                  <Typography variant="body2" sx={{ color: '#212529' }}>
+                  <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
                     Icons: {iconColorName || panelDesign.iconColor}
                   </Typography>
                 </Box>
 
                 {/* Text Color */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Box sx={{ 
                     width: 20, 
                     height: 20, 
-                    borderRadius: 1, 
+                    borderRadius: 1.5, 
                     background: panelDesign.textColor,
-                    border: '1px solid #dee2e6'
+                    border: '2px solid #dee2e6',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                   }} />
-                  <Typography variant="body2" sx={{ color: '#212529' }}>
+                  <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
                     Text: {panelDesign.textColor}
                   </Typography>
                 </Box>
@@ -745,65 +829,163 @@ const SPCustomizer: React.FC = () => {
 
             {/* Typography Section */}
             <Box sx={{ 
-              background: '#f8f9fa', 
-              p: 2, 
-              borderRadius: 1, 
-              border: '1px solid #e9ecef'
+              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
             }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#495057' }}>
-                Typography
+              <Typography variant="subtitle2" sx={{ 
+                fontWeight: 700, 
+                mb: 1.5, 
+                color: '#1a1f2c', 
+                fontSize: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: '#9C27B0',
+                  flexShrink: 0
+                }} />
+                Typography Settings
               </Typography>
-              <Typography variant="body2" sx={{ color: '#212529' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
                 Font: {panelDesign.fonts || 'Default'}
               </Typography>
+                <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
+                  Size: {panelDesign.fontSize || '12px'}
+              </Typography>
+              </Box>
             </Box>
 
-            {/* Additional Details Section */}
-            {(backbox || extraComments) && (
+            {/* Mandatory Backbox Details Section */}
               <Box sx={{ 
-                background: '#f8f9fa', 
-                p: 2, 
-                borderRadius: 1, 
-                border: '1px solid #e9ecef'
+              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}>
+              <Typography variant="subtitle2" sx={{ 
+                fontWeight: 700, 
+                mb: 1.5, 
+                color: '#1a1f2c', 
+                fontSize: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
               }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#495057' }}>
-                  Additional Details
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: '#FF9800',
+                  flexShrink: 0
+                }} />
+                Backbox Details *
                 </Typography>
-                {backbox && (
-                  <Typography variant="body2" sx={{ color: '#212529', mb: 1 }}>
-                    Backbox: {backbox}
+              <TextField
+                label="Backbox specification"
+                value={backbox}
+                onChange={(e) => {
+                  setBackbox(e.target.value);
+                  if (backboxError) setBackboxError('');
+                }}
+                fullWidth
+                size="small"
+                placeholder="Enter backbox details..."
+                error={!!backboxError}
+                helperText={backboxError}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#ffffff',
+                    '&:hover fieldset': {
+                      borderColor: '#1a1f2c',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#1a1f2c',
+                    },
+                    '&.Mui-error fieldset': {
+                      borderColor: '#d32f2f',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#1a1f2c',
+                  },
+                  '& .MuiInputLabel-root.Mui-error': {
+                    color: '#d32f2f',
+                  },
+                  '& .MuiFormHelperText-root.Mui-error': {
+                    color: '#d32f2f',
+                    fontSize: '12px',
+                    marginTop: '4px',
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Optional Comments Section */}
+            <Box sx={{ 
+              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}>
+              <Typography variant="subtitle2" sx={{ 
+                fontWeight: 700, 
+                mb: 1.5, 
+                color: '#1a1f2c', 
+                fontSize: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: '#2196F3',
+                  flexShrink: 0
+                }} />
+                Additional Comments (Optional)
                   </Typography>
-                )}
-                {extraComments && (
-                  <Typography variant="body2" sx={{ color: '#212529' }}>
-                    Comments: {extraComments}
-                  </Typography>
-                )}
+              <TextField
+                label="Any additional comments or special requirements"
+                value={extraComments}
+                onChange={(e) => setExtraComments(e.target.value)}
+                fullWidth
+                multiline
+                minRows={2}
+                maxRows={4}
+                size="small"
+                placeholder="Enter any additional comments..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#ffffff',
+                    '&:hover fieldset': {
+                      borderColor: '#2196F3',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#2196F3',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#2196F3',
+                  },
+                }}
+              />
               </Box>
-            )}
           </Box>
         </Box>
       </Box>
     );
   };
-
-  // Fields for step 3
-  const [panelDesign, setPanelDesign] = useState({
-    backgroundColor: '',
-    fonts: '',
-    backlight: '',
-    iconColor: '#000000',
-    plasticColor: '',
-    textColor: '#000000',
-  });
-  // Fields for step 4
-  const [backbox, setBackbox] = useState('');
-  const [extraComments, setExtraComments] = useState('');
-  const [allGoogleFonts, setAllGoogleFonts] = useState<string[]>(FALLBACK_GOOGLE_FONTS);
-  const [fontSearch, setFontSearch] = useState('');
-  const [showFontDropdown, setShowFontDropdown] = useState(false);
-  const [fontsLoading, setFontsLoading] = useState(false);
-  const fontDropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch Google Fonts list on mount
   useEffect(() => {
@@ -888,15 +1070,17 @@ const SPCustomizer: React.FC = () => {
 
         <ProgressBar />
 
-        {/* Information Box */}
-        <InformationBox />
-
         {/* Step Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
           <Button
             variant="outlined"
-            disabled={currentStep === 2}
-            onClick={() => setCurrentStep((s) => Math.max(2, s - 1))}
+            onClick={() => {
+              if (currentStep === 2) {
+                navigate('/panel-type');
+              } else {
+                setCurrentStep((s) => Math.max(2, s - 1));
+              }
+            }}
           >
             Back
           </Button>
@@ -979,21 +1163,91 @@ const SPCustomizer: React.FC = () => {
             </div>
           </div>
         )}
-        {/* Step 3: Panel Design Fields */}
+        {/* Step 3: Panel Design */}
         {currentStep === 3 && (
-          <div style={{ margin: '24px 0' }}>
-            <div style={{ fontWeight: 500, marginBottom: 8 }}>Select Panel Background Color (RAL):</div>
+          <div style={{ 
+            display: 'flex', 
+            gap: '80px',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            maxWidth: '1200px',
+            margin: '0 auto',
+            padding: '0 20px'
+          }}>
+            {/* Left side - Panel Design Controls */}
+            <div style={{ 
+              flex: '0 0 480px',
+              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+              padding: '28px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+              border: '1px solid #e9ecef',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Subtle background pattern */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, #0056b3 0%, #007bff 50%, #0056b3 100%)',
+                borderRadius: '12px 12px 0 0'
+              }} />
+              
+              <h3 style={{
+                margin: '0 0 24px 0',
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#1a1f2c',
+                textAlign: 'center',
+                letterSpacing: '0.5px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>
+                Panel Design
+              </h3>
+
+              {/* Background Color Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Background Color (RAL)
+                </div>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-                gap: 12,
-                maxHeight: 300,
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                    gap: '10px',
+                    maxHeight: '200px',
                 overflowY: 'auto',
-                background: '#f7f7f7',
-                borderRadius: 8,
-                padding: 12,
-                border: '1px solid #e0e0e0',
+                    background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    border: '1px solid #dee2e6',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
               }}
             >
               {ralColors.map((color: RALColor) => (
@@ -1005,35 +1259,63 @@ const SPCustomizer: React.FC = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    border: panelDesign.backgroundColor === color.hex ? '2px solid #1976d2' : '1px solid #ccc',
-                    borderRadius: 6,
-                    background: '#fff',
+                        border: panelDesign.backgroundColor === color.hex ? '2px solid #0056b3' : '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        background: panelDesign.backgroundColor === color.hex ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                     cursor: 'pointer',
-                    padding: 6,
+                        padding: '8px 6px',
                     outline: 'none',
-                    boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 2px #90caf9' : 'none',
-                    transition: 'border 0.2s, box-shadow 0.2s',
+                        boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 3px rgba(0, 86, 179, 0.15), 0 2px 8px rgba(0,0,0,0.1)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transition: 'all 0.2s ease',
+                        transform: panelDesign.backgroundColor === color.hex ? 'translateY(-1px)' : 'translateY(0)',
                   }}
                 >
                   <span
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 4,
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '6px',
                       background: color.hex,
-                      border: '1px solid #bbb',
-                      marginBottom: 4,
+                          border: '2px solid #ffffff',
+                          marginBottom: '6px',
                       display: 'block',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)'
                     }}
                   />
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>{`RAL ${color.code}`}</span>
-                  <span style={{ fontSize: 11, color: '#555', textAlign: 'center' }}>{color.name}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
                 </button>
               ))}
             </div>
-            <div style={{ marginTop: 24 }}>
-              <div style={{ fontWeight: 500, marginBottom: 8 }}>Choose Font (Google Fonts):</div>
-              <div style={{ position: 'relative', maxWidth: 320 }} ref={fontDropdownRef}>
+              </div>
+              
+              {/* Font Selection Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Typography Font
+                </div>
+                <div style={{ position: 'relative' }} ref={fontDropdownRef}>
                 <input
                   type="text"
                   placeholder="Search Google Fonts..."
@@ -1041,7 +1323,6 @@ const SPCustomizer: React.FC = () => {
                   onChange={e => {
                     const newSearch = e.target.value;
                     setFontSearch(newSearch);
-                    // If user clears the input, also clear the selected font
                     if (newSearch === '') {
                       setPanelDesign(prev => ({ ...prev, fonts: '' }));
                     }
@@ -1049,13 +1330,16 @@ const SPCustomizer: React.FC = () => {
                   }}
                   onFocus={() => setShowFontDropdown(true)}
                   style={{
-                    padding: '8px 12px',
-                    borderRadius: 6,
-                    border: '1px solid #ccc',
-                    fontSize: 15,
-                    minWidth: 180,
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #dee2e6',
+                      fontSize: '14px',
                     width: '100%',
                     fontFamily: panelDesign.fonts || undefined,
+                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
                   }}
                 />
                 {showFontDropdown && (
@@ -1064,20 +1348,29 @@ const SPCustomizer: React.FC = () => {
                     top: '110%',
                     left: 0,
                     right: 0,
-                    background: '#fff',
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    maxHeight: 220,
+                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      maxHeight: '200px',
                     overflowY: 'auto',
                     zIndex: 10,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
                   }}>
                     {fontsLoading ? (
-                      <div style={{ padding: 12, textAlign: 'center', color: '#888' }}>Loading fonts...</div>
+                        <div style={{ padding: 16, textAlign: 'center', color: '#6c757d' }}>Loading fonts...</div>
                     ) : (
                       <>
                         <div
-                          style={{ padding: 8, cursor: 'pointer', fontFamily: 'inherit', color: '#888' }}
+                            style={{ 
+                              padding: 12, 
+                              cursor: 'pointer', 
+                              fontFamily: 'inherit', 
+                              color: '#6c757d',
+                              borderBottom: '1px solid #f8f9fa',
+                              transition: 'background 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                           onClick={() => {
                             setPanelDesign({ ...panelDesign, fonts: '' });
                             setFontSearch('');
@@ -1086,16 +1379,20 @@ const SPCustomizer: React.FC = () => {
                         >Default</div>
                         {allGoogleFonts
                           .filter(f => f.toLowerCase().includes(fontSearch.toLowerCase()))
-                          .slice(0, 30)
+                            .slice(0, 20)
                           .map(font => (
                             <div
                               key={font}
                               style={{
-                                padding: 8,
+                                  padding: 12,
                                 cursor: 'pointer',
                                 fontFamily: font,
-                                background: font === panelDesign.fonts ? '#f0f4ff' : undefined,
+                                  background: font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent',
+                                  transition: 'background 0.2s ease',
+                                  borderBottom: '1px solid #f8f9fa'
                               }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent'}
                               onClick={() => {
                                 setPanelDesign({ ...panelDesign, fonts: font });
                                 setFontSearch(font);
@@ -1106,7 +1403,7 @@ const SPCustomizer: React.FC = () => {
                             </div>
                           ))}
                         {allGoogleFonts.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && !fontsLoading && (
-                          <div style={{ padding: 8, color: '#aaa' }}>No fonts found</div>
+                            <div style={{ padding: 16, color: '#adb5bd' }}>No fonts found</div>
                         )}
                       </>
                     )}
@@ -1114,77 +1411,288 @@ const SPCustomizer: React.FC = () => {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 32, marginTop: 24 }}>
+              
+              {/* Font Size Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Font Size
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  {['10px', '12px', '14px', '16px'].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setPanelDesign(prev => ({ ...prev, fontSize: size }))}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: panelDesign.fontSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
+                        background: panelDesign.fontSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        color: panelDesign.fontSize === size ? '#ffffff' : '#495057',
+                        cursor: 'pointer',
+                        fontSize: size,
+                        fontWeight: panelDesign.fontSize === size ? '700' : '600',
+                        transition: 'all 0.2s ease',
+                        minWidth: '45px',
+                        textAlign: 'center',
+                        boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)',
+                      }}
+                    >
+                      {size.replace('px', '')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Colors Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Colors
+                </div>
+                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontWeight: 500, marginBottom: 8 }}>Icon Color:</div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      marginBottom: '12px', 
+                      color: '#495057',
+                      fontSize: '13px',
+                      letterSpacing: '0.3px'
+                    }}>
+                      Icon Color
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
                     <button
                       key={color}
                       onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
                       style={{
-                        width: 32,
-                        height: 32,
+                            width: '36px',
+                            height: '36px',
                         borderRadius: '50%',
                         background: color,
-                        border: panelDesign.iconColor === color ? '3px solid #1976d2' : '1px solid #ccc',
+                            border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
                         cursor: 'pointer',
                         padding: 0,
                         outline: 'none',
-                        boxShadow: panelDesign.iconColor === color ? '0 0 0 2px #90caf9' : 'none',
+                            boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
+                            transition: 'all 0.2s ease',
+                            transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
                       }}
                     />
                   ))}
                 </div>
               </div>
               <div>
-                <div style={{ fontWeight: 500, marginBottom: 8 }}>Text Color:</div>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      marginBottom: '12px', 
+                      color: '#495057',
+                      fontSize: '13px',
+                      letterSpacing: '0.3px'
+                    }}>
+                      Text Color
+                    </div>
                 <input
                   type="color"
                   value={panelDesign.textColor}
                   onChange={e => setPanelDesign(prev => ({ ...prev, textColor: e.target.value }))}
                   style={{
-                    width: 70,
-                    height: 36,
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
+                        width: '64px',
+                        height: '40px',
+                        border: '2px solid #dee2e6',
+                        borderRadius: '8px',
                     cursor: 'pointer',
-                    padding: '2px 4px',
+                        padding: '2px',
+                        background: '#ffffff',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side - Panel Template */}
+            <div style={{ flex: '0 0 auto', marginTop: '120px' }}>
+              <div
+                style={{
+                  width: "350px",
+                  background: `linear-gradient(135deg, 
+                    rgba(255, 255, 255, 0.3) 0%, 
+                    rgba(255, 255, 255, 0.1) 50%, 
+                    rgba(255, 255, 255, 0.05) 100%), 
+                    ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                  padding: "15px",
+                  border: "2px solid rgba(255, 255, 255, 0.2)",
+                  borderTop: "3px solid rgba(255, 255, 255, 0.4)",
+                  borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
+                  boxShadow: `
+                    0 20px 40px rgba(0, 0, 0, 0.3),
+                    0 8px 16px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+                    0 0 0 1px rgba(255, 255, 255, 0.1)
+                  `,
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  transition: "all 0.3s ease",
+                  position: "relative",
+                  transform: "perspective(1000px) rotateX(5deg)",
+                  transformStyle: "preserve-3d",
+                }}
+              >
+                {/* Inner glow effect */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "2px",
+                    left: "2px",
+                    right: "2px",
+                    bottom: "2px",
+                    background: `linear-gradient(135deg, 
+                      rgba(255, 255, 255, 0.1) 0%, 
+                      transparent 50%, 
+                      rgba(0, 0, 0, 0.05) 100%)`,
+                    pointerEvents: "none",
+                    zIndex: 1,
                   }}
                 />
+                
+                {/* Content with higher z-index */}
+                <div style={{ 
+                  display: "flex", 
+                  flexWrap: "wrap",
+                  position: "relative",
+                  zIndex: 2,
+                }}>
+                  {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
+                </div>
               </div>
             </div>
           </div>
         )}
-        {/* Step 4: Backbox and Comments Fields */}
+        {/* Step 4: Review Panel Details */}
         {currentStep === 4 && (
-          <Box sx={{ maxWidth: 400, mx: 'auto', background: '#fff', p: 3, borderRadius: 2, boxShadow: '0 2px 8px #1976d211', mb: 4 }}>
-            <Typography variant="h6" sx={{ mb: 2, color: '#1976d2' }}>Backbox Details</Typography>
-            <TextField label="Backbox" fullWidth sx={{ mb: 2 }} value={backbox} onChange={e => setBackbox(e.target.value)} />
-            <TextField label="Any extra comments?" fullWidth multiline minRows={2} sx={{ mb: 2 }} value={extraComments} onChange={e => setExtraComments(e.target.value)} />
-          </Box>
-        )}
-        {/* Panel Template: Always visible and positioned below */}
-        <div style={{ marginBottom: "20px" }}>
+          <>
+            {/* Information Box and Panel Template side by side */}
+            <div style={{ 
+              marginTop: "60px", 
+              marginBottom: "40px",
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              gap: '40px',
+              flexWrap: 'wrap'
+            }}>
+              {/* Information Box */}
+              <div style={{ flex: '0 0 auto' }}>
+                <InformationBox />
+              </div>
+              
+              {/* Panel Template */}
+              <div style={{ flex: '0 0 auto' }}>
           <div
             style={{
               width: "350px",
-              background: `linear-gradient(to bottom right, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)), ${hexToRgba(panelDesign.backgroundColor, 0.95)}`,
-              padding: "10px",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "16px",
-              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.2)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-              margin: "auto",
-              transition: "background 0.3s ease",
-            }}
-          >
-            <div style={{ display: "flex", flexWrap: "wrap" }}>
+                    background: `linear-gradient(135deg, 
+                      rgba(255, 255, 255, 0.3) 0%, 
+                      rgba(255, 255, 255, 0.1) 50%, 
+                      rgba(255, 255, 255, 0.05) 100%), 
+                      ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                    padding: "15px",
+                    border: "2px solid rgba(255, 255, 255, 0.2)",
+                    borderTop: "3px solid rgba(255, 255, 255, 0.4)",
+                    borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
+                    boxShadow: `
+                      0 20px 40px rgba(0, 0, 0, 0.3),
+                      0 8px 16px rgba(0, 0, 0, 0.2),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                      inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+                      0 0 0 1px rgba(255, 255, 255, 0.1)
+                    `,
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    transition: "all 0.3s ease",
+                    position: "relative",
+                    transform: "perspective(1000px) rotateX(5deg)",
+                    transformStyle: "preserve-3d",
+                  }}
+                >
+                  {/* Inner glow effect */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "2px",
+                      left: "2px",
+                      right: "2px",
+                      bottom: "2px",
+                      background: `linear-gradient(135deg, 
+                        rgba(255, 255, 255, 0.1) 0%, 
+                        transparent 50%, 
+                        rgba(0, 0, 0, 0.05) 100%)`,
+                      pointerEvents: "none",
+                      zIndex: 1,
+                    }}
+                  />
+                  
+                  {/* Content with higher z-index */}
+                  <div style={{ 
+                    display: "flex", 
+                    flexWrap: "wrap",
+                    position: "relative",
+                    zIndex: 2,
+                  }}>
               {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
             </div>
           </div>
         </div>
+            </div>
+
           <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
             <StyledButton
               variant="outlined"
@@ -1211,9 +1719,70 @@ const SPCustomizer: React.FC = () => {
                 },
               }}
             >
-              Add to Cart
+                Add to Project
             </StyledButton>
         </Box>
+          </>
+        )}
+        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
+        {currentStep === 2 && (
+          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
+          <div
+            style={{
+              width: "350px",
+                background: `linear-gradient(135deg, 
+                  rgba(255, 255, 255, 0.3) 0%, 
+                  rgba(255, 255, 255, 0.1) 50%, 
+                  rgba(255, 255, 255, 0.05) 100%), 
+                  ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                padding: "15px",
+                border: "2px solid rgba(255, 255, 255, 0.2)",
+                borderTop: "3px solid rgba(255, 255, 255, 0.4)",
+                borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
+                boxShadow: `
+                  0 20px 40px rgba(0, 0, 0, 0.3),
+                  0 8px 16px rgba(0, 0, 0, 0.2),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                  inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+                  0 0 0 1px rgba(255, 255, 255, 0.1)
+                `,
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                transition: "all 0.3s ease",
+                position: "relative",
+                transform: "perspective(1000px) rotateX(5deg)",
+                transformStyle: "preserve-3d",
+              }}
+            >
+              {/* Inner glow effect */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "2px",
+                  left: "2px",
+                  right: "2px",
+                  bottom: "2px",
+                  background: `linear-gradient(135deg, 
+                    rgba(255, 255, 255, 0.1) 0%, 
+                    transparent 50%, 
+                    rgba(0, 0, 0, 0.05) 100%)`,
+                  pointerEvents: "none",
+                  zIndex: 1,
+                }}
+              />
+              
+              {/* Content with higher z-index */}
+              <div style={{ 
+                display: "flex", 
+                flexWrap: "wrap",
+                position: "relative",
+                zIndex: 2,
+              }}>
+              {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
+            </div>
+          </div>
+        </div>
+        )}
       </Container>
     </Box>
   );
