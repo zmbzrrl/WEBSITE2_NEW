@@ -8,7 +8,7 @@ interface CartButtonProps {
 }
 
 const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true }) => {
-  const { cartCount, isCounting } = useCart();
+  const { projCount, isCounting } = useCart();
   const navigate = useNavigate();
 
   return (
@@ -33,7 +33,7 @@ const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true })
           transition: "transform 0.2s ease, opacity 0.2s ease",
         }}
       >
-        {cartCount}
+        {projCount}
       </span>
     </button>
   );

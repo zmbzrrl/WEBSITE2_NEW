@@ -7,13 +7,24 @@ interface CartItem {
     label: string;
     position: number;
     text: string;
+    src?: string;
+    category?: string;
   }>;
   quantity: number;
+  panelDesign?: {
+    backgroundColor: string;
+    iconColor: string;
+    textColor: string;
+    fontSize: string;
+    fonts?: string;
+    backbox?: string;
+    extraComments?: string;
+  };
 }
 
 export interface CartContextType {
-  cartItems: CartItem[];
-  cartCount: number;
+  projPanels: CartItem[];
+  projCount: number;
   isCounting: boolean;
   addToCart: (item: CartItem) => void;
   updateQuantity: (index: number, newQty: number) => void;
@@ -35,34 +46,34 @@ interface CartProviderProps {
 }
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [cartCount, setCartCount] = useState<number>(0);
+  const [projPanels, setProjPanels] = useState<CartItem[]>([]);
+  const [projCount, setProjCount] = useState<number>(0);
   const [isCounting, setIsCounting] = useState<boolean>(false);
 
   const addToCart = (item: CartItem): void => {
     // Always treat each item as unique – no merging
-    setCartItems((prev) => [...prev, item]);
-    setCartCount((prev) => prev + (item.quantity || 1));
+    setProjPanels((prev) => [...prev, item]);
+    setProjCount((prev) => prev + (item.quantity || 1));
     setIsCounting(true);
   };
 
   const updateQuantity = (index: number, newQty: number): void => {
-    const updated = [...cartItems];
+    const updated = [...projPanels];
     if (newQty <= 0) {
       updated.splice(index, 1);
     } else {
       updated[index].quantity = newQty;
     }
-    setCartItems(updated);
-    setCartCount(updated.reduce((sum, item) => sum + item.quantity, 0));
+    setProjPanels(updated);
+    setProjCount(updated.reduce((sum, item) => sum + item.quantity, 0));
   };
 
   const removeFromCart = (index: number): void => {
-    const removedItem = cartItems[index];
-    const updated = [...cartItems];
+    const removedItem = projPanels[index];
+    const updated = [...projPanels];
     updated.splice(index, 1);
-    setCartItems(updated);
-    setCartCount((prev) => prev - (removedItem?.quantity || 1));
+    setProjPanels(updated);
+    setProjCount((prev) => prev - (removedItem?.quantity || 1));
   };
 
   useEffect(() => {
@@ -75,8 +86,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   return (
     <CartContext.Provider
       value={{
-        cartItems,
-        cartCount,
+        projPanels,
+        projCount,
         isCounting,
         addToCart,
         updateQuantity,

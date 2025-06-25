@@ -8,6 +8,11 @@ interface IconModule {
 const bathroomIcons: Record<string, IconModule> = import.meta.glob("./icons/A-Bathroom/*.png", { eager: true });
 const roomlightIcons: Record<string, IconModule> = import.meta.glob("./icons/B-Roomlights/*.png", { eager: true });
 const curtainIcons: Record<string, IconModule> = import.meta.glob("./icons/C-Curtains&Blinds/*.png", { eager: true });
+const guestServicesIcons: Record<string, IconModule> = import.meta.glob("./icons/G-GuestServices/*.png", { eager: true });
+const generalIconsForLighting: Record<string, IconModule> = import.meta.glob("./icons/D-GeneralIconsForLighting/*.png", { eager: true });
+const socketsIcons: Record<string, IconModule> = import.meta.glob("./sockets/*.png", { eager: true });
+// Import new icons from the root of icons folder
+const rootIcons: Record<string, IconModule> = import.meta.glob("./icons/*.png", { eager: true });
 
 // Convert the imported modules to a more usable format
 const processIcons = (icons: Record<string, IconModule>, category: string) => {
@@ -29,6 +34,10 @@ const allIcons = {
   ...processIcons(bathroomIcons, "Bathroom"),
   ...processIcons(roomlightIcons, "Room Lights"),
   ...processIcons(curtainIcons, "Curtains & Blinds"),
+  ...processIcons(guestServicesIcons, "Guest Services"),
+  ...processIcons(generalIconsForLighting, "General Icons for Lighting"),
+  ...processIcons(socketsIcons, "Sockets"),
+  ...processIcons(rootIcons, "TAG"),
   // Add PIR icon
   "PIR": {
     id: "PIR",
@@ -39,5 +48,14 @@ const allIcons = {
 };
 
 // Export the icons and categories
-export const iconCategories = ["Bathroom", "Room Lights", "Curtains & Blinds", "PIR"];
+export const iconCategories = [
+  "Bathroom",
+  "Room Lights",
+  "Curtains & Blinds",
+  "Guest Services",
+  "General Icons for Lighting",
+  "TAG",
+  "Sockets",
+  "PIR"
+];
 export default allIcons; 

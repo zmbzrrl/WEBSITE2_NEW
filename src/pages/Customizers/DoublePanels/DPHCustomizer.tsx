@@ -1,10 +1,10 @@
 // Import necessary libraries and components
 import React, { useState, useEffect, useRef } from "react";
-import { useCart } from "../../contexts/CartContext";
-import "./Customizer.css";
-import CartButton from "../../components/CartButton";
+import { useCart } from "../../../contexts/CartContext";
+import "../Customizer.css";
+import CartButton from "../../../components/CartButton";
 import { useNavigate } from "react-router-dom";
-import logo2 from "../../assets/logo.png";
+import logo2 from "../../../assets/logo.png";
 import {
   Container,
   Typography,
@@ -15,7 +15,7 @@ import {
   TextField,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { ralColors, RALColor } from '../../data/ralColors';
+import { ralColors, RALColor } from '../../../data/ralColors';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -150,25 +150,25 @@ const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
   };
 
   return (
-    <div
+  <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      style={{
-        width: "30%",
-        height: "100px",
-        display: "inline-block",
-        textAlign: "center",
-        background: "transparent",
-        margin: "5px",
-        position: "relative",
-        boxSizing: "border-box",
-        verticalAlign: "top",
+    style={{
+      width: "30%",
+      height: "100px",
+      display: "inline-block",
+      textAlign: "center",
+      background: "transparent",
+      margin: "5px",
+      position: "relative",
+      boxSizing: "border-box",
+      verticalAlign: "top",
         cursor: "copy",
-      }}
-    >
-      {children}
-    </div>
-  );
+    }}
+  >
+    {children}
+  </div>
+);
 };
 
 // Google Fonts API key (for demo, you should use your own key for production)
@@ -201,7 +201,7 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-// Move InformationBox to the top level, before SPCustomizer
+// Move InformationBox to the top level, before DPHCustomizer
 const InformationBox = ({
   backbox,
   setBackbox,
@@ -466,7 +466,7 @@ const InformationBox = ({
   );
 };
 
-const SPCustomizer: React.FC = () => {
+const DPHCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
   const [icons, setIcons] = useState<Record<string, any>>({});
@@ -518,7 +518,7 @@ const SPCustomizer: React.FC = () => {
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
-    import("../../assets/iconLibrary").then((module) => {
+    import("../../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
       setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets'));
     });
@@ -548,26 +548,6 @@ const SPCustomizer: React.FC = () => {
       // Check if PIR icon is already placed
       const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
       if (hasPIR) return;
-    }
-
-    // Check if trying to place G1 or G2 icon
-    if (selectedIcon.id === "G1" || selectedIcon.id === "G2") {
-      // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7)
-      if (cellIndex !== 0 && cellIndex !== 1 && cellIndex !== 3 && cellIndex !== 4 && cellIndex !== 6 && cellIndex !== 7) return;
-      
-      // Check if G1 or G2 icon is already placed
-      const hasG1G2 = placedIcons.some((icon) => icon.iconId === "G1" || icon.iconId === "G2");
-      if (hasG1G2) return;
-    }
-
-    // Check if trying to place G3 icon
-    if (selectedIcon.id === "G3") {
-      // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8)
-      if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
-      
-      // Check if G3 icon is already placed
-      const hasG3 = placedIcons.some((icon) => icon.iconId === "G3");
-      if (hasG3) return;
     }
 
     const iconPosition: PlacedIcon = {
@@ -607,8 +587,8 @@ const SPCustomizer: React.FC = () => {
     }
 
     const design: Design & { panelDesign: typeof panelDesign } = {
-      type: "SP",
-      icons: Array.from({ length: 9 })
+      type: "DPH",
+      icons: Array.from({ length: 18 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
           return {
@@ -671,26 +651,6 @@ const SPCustomizer: React.FC = () => {
           if (hasPIR) return;
         }
 
-        // Check if trying to place G1 or G2 icon
-        if (icon.id === "G1" || icon.id === "G2") {
-          // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7)
-          if (cellIndex !== 0 && cellIndex !== 1 && cellIndex !== 3 && cellIndex !== 4 && cellIndex !== 6 && cellIndex !== 7) return;
-          
-          // Check if G1 or G2 icon is already placed
-          const hasG1G2 = placedIcons.some((icon) => icon.iconId === "G1" || icon.iconId === "G2");
-          if (hasG1G2) return;
-        }
-
-        // Check if trying to place G3 icon
-        if (icon.id === "G3") {
-          // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8)
-          if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
-          
-          // Check if G3 icon is already placed
-          const hasG3 = placedIcons.some((icon) => icon.iconId === "G3");
-          if (hasG3) return;
-        }
-
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
         if (isOccupied) return;
 
@@ -713,30 +673,10 @@ const SPCustomizer: React.FC = () => {
 
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
-          if (cellIndex !== 7) return;
+          if (![4, 7, 13, 16].includes(cellIndex)) return;
         }
         if (targetIcon?.category === "PIR") {
-          if (dragData.position !== 7) return;
-        }
-
-        // Check G1/G2 restrictions
-        if (sourceIcon.iconId === "G1" || sourceIcon.iconId === "G2") {
-          // G1/G2 cannot be moved to column 3 (cells 2, 5, 8)
-          if (cellIndex === 2 || cellIndex === 5 || cellIndex === 8) return;
-        }
-        if (targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") {
-          // G1/G2 cannot be moved from column 3 (cells 2, 5, 8)
-          if (dragData.position === 2 || dragData.position === 5 || dragData.position === 8) return;
-        }
-
-        // Check G3 restrictions
-        if (sourceIcon.iconId === "G3") {
-          // G3 cannot be moved to column 1 (cells 0, 3, 6)
-          if (cellIndex === 0 || cellIndex === 3 || cellIndex === 6) return;
-        }
-        if (targetIcon?.iconId === "G3") {
-          // G3 cannot be moved from column 1 (cells 0, 3, 6)
-          if (dragData.position === 0 || dragData.position === 3 || dragData.position === 6) return;
+          if (![4, 7, 13, 16].includes(dragData.position)) return;
         }
 
         // Swap icon positions
@@ -833,26 +773,26 @@ const SPCustomizer: React.FC = () => {
                 }}
               />
               {currentStep !== 4 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteIcon(icon.id);
-                  }}
-                  style={{
-                    position: "absolute",
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteIcon(icon.id);
+                }}
+                style={{
+                  position: "absolute",
                     top: "-8px",
                     right: "-8px",
                     background: "rgba(220, 53, 69, 0.9)",
-                    color: "white",
+                  color: "white",
                     border: "2px solid rgba(255, 255, 255, 0.8)",
-                    borderRadius: "50%",
-                    width: "20px",
-                    height: "20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    fontSize: "12px",
+                  borderRadius: "50%",
+                  width: "20px",
+                  height: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: "12px",
                     padding: 0,
                     lineHeight: 1,
                     zIndex: 3,
@@ -871,14 +811,14 @@ const SPCustomizer: React.FC = () => {
                     e.currentTarget.style.background = "rgba(220, 53, 69, 0.9)";
                     e.currentTarget.style.transform = "scale(1)";
                     e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
-                  }}
-                >
-                  ×
-                </button>
-              )}
+                }}
+              >
+                ×
+              </button>
+          )}
             </div>
           )}
-          <div style={{ 
+            <div style={{ 
             position: "absolute",
             bottom: icon ? "5px" : "25px",
             left: "50%",
@@ -895,7 +835,7 @@ const SPCustomizer: React.FC = () => {
                       style={{ 
                         fontSize: panelDesign.fontSize || "12px", 
                         color: panelDesign.textColor || "#000000",
-                        wordBreak: "break-word",
+              wordBreak: "break-word",
                         maxWidth: "100%",
                         textAlign: "center",
                         padding: "4px",
@@ -903,26 +843,26 @@ const SPCustomizer: React.FC = () => {
                         fontFamily: panelDesign.fonts || undefined,
                       }}
                     >
-                      {text}
-                    </div>
+              {text}
+            </div>
                   )
                 ) : (
                   // Other steps: Editable functionality
                   <>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        value={text || ""}
-                        onChange={(e) => handleTextChange(e, index)}
+            <input
+              type="text"
+              value={text || ""}
+              onChange={(e) => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                        style={{
+              style={{
                           width: "100%",
-                          padding: "4px",
+                padding: "4px",
                           fontSize: panelDesign.fontSize || "12px",
-                          textAlign: "center",
+                textAlign: "center",
                           border: "1px solid rgba(255, 255, 255, 0.2)",
-                          borderRadius: "4px",
+                borderRadius: "4px",
                           outline: "none",
                           background: "rgba(255, 255, 255, 0.1)",
                           transition: "all 0.2s ease",
@@ -949,7 +889,7 @@ const SPCustomizer: React.FC = () => {
                       >
                         {text || "Add text"}
                       </div>
-                    )}
+          )}
                   </>
                 )}
               </>
@@ -1064,21 +1004,19 @@ const SPCustomizer: React.FC = () => {
 
         <Box
           sx={{
-            position: 'absolute',
-            top: 20,
-            left: 30,
-            display: 'flex',
-            alignItems: 'center',
+        position: 'absolute', 
+        top: 20, 
+        left: 30, 
+        display: 'flex',
+        alignItems: 'center',
             gap: 2,
           }}
         >
-          <img 
-            src={logo2} 
-            alt="Logo" 
-            style={{ 
-              height: '40px',
-              width: 'auto',
-            }} 
+        <img 
+          src={logo2} 
+          alt="Logo" 
+            style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+            onClick={() => navigate('/')}
           />
           <Typography
             variant="h6"
@@ -1124,30 +1062,30 @@ const SPCustomizer: React.FC = () => {
 
         {/* Icon List: Only visible on step 2 */}
         {currentStep === 2 && (
-          <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px" }}>
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
-              {iconCategories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  style={{
+          {iconCategories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              style={{
                     padding: "12px 24px",
                     background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
                     color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
                     border: "1px solid #1a1f2c",
-                    borderRadius: "4px",
-                    cursor: "pointer",
+                borderRadius: "4px",
+                cursor: "pointer",
                     fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                     fontSize: "14px",
                     letterSpacing: "0.5px",
                     transition: "all 0.3s ease",
                     minWidth: "120px",
-                  }}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
+              }}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
             <div style={{ 
               display: "flex", 
               gap: "16px", 
@@ -1156,29 +1094,29 @@ const SPCustomizer: React.FC = () => {
               maxWidth: "800px",
               margin: "0 auto"
             }}>
-              {categoryIcons.map((icon) => (
-                <div
-                  key={icon.id}
+          {categoryIcons.map((icon) => (
+            <div
+              key={icon.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, icon)}
-                  style={{
+              style={{
                     padding: "12px",
                     background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
                     borderRadius: "6px",
                     cursor: "grab",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
                     width: "60px",
                     border: "1px solid #e0e0e0",
                     transition: "all 0.3s ease",
-                  }}
-                >
-                  <img
-                    src={icon.src}
-                    alt={icon.label}
+              }}
+            >
+              <img
+                src={icon.src}
+                alt={icon.label}
                     style={{ width: "32px", height: "32px", objectFit: "contain" }}
-                  />
+              />
                   <span style={{ 
                     fontSize: "14px", 
                     color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
@@ -1187,10 +1125,10 @@ const SPCustomizer: React.FC = () => {
                   }}>
                     {icon.label}
                   </span>
-                </div>
-              ))}
             </div>
-          </div>
+          ))}
+        </div>
+      </div>
         )}
         {/* Step 3: Panel Design */}
         {currentStep === 3 && (
@@ -1265,8 +1203,8 @@ const SPCustomizer: React.FC = () => {
                   }} />
                   Background Color (RAL)
                 </div>
-            <div
-              style={{
+      <div
+        style={{
                 display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
                     gap: '10px',
@@ -1277,8 +1215,8 @@ const SPCustomizer: React.FC = () => {
                     padding: '16px',
                     border: '1px solid #dee2e6',
                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
-              }}
-            >
+        }}
+      >
               {ralColors.map((color: RALColor) => (
                 <button
                   key={color.code}
@@ -1314,9 +1252,9 @@ const SPCustomizer: React.FC = () => {
                       <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
                 </button>
               ))}
-            </div>
-              </div>
-              
+        </div>
+      </div>
+
               {/* Font Selection Section */}
               <div style={{ 
                 marginBottom: '28px',
@@ -1358,7 +1296,7 @@ const SPCustomizer: React.FC = () => {
                     setShowFontDropdown(true);
                   }}
                   onFocus={() => setShowFontDropdown(true)}
-                  style={{
+        style={{
                       padding: '12px 16px',
                       borderRadius: '8px',
                       border: '1px solid #dee2e6',
@@ -1470,10 +1408,10 @@ const SPCustomizer: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   {['10px', '12px', '14px', '16px'].map((size) => (
-                    <button
+      <button
                       key={size}
                       onClick={() => setPanelDesign(prev => ({ ...prev, fontSize: size }))}
-                      style={{
+        style={{
                         padding: '10px 16px',
                         borderRadius: '8px',
                         border: panelDesign.fontSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
@@ -1487,10 +1425,10 @@ const SPCustomizer: React.FC = () => {
                         textAlign: 'center',
                         boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
                         transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)',
-                      }}
-                    >
+        }}
+      >
                       {size.replace('px', '')}
-                    </button>
+      </button>
                   ))}
                 </div>
               </div>
@@ -1535,10 +1473,10 @@ const SPCustomizer: React.FC = () => {
                     </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-                    <button
+      <button
                       key={color}
                       onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-                      style={{
+        style={{
                             width: '36px',
                             height: '36px',
                         borderRadius: '50%',
@@ -1586,11 +1524,11 @@ const SPCustomizer: React.FC = () => {
           </div>
             </div>
 
-            {/* Right side - Panel Template */}
+            {/* Right side - Panel Template (double panel) */}
             <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-          <div
-            style={{
-              width: "350px",
+              <div
+                style={{
+                  width: "700px",
                   background: `linear-gradient(135deg, 
                     rgba(255, 255, 255, 0.3) 0%, 
                     rgba(255, 255, 255, 0.1) 50%, 
@@ -1611,10 +1549,11 @@ const SPCustomizer: React.FC = () => {
                   WebkitBackdropFilter: "blur(20px)",
                   transition: "all 0.3s ease",
                   position: "relative",
-                  transform: "perspective(1000px) rotateX(5deg)",
-                  transformStyle: "preserve-3d",
-                }}
-              >
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: 0,
+        }}
+      >
                 {/* Inner glow effect */}
                 <div
                   style={{
@@ -1631,17 +1570,22 @@ const SPCustomizer: React.FC = () => {
                     zIndex: 1,
                   }}
                 />
-                
-                {/* Content with higher z-index */}
-                <div style={{ 
-                  display: "flex", 
-                  flexWrap: "wrap",
-                  position: "relative",
-                  zIndex: 2,
-                }}>
-              {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
-            </div>
-          </div>
+                {/* Two 3x3 grids, no gap */}
+                {[0, 9].map((offset) => (
+                  <div
+                    key={offset}
+                    style={{
+                      width: "350px",
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      position: 'relative',
+                      zIndex: 2,
+                    }}
+                  >
+                    {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+    </div>
+                ))}
+              </div>
         </div>
           </div>
         )}
@@ -1676,11 +1620,11 @@ const SPCustomizer: React.FC = () => {
                 />
               </div>
               
-              {/* Panel Template */}
+              {/* Panel Template (double panel) */}
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
                   style={{
-                    width: "350px",
+                    width: "700px",
                     background: `linear-gradient(135deg, 
                       rgba(255, 255, 255, 0.3) 0%, 
                       rgba(255, 255, 255, 0.1) 50%, 
@@ -1701,8 +1645,9 @@ const SPCustomizer: React.FC = () => {
                     WebkitBackdropFilter: "blur(20px)",
                     transition: "all 0.3s ease",
                     position: "relative",
-                    transform: "perspective(1000px) rotateX(5deg)",
-                    transformStyle: "preserve-3d",
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: 0,
                   }}
                 >
                   {/* Inner glow effect */}
@@ -1721,18 +1666,22 @@ const SPCustomizer: React.FC = () => {
                       zIndex: 1,
                     }}
                   />
-                  
-                  {/* Content with higher z-index */}
-                  <div style={{ 
-                    display: "flex", 
-                    flexWrap: "wrap",
-                    position: "relative",
-                    zIndex: 2,
-                  }}>
-                    {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
-                  </div>
+                  {/* Two 3x3 grids, no gap */}
+                  {[0, 9].map((offset) => (
+                    <div
+                      key={offset}
+                      style={{
+                        width: "350px",
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        position: 'relative',
+                        zIndex: 2,
+                      }}
+                    >
+                      {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+                    </div>
+                  ))}
                 </div>
-                
                 {/* Add to Project Button positioned under the panel template */}
                 <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
             <StyledButton
@@ -1758,7 +1707,7 @@ const SPCustomizer: React.FC = () => {
           <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
             <div
               style={{
-                width: "350px",
+                width: "700px",
                 background: `linear-gradient(135deg, 
                   rgba(255, 255, 255, 0.3) 0%, 
                   rgba(255, 255, 255, 0.1) 50%, 
@@ -1779,8 +1728,9 @@ const SPCustomizer: React.FC = () => {
                 WebkitBackdropFilter: "blur(20px)",
                 transition: "all 0.3s ease",
                 position: "relative",
-                transform: "perspective(1000px) rotateX(5deg)",
-                transformStyle: "preserve-3d",
+                display: 'flex',
+                flexDirection: 'row',
+                gap: 0,
               }}
             >
               {/* Inner glow effect */}
@@ -1799,16 +1749,21 @@ const SPCustomizer: React.FC = () => {
                   zIndex: 1,
                 }}
               />
-              
-              {/* Content with higher z-index */}
-              <div style={{ 
-                display: "flex", 
-                flexWrap: "wrap",
-                position: "relative",
-                zIndex: 2,
-              }}>
-                {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
-              </div>
+              {/* Two 3x3 grids, no gap */}
+              {[0, 9].map((offset) => (
+                <div
+                  key={offset}
+                  style={{
+                    width: "350px",
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    position: 'relative',
+                    zIndex: 2,
+                  }}
+                >
+                  {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1817,4 +1772,4 @@ const SPCustomizer: React.FC = () => {
   );
 };
 
-export default SPCustomizer; 
+export default DPHCustomizer; 

@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import logo from '../assets/logo2.png';
+import logo from '../assets/logo.png';
 import tagPir from '../assets/panels/TAG_PIR.png';
 import idpgRn from '../assets/panels/IDPG_RN.png';
 import idpg from '../assets/panels/IDPG.png';

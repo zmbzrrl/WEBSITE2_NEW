@@ -18,7 +18,9 @@ import X2LS from "../../assets/panels/X2LS.png";
 import X2RS from "../../assets/panels/X2RS.png";
 import X2V from "../../assets/panels/X2V_UP.png";
 import logo from "../../assets/logo.png";
+import logo2 from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -116,21 +118,23 @@ const ExtendedPanelSelector = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const panelTypes = [
+  const horizontalPanels = [
     {
       name: "Extended 1 Horizontal",
       image: X1LS,
       path: "/customizer/x1h",
     },
     {
-      name: "Extended 1 Vertical",
-      image: X1V,
-      path: "/customizer/x1v",
-    },
-    {
       name: "Extended 2 Horizontal",
       image: X2LS,
       path: "/customizer/x2h",
+    },
+  ];
+  const verticalPanels = [
+    {
+      name: "Extended 1 Vertical",
+      image: X1V,
+      path: "/customizer/x1v",
     },
     {
       name: "Extended 2 Vertical",
@@ -143,10 +147,25 @@ const ExtendedPanelSelector = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)',
+        background: 'linear-gradient(135deg, #a0aec0 0%, #718096 60%, #e2e8f0 100%)',
+        position: 'relative',
+        overflow: 'hidden',
         py: 8,
       }}
     >
+      <Box
+        component={motion.div}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.25 }}
+        transition={{ duration: 1.2 }}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at 70% 30%, #fff 0%, transparent 70%)',
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      />
       <Container maxWidth="lg">
         <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
           <CartButton />
@@ -160,15 +179,14 @@ const ExtendedPanelSelector = () => {
             display: 'flex',
             alignItems: 'center',
             gap: 2,
+            zIndex: 2,
           }}
         >
           <img 
-            src={logo} 
+            src={logo2} 
             alt="Logo" 
-            style={{ 
-              height: '40px',
-              width: 'auto',
-            }} 
+            style={{ height: '40px', width: 'auto', cursor: 'pointer', filter: 'brightness(0) invert(0.3)' }}
+            onClick={() => navigate('/')} 
           />
           <Typography
             variant="h6"
@@ -186,22 +204,72 @@ const ExtendedPanelSelector = () => {
         </Box>
 
         <ProgressContainer>
-          <ProgressText variant="h6">
-            1. Select your panel type
-          </ProgressText>
-          <LinearProgress 
-            variant="determinate" 
-            value={40} 
-            sx={{
-              height: 2,
-              borderRadius: 1,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 1,
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-              },
-            }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 4, mt: 4, gap: 2 }}>
+            <Button
+              onClick={() => navigate('/panel-type')}
+              sx={{
+                minWidth: 0,
+                p: 2,
+                bgcolor: 'transparent',
+                color: '#1976d2',
+                borderRadius: '50%',
+                mr: 2,
+                '&:hover': {
+                  bgcolor: 'rgba(25, 118, 210, 0.08)',
+                  color: '#1565c0',
+                },
+              }}
+              aria-label="Back"
+            >
+              <ArrowBackIcon fontSize="large" />
+            </Button>
+            {[
+              { step: 1, label: 'Select Panel Type' },
+              { step: 2, label: 'Select your icons' },
+              { step: 3, label: 'Select Panel Design' },
+              { step: 4, label: 'Review panel details' },
+            ].map((s, idx) => (
+              <React.Fragment key={s.step}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120 }}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: idx === 0 ? 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)' : '#e0e0e0',
+                      color: idx === 0 ? '#fff' : '#999',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: 18,
+                      boxShadow: idx === 0 ? '0 2px 8px #1976d233' : 'none',
+                      border: idx === 0 ? '2px solid #1976d2' : '2px solid #e0e0e0',
+                      mb: 1,
+                      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+                    }}
+                  >
+                    {s.step}
+                  </Box>
+                  <Typography
+                    sx={{
+                      color: idx === 0 ? '#1976d2' : '#666',
+                      fontWeight: idx === 0 ? 600 : 400,
+                      fontSize: 14,
+                      textAlign: 'center',
+                      maxWidth: 110,
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    {s.label}
+                  </Typography>
+                </Box>
+                {idx < 3 && (
+                  <Box sx={{ flex: 1, height: 2, background: '#e0e0e0', mx: 1, minWidth: 24, borderRadius: 1 }} />
+                )}
+              </React.Fragment>
+            ))}
+          </Box>
         </ProgressContainer>
 
         {showPanels && (
@@ -211,13 +279,31 @@ const ExtendedPanelSelector = () => {
             animate="visible"
             style={{ width: '100%' }}
           >
-            <Grid container spacing={4} justifyContent="center">
-              {panelTypes.map((panel) => (
-                <Grid 
+            {/* Horizontal Panels Section */}
+            <Box sx={{ mt: 6, mb: 2 }}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  color: '#2d3748',
+                  fontWeight: 700,
+                  fontSize: 24,
+                  letterSpacing: 1,
+                  textAlign: 'left',
+                  mb: 0.5,
+                }}
+              >
+                Horizontal Panels
+              </Typography>
+              <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
+            </Box>
+            <Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
+              {horizontalPanels.map((panel) => (
+                <Grid
                   key={panel.name}
-                  item 
-                  xs={12} 
-                  sm={6} 
+                  item
+                  xs={12}
+                  sm={6}
                   md={4}
                   component="div"
                 >
@@ -237,13 +323,87 @@ const ExtendedPanelSelector = () => {
                         alt={panel.name}
                         className="panel-image"
                       />
-                      <PanelTitle 
-                        variant="h5" 
+                      <PanelTitle
+                        variant="h5"
                         className="panel-title"
+                        sx={{ textAlign: 'center', mb: 2 }}
+                      >
+                        {panel.name}
+                      </PanelTitle>
+                      <Button
+                        variant="text"
+                        size="large"
+                        className="panel-button"
                         sx={{
-                          textAlign: 'center',
-                          mb: 2,
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          textTransform: 'none',
+                          fontWeight: 400,
+                          letterSpacing: '0.5px',
+                          opacity: 0,
+                          transform: 'translateY(10px)',
+                          transition: 'all 0.3s ease',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                          '&:hover': {
+                            color: 'rgba(255, 255, 255, 1)',
+                            backgroundColor: 'transparent',
+                          },
                         }}
+                      >
+                        Select
+                      </Button>
+                    </PanelContainer>
+                  </StyledPanel>
+                </Grid>
+              ))}
+            </Grid>
+            {/* Vertical Panels Section */}
+            <Box sx={{ mt: 6, mb: 2 }}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  color: '#2d3748',
+                  fontWeight: 700,
+                  fontSize: 24,
+                  letterSpacing: 1,
+                  textAlign: 'left',
+                  mb: 0.5,
+                }}
+              >
+                Vertical Panels
+              </Typography>
+              <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
+            </Box>
+            <Grid container spacing={4} justifyContent="center">
+              {verticalPanels.map((panel) => (
+                <Grid
+                  key={panel.name}
+                  item
+                  xs={12}
+                  sm={6}
+                  md={4}
+                  component="div"
+                >
+                  <StyledPanel variants={itemVariants}>
+                    <PanelContainer
+                      onClick={() => navigate(panel.path)}
+                      sx={{
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        p: 3,
+                      }}
+                    >
+                      <PanelImage
+                        src={panel.image}
+                        alt={panel.name}
+                        className="panel-image"
+                      />
+                      <PanelTitle
+                        variant="h5"
+                        className="panel-title"
+                        sx={{ textAlign: 'center', mb: 2 }}
                       >
                         {panel.name}
                       </PanelTitle>

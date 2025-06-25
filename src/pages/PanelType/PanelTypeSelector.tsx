@@ -15,7 +15,7 @@ import DP from "../../assets/panels/DP.jpg";
 import X2H from "../../assets/panels/X2RS.png";
 import IDPG from "../../assets/panels/IDPG_RN.png";
 import TAG from "../../assets/panels/TAG_PIR.png";
-import logo from "../../assets/logo2.png";
+import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -218,11 +218,8 @@ const PanelTypeSelector = () => {
           <img 
             src={logo} 
             alt="Logo" 
-            style={{ 
-              height: '40px',
-              width: 'auto',
-              filter: 'brightness(0) invert(0.3)'
-            }} 
+            style={{ height: '40px', width: 'auto', cursor: 'pointer', filter: 'brightness(0) invert(0.3)' }}
+            onClick={() => navigate('/')}
           />
           <Typography
             variant="h6"
