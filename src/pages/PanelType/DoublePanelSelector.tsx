@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -11,10 +11,12 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
-import DPH from "../../assets/panels/DP_RT.jpg";
+import DPH from "../../assets/panels/DP.jpg";
 import DPV from "../../assets/panels/DP.jpg";
 import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { ProjectContext } from '../../App';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -76,24 +78,26 @@ const StyledPanel = styled(motion.div)({
 });
 
 const containerVariants = {
-  hidden: { opacity: 1 },
+  hidden: { opacity: 0 },
   visible: {
+    opacity: 1,
     transition: {
-      staggerChildren: 0.35
+      duration: 0.3,
+      staggerChildren: 0.2
     }
   }
 };
 
 const itemVariants = {
   hidden: { 
-    opacity: 1,
-    y: 20
+    opacity: 0,
+    y: 30
   },
   visible: { 
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
+      duration: 0.6,
       ease: [0.4, 0, 0.2, 1]
     }
   }
@@ -103,6 +107,7 @@ const DoublePanelSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
+  const { projectName, projectCode } = useContext(ProjectContext);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -133,6 +138,30 @@ const DoublePanelSelector = () => {
         py: 8,
       }}
     >
+      {/* Project Name at top center */}
+      {(projectName || projectCode) && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 20, 
+          left: 0, 
+          right: 0, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          pointerEvents: 'none', 
+          zIndex: 10 
+        }}>
+          <Typography sx={{
+            fontSize: 14,
+            color: '#ffffff',
+            fontWeight: 400,
+            letterSpacing: 0.5,
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            opacity: 0.8,
+          }}>
+            {projectName}{projectCode && ` - ${projectCode}`}
+          </Typography>
+        </Box>
+      )}
       <Container maxWidth="lg">
         <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
           <CartButton />
@@ -151,10 +180,8 @@ const DoublePanelSelector = () => {
           <img 
             src={logo} 
             alt="Logo" 
-            style={{ 
-              height: '40px',
-              width: 'auto',
-            }} 
+            style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+            onClick={() => navigate('/')} 
           />
           <Typography
             variant="h6"
@@ -172,22 +199,72 @@ const DoublePanelSelector = () => {
         </Box>
 
         <ProgressContainer>
-          <ProgressText variant="h6">
-            1. Select your panel type
-          </ProgressText>
-          <LinearProgress 
-            variant="determinate" 
-            value={40} 
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 4, mt: 4, gap: 2 }}>
+            <Button
+              onClick={() => navigate('/panel-type')}
             sx={{
-              height: 2,
-              borderRadius: 1,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 1,
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-              },
+                minWidth: 0,
+                p: 2,
+                bgcolor: 'transparent',
+                color: '#1976d2',
+                borderRadius: '50%',
+                mr: 2,
+                '&:hover': {
+                  bgcolor: 'rgba(25, 118, 210, 0.08)',
+                  color: '#1565c0',
+                },
+              }}
+              aria-label="Back"
+            >
+              <ArrowBackIcon fontSize="large" />
+            </Button>
+            {[
+              { step: 1, label: 'Select Panel Type' },
+              { step: 2, label: 'Select your icons' },
+              { step: 3, label: 'Select Panel Design' },
+              { step: 4, label: 'Review panel details' },
+            ].map((s, idx) => (
+              <React.Fragment key={s.step}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120 }}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: idx === 0 ? 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)' : '#e0e0e0',
+                      color: idx === 0 ? '#fff' : '#999',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: 18,
+                      boxShadow: idx === 0 ? '0 2px 8px #1976d233' : 'none',
+                      border: idx === 0 ? '2px solid #1976d2' : '2px solid #e0e0e0',
+                      mb: 1,
+                      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+                    }}
+                  >
+                    {s.step}
+                  </Box>
+                  <Typography
+                    sx={{
+                      color: idx === 0 ? '#1976d2' : '#666',
+                      fontWeight: idx === 0 ? 600 : 400,
+                      fontSize: 14,
+                      textAlign: 'center',
+                      maxWidth: 110,
+                      letterSpacing: 0.2,
             }}
-          />
+                  >
+                    {s.label}
+                  </Typography>
+                </Box>
+                {idx < 3 && (
+                  <Box sx={{ flex: 1, height: 2, background: '#e0e0e0', mx: 1, minWidth: 24, borderRadius: 1 }} />
+                )}
+              </React.Fragment>
+            ))}
+          </Box>
         </ProgressContainer>
 
         {showPanels && (
@@ -197,14 +274,15 @@ const DoublePanelSelector = () => {
             animate="visible"
             style={{ width: '100%' }}
           >
-            <Grid container spacing={4} justifyContent="center">
+            <Grid container spacing={6} justifyContent="center">
               {panelTypes.map((panel) => (
                 <Grid 
                   key={panel.name}
                   item 
                   xs={12} 
-                  sm={6} 
-                  md={4}
+                  sm={12} 
+                  md={6}
+                  lg={5}
                   component="div"
                 >
                   <StyledPanel variants={itemVariants}>
@@ -215,13 +293,19 @@ const DoublePanelSelector = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        p: 3,
+                        p: 4,
+                        minHeight: 400,
                       }}
                     >
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}
                         className="panel-image"
+                        style={{
+                          maxHeight: 1680,
+                          width: '100%',
+                          objectFit: 'contain',
+                        }}
                       />
                       <PanelTitle 
                         variant="h5" 

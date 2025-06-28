@@ -1,11 +1,10 @@
 // Import necessary libraries and components
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useCart } from "../../../contexts/CartContext";
 import "../Customizer.css";
 import CartButton from "../../../components/CartButton";
 import { useNavigate } from "react-router-dom";
 import logo2 from "../../../assets/logo.png";
-import icons from "../../../assets/iconLibrary";
 import {
   Container,
   Typography,
@@ -18,9 +17,11 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
+import { useContext } from 'react';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
-import X1V from "../../../assets/panels/X1V_UP.png";
+import DPV from "../../../assets/panels/DP.jpg";
+import logo from "../../../assets/logo.png";
 import { getIconColorName } from '../../../data/iconColors';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -156,7 +157,7 @@ const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
   };
 
   return (
-    <div
+  <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     style={{
@@ -207,7 +208,7 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-// Move InformationBox to the top level, before DPHCustomizer
+// Move InformationBox to the top level, before SPCustomizer
 const InformationBox = ({
   backbox,
   setBackbox,
@@ -416,7 +417,7 @@ const InformationBox = ({
                 background: '#9C27B0',
                 flexShrink: 0
               }} />
-              Typography Font
+              Typography Settings
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
@@ -474,7 +475,7 @@ const InformationBox = ({
   );
 };
 
-const X1VCustomizer: React.FC = () => {
+const DPVCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
   const [icons, setIcons] = useState<Record<string, any>>({});
@@ -487,9 +488,6 @@ const X1VCustomizer: React.FC = () => {
   const [editingCell, setEditingCell] = useState<number | null>(null);
   const iconNames = Array.from(new Set(placedIcons.map(icon => icon.iconId)));
   const [currentStep, setCurrentStep] = useState(2); // 2, 3, or 4
-  const [isHoveringLargeIcon, setIsHoveringLargeIcon] = useState(false);
-  const [isLayoutReversed, setIsLayoutReversed] = useState(false);
-  const [isMirrored, setIsMirrored] = useState(false);
   const [panelDesign, setPanelDesign] = useState<{
     backgroundColor: string;
     fonts: string;
@@ -528,14 +526,16 @@ const X1VCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  console.log('RENDER', { backbox, extraComments });
-
   const { projectName } = useContext(ProjectContext);
+  console.log('RENDER', { backbox, extraComments });
+  const [isLayoutReversed, setIsLayoutReversed] = useState(false);
+  const [isMirrored, setIsMirrored] = useState(false);
+  const [gridsSwitched, setGridsSwitched] = useState(false);
 
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
     });
   }, []);
 
@@ -557,8 +557,8 @@ const X1VCustomizer: React.FC = () => {
 
     // Check if trying to place PIR icon
     if (selectedIcon.category === "PIR") {
-      // Only allow placement in bottom center cell (7)
-      if (cellIndex !== 7) return;
+      // Only allow placement in bottom center cells (7 for left grid, 16 for right grid)
+      if (cellIndex !== 7 && cellIndex !== 16) return;
       
       // Check if PIR icon is already placed
       const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
@@ -602,7 +602,7 @@ const X1VCustomizer: React.FC = () => {
     }
 
     const design: Design & { panelDesign: typeof panelDesign } = {
-      type: "X1V",
+      type: "DPV",
       icons: Array.from({ length: 18 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -661,33 +661,9 @@ const X1VCustomizer: React.FC = () => {
 
         // Check if trying to place PIR icon
         if (icon.category === "PIR") {
-          if (cellIndex !== 7) return;
+          if (cellIndex !== 7 && cellIndex !== 16) return;
           const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
           if (hasPIR) return;
-        }
-
-        // Check if trying to place G1 or G2 icons in restricted cells (2, 5, 8) - right column
-        if ((icon.id === "G1" || icon.id === "G2") && [2, 5, 8].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8)");
-          return;
-        }
-
-        // Check if trying to place G3 icon in restricted cells (0, 3, 6) - left column
-        if (icon.id === "G3" && [0, 3, 6].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6)");
-          return;
-        }
-
-        // Check if trying to place icon in big icon area (position 100) - only allow socket icons
-        if (cellIndex === 100 && icon.category !== "Sockets") {
-          console.log("DROP: BLOCKED non-socket icon placement in big icon area");
-            return;
-          }
-
-        // Check if trying to place socket icon in 3x3 grid (positions 0-8) - only allow in big icon area
-        if (icon.category === "Sockets" && cellIndex !== 100) {
-          console.log("DROP: BLOCKED socket icon placement in 3x3 grid - only allowed in big icon area");
-            return;
         }
 
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -712,50 +688,10 @@ const X1VCustomizer: React.FC = () => {
 
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
-          if (cellIndex !== 7) return;
+          if (![7, 16].includes(cellIndex)) return;
         }
         if (targetIcon?.category === "PIR") {
-          if (dragData.position !== 7) return;
-        }
-
-        // Check G1/G2 restrictions for restricted cells (2, 5, 8) - right column
-        if ((sourceIcon.iconId === "G1" || sourceIcon.iconId === "G2") && [2, 5, 8].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8)");
-          return;
-        }
-        if ((targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") && [2, 5, 8].includes(dragData.position)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8)");
-          return;
-        }
-
-        // Check G3 restrictions for restricted cells (0, 3, 6) - left column
-        if (sourceIcon.iconId === "G3" && [0, 3, 6].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6)");
-          return;
-        }
-        if (targetIcon?.iconId === "G3" && [0, 3, 6].includes(dragData.position)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6)");
-          return;
-        }
-
-        // Check big icon area restrictions (position 100) - only allow socket icons
-        if (cellIndex === 100 && sourceIcon.category !== "Sockets") {
-          console.log("DROP: BLOCKED non-socket icon placement in big icon area");
-          return;
-        }
-        if (dragData.position === 100 && targetIcon?.category !== "Sockets") {
-          console.log("DROP: BLOCKED non-socket icon placement in big icon area");
-          return;
-        }
-
-        // Check socket icon restrictions - only allow in big icon area (position 100)
-        if (sourceIcon.category === "Sockets" && cellIndex !== 100) {
-          console.log("DROP: BLOCKED socket icon placement in 3x3 grid - only allowed in big icon area");
-          return;
-        }
-        if (targetIcon?.category === "Sockets" && dragData.position !== 100) {
-          console.log("DROP: BLOCKED socket icon placement in 3x3 grid - only allowed in big icon area");
-          return;
+          if (![7, 16].includes(dragData.position)) return;
         }
 
         // Swap icon positions
@@ -807,15 +743,20 @@ const X1VCustomizer: React.FC = () => {
     setPlacedIcons(prev => {
       const newIcons = [...prev];
       
-      // Mirror the 3x3 grid positions (0-8)
+      // Mirror both 3x3 grids: positions 0-8 (first grid) and 9-17 (second grid)
       const mirrorMap: { [key: number]: number } = {
+        // First grid (positions 0-8)
         0: 2, 2: 0,  // Top row: swap left and right
         3: 5, 5: 3,  // Middle row: swap left and right  
-        6: 8, 8: 6   // Bottom row: swap left and right
+        6: 8, 8: 6,  // Bottom row: swap left and right
+        // Second grid (positions 9-17)
+        9: 11, 11: 9,   // Top row: swap left and right
+        12: 14, 14: 12, // Middle row: swap left and right  
+        15: 17, 17: 15  // Bottom row: swap left and right
       };
       
       return newIcons.map(icon => {
-        if (icon.position >= 0 && icon.position <= 8) {
+        if (icon.position >= 0 && icon.position <= 17) {
           const newPosition = mirrorMap[icon.position];
           if (newPosition !== undefined) {
             return { ...icon, position: newPosition };
@@ -825,18 +766,23 @@ const X1VCustomizer: React.FC = () => {
       });
     });
     
-    // Also mirror the text positions
+    // Also mirror the text positions for both grids
     setIconTexts(prev => {
       const newTexts = { ...prev };
       const mirrorMap: { [key: number]: number } = {
+        // First grid (positions 0-8)
         0: 2, 2: 0,
         3: 5, 5: 3,
-        6: 8, 8: 6
+        6: 8, 8: 6,
+        // Second grid (positions 9-17)
+        9: 11, 11: 9,
+        12: 14, 14: 12,
+        15: 17, 17: 15
       };
       
       Object.keys(newTexts).forEach(key => {
         const position = parseInt(key);
-        if (position >= 0 && position <= 8) {
+        if (position >= 0 && position <= 17) {
           const newPosition = mirrorMap[position];
           if (newPosition !== undefined) {
             newTexts[newPosition] = newTexts[position];
@@ -849,6 +795,64 @@ const X1VCustomizer: React.FC = () => {
     });
     
     setIsMirrored(!isMirrored);
+  };
+
+  const handleSwitchGrids = () => {
+    setPlacedIcons(prev => {
+      const newIcons = [...prev];
+      
+      // Switch positions between the two grids (0-8 and 9-17)
+      const switchMap: { [key: number]: number } = {
+        // First grid positions (0-8) move to second grid positions (9-17)
+        0: 9, 1: 10, 2: 11,
+        3: 12, 4: 13, 5: 14,
+        6: 15, 7: 16, 8: 17,
+        // Second grid positions (9-17) move to first grid positions (0-8)
+        9: 0, 10: 1, 11: 2,
+        12: 3, 13: 4, 14: 5,
+        15: 6, 16: 7, 17: 8
+      };
+      
+      return newIcons.map(icon => {
+        if (icon.position >= 0 && icon.position <= 17) {
+          const newPosition = switchMap[icon.position];
+          if (newPosition !== undefined) {
+            return { ...icon, position: newPosition };
+          }
+        }
+        return icon;
+      });
+    });
+    
+    // Also switch the text positions
+    setIconTexts(prev => {
+      const newTexts = { ...prev };
+      const switchMap: { [key: number]: number } = {
+        // First grid positions (0-8) move to second grid positions (9-17)
+        0: 9, 1: 10, 2: 11,
+        3: 12, 4: 13, 5: 14,
+        6: 15, 7: 16, 8: 17,
+        // Second grid positions (9-17) move to first grid positions (0-8)
+        9: 0, 10: 1, 11: 2,
+        12: 3, 13: 4, 14: 5,
+        15: 6, 16: 7, 17: 8
+      };
+      
+      Object.keys(newTexts).forEach(key => {
+        const position = parseInt(key);
+        if (position >= 0 && position <= 17) {
+          const newPosition = switchMap[position];
+          if (newPosition !== undefined) {
+            newTexts[newPosition] = newTexts[position];
+            delete newTexts[position];
+          }
+        }
+      });
+      
+      return newTexts;
+    });
+    
+    setGridsSwitched(!gridsSwitched);
   };
 
   const renderGridCell = (index: number) => {
@@ -887,14 +891,14 @@ const X1VCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                  width: (icon?.category === 'Sockets') ? panelDesign.iconSize || '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                  height: (icon?.category === 'Sockets') ? panelDesign.iconSize || '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                  objectFit: 'contain',
-                  marginBottom: '5px',
-                  position: 'relative',
+                  width: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
+                  height: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
+                  objectFit: "contain",
+                  marginBottom: "5px",
+                  position: "relative",
                   zIndex: 1,
-                  marginTop: isPIR ? '20px' : '0',
-                  cursor: currentStep !== 4 ? 'move' : 'default',
+                  marginTop: isPIR ? "20px" : "0",
+                  cursor: currentStep !== 4 ? "move" : "default",
                   filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',
                 }}
@@ -962,7 +966,7 @@ const X1VCustomizer: React.FC = () => {
                       style={{ 
                         fontSize: panelDesign.fontSize || "12px", 
                         color: panelDesign.textColor || "#000000",
-                        wordBreak: "break-word",
+              wordBreak: "break-word",
                         maxWidth: "100%",
                         textAlign: "center",
                         padding: "4px",
@@ -1016,7 +1020,7 @@ const X1VCustomizer: React.FC = () => {
                       >
                         {text || "Add text"}
                       </div>
-                    )}
+          )}
                   </>
                 )}
               </>
@@ -1116,288 +1120,6 @@ const X1VCustomizer: React.FC = () => {
     }
   }, [panelDesign.fonts]);
 
-  // Step-specific Big Icon Container Components
-  const Step2BigIconContainer = ({ isReversed }: { isReversed: boolean }) => {
-    const icon = placedIcons.find((i) => i.position === 100);
-    return (
-      <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          <GridCell index={100} onDrop={handleDrop}>
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                minHeight: 0,
-                minWidth: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: 16,
-                border: icon ? '2px solid #1976d2' : '2px dashed #bbb',
-                position: 'relative',
-                cursor: 'pointer',
-                transition: 'border 0.2s',
-              }}
-              onClick={() => {
-                if (icon) return;
-                // Optionally open icon picker or handle click
-              }}
-              onMouseEnter={() => setIsHoveringLargeIcon(true)}
-              onMouseLeave={() => setIsHoveringLargeIcon(false)}
-            >
-              {icon ? (
-                <img src={icon.src} alt={icon.label} style={{ width: '250%', height: '250%', objectFit: 'contain' }} />
-              ) : (
-                <span style={{ color: '#bbb', fontSize: 18 }}>Drop icon here</span>
-              )}
-            </div>
-          </GridCell>
-        </div>
-        {/* Delete button positioned relative to the large icon container */}
-        {placedIcons.find((i) => i.position === 100) && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setPlacedIcons(prev => prev.filter(i => i.position !== 100));
-            }}
-            onMouseEnter={(e) => {
-              e.stopPropagation();
-              setIsHoveringLargeIcon(true);
-              e.currentTarget.style.background = 'rgba(220, 53, 69, 1)';
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.stopPropagation();
-              e.currentTarget.style.background = 'rgba(220, 53, 69, 0.9)';
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-            }}
-            style={{
-              position: 'absolute',
-              top: '50px',
-              right: '90px',
-              background: 'rgba(220, 53, 69, 0.9)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.8)',
-              borderRadius: '50%',
-              width: '29px',
-              height: '29px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: '16px',
-              padding: 0,
-              lineHeight: 1,
-              zIndex: 10,
-              opacity: isHoveringLargeIcon ? 1 : 0,
-              transform: isHoveringLargeIcon ? 'scale(1)' : 'scale(0.8)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-              fontWeight: 'bold',
-            }}
-          >
-            ×
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  const Step3BigIconContainer = ({ isReversed }: { isReversed: boolean }) => {
-    const icon = placedIcons.find((i) => i.position === 100);
-    return (
-      <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          <GridCell index={100} onDrop={handleDrop}>
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                minHeight: 0,
-                minWidth: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: 16,
-                border: icon ? '2px solid #1976d2' : '2px dashed #bbb',
-                position: 'relative',
-                cursor: 'pointer',
-                transition: 'border 0.2s',
-              }}
-              onClick={() => {
-                if (icon) return;
-                // Optionally open icon picker or handle click
-              }}
-              onMouseEnter={() => setIsHoveringLargeIcon(true)}
-              onMouseLeave={() => setIsHoveringLargeIcon(false)}
-            >
-              {icon ? (
-                <img src={icon.src} alt={icon.label} style={{ width: '250%', height: '250%', objectFit: 'contain' }} />
-              ) : (
-                <span style={{ color: '#bbb', fontSize: 18 }}>Drop icon here</span>
-              )}
-            </div>
-          </GridCell>
-        </div>
-        {/* Delete button positioned relative to the large icon container */}
-        {placedIcons.find((i) => i.position === 100) && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setPlacedIcons(prev => prev.filter(i => i.position !== 100));
-            }}
-            onMouseEnter={(e) => {
-              e.stopPropagation();
-              setIsHoveringLargeIcon(true);
-              e.currentTarget.style.background = 'rgba(220, 53, 69, 1)';
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.stopPropagation();
-              e.currentTarget.style.background = 'rgba(220, 53, 69, 0.9)';
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-            }}
-            style={{
-              position: 'absolute',
-              top: '50px',
-              right: '90px',
-              background: 'rgba(220, 53, 69, 0.9)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.8)',
-              borderRadius: '50%',
-              width: '29px',
-              height: '29px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: '16px',
-              padding: 0,
-              lineHeight: 1,
-              zIndex: 10,
-              opacity: isHoveringLargeIcon ? 1 : 0,
-              transform: isHoveringLargeIcon ? 'scale(1)' : 'scale(0.8)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-              fontWeight: 'bold',
-            }}
-          >
-            ×
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  const Step4BigIconContainer = ({ isReversed }: { isReversed: boolean }) => {
-    const icon = placedIcons.find((i) => i.position === 100);
-    return (
-      <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          <GridCell index={100} onDrop={handleDrop}>
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                minHeight: 0,
-                minWidth: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: 16,
-                border: icon ? '2px solid #1976d2' : '2px dashed #bbb',
-                position: 'relative',
-                cursor: 'pointer',
-                transition: 'border 0.2s',
-              }}
-              onClick={() => {
-                if (icon) return;
-                // Optionally open icon picker or handle click
-              }}
-              onMouseEnter={() => setIsHoveringLargeIcon(true)}
-              onMouseLeave={() => setIsHoveringLargeIcon(false)}
-            >
-              {icon ? (
-                <img src={icon.src} alt={icon.label} style={{ width: '250%', height: '250%', objectFit: 'contain' }} />
-              ) : (
-                <span style={{ color: '#bbb', fontSize: 18 }}>Drop icon here</span>
-              )}
-            </div>
-          </GridCell>
-        </div>
-        {/* Delete button positioned relative to the large icon container */}
-        {placedIcons.find((i) => i.position === 100) && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setPlacedIcons(prev => prev.filter(i => i.position !== 100));
-            }}
-            onMouseEnter={(e) => {
-              e.stopPropagation();
-              setIsHoveringLargeIcon(true);
-              e.currentTarget.style.background = 'rgba(220, 53, 69, 1)';
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.stopPropagation();
-              e.currentTarget.style.background = 'rgba(220, 53, 69, 0.9)';
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-            }}
-            style={{
-              position: 'absolute',
-              top: '50px',
-              right: '90px',
-              background: 'rgba(220, 53, 69, 0.9)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.8)',
-              borderRadius: '50%',
-              width: '29px',
-              height: '29px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: '16px',
-              padding: 0,
-              lineHeight: 1,
-              zIndex: 10,
-              opacity: isHoveringLargeIcon ? 1 : 0,
-              transform: isHoveringLargeIcon ? 'scale(1)' : 'scale(0.8)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-              fontWeight: 'bold',
-            }}
-          >
-            ×
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  // Helper function to get the appropriate big icon container based on current step
-  const getBigIconContainer = (isReversed: boolean) => {
-    switch (currentStep) {
-      case 2:
-        return <Step2BigIconContainer isReversed={isReversed} />;
-      case 3:
-        return <Step3BigIconContainer isReversed={isReversed} />;
-      case 4:
-        return <Step4BigIconContainer isReversed={isReversed} />;
-      default:
-        return <Step2BigIconContainer isReversed={isReversed} />;
-    }
-  };
-
   return (
     <Box
       sx={{
@@ -1416,11 +1138,11 @@ const X1VCustomizer: React.FC = () => {
           display: 'flex', 
           justifyContent: 'center', 
           pointerEvents: 'none', 
-          zIndex: 1000 
+          zIndex: 10 
         }}>
           <Typography sx={{
             fontSize: 14,
-            color: '#1a1f2c',
+            color: '#ffffff',
             fontWeight: 400,
             letterSpacing: 0.5,
             fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
@@ -1450,7 +1172,7 @@ const X1VCustomizer: React.FC = () => {
           alt="Logo" 
             style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
             onClick={() => navigate('/')}
-          />
+        />
           <Typography
             variant="h6"
             component="h1"
@@ -1474,7 +1196,7 @@ const X1VCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel/extended');
+                navigate('/panel/double');
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }
@@ -1516,8 +1238,7 @@ const X1VCustomizer: React.FC = () => {
               position: 'relative',
               overflow: 'hidden',
               maxHeight: '80vh',
-              overflowY: 'auto',
-              marginTop: '90px'
+              overflowY: 'auto'
             }}>
               {/* Subtle background pattern */}
               <div style={{
@@ -1550,75 +1271,75 @@ const X1VCustomizer: React.FC = () => {
                 justifyContent: "center",
                 flexWrap: 'wrap'
               }}>
-          {iconCategories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              style={{
+                {iconCategories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    style={{
                       padding: "12px 20px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
+                      background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
+                      color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
+                      border: "1px solid #1a1f2c",
                       borderRadius: "6px",
-                cursor: "pointer",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
+                      cursor: "pointer",
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      fontSize: "14px",
+                      letterSpacing: "0.5px",
+                      transition: "all 0.3s ease",
                       minWidth: "100px",
                       fontWeight: '500'
-              }}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
+                    }}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
 
               {/* Icons Grid */}
-            <div style={{ 
+              <div style={{ 
                 display: "grid", 
                 gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
                 gap: "12px",
                 maxHeight: '60vh',
                 overflowY: 'auto',
                 padding: '8px'
-            }}>
-          {categoryIcons.map((icon) => (
-            <div
-              key={icon.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, icon)}
-              style={{
+              }}>
+                {categoryIcons.map((icon) => (
+                  <div
+                    key={icon.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, icon)}
+                    style={{
                       padding: "12px 8px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
+                      background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
                       borderRadius: "8px",
-                    cursor: "grab",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
+                      cursor: "grab",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      border: "1px solid #e0e0e0",
+                      transition: "all 0.3s ease",
                       minHeight: '80px',
                       justifyContent: 'center'
-              }}
-            >
-              <img
-                src={icon.src}
-                alt={icon.label}
+                    }}
+                  >
+                    <img
+                      src={icon.src}
+                      alt={icon.label}
                       style={{ width: "32px", height: "32px", objectFit: "contain", marginBottom: '4px' }}
-                  />
-                  <span style={{ 
+                    />
+                    <span style={{ 
                       fontSize: "12px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                       letterSpacing: "0.5px",
                       textAlign: 'center',
                       lineHeight: '1.2'
-                  }}>
-                    {icon.label}
-                  </span>
-            </div>
-          ))}
+                    }}>
+                      {icon.label}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1630,7 +1351,7 @@ const X1VCustomizer: React.FC = () => {
               alignItems: 'center',
               gap: '20px'
             }}>
-              {/* Mirror Button */}
+              {/* Mirror and Switch Grids Buttons */}
               <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
                 <button
                   onClick={handleMirrorIcons}
@@ -1661,13 +1382,32 @@ const X1VCustomizer: React.FC = () => {
                 >
                   {isMirrored ? '↔ Mirror Off' : '↔ Mirror On'}
                 </button>
+                <Button
+                  onClick={handleSwitchGrids}
+                  sx={{
+                    backgroundColor: 'white',
+                    color: '#666',
+                    border: '2px solid #007bff',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    '&:hover': {
+                      backgroundColor: '#f8f9fa',
+                      borderColor: '#0056b3',
+                    },
+                  }}
+                >
+                  ⇄
+                </Button>
               </div>
 
               {/* Panel Template */}
               <div
                 style={{
                   width: "350px",
-                  height: "700px", // reduced from 1000px by 30%
                   background: `linear-gradient(135deg, 
                     rgba(255, 255, 255, 0.3) 0%, 
                     rgba(255, 255, 255, 0.1) 50%, 
@@ -1691,6 +1431,8 @@ const X1VCustomizer: React.FC = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 0,
+                  transform: "perspective(1000px) rotateX(5deg)",
+                  transformStyle: "preserve-3d",
                 }}
               >
                 {/* Inner glow effect */}
@@ -1709,27 +1451,24 @@ const X1VCustomizer: React.FC = () => {
                     zIndex: 1,
                   }}
                 />
-                {/* First panel: 3x3 grid or large icon (based on layout) */}
-                {isLayoutReversed ? (
-                  // Large icon on left, grid on right
-                  <>
-                    {getBigIconContainer(true)}
-                    <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', flexWrap: 'wrap', position: 'relative', zIndex: 2, justifyContent: 'center', alignItems: 'center' }}>
-                      {Array.from({ length: 9 }).map((_, i) => renderGridCell(i))}
-                    </div>
-                  </>
-                ) : (
-                  // Grid on left, large icon on right (default)
-                  <>
-                    <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', flexWrap: 'wrap', position: 'relative', zIndex: 2, justifyContent: 'center', alignItems: 'center' }}>
-                      {Array.from({ length: 9 }).map((_, i) => renderGridCell(i))}
-                    </div>
-                    {getBigIconContainer(false)}
-                  </>
-                )}
+                {/* Two 3x3 grids, stacked vertically */}
+                {[0, 9].map((offset) => (
+                  <div
+                    key={offset}
+                    style={{
+                      width: "100%",
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      position: 'relative',
+                      zIndex: 2,
+                    }}
+                  >
+                    {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+                  </div>
+                ))}
               </div>
-        </div>
-      </div>
+            </div>
+          </div>
         )}
         {/* Step 3: Panel Design */}
         {currentStep === 3 && (
@@ -1816,25 +1555,25 @@ const X1VCustomizer: React.FC = () => {
                     padding: '16px',
                     border: '1px solid #dee2e6',
                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
-              }}
-            >
+        }}
+      >
               {ralColors.map((color: RALColor) => (
-            <button
+                <button
                   key={color.code}
                   type="button"
                   onClick={() => setPanelDesign({ ...panelDesign, backgroundColor: color.hex })}
-              style={{
+                  style={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                         border: panelDesign.backgroundColor === color.hex ? '2px solid #0056b3' : '1px solid #dee2e6',
                         borderRadius: '8px',
                         background: panelDesign.backgroundColor === color.hex ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                cursor: 'pointer',
+                    cursor: 'pointer',
                         padding: '8px 6px',
                     outline: 'none',
                         boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 3px rgba(0, 86, 179, 0.15), 0 2px 8px rgba(0,0,0,0.1)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                transition: 'all 0.2s ease',
+                        transition: 'all 0.2s ease',
                         transform: panelDesign.backgroundColor === color.hex ? 'translateY(-1px)' : 'translateY(0)',
                   }}
                 >
@@ -1851,8 +1590,8 @@ const X1VCustomizer: React.FC = () => {
                     }}
                   />
                       <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
-            </button>
-          ))}
+                </button>
+              ))}
         </div>
       </div>
 
@@ -1928,8 +1667,8 @@ const X1VCustomizer: React.FC = () => {
                         <div style={{ padding: 16, textAlign: 'center', color: '#6c757d' }}>Loading fonts...</div>
                     ) : (
                       <>
-      <div
-        style={{
+                        <div
+                            style={{ 
                               padding: 12, 
                               cursor: 'pointer', 
                               fontFamily: 'inherit', 
@@ -1977,9 +1716,9 @@ const X1VCustomizer: React.FC = () => {
                     )}
                   </div>
                 )}
-        </div>
-      </div>
-
+              </div>
+            </div>
+              
               {/* Font Size Section */}
               <div style={{ 
                 marginBottom: '28px',
@@ -2026,14 +1765,14 @@ const X1VCustomizer: React.FC = () => {
                         textAlign: 'center',
                         boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
                         transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)',
-                      }}
-                    >
+        }}
+      >
                       {size.replace('px', '')}
       </button>
                   ))}
                 </div>
               </div>
-
+              
               {/* Icon Size Section */}
               <div style={{ 
                 marginBottom: '28px',
@@ -2080,8 +1819,8 @@ const X1VCustomizer: React.FC = () => {
                         textAlign: 'center',
                         boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
                         transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
-                      }}
-                    >
+        }}
+      >
                       {size.replace('px', '')}
       </button>
                   ))}
@@ -2179,12 +1918,11 @@ const X1VCustomizer: React.FC = () => {
           </div>
             </div>
 
-            {/* Right side - Panel Template (double panel) */}
+            {/* Right side - Panel Template (vertical double panel) */}
             <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
               <div
                 style={{
                   width: "350px",
-                  height: "700px", // reduced from 1000px by 30%
                   background: `linear-gradient(135deg, 
                     rgba(255, 255, 255, 0.3) 0%, 
                     rgba(255, 255, 255, 0.1) 50%, 
@@ -2208,8 +1946,8 @@ const X1VCustomizer: React.FC = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 0,
-                }}
-              >
+        }}
+      >
                 {/* Inner glow effect */}
                 <div
                   style={{
@@ -2226,26 +1964,23 @@ const X1VCustomizer: React.FC = () => {
                     zIndex: 1,
                   }}
                 />
-                {/* First panel: 3x3 grid or large icon (based on layout) */}
-                {isLayoutReversed ? (
-                  // Large icon on left, grid on right
-                  <>
-                    {getBigIconContainer(true)}
-                    <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', flexWrap: 'wrap', position: 'relative', zIndex: 2, justifyContent: 'center', alignItems: 'center' }}>
-                  {Array.from({ length: 9 }).map((_, i) => renderGridCell(i))}
-                </div>
-                  </>
-                ) : (
-                  // Grid on left, large icon on right (default)
-                  <>
-                    <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', flexWrap: 'wrap', position: 'relative', zIndex: 2, justifyContent: 'center', alignItems: 'center' }}>
-                      {Array.from({ length: 9 }).map((_, i) => renderGridCell(i))}
-                          </div>
-                    {getBigIconContainer(false)}
-                  </>
-                  )}
+                {/* Two 3x3 grids, stacked vertically */}
+                {[0, 9].map((offset) => (
+                  <div
+                    key={offset}
+                    style={{
+                      width: "100%",
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      position: 'relative',
+                      zIndex: 2,
+                    }}
+                  >
+                    {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+    </div>
+                ))}
               </div>
-        </div>
+            </div>
           </div>
         )}
         {/* Step 4: Review Panel Details */}
@@ -2279,12 +2014,11 @@ const X1VCustomizer: React.FC = () => {
                 />
               </div>
               
-              {/* Panel Template (double panel) */}
+              {/* Panel Template (vertical double panel) */}
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
-        style={{
+                  style={{
                     width: "350px",
-                    height: "700px", // reduced from 1000px by 30%
                     background: `linear-gradient(135deg, 
                       rgba(255, 255, 255, 0.3) 0%, 
                       rgba(255, 255, 255, 0.1) 50%, 
@@ -2326,24 +2060,21 @@ const X1VCustomizer: React.FC = () => {
                       zIndex: 1,
                     }}
                   />
-                  {/* First panel: 3x3 grid or large icon (based on layout) */}
-                  {isLayoutReversed ? (
-                    // Large icon on left, grid on right
-                    <>
-                      {getBigIconContainer(true)}
-                      <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', flexWrap: 'wrap', position: 'relative', zIndex: 2, justifyContent: 'center', alignItems: 'center' }}>
-                    {Array.from({ length: 9 }).map((_, i) => renderGridCell(i))}
-                  </div>
-                    </>
-                  ) : (
-                    // Grid on left, large icon on right (default)
-                    <>
-                      <div style={{ width: '100%', height: '50%', minWidth: 0, display: 'flex', flexWrap: 'wrap', position: 'relative', zIndex: 2, justifyContent: 'center', alignItems: 'center' }}>
-                        {Array.from({ length: 9 }).map((_, i) => renderGridCell(i))}
-                            </div>
-                      {getBigIconContainer(false)}
-                    </>
-                    )}
+                  {/* Two 3x3 grids, stacked vertically */}
+                  {[0, 9].map((offset) => (
+                    <div
+                      key={offset}
+                      style={{
+                        width: "100%",
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        position: 'relative',
+                        zIndex: 2,
+                      }}
+                    >
+                      {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+                    </div>
+                  ))}
                 </div>
                 {/* Add to Project Button positioned under the panel template */}
                 <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
@@ -2365,9 +2096,130 @@ const X1VCustomizer: React.FC = () => {
             </div>
           </>
         )}
+        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
+        {currentStep === 2 && (
+          <>
+            {/* Mirror Button */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px', gap: '10px' }}>
+              <button
+                onClick={handleMirrorIcons}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  color: isMirrored ? '#6c757d' : '#495057',
+                  border: '2px solid rgba(25, 118, 210, 0.6)',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 1)';
+                  e.currentTarget.style.border = '2px solid rgba(25, 118, 210, 0.8)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+                  e.currentTarget.style.border = '2px solid rgba(25, 118, 210, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+                {isMirrored ? '↔ Mirror Off' : '↔ Mirror On'}
+              </button>
+              <Button
+                onClick={handleSwitchGrids}
+                sx={{
+                  backgroundColor: 'white',
+                  color: '#666',
+                  border: '2px solid #007bff',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'none',
+                  minWidth: 'auto',
+                  '&:hover': {
+                    backgroundColor: '#f8f9fa',
+                    borderColor: '#0056b3',
+                  },
+                }}
+              >
+                ⇄
+              </Button>
+            </div>
+            <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
+              <div
+                style={{
+                  width: "350px",
+                  background: `linear-gradient(135deg, 
+                    rgba(255, 255, 255, 0.3) 0%, 
+                    rgba(255, 255, 255, 0.1) 50%, 
+                    rgba(255, 255, 255, 0.05) 100%), 
+                    ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                  padding: "15px",
+                  border: "2px solid rgba(255, 255, 255, 0.2)",
+                  borderTop: "3px solid rgba(255, 255, 255, 0.4)",
+                  borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
+                  boxShadow: `
+                    0 20px 40px rgba(0, 0, 0, 0.3),
+                    0 8px 16px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+                    0 0 0 1px rgba(255, 255, 255, 0.1)
+                  `,
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  transition: "all 0.3s ease",
+                  position: "relative",
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0,
+                  transform: "perspective(1000px) rotateX(5deg)",
+                  transformStyle: "preserve-3d",
+                }}
+              >
+                {/* Inner glow effect */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "2px",
+                    left: "2px",
+                    right: "2px",
+                    bottom: "2px",
+                    background: `linear-gradient(135deg, 
+                      rgba(255, 255, 255, 0.1) 0%, 
+                      transparent 50%, 
+                      rgba(0, 0, 0, 0.05) 100%)`,
+                    pointerEvents: "none",
+                    zIndex: 1,
+                  }}
+                />
+                {/* Two 3x3 grids, stacked vertically */}
+                {[0, 9].map((offset) => (
+                  <div
+                    key={offset}
+                    style={{
+                      width: "100%",
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      position: 'relative',
+                      zIndex: 2,
+                    }}
+                  >
+                    {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </Container>
     </Box>
   );
 };
 
-export default X1VCustomizer; 
+export default DPVCustomizer; 

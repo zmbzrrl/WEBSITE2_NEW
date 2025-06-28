@@ -1,5 +1,5 @@
 // Import necessary libraries and components
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../../components/CartButton";
@@ -13,9 +13,15 @@ import {
   LinearProgress,
   useTheme,
   TextField,
+  Grid,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../data/ralColors';
+import { ProjectContext } from '../../App';
+import { motion } from 'framer-motion';
+import SP from "../../assets/panels/SP.png";
+import logo from "../../assets/logo.png";
+import { getIconColorName } from '../../data/iconColors';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -288,20 +294,22 @@ const InformationBox = ({
                 background: '#4CAF50',
                 flexShrink: 0
               }} />
-              Selected Icons ({placedIcons.length})
+              Selected Icons ({placedIcons.filter(icon => icon.label && icon.label.trim() !== '').length})
             </Typography>
-            {placedIcons.length > 0 ? (
+            {placedIcons.filter(icon => icon.label && icon.label.trim() !== '').length > 0 ? (
               <Typography variant="body2" sx={{ 
                 color: '#2c3e50', 
                 fontSize: '14px', 
                 fontWeight: 500,
                 lineHeight: 1.4
               }}>
-                {placedIcons.map((icon, index) => (
-                  <span key={icon.id}>
-                    {icon.label}{index < placedIcons.length - 1 ? ', ' : ''}
-                  </span>
-                ))}
+                {placedIcons
+                  .filter(icon => icon.label && icon.label.trim() !== '')
+                  .map((icon, index, filteredIcons) => (
+                    <span key={icon.id}>
+                      {icon.label}{index < filteredIcons.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
               </Typography>
             ) : (
               <Typography variant="body2" sx={{ 
@@ -365,7 +373,7 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {iconColorName || panelDesign.iconColor}
+                  Icons: {getIconColorName(panelDesign.iconColor)}
                 </Typography>
               </Box>
               {/* Text Color */}
@@ -487,6 +495,7 @@ const SPCustomizer: React.FC = () => {
     plasticColor: string;
     textColor: string;
     fontSize: string;
+    iconSize: string;
     backbox?: string;
     extraComments?: string;
   }>({
@@ -497,6 +506,7 @@ const SPCustomizer: React.FC = () => {
     plasticColor: '',
     textColor: '#000000',
     fontSize: '12px',
+    iconSize: '40px',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -515,12 +525,13 @@ const SPCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
+  const { projectName } = useContext(ProjectContext);
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
     import("../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
     });
   }, []);
 
@@ -552,22 +563,14 @@ const SPCustomizer: React.FC = () => {
 
     // Check if trying to place G1 or G2 icon
     if (selectedIcon.id === "G1" || selectedIcon.id === "G2") {
-      // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7)
+      // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7) - not in right column (cells 2,5,8)
       if (cellIndex !== 0 && cellIndex !== 1 && cellIndex !== 3 && cellIndex !== 4 && cellIndex !== 6 && cellIndex !== 7) return;
-      
-      // Check if G1 or G2 icon is already placed
-      const hasG1G2 = placedIcons.some((icon) => icon.iconId === "G1" || icon.iconId === "G2");
-      if (hasG1G2) return;
     }
 
     // Check if trying to place G3 icon
     if (selectedIcon.id === "G3") {
-      // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8)
+      // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8) - not in left column (cells 0,3,6)
       if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
-      
-      // Check if G3 icon is already placed
-      const hasG3 = placedIcons.some((icon) => icon.iconId === "G3");
-      if (hasG3) return;
     }
 
     const iconPosition: PlacedIcon = {
@@ -629,7 +632,7 @@ const SPCustomizer: React.FC = () => {
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory)
+    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'TAG')
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -673,22 +676,14 @@ const SPCustomizer: React.FC = () => {
 
         // Check if trying to place G1 or G2 icon
         if (icon.id === "G1" || icon.id === "G2") {
-          // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7)
+          // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7) - not in right column (cells 2,5,8)
           if (cellIndex !== 0 && cellIndex !== 1 && cellIndex !== 3 && cellIndex !== 4 && cellIndex !== 6 && cellIndex !== 7) return;
-          
-          // Check if G1 or G2 icon is already placed
-          const hasG1G2 = placedIcons.some((icon) => icon.iconId === "G1" || icon.iconId === "G2");
-          if (hasG1G2) return;
         }
 
         // Check if trying to place G3 icon
         if (icon.id === "G3") {
-          // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8)
+          // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8) - not in left column (cells 0,3,6)
           if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
-          
-          // Check if G3 icon is already placed
-          const hasG3 = placedIcons.some((icon) => icon.iconId === "G3");
-          if (hasG3) return;
         }
 
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -820,8 +815,8 @@ const SPCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                  width: isPIR ? "40px" : "60px",
-                  height: isPIR ? "40px" : "60px",
+                  width: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
+                  height: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
                   objectFit: "contain",
                   marginBottom: "5px",
                   position: "relative",
@@ -1057,6 +1052,30 @@ const SPCustomizer: React.FC = () => {
         py: 8,
       }}
     >
+      {/* Project Name at top center */}
+      {projectName && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 20, 
+          left: 0, 
+          right: 0, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          pointerEvents: 'none', 
+          zIndex: 1000 
+        }}>
+          <Typography sx={{
+            fontSize: 14,
+            color: '#1a1f2c',
+            fontWeight: 400,
+            letterSpacing: 0.5,
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            opacity: 0.8,
+          }}>
+            {projectName}
+          </Typography>
+        </Box>
+      )}
       <Container maxWidth="lg">
         <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
           <CartButton />
@@ -1075,10 +1094,8 @@ const SPCustomizer: React.FC = () => {
           <img 
             src={logo2} 
             alt="Logo" 
-            style={{ 
-              height: '40px',
-              width: 'auto',
-            }} 
+            style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+            onClick={() => navigate('/')} 
           />
           <Typography
             variant="h6"
@@ -1438,7 +1455,6 @@ const SPCustomizer: React.FC = () => {
                     )}
                   </div>
                 )}
-              </div>
             </div>
               
               {/* Font Size Section */}
@@ -1581,6 +1597,61 @@ const SPCustomizer: React.FC = () => {
                         transition: 'all 0.2s ease'
                   }}
                 />
+              </div>
+            </div>
+          </div>
+              
+              {/* Icon Size Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Icon Size
+                </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  {['30px', '40px', '50px'].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
+                        background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: panelDesign.iconSize === size ? '700' : '600',
+                        transition: 'all 0.2s ease',
+                        minWidth: '60px',
+                        textAlign: 'center',
+                        boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
+                      }}
+                    >
+                      {size.replace('px', '')}
+                    </button>
+                  ))}
               </div>
             </div>
           </div>

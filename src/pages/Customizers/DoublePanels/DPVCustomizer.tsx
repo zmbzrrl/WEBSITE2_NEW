@@ -13,9 +13,16 @@ import {
   LinearProgress,
   useTheme,
   TextField,
+  Grid,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
+import { useContext } from 'react';
+import { ProjectContext } from '../../../App';
+import { motion } from 'framer-motion';
+import DPV from "../../../assets/panels/DP.jpg";
+import logo from "../../../assets/logo.png";
+import { getIconColorName } from '../../../data/iconColors';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -288,20 +295,22 @@ const InformationBox = ({
                 background: '#4CAF50',
                 flexShrink: 0
               }} />
-              Selected Icons ({placedIcons.length})
+              Selected Icons ({placedIcons.filter(icon => icon.label && icon.label.trim() !== '').length})
             </Typography>
-            {placedIcons.length > 0 ? (
+            {placedIcons.filter(icon => icon.label && icon.label.trim() !== '').length > 0 ? (
               <Typography variant="body2" sx={{ 
                 color: '#2c3e50', 
                 fontSize: '14px', 
                 fontWeight: 500,
                 lineHeight: 1.4
               }}>
-                {placedIcons.map((icon, index) => (
-                  <span key={icon.id}>
-                    {icon.label}{index < placedIcons.length - 1 ? ', ' : ''}
-                  </span>
-                ))}
+                {placedIcons
+                  .filter(icon => icon.label && icon.label.trim() !== '')
+                  .map((icon, index, filteredIcons) => (
+                    <span key={icon.id}>
+                      {icon.label}{index < filteredIcons.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
               </Typography>
             ) : (
               <Typography variant="body2" sx={{ 
@@ -365,7 +374,7 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {iconColorName || panelDesign.iconColor}
+                  Icons: {getIconColorName(panelDesign.iconColor)}
                 </Typography>
               </Box>
               {/* Text Color */}
@@ -487,6 +496,7 @@ const DPVCustomizer: React.FC = () => {
     plasticColor: string;
     textColor: string;
     fontSize: string;
+    iconSize: string;
     backbox?: string;
     extraComments?: string;
   }>({
@@ -497,6 +507,7 @@ const DPVCustomizer: React.FC = () => {
     plasticColor: '',
     textColor: '#000000',
     fontSize: '12px',
+    iconSize: '40px',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -515,12 +526,16 @@ const DPVCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
+  const { projectName } = useContext(ProjectContext);
   console.log('RENDER', { backbox, extraComments });
+  const [isLayoutReversed, setIsLayoutReversed] = useState(false);
+  const [isMirrored, setIsMirrored] = useState(false);
+  const [gridsSwitched, setGridsSwitched] = useState(false);
 
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
     });
   }, []);
 
@@ -542,12 +557,24 @@ const DPVCustomizer: React.FC = () => {
 
     // Check if trying to place PIR icon
     if (selectedIcon.category === "PIR") {
-      // Only allow placement in bottom center cell (7)
-      if (cellIndex !== 7) return;
+      // Only allow placement in bottom center cells (7 for left grid, 16 for right grid)
+      if (cellIndex !== 7 && cellIndex !== 16) return;
       
       // Check if PIR icon is already placed
       const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
       if (hasPIR) return;
+    }
+
+    // Check if trying to place G1 or G2 icons in restricted cells (2, 5, 8, 11, 14, 17) - right columns of both grids
+    if ((selectedIcon.id === "G1" || selectedIcon.id === "G2") && [2, 5, 8, 11, 14, 17].includes(cellIndex)) {
+      console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+      return;
+    }
+
+    // Check if trying to place G3 icon in restricted cells (0, 3, 6, 9, 12, 15) - left columns of both grids
+    if (selectedIcon.id === "G3" && [0, 3, 6, 9, 12, 15].includes(cellIndex)) {
+      console.log("DROP: BLOCKED G3 icon placement in left columns (cells 0, 3, 6, 9, 12, 15)");
+      return;
     }
 
     const iconPosition: PlacedIcon = {
@@ -609,7 +636,7 @@ const DPVCustomizer: React.FC = () => {
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory)
+    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'TAG')
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -646,9 +673,21 @@ const DPVCustomizer: React.FC = () => {
 
         // Check if trying to place PIR icon
         if (icon.category === "PIR") {
-          if (cellIndex !== 7) return;
+          if (cellIndex !== 7 && cellIndex !== 16) return;
           const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
           if (hasPIR) return;
+        }
+
+        // Check if trying to place G1 or G2 icons in restricted cells (2, 5, 8, 11, 14, 17) - right columns of both grids
+        if ((icon.id === "G1" || icon.id === "G2") && [2, 5, 8, 11, 14, 17].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+          return;
+        }
+
+        // Check if trying to place G3 icon in restricted cells (0, 3, 6, 9, 12, 15) - left columns of both grids
+        if (icon.id === "G3" && [0, 3, 6, 9, 12, 15].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G3 icon placement in left columns (cells 0, 3, 6, 9, 12, 15)");
+          return;
         }
 
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -673,10 +712,20 @@ const DPVCustomizer: React.FC = () => {
 
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
-          if (![4, 7, 13, 16].includes(cellIndex)) return;
+          if (![7, 16].includes(cellIndex)) return;
         }
         if (targetIcon?.category === "PIR") {
-          if (![4, 7, 13, 16].includes(dragData.position)) return;
+          if (![7, 16].includes(dragData.position)) return;
+        }
+
+        // Check G1/G2 restrictions for restricted cells (2, 5, 8, 11, 14, 17) - right columns of both grids
+        if ((sourceIcon.iconId === "G1" || sourceIcon.iconId === "G2") && [2, 5, 8, 11, 14, 17].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+          return;
+        }
+        if ((targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") && [2, 5, 8, 11, 14, 17].includes(dragData.position)) {
+          console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+          return;
         }
 
         // Swap icon positions
@@ -724,6 +773,122 @@ const DPVCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
+  const handleMirrorIcons = () => {
+    setPlacedIcons(prev => {
+      const newIcons = [...prev];
+      
+      // Mirror both 3x3 grids: positions 0-8 (first grid) and 9-17 (second grid)
+      const mirrorMap: { [key: number]: number } = {
+        // First grid (positions 0-8)
+        0: 2, 2: 0,  // Top row: swap left and right
+        3: 5, 5: 3,  // Middle row: swap left and right  
+        6: 8, 8: 6,  // Bottom row: swap left and right
+        // Second grid (positions 9-17)
+        9: 11, 11: 9,   // Top row: swap left and right
+        12: 14, 14: 12, // Middle row: swap left and right  
+        15: 17, 17: 15  // Bottom row: swap left and right
+      };
+      
+      return newIcons.map(icon => {
+        if (icon.position >= 0 && icon.position <= 17) {
+          const newPosition = mirrorMap[icon.position];
+          if (newPosition !== undefined) {
+            return { ...icon, position: newPosition };
+          }
+        }
+        return icon;
+      });
+    });
+    
+    // Also mirror the text positions for both grids
+    setIconTexts(prev => {
+      const newTexts = { ...prev };
+      const mirrorMap: { [key: number]: number } = {
+        // First grid (positions 0-8)
+        0: 2, 2: 0,
+        3: 5, 5: 3,
+        6: 8, 8: 6,
+        // Second grid (positions 9-17)
+        9: 11, 11: 9,
+        12: 14, 14: 12,
+        15: 17, 17: 15
+      };
+      
+      Object.keys(newTexts).forEach(key => {
+        const position = parseInt(key);
+        if (position >= 0 && position <= 17) {
+          const newPosition = mirrorMap[position];
+          if (newPosition !== undefined) {
+            newTexts[newPosition] = newTexts[position];
+            delete newTexts[position];
+          }
+        }
+      });
+      
+      return newTexts;
+    });
+    
+    setIsMirrored(!isMirrored);
+  };
+
+  const handleSwitchGrids = () => {
+    setPlacedIcons(prev => {
+      const newIcons = [...prev];
+      
+      // Switch positions between the two grids (0-8 and 9-17)
+      const switchMap: { [key: number]: number } = {
+        // First grid positions (0-8) move to second grid positions (9-17)
+        0: 9, 1: 10, 2: 11,
+        3: 12, 4: 13, 5: 14,
+        6: 15, 7: 16, 8: 17,
+        // Second grid positions (9-17) move to first grid positions (0-8)
+        9: 0, 10: 1, 11: 2,
+        12: 3, 13: 4, 14: 5,
+        15: 6, 16: 7, 17: 8
+      };
+      
+      return newIcons.map(icon => {
+        if (icon.position >= 0 && icon.position <= 17) {
+          const newPosition = switchMap[icon.position];
+          if (newPosition !== undefined) {
+            return { ...icon, position: newPosition };
+          }
+        }
+        return icon;
+      });
+    });
+    
+    // Also switch the text positions
+    setIconTexts(prev => {
+      const newTexts = { ...prev };
+      const switchMap: { [key: number]: number } = {
+        // First grid positions (0-8) move to second grid positions (9-17)
+        0: 9, 1: 10, 2: 11,
+        3: 12, 4: 13, 5: 14,
+        6: 15, 7: 16, 8: 17,
+        // Second grid positions (9-17) move to first grid positions (0-8)
+        9: 0, 10: 1, 11: 2,
+        12: 3, 13: 4, 14: 5,
+        15: 6, 16: 7, 17: 8
+      };
+      
+      Object.keys(newTexts).forEach(key => {
+        const position = parseInt(key);
+        if (position >= 0 && position <= 17) {
+          const newPosition = switchMap[position];
+          if (newPosition !== undefined) {
+            newTexts[newPosition] = newTexts[position];
+            delete newTexts[position];
+          }
+        }
+      });
+      
+      return newTexts;
+    });
+    
+    setGridsSwitched(!gridsSwitched);
+  };
+
   const renderGridCell = (index: number) => {
     const icon = placedIcons.find((i) => i.position === index);
     const text = iconTexts[index];
@@ -760,8 +925,8 @@ const DPVCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                  width: isPIR ? "40px" : "60px",
-                  height: isPIR ? "40px" : "60px",
+                  width: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
+                  height: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
                   objectFit: "contain",
                   marginBottom: "5px",
                   position: "relative",
@@ -997,6 +1162,30 @@ const DPVCustomizer: React.FC = () => {
         py: 8,
       }}
     >
+      {/* Project Name at top center */}
+      {projectName && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 20, 
+          left: 0, 
+          right: 0, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          pointerEvents: 'none', 
+          zIndex: 1000 
+        }}>
+          <Typography sx={{
+            fontSize: 14,
+            color: '#1a1f2c',
+            fontWeight: 400,
+            letterSpacing: 0.5,
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            opacity: 0.8,
+          }}>
+            {projectName}
+          </Typography>
+        </Box>
+      )}
       <Container maxWidth="lg">
         <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
           <CartButton />
@@ -1041,7 +1230,7 @@ const DPVCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel-type');
+                navigate('/panel/double');
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }
@@ -1062,88 +1251,18 @@ const DPVCustomizer: React.FC = () => {
 
         {/* Icon List: Only visible on step 2 */}
         {currentStep === 2 && (
-      <div style={{ marginBottom: "20px" }}>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
-          {iconCategories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              style={{
-                    padding: "12px 24px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
-                borderRadius: "4px",
-                cursor: "pointer",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                    minWidth: "120px",
-              }}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-            <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
-              maxWidth: "800px",
-              margin: "0 auto"
-            }}>
-          {categoryIcons.map((icon) => (
-            <div
-              key={icon.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, icon)}
-              style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
-              }}
-            >
-              <img
-                src={icon.src}
-                alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain" }}
-              />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
-                  }}>
-                    {icon.label}
-                  </span>
-            </div>
-          ))}
-        </div>
-      </div>
-        )}
-        {/* Step 3: Panel Design */}
-        {currentStep === 3 && (
           <div style={{ 
             display: 'flex', 
-            gap: '80px',
+            gap: '40px',
             alignItems: 'flex-start',
             justifyContent: 'center',
-            maxWidth: '1200px',
+            maxWidth: '1400px',
             margin: '0 auto',
             padding: '0 20px'
           }}>
-            {/* Left side - Panel Design Controls */}
+            {/* Left side - Icon Categories and Icons */}
             <div style={{ 
-              flex: '0 0 480px',
+              flex: '0 0 600px',
               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
               padding: '28px',
               borderRadius: '12px',
@@ -1151,7 +1270,10 @@ const DPVCustomizer: React.FC = () => {
               border: '1px solid #e9ecef',
               fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
               position: 'relative',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              marginTop: '90px'
             }}>
               {/* Subtle background pattern */}
               <div style={{
@@ -1173,359 +1295,151 @@ const DPVCustomizer: React.FC = () => {
                 letterSpacing: '0.5px',
                 textShadow: '0 1px 2px rgba(0,0,0,0.1)'
               }}>
-                Panel Design
+                Icon Library
               </h3>
 
-              {/* Background Color Section */}
+              {/* Category Buttons */}
               <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
+                display: "flex", 
+                gap: "10px", 
+                marginBottom: "24px", 
+                justifyContent: "center",
+                flexWrap: 'wrap'
               }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Background Color (RAL)
-                </div>
-      <div
-        style={{
-                display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-                    gap: '10px',
-                    maxHeight: '200px',
-                overflowY: 'auto',
-                    background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    border: '1px solid #dee2e6',
-                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
-        }}
-      >
-              {ralColors.map((color: RALColor) => (
+                {iconCategories.map((category) => (
                 <button
-                  key={color.code}
-                  type="button"
-                  onClick={() => setPanelDesign({ ...panelDesign, backgroundColor: color.hex })}
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
                   style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                        border: panelDesign.backgroundColor === color.hex ? '2px solid #0056b3' : '1px solid #dee2e6',
-                        borderRadius: '8px',
-                        background: panelDesign.backgroundColor === color.hex ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                    cursor: 'pointer',
-                        padding: '8px 6px',
-                    outline: 'none',
-                        boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 3px rgba(0, 86, 179, 0.15), 0 2px 8px rgba(0,0,0,0.1)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transition: 'all 0.2s ease',
-                        transform: panelDesign.backgroundColor === color.hex ? 'translateY(-1px)' : 'translateY(0)',
-                  }}
-                >
-                  <span
-                    style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '6px',
-                      background: color.hex,
-                          border: '2px solid #ffffff',
-                          marginBottom: '6px',
-                      display: 'block',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)'
+                      padding: "12px 20px",
+                      background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
+                      color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
+                      border: "1px solid #1a1f2c",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      fontSize: "14px",
+                      letterSpacing: "0.5px",
+                      transition: "all 0.3s ease",
+                      minWidth: "100px",
+                      fontWeight: '500'
                     }}
-                  />
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
+                  >
+                    {category}
                 </button>
               ))}
-        </div>
       </div>
 
-              {/* Font Selection Section */}
+              {/* Icons Grid */}
               <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Typography Font
-                </div>
-                <div style={{ position: 'relative' }} ref={fontDropdownRef}>
-                <input
-                  type="text"
-                  placeholder="Search Google Fonts..."
-                  value={fontSearch || panelDesign.fonts || ''}
-                  onChange={e => {
-                    const newSearch = e.target.value;
-                    setFontSearch(newSearch);
-                    if (newSearch === '') {
-                      setPanelDesign(prev => ({ ...prev, fonts: '' }));
-                    }
-                    setShowFontDropdown(true);
-                  }}
-                  onFocus={() => setShowFontDropdown(true)}
-        style={{
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      border: '1px solid #dee2e6',
-                      fontSize: '14px',
-                    width: '100%',
-                    fontFamily: panelDesign.fonts || undefined,
-                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                      transition: 'all 0.2s ease',
-                      outline: 'none'
-                  }}
-                />
-                {showFontDropdown && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '110%',
-                    left: 0,
-                    right: 0,
-                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      border: '1px solid #dee2e6',
-                      borderRadius: '8px',
-                      maxHeight: '200px',
+                display: "grid", 
+                gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+                gap: "12px",
+                maxHeight: '60vh',
                     overflowY: 'auto',
-                    zIndex: 10,
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
+                padding: '8px'
                   }}>
-                    {fontsLoading ? (
-                        <div style={{ padding: 16, textAlign: 'center', color: '#6c757d' }}>Loading fonts...</div>
-                    ) : (
-                      <>
+                {categoryIcons.map((icon) => (
                         <div
+                    key={icon.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, icon)}
                             style={{ 
-                              padding: 12, 
-                              cursor: 'pointer', 
-                              fontFamily: 'inherit', 
-                              color: '#6c757d',
-                              borderBottom: '1px solid #f8f9fa',
-                              transition: 'background 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                          onClick={() => {
-                            setPanelDesign({ ...panelDesign, fonts: '' });
-                            setFontSearch('');
-                            setShowFontDropdown(false);
-                          }}
-                        >Default</div>
-                        {allGoogleFonts
-                          .filter(f => f.toLowerCase().includes(fontSearch.toLowerCase()))
-                            .slice(0, 20)
-                          .map(font => (
-                            <div
-                              key={font}
-                              style={{
-                                  padding: 12,
-                                cursor: 'pointer',
-                                fontFamily: font,
-                                  background: font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent',
-                                  transition: 'background 0.2s ease',
-                                  borderBottom: '1px solid #f8f9fa'
-                              }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent'}
-                              onClick={() => {
-                                setPanelDesign({ ...panelDesign, fonts: font });
-                                setFontSearch(font);
-                                setShowFontDropdown(false);
-                              }}
-                            >
-                              {font}
+                      padding: "12px 8px",
+                      background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
+                      borderRadius: "8px",
+                      cursor: "grab",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      border: "1px solid #e0e0e0",
+                      transition: "all 0.3s ease",
+                      minHeight: '80px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <img
+                      src={icon.src}
+                      alt={icon.label}
+                      style={{ width: "32px", height: "32px", objectFit: "contain", marginBottom: '4px' }}
+                    />
+                    <span style={{ 
+                      fontSize: "12px", 
+                      color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      letterSpacing: "0.5px",
+                      textAlign: 'center',
+                      lineHeight: '1.2'
+                    }}>
+                      {icon.label}
+                    </span>
                             </div>
                           ))}
-                        {allGoogleFonts.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && !fontsLoading && (
-                            <div style={{ padding: 16, color: '#adb5bd' }}>No fonts found</div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
               
-              {/* Font Size Section */}
+            {/* Right side - Panel Template and Controls */}
               <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
+              flex: '0 0 500px',
                   display: 'flex',
+              flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Font Size
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  {['10px', '12px', '14px', '16px'].map((size) => (
+              gap: '20px'
+            }}>
+              {/* Mirror and Switch Grids Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
       <button
-                      key={size}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, fontSize: size }))}
+                  onClick={handleMirrorIcons}
         style={{
-                        padding: '10px 16px',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    color: isMirrored ? '#6c757d' : '#495057',
+                    border: '2px solid rgba(25, 118, 210, 0.6)',
                         borderRadius: '8px',
-                        border: panelDesign.fontSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
-                        background: panelDesign.fontSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                        color: panelDesign.fontSize === size ? '#ffffff' : '#495057',
+                    padding: '8px 16px',
                         cursor: 'pointer',
-                        fontSize: size,
-                        fontWeight: panelDesign.fontSize === size ? '700' : '600',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
                         transition: 'all 0.2s ease',
-                        minWidth: '45px',
-                        textAlign: 'center',
-                        boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)',
-        }}
-      >
-                      {size.replace('px', '')}
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 1)';
+                    e.currentTarget.style.border = '2px solid rgba(25, 118, 210, 0.8)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+                    e.currentTarget.style.border = '2px solid rgba(25, 118, 210, 0.6)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  {isMirrored ? '↔ Mirror Off' : '↔ Mirror On'}
       </button>
-                  ))}
-                </div>
+                <Button
+                  onClick={handleSwitchGrids}
+                  sx={{
+                    backgroundColor: 'white',
+                    color: '#666',
+                    border: '2px solid #007bff',
+                        borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    '&:hover': {
+                      backgroundColor: '#f8f9fa',
+                      borderColor: '#0056b3',
+                    },
+                  }}
+                >
+                  ⇄
+                </Button>
               </div>
               
-              {/* Colors Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Colors
-                </div>
-                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Icon Color
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-      <button
-                      key={color}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-        style={{
-                            width: '36px',
-                            height: '36px',
-                        borderRadius: '50%',
-                        background: color,
-                            border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
-                        cursor: 'pointer',
-                        padding: 0,
-                        outline: 'none',
-                            boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
-                            transition: 'all 0.2s ease',
-                            transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Text Color
-                    </div>
-                <input
-                  type="color"
-                  value={panelDesign.textColor}
-                  onChange={e => setPanelDesign(prev => ({ ...prev, textColor: e.target.value }))}
-                  style={{
-                        width: '64px',
-                        height: '40px',
-                        border: '2px solid #dee2e6',
-                        borderRadius: '8px',
-                    cursor: 'pointer',
-                        padding: '2px',
-                        background: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transition: 'all 0.2s ease'
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-            </div>
-
-            {/* Right side - Panel Template (vertical double panel) */}
-            <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
+              {/* Panel Template */}
               <div
                 style={{
                   width: "350px",
@@ -1552,6 +1466,8 @@ const DPVCustomizer: React.FC = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 0,
+                  transform: "perspective(1000px) rotateX(5deg)",
+                  transformStyle: "preserve-3d",
         }}
       >
                 {/* Inner glow effect */}
@@ -1589,6 +1505,7 @@ const DPVCustomizer: React.FC = () => {
             </div>
           </div>
         )}
+
         {/* Step 4: Review Panel Details */}
         {currentStep === 4 && (
           <>
@@ -1701,73 +1618,6 @@ const DPVCustomizer: React.FC = () => {
               </div>
             </div>
           </>
-        )}
-        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
-        {currentStep === 2 && (
-          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
-            <div
-              style={{
-                width: "350px",
-                background: `linear-gradient(135deg, 
-                  rgba(255, 255, 255, 0.3) 0%, 
-                  rgba(255, 255, 255, 0.1) 50%, 
-                  rgba(255, 255, 255, 0.05) 100%), 
-                  ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                padding: "15px",
-                border: "2px solid rgba(255, 255, 255, 0.2)",
-                borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                boxShadow: `
-                  0 20px 40px rgba(0, 0, 0, 0.3),
-                  0 8px 16px rgba(0, 0, 0, 0.2),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                  inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                  0 0 0 1px rgba(255, 255, 255, 0.1)
-                `,
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                transition: "all 0.3s ease",
-                position: "relative",
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 0,
-                transform: "perspective(1000px) rotateX(5deg)",
-                transformStyle: "preserve-3d",
-              }}
-            >
-              {/* Inner glow effect */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "2px",
-                  left: "2px",
-                  right: "2px",
-                  bottom: "2px",
-                  background: `linear-gradient(135deg, 
-                    rgba(255, 255, 255, 0.1) 0%, 
-                    transparent 50%, 
-                    rgba(0, 0, 0, 0.05) 100%)`,
-                  pointerEvents: "none",
-                  zIndex: 1,
-                }}
-              />
-              {/* Two 3x3 grids, stacked vertically */}
-              {[0, 9].map((offset) => (
-                <div
-                  key={offset}
-                  style={{
-                    width: "100%",
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    position: 'relative',
-                    zIndex: 2,
-                  }}
-                >
-                  {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
-                </div>
-              ))}
-            </div>
-          </div>
         )}
       </Container>
     </Box>

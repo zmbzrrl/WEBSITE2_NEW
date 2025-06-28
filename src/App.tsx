@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, createContext } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AnimatePresence } from 'framer-motion';
@@ -20,8 +20,22 @@ import X2VCustomizer from "./pages/Customizers/ExtendedPanels/X2VCustomizer";
 import X1VCustomizer from "./pages/Customizers/ExtendedPanels/X1VCustomizer";
 import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";
 import ProjPanels from "./pages/ProjPanels";
+import Layouts from "./pages/Layouts";
 import { CartProvider } from "./contexts/CartContext";
 import PageTransition from "./components/PageTransition";
+
+// Project context to provide project name and code globally
+export const ProjectContext = createContext<{ 
+  projectName: string, 
+  setProjectName: (name: string) => void,
+  projectCode: string,
+  setProjectCode: (code: string) => void
+}>({ 
+  projectName: '', 
+  setProjectName: () => {},
+  projectCode: '',
+  setProjectCode: () => {}
+});
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -45,6 +59,7 @@ const AppRoutes = () => {
         <Route path="/customizer/tag" element={<PageTransition><TAGCustomizer /></PageTransition>} />
         <Route path="/customizer/idpg" element={<PageTransition><IDPGCustomizer /></PageTransition>} />
         <Route path="/cart" element={<PageTransition><ProjPanels /></PageTransition>} />
+        <Route path="/layouts" element={<PageTransition><Layouts /></PageTransition>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
@@ -52,13 +67,17 @@ const AppRoutes = () => {
 };
 
 const App: React.FC = () => {
+  const [projectName, setProjectName] = useState('');
+  const [projectCode, setProjectCode] = useState('');
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <CartProvider>
+        <ProjectContext.Provider value={{ projectName, setProjectName, projectCode, setProjectCode }}>
         <Router>
           <AppRoutes />
         </Router>
+        </ProjectContext.Provider>
       </CartProvider>
     </ThemeProvider>
   );

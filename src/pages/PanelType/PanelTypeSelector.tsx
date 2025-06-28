@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -17,6 +17,7 @@ import IDPG from "../../assets/panels/IDPG_RN.png";
 import TAG from "../../assets/panels/TAG_PIR.png";
 import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
+import { ProjectContext } from '../../App';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -71,6 +72,8 @@ const PanelTitle = styled(Typography)(({ theme }) => ({
   transform: 'translateY(10px)',
   transition: 'all 0.3s ease',
   fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
 }));
 
 const StyledPanel = styled(motion.div)({
@@ -78,12 +81,13 @@ const StyledPanel = styled(motion.div)({
 });
 
 const containerVariants = {
-  hidden: { opacity: 1 },
+  hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.8,
-      delayChildren: 0.3
+      duration: 0.3,
+      staggerChildren: 0.2,
+      delayChildren: 0.1
     }
   }
 };
@@ -91,7 +95,7 @@ const containerVariants = {
 const itemVariants = {
   hidden: { 
     opacity: 0,
-    y: 40,
+    y: 30,
     scale: 0.95
   },
   visible: { 
@@ -99,8 +103,8 @@ const itemVariants = {
     y: 0,
     scale: 1,
     transition: {
-      duration: 1.2,
-      ease: [0.22, 1, 0.36, 1]
+      duration: 0.6,
+      ease: [0.4, 0, 0.2, 1]
     }
   }
 };
@@ -109,6 +113,7 @@ const PanelTypeSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [showPanels] = useState(true);
+  const { projectName } = useContext(ProjectContext);
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
@@ -176,14 +181,14 @@ const PanelTypeSelector = () => {
       path: "/customizer/tag",
     },
     {
+      name: "Corridor Panel",
+      image: IDPG,
+      path: "/panel/idpg",
+    },
+    {
       name: "Double Panel",
       image: DP,
       path: "/panel/double",
-    },
-    {
-      name: "Corridor Panel - IDPG",
-      image: IDPG,
-      path: "/panel/idpg",
     },
     {
       name: "Extended Panel",
@@ -200,6 +205,29 @@ const PanelTypeSelector = () => {
         py: 8,
       }}
     >
+      {projectName && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 20, 
+          left: 0, 
+          right: 0, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          pointerEvents: 'none', 
+          zIndex: 10 
+        }}>
+          <Typography sx={{
+            fontSize: 14,
+            color: '#ffffff',
+            fontWeight: 400,
+            letterSpacing: 0.5,
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            opacity: 0.8,
+          }}>
+            {projectName}
+          </Typography>
+        </Box>
+      )}
       <Container maxWidth="lg">
         <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
           <CartButton />
@@ -266,12 +294,42 @@ const PanelTypeSelector = () => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         p: 3,
+                        marginLeft: 
+                          panel.name === 'Double Panel' 
+                            ? '-158px'
+                            : panel.name === 'Extended Panel'
+                            ? '142px'
+                            : undefined,
                       }}
                     >
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}
                         className="panel-image"
+                        style={{
+                          maxHeight:
+                            panel.name === 'Single Panel' || panel.name === 'Thermostat'
+                              ? 262
+                              : panel.name === 'Corridor Panel'
+                              ? 346
+                              : panel.name === 'Double Panel'
+                              ? 250
+                              : panel.name === 'Extended Panel'
+                              ? 768
+                              : 288,
+                          width:
+                            panel.name === 'Single Panel' || panel.name === 'Thermostat'
+                              ? '107%'
+                              : panel.name === 'Corridor Panel'
+                              ? '144%'
+                              : panel.name === 'Double Panel'
+                              ? '87%'
+                              : panel.name === 'Extended Panel'
+                              ? '264%'
+                              : '120%',
+                          marginBottom: 16,
+                          marginTop: panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 0 : undefined,
+                        }}
                       />
                       <PanelTitle 
                         variant="h5" 
@@ -279,6 +337,8 @@ const PanelTypeSelector = () => {
                         sx={{
                           textAlign: 'center',
                           mb: 2,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
                         }}
                       >
                         {panel.name}

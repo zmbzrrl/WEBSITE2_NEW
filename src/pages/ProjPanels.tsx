@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import CartButton from "../components/CartButton";
@@ -6,6 +6,7 @@ import PanelPreview from "../components/PanelPreview";
 import { Delete } from '@mui/icons-material';
 import PanelConfigurationSummary from "../components/PanelConfigurationSummary";
 import { ralColors } from "../data/ralColors";
+import { ProjectContext } from "../App";
 
 const THEME = {
   primary: '#1b92d1',
@@ -70,6 +71,7 @@ const ProjPanels: React.FC = () => {
   const { projPanels, updateQuantity, removeFromCart } = useCart();
   const navigate = useNavigate();
   const [panelNames, setPanelNames] = useState<string[]>(projPanels.map(() => ""));
+  const { projectName, projectCode } = useContext(ProjectContext);
 
   // Keep panelNames in sync if projPanels changes (e.g., remove/add)
   React.useEffect(() => {
@@ -88,6 +90,30 @@ const ProjPanels: React.FC = () => {
       padding: '0',
       fontFamily: THEME.fontFamily,
     }}>
+      {/* Project Name at top center */}
+      {(projectName || projectCode) && (
+        <div style={{
+          position: 'absolute',
+          top: 20,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          zIndex: 10
+        }}>
+          <span style={{
+            fontSize: 14,
+            color: '#ffffff',
+            fontWeight: 400,
+            letterSpacing: 0.5,
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            opacity: 0.8,
+          }}>
+            {projectName}{projectCode && ` - ${projectCode}`}
+          </span>
+        </div>
+      )}
       <div style={{
         maxWidth: 1100,
         margin: '0 auto',
@@ -320,7 +346,7 @@ const ProjPanels: React.FC = () => {
               }}
             >Continue Designing !</button>
             <button
-              onClick={() => alert("Checkout functionality to be implemented")}
+              onClick={() => navigate("/layouts")}
               style={{
                 padding: '14px 36px',
                 background: THEME.secondary,

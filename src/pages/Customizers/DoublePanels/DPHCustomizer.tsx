@@ -1,5 +1,5 @@
 // Import necessary libraries and components
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useCart } from "../../../contexts/CartContext";
 import "../Customizer.css";
 import CartButton from "../../../components/CartButton";
@@ -8,14 +8,19 @@ import logo2 from "../../../assets/logo.png";
 import {
   Container,
   Typography,
+  Grid,
   Box,
   Button,
-  LinearProgress,
   useTheme,
   TextField,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
+import { getIconColorName } from '../../../data/iconColors';
+import { motion } from 'framer-motion';
+import DPH from "../../../assets/panels/DP.jpg";
+import logo from "../../../assets/logo.png";
+import { ProjectContext } from '../../../App';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -288,20 +293,22 @@ const InformationBox = ({
                 background: '#4CAF50',
                 flexShrink: 0
               }} />
-              Selected Icons ({placedIcons.length})
+              Selected Icons ({placedIcons.filter(icon => icon.label && icon.label.trim() !== '').length})
             </Typography>
-            {placedIcons.length > 0 ? (
+            {placedIcons.filter(icon => icon.label && icon.label.trim() !== '').length > 0 ? (
               <Typography variant="body2" sx={{ 
                 color: '#2c3e50', 
                 fontSize: '14px', 
                 fontWeight: 500,
                 lineHeight: 1.4
               }}>
-                {placedIcons.map((icon, index) => (
-                  <span key={icon.id}>
-                    {icon.label}{index < placedIcons.length - 1 ? ', ' : ''}
-                  </span>
-                ))}
+                {placedIcons
+                  .filter(icon => icon.label && icon.label.trim() !== '')
+                  .map((icon, index, filteredIcons) => (
+                    <span key={icon.id}>
+                      {icon.label}{index < filteredIcons.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
               </Typography>
             ) : (
               <Typography variant="body2" sx={{ 
@@ -365,7 +372,7 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {iconColorName || panelDesign.iconColor}
+                  Icons: {getIconColorName(panelDesign.iconColor)}
                 </Typography>
               </Box>
               {/* Text Color */}
@@ -469,6 +476,7 @@ const InformationBox = ({
 const DPHCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
+  const { projectName } = useContext(ProjectContext);
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
@@ -487,6 +495,7 @@ const DPHCustomizer: React.FC = () => {
     plasticColor: string;
     textColor: string;
     fontSize: string;
+    iconSize: string;
     backbox?: string;
     extraComments?: string;
   }>({
@@ -497,6 +506,7 @@ const DPHCustomizer: React.FC = () => {
     plasticColor: '',
     textColor: '#000000',
     fontSize: '12px',
+    iconSize: '40px',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -515,12 +525,15 @@ const DPHCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
+  const [isLayoutReversed, setIsLayoutReversed] = useState(false);
+  const [isMirrored, setIsMirrored] = useState(false);
+  const [gridsSwitched, setGridsSwitched] = useState(false);
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
     });
   }, []);
 
@@ -542,8 +555,8 @@ const DPHCustomizer: React.FC = () => {
 
     // Check if trying to place PIR icon
     if (selectedIcon.category === "PIR") {
-      // Only allow placement in bottom center cell (7)
-      if (cellIndex !== 7) return;
+      // Only allow placement in bottom center cells (7 for left grid, 16 for right grid)
+      if (cellIndex !== 7 && cellIndex !== 16) return;
       
       // Check if PIR icon is already placed
       const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
@@ -609,7 +622,7 @@ const DPHCustomizer: React.FC = () => {
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory)
+    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'TAG')
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -646,9 +659,21 @@ const DPHCustomizer: React.FC = () => {
 
         // Check if trying to place PIR icon
         if (icon.category === "PIR") {
-          if (cellIndex !== 7) return;
+          if (cellIndex !== 7 && cellIndex !== 16) return;
           const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
           if (hasPIR) return;
+        }
+
+        // Check if trying to place G1 or G2 icons in restricted cells (2, 5, 8, 11, 14, 17) - right columns of both grids
+        if ((icon.id === "G1" || icon.id === "G2") && [2, 5, 8, 11, 14, 17].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+          return;
+        }
+
+        // Check if trying to place G3 icon in restricted cells (0, 3, 6, 9, 12, 15) - left columns of both grids
+        if (icon.id === "G3" && [0, 3, 6, 9, 12, 15].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G3 icon placement in left columns (cells 0, 3, 6, 9, 12, 15)");
+          return;
         }
 
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -673,10 +698,20 @@ const DPHCustomizer: React.FC = () => {
 
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
-          if (![4, 7, 13, 16].includes(cellIndex)) return;
+          if (![7, 16].includes(cellIndex)) return;
         }
         if (targetIcon?.category === "PIR") {
-          if (![4, 7, 13, 16].includes(dragData.position)) return;
+          if (![7, 16].includes(dragData.position)) return;
+        }
+
+        // Check G1/G2 restrictions for restricted cells (2, 5, 8, 11, 14, 17) - right columns of both grids
+        if ((sourceIcon.iconId === "G1" || sourceIcon.iconId === "G2") && [2, 5, 8, 11, 14, 17].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+          return;
+        }
+        if ((targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") && [2, 5, 8, 11, 14, 17].includes(dragData.position)) {
+          console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+          return;
         }
 
         // Swap icon positions
@@ -724,6 +759,122 @@ const DPHCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
+  const handleMirrorIcons = () => {
+    setPlacedIcons(prev => {
+      const newIcons = [...prev];
+      
+      // Mirror both 3x3 grids: positions 0-8 (first grid) and 9-17 (second grid)
+      const mirrorMap: { [key: number]: number } = {
+        // First grid (positions 0-8)
+        0: 2, 2: 0,  // Top row: swap left and right
+        3: 5, 5: 3,  // Middle row: swap left and right  
+        6: 8, 8: 6,  // Bottom row: swap left and right
+        // Second grid (positions 9-17)
+        9: 11, 11: 9,   // Top row: swap left and right
+        12: 14, 14: 12, // Middle row: swap left and right  
+        15: 17, 17: 15  // Bottom row: swap left and right
+      };
+      
+      return newIcons.map(icon => {
+        if (icon.position >= 0 && icon.position <= 17) {
+          const newPosition = mirrorMap[icon.position];
+          if (newPosition !== undefined) {
+            return { ...icon, position: newPosition };
+          }
+        }
+        return icon;
+      });
+    });
+    
+    // Also mirror the text positions for both grids
+    setIconTexts(prev => {
+      const newTexts = { ...prev };
+      const mirrorMap: { [key: number]: number } = {
+        // First grid (positions 0-8)
+        0: 2, 2: 0,
+        3: 5, 5: 3,
+        6: 8, 8: 6,
+        // Second grid (positions 9-17)
+        9: 11, 11: 9,
+        12: 14, 14: 12,
+        15: 17, 17: 15
+      };
+      
+      Object.keys(newTexts).forEach(key => {
+        const position = parseInt(key);
+        if (position >= 0 && position <= 17) {
+          const newPosition = mirrorMap[position];
+          if (newPosition !== undefined) {
+            newTexts[newPosition] = newTexts[position];
+            delete newTexts[position];
+          }
+        }
+      });
+      
+      return newTexts;
+    });
+    
+    setIsMirrored(!isMirrored);
+  };
+
+  const handleSwitchGrids = () => {
+    setPlacedIcons(prev => {
+      const newIcons = [...prev];
+      
+      // Switch positions between the two grids (0-8 and 9-17)
+      const switchMap: { [key: number]: number } = {
+        // First grid positions (0-8) move to second grid positions (9-17)
+        0: 9, 1: 10, 2: 11,
+        3: 12, 4: 13, 5: 14,
+        6: 15, 7: 16, 8: 17,
+        // Second grid positions (9-17) move to first grid positions (0-8)
+        9: 0, 10: 1, 11: 2,
+        12: 3, 13: 4, 14: 5,
+        15: 6, 16: 7, 17: 8
+      };
+      
+      return newIcons.map(icon => {
+        if (icon.position >= 0 && icon.position <= 17) {
+          const newPosition = switchMap[icon.position];
+          if (newPosition !== undefined) {
+            return { ...icon, position: newPosition };
+          }
+        }
+        return icon;
+      });
+    });
+    
+    // Also switch the text positions
+    setIconTexts(prev => {
+      const newTexts = { ...prev };
+      const switchMap: { [key: number]: number } = {
+        // First grid positions (0-8) move to second grid positions (9-17)
+        0: 9, 1: 10, 2: 11,
+        3: 12, 4: 13, 5: 14,
+        6: 15, 7: 16, 8: 17,
+        // Second grid positions (9-17) move to first grid positions (0-8)
+        9: 0, 10: 1, 11: 2,
+        12: 3, 13: 4, 14: 5,
+        15: 6, 16: 7, 17: 8
+      };
+      
+      Object.keys(newTexts).forEach(key => {
+        const position = parseInt(key);
+        if (position >= 0 && position <= 17) {
+          const newPosition = switchMap[position];
+          if (newPosition !== undefined) {
+            newTexts[newPosition] = newTexts[position];
+            delete newTexts[position];
+          }
+        }
+      });
+      
+      return newTexts;
+    });
+    
+    setGridsSwitched(!gridsSwitched);
+  };
+
   const renderGridCell = (index: number) => {
     const icon = placedIcons.find((i) => i.position === index);
     const text = iconTexts[index];
@@ -760,8 +911,8 @@ const DPHCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                  width: isPIR ? "40px" : "60px",
-                  height: isPIR ? "40px" : "60px",
+                  width: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
+                  height: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
                   objectFit: "contain",
                   marginBottom: "5px",
                   position: "relative",
@@ -998,6 +1149,35 @@ const DPHCustomizer: React.FC = () => {
       }}
     >
       <Container maxWidth="lg">
+        {/* Project Name Header */}
+        {projectName && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 20,
+              left: 0,
+              right: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              zIndex: 10,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: 14,
+                color: '#1a1f2c',
+                fontWeight: 400,
+                letterSpacing: 0.5,
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                opacity: 0.8,
+              }}
+            >
+              {projectName}
+            </Typography>
+          </Box>
+        )}
+
         <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
           <CartButton />
         </Box>
@@ -1041,7 +1221,7 @@ const DPHCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel-type');
+                navigate('/panel/double');
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }
@@ -1132,27 +1312,9 @@ const DPHCustomizer: React.FC = () => {
         )}
         {/* Step 3: Panel Design */}
         {currentStep === 3 && (
-          <div style={{ 
-            display: 'flex', 
-            gap: '80px',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
-            maxWidth: '1200px',
-            margin: '0 auto',
-            padding: '0 20px'
-          }}>
+          <div style={{ display: 'flex', gap: '80px', alignItems: 'flex-start', justifyContent: 'center', maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
             {/* Left side - Panel Design Controls */}
-            <div style={{ 
-              flex: '0 0 480px',
-              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-              padding: '28px',
-              borderRadius: '12px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-              border: '1px solid #e9ecef',
-              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
+            <div style={{ flex: '0 0 480px', background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)', padding: '28px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)', border: '1px solid #e9ecef', fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', position: 'relative', overflow: 'hidden' }}>
               {/* Subtle background pattern */}
               <div style={{
                 position: 'absolute',
@@ -1522,6 +1684,60 @@ const DPHCustomizer: React.FC = () => {
               </div>
             </div>
           </div>
+
+            {/* Icon Size Section */}
+            <div style={{ 
+              marginBottom: '28px',
+              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+              padding: '20px',
+              borderRadius: '10px',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+              border: '1px solid #e9ecef'
+            }}>
+              <div style={{ 
+                fontWeight: '600', 
+                marginBottom: '16px', 
+                color: '#1a1f2c',
+                fontSize: '15px',
+                letterSpacing: '0.3px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{
+                  width: '4px',
+                  height: '16px',
+                  background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                  borderRadius: '2px'
+                }} />
+                Icon Size
+              </div>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {['30px', '40px', '50px'].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
+                      background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                      color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: panelDesign.iconSize === size ? '700' : '600',
+                      transition: 'all 0.2s ease',
+                      minWidth: '60px',
+                      textAlign: 'center',
+                      boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                      transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
+                    }}
+                  >
+                    {size.replace('px', '')}
+                  </button>
+                ))}
+            </div>
+          </div>
             </div>
 
             {/* Right side - Panel Template (double panel) */}
@@ -1704,6 +1920,59 @@ const DPHCustomizer: React.FC = () => {
         )}
         {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
         {currentStep === 2 && (
+          <>
+            {/* Mirror Button */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px', gap: '10px' }}>
+              <button
+                onClick={handleMirrorIcons}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  color: isMirrored ? '#6c757d' : '#495057',
+                  border: '2px solid rgba(25, 118, 210, 0.6)',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 1)';
+                  e.currentTarget.style.border = '2px solid rgba(25, 118, 210, 0.8)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+                  e.currentTarget.style.border = '2px solid rgba(25, 118, 210, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+                {isMirrored ? '↔ Mirror Off' : '↔ Mirror On'}
+              </button>
+              <Button
+                onClick={handleSwitchGrids}
+                sx={{
+                  backgroundColor: 'white',
+                  color: '#666',
+                  border: '2px solid #007bff',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'none',
+                  minWidth: 'auto',
+                  '&:hover': {
+                    backgroundColor: '#f8f9fa',
+                    borderColor: '#0056b3',
+                  },
+                }}
+              >
+                ⇄
+              </Button>
+            </div>
           <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
             <div
               style={{
@@ -1766,6 +2035,7 @@ const DPHCustomizer: React.FC = () => {
               ))}
             </div>
           </div>
+          </>
         )}
       </Container>
     </Box>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -21,6 +21,7 @@ import logo from "../../assets/logo.png";
 import logo2 from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { ProjectContext } from '../../App';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -82,24 +83,26 @@ const StyledPanel = styled(motion.div)({
 });
 
 const containerVariants = {
-  hidden: { opacity: 1 },
+  hidden: { opacity: 0 },
   visible: {
+    opacity: 1,
     transition: {
-      staggerChildren: 0.35
+      duration: 0.3,
+      staggerChildren: 0.2
     }
   }
 };
 
 const itemVariants = {
   hidden: { 
-    opacity: 1,
-    y: 20
+    opacity: 0,
+    y: 30
   },
   visible: { 
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
+      duration: 0.6,
       ease: [0.4, 0, 0.2, 1]
     }
   }
@@ -109,6 +112,7 @@ const ExtendedPanelSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
+  const { projectName, projectCode } = useContext(ProjectContext);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -147,12 +151,36 @@ const ExtendedPanelSelector = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #a0aec0 0%, #718096 60%, #e2e8f0 100%)',
+        background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)',
         position: 'relative',
         overflow: 'hidden',
         py: 8,
       }}
     >
+      {/* Project Name at top center */}
+      {(projectName || projectCode) && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 20, 
+          left: 0, 
+          right: 0, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          pointerEvents: 'none', 
+          zIndex: 10 
+        }}>
+          <Typography sx={{
+            fontSize: 14,
+            color: '#ffffff',
+            fontWeight: 400,
+            letterSpacing: 0.5,
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            opacity: 0.8,
+          }}>
+            {projectName}{projectCode && ` - ${projectCode}`}
+          </Typography>
+        </Box>
+      )}
       <Box
         component={motion.div}
         initial={{ opacity: 0 }}

@@ -89,20 +89,22 @@ const PanelConfigurationSummary: React.FC<PanelConfigurationSummaryProps> = ({
                 background: '#4CAF50',
                 flexShrink: 0,
               }} />
-              Selected Icons ({icons.length})
+              Selected Icons ({icons.filter(icon => icon.label && icon.label.trim() !== '').length})
             </Typography>
-            {icons.length > 0 ? (
+            {icons.filter(icon => icon.label && icon.label.trim() !== '').length > 0 ? (
               <Typography variant="body2" sx={{
                 color: '#2c3e50',
                 fontSize: '14px',
                 fontWeight: 500,
                 lineHeight: 1.4,
               }}>
-                {icons.map((icon, index) => (
-                  <span key={icon.position}>
-                    {icon.label}{index < icons.length - 1 ? ', ' : ''}
-                  </span>
-                ))}
+                {icons
+                  .filter(icon => icon.label && icon.label.trim() !== '')
+                  .map((icon, index, filteredIcons) => (
+                    <span key={icon.position}>
+                      {icon.label}{index < filteredIcons.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
               </Typography>
             ) : (
               <Typography variant="body2" sx={{

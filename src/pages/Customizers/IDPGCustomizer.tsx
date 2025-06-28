@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../../components/CartButton";
@@ -12,8 +12,14 @@ import {
   LinearProgress,
   useTheme,
   TextField,
+  Checkbox,
+  FormControlLabel,
+  Paper,
+  Grid,
+  ToggleButton,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { motion } from 'framer-motion';
 import { ralColors, RALColor } from '../../data/ralColors';
 import logo from "../../assets/logo.png";
 import g18Icon from "../../assets/icons/G-GuestServices/G18.png";
@@ -22,6 +28,9 @@ import g2Icon from "../../assets/icons/G-GuestServices/G2.png";
 import g3Icon from "../../assets/icons/G-GuestServices/G3.png";
 import crIcon from "../../assets/icons/CR.png";
 import allIcons from "../../assets/iconLibrary";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { ProjectContext } from '../../App';
+import { getIconColorName } from '../../data/iconColors';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -293,6 +302,12 @@ const IDPGCustomizer = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
+  const [icons, setIcons] = useState({});
+  const [iconCategories, setIconCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const { projectName } = useContext(ProjectContext);
 
   // Guest Services icons mapping
   const guestServicesIcons = {
@@ -307,6 +322,17 @@ const IDPGCustomizer = () => {
       setShowPanels(true);
     }, 1000);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    import("../../assets/iconLibrary").then((module) => {
+      setIcons(module.default);
+      const filteredCategories = module.iconCategories.filter(cat => cat !== 'PIR');
+      setIconCategories(filteredCategories);
+      if (filteredCategories.length > 0) {
+        setSelectedCategory(filteredCategories[0]);
+      }
+    });
   }, []);
 
   // Function to get panel name based on checkbox states
@@ -831,6 +857,30 @@ const IDPGCustomizer = () => {
     );
   };
 
+  // Filter icons by selected category
+  const categoryIcons = selectedCategory
+    ? Object.entries(icons || {})
+        .filter(([_, icon]) => (icon as any).category === selectedCategory && (icon as any).category !== 'PIR')
+        .map(([id, icon]) => ({
+          id,
+          src: (icon as any).src,
+          label: (icon as any).label,
+          category: (icon as any).category
+        }))
+    : [];
+
+  // Add Panel to Project handler
+  const handleAddToCart = (): void => {
+    // You can add validation here if needed
+    const design = {
+      type: 'IDPG',
+      icons: [], // Add icon logic if needed
+      quantity: 1,
+      panelDesign: { ...panelDesign, backbox, extraComments },
+    };
+    addToCart(design);
+  };
+
   return (
     <Box
       sx={{
@@ -839,6 +889,30 @@ const IDPGCustomizer = () => {
         py: 8,
       }}
     >
+      {/* Project Name at top center */}
+      {projectName && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 20, 
+          left: 0, 
+          right: 0, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          pointerEvents: 'none', 
+          zIndex: 10 
+        }}>
+          <Typography sx={{
+            fontSize: 14,
+            color: '#ffffff',
+            fontWeight: 400,
+            letterSpacing: 0.5,
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            opacity: 0.8,
+          }}>
+            {projectName}
+          </Typography>
+        </Box>
+      )}
       <Container maxWidth="lg">
         <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
           <CartButton />
@@ -856,10 +930,8 @@ const IDPGCustomizer = () => {
           <img 
             src={logo} 
             alt="Logo" 
-            style={{ 
-              height: '40px',
-              width: 'auto',
-            }} 
+            style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+            onClick={() => navigate('/')} 
           />
           <Typography
             variant="h6"
@@ -1254,6 +1326,24 @@ const IDPGCustomizer = () => {
           </motion.div>
         )}
       </Container>
+      {/* Add Panel to Project and Back Button */}
+      <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 2 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/panel-type')}
+          sx={{ color: '#1a1f2c', borderColor: '#1a1f2c', background: 'white', '&:hover': { background: '#f0f0f0' } }}
+        >
+          Back
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleAddToCart}
+          sx={{ backgroundColor: '#1a1f2c', color: '#ffffff', '&:hover': { backgroundColor: '#2c3e50' } }}
+        >
+          Add Panel to Project
+        </Button>
+      </Box>
     </Box>
   );
 };

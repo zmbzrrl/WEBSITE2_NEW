@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { ralColors } from '../data/ralColors';
+import { getIconColorName } from '../data/iconColors';
 
 // Copy hexToRgba and ICON_COLOR_FILTERS from SPCustomizer
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -35,6 +36,7 @@ interface PanelPreviewProps {
     iconColor: string;
     textColor: string;
     fontSize: string;
+    iconSize?: string;
     fonts?: string;
     isLayoutReversed?: boolean;
   };
@@ -120,8 +122,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={icon.src}
                     alt={icon.label}
                     style={{
-                      width: isPIR ? '40px' : '60px',
-                      height: isPIR ? '40px' : '60px',
+                      width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
+                      height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
                       objectFit: 'contain',
                       marginBottom: '5px',
                       position: 'relative',
@@ -295,8 +297,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                       src={icon.src}
                       alt={icon.label}
                       style={{
-                        width: isPIR ? '40px' : '60px',
-                        height: isPIR ? '40px' : '60px',
+                        width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
+                        height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
                         objectFit: 'contain',
                         marginBottom: '5px',
                         position: 'relative',

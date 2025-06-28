@@ -19,18 +19,50 @@ const processIcons = (icons: Record<string, IconModule>, category: string) => {
   return Object.entries(icons).reduce((acc, [path, module]) => {
     const name = path.split("/").pop()?.replace(".png", "") || "";
     const id = name; // Use the filename as the ID
+    
+    // Create label by replacing hyphens with spaces, then removing spaces between letters and numbers
+    let label = name.replace(/-/g, " ").toUpperCase();
+    // Remove spaces between letters and numbers (e.g., "A 17" -> "A17")
+    label = label.replace(/([A-Z])\s+(\d+)/g, "$1$2");
+    
     acc[id] = {
       id,
       src: module.default,
       category,
-      label: name.replace(/-/g, " ").toUpperCase()
+      label
     };
     return acc;
   }, {} as Record<string, { id: string; src: string; category: string; label: string }>);
 };
 
-// Combine all icons into a single object
-const allIcons = {
+// Create a filtered version for user selection (excludes DISPLAY, CR, FAN from TAG)
+const createUserSelectableIcons = (allIcons: Record<string, { id: string; src: string; category: string; label: string }>) => {
+  const userSelectableIcons = { ...allIcons };
+  
+  // Remove DISPLAY, CR, and FAN from TAG category for user selection
+  ["DISPLAY", "CR", "FAN"].forEach(iconName => {
+    if (userSelectableIcons[iconName] && userSelectableIcons[iconName].category === "TAG") {
+      delete userSelectableIcons[iconName];
+    }
+  });
+  
+  return userSelectableIcons;
+};
+
+// Export the icons and categories
+export const iconCategories = [
+  "Bathroom",
+  "Room Lights",
+  "Curtains & Blinds",
+  "Guest Services",
+  "General Icons for Lighting",
+  "TAG",
+  "Sockets",
+  "PIR"
+];
+
+// Export the full icon set for customizer use
+export const allIcons = {
   ...processIcons(bathroomIcons, "Bathroom"),
   ...processIcons(roomlightIcons, "Room Lights"),
   ...processIcons(curtainIcons, "Curtains & Blinds"),
@@ -47,15 +79,5 @@ const allIcons = {
   }
 };
 
-// Export the icons and categories
-export const iconCategories = [
-  "Bathroom",
-  "Room Lights",
-  "Curtains & Blinds",
-  "Guest Services",
-  "General Icons for Lighting",
-  "TAG",
-  "Sockets",
-  "PIR"
-];
-export default allIcons; 
+// Export the filtered user-selectable icons
+export default createUserSelectableIcons(allIcons); 

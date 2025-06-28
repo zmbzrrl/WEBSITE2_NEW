@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -17,6 +17,7 @@ import idpg from '../assets/panels/IDPG.png';
 import sp from '../assets/panels/SP.png';
 import x2rs from '../assets/panels/X2RS.png';
 import dpRt from '../assets/panels/DP_RT.jpg';
+import { ProjectContext } from '../App';
 
 const HomeContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
@@ -319,6 +320,7 @@ const HelpText = styled('span')(({ theme }) => ({
 
 const Home = () => {
   const navigate = useNavigate();
+  const { setProjectName, setProjectCode } = useContext(ProjectContext);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showSalesManager, setShowSalesManager] = useState(false);
   const [showError, setShowError] = useState(false);
@@ -353,6 +355,8 @@ const Home = () => {
       setShowError(true);
       return;
     }
+    setProjectName(projectDetails.projectName);
+    setProjectCode(projectDetails.projectCode);
     navigate('/panel-type', { state: { projectDetails } });
   };
 
@@ -434,7 +438,7 @@ const Home = () => {
       <ContentWrapper>
         {!showPrompt ? (
           <>
-            <Logo src={logo} alt="Interel Logo" $showPrompt={showPrompt} />
+            <Logo src={logo} alt="Interel Logo" $showPrompt={showPrompt} onClick={() => navigate('/')} style={{ cursor: 'pointer' }} />
             <AnimatedBox $showPrompt={showPrompt}>
               <Typography 
                 variant="h3" 
