@@ -307,7 +307,9 @@ const IDPGCustomizer = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { projectName } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
+  const [selectedFont, setSelectedFont] = useState<string>('Arial');
+  const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
 
   // Guest Services icons mapping
   const guestServicesIcons = {
@@ -890,7 +892,7 @@ const IDPGCustomizer = () => {
       }}
     >
       {/* Project Name at top center */}
-      {projectName && (
+      {(projectName || projectCode) && (
         <Box sx={{ 
           position: 'absolute', 
           top: 20, 
@@ -899,17 +901,17 @@ const IDPGCustomizer = () => {
           display: 'flex', 
           justifyContent: 'center', 
           pointerEvents: 'none', 
-          zIndex: 10 
+          zIndex: 1000 
         }}>
           <Typography sx={{
             fontSize: 14,
-            color: '#ffffff',
+            color: '#1a1f2c',
             fontWeight: 400,
             letterSpacing: 0.5,
             fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
             opacity: 0.8,
           }}>
-            {projectName}
+            {projectName}{projectCode && ` - ${projectCode}`}
           </Typography>
         </Box>
       )}

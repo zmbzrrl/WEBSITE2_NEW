@@ -17,24 +17,31 @@ const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true })
       style={{ position: "relative", ...style }}
     >
       {showLabel && "View Project Panels"}
-      <span
-        style={{
-          position: "absolute",
-          top: -10,
-          right: -10,
-          backgroundColor: "#ff5733",
-          color: "white",
-          borderRadius: "50%",
-          padding: "4px 8px",
-          fontSize: "12px",
-          fontWeight: "bold",
-          transform: isCounting ? "scale(1.3)" : "scale(1)",
-          opacity: isCounting ? 1 : 0.9,
-          transition: "transform 0.2s ease, opacity 0.2s ease",
-        }}
-      >
-        {projCount}
-      </span>
+      {projCount > 0 && (
+        <span
+          style={{
+            position: "absolute",
+            top: -8,
+            right: -8,
+            backgroundColor: "#ff5733",
+            color: "white",
+            borderRadius: "50%",
+            minWidth: "20px",
+            height: "20px",
+            fontSize: "12px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transform: isCounting ? "scale(1.2)" : "scale(1)",
+            transition: "transform 0.15s ease",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+            zIndex: 10,
+          }}
+        >
+          {projCount}
+        </span>
+      )}
     </button>
   );
 };

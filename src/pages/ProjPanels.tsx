@@ -3,7 +3,7 @@ import { useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import CartButton from "../components/CartButton";
 import PanelPreview from "../components/PanelPreview";
-import { Delete } from '@mui/icons-material';
+import { Delete, Edit } from '@mui/icons-material';
 import PanelConfigurationSummary from "../components/PanelConfigurationSummary";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from "../App";
@@ -47,13 +47,14 @@ interface CartItem {
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
-    case "SP": return "SP Panel";
-    case "TAG": return "TAG Panel";
-    case "DPH": return "DPH Panel";
-    case "DPV": return "DPV Panel";
-    case "X2V": return "X2V Panel";
-    case "X2H": return "X2H Panel";
-    case "X1H": return "X1H Panel";
+    case "SP": return "Single Panel";
+    case "TAG": return "Thermostat";
+    case "DPH": return "Double Panel - H";
+    case "DPV": return "Double Panel - V";
+    case "X2V": return "Extended Panel - V2";
+    case "X2H": return "Extended Panel - H2";
+    case "X1H": return "Extended Panel - H1";
+    case "X1V": return "Extended Panel - V1";
     default: return "Panel";
   }
 };
@@ -68,10 +69,43 @@ const ICON_COLOR_FILTERS: { [key: string]: string } = {
 };
 
 const ProjPanels: React.FC = () => {
-  const { projPanels, updateQuantity, removeFromCart } = useCart();
+  const { projPanels, updateQuantity, removeFromCart, currentProjectCode } = useCart();
   const navigate = useNavigate();
-  const [panelNames, setPanelNames] = useState<string[]>(projPanels.map(() => ""));
+  
+  console.log('ProjPanels render:', { projPanels, currentProjectCode, projPanelsLength: projPanels.length });
+  
+  // Load panel names for specific project code
+  const loadPanelNames = (projectCode: string | null): string[] => {
+    if (!projectCode) return [];
+    
+    try {
+      const stored = localStorage.getItem(`panelNames_${projectCode}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.error(`Error loading panel names for project ${projectCode}:`, error);
+      return [];
+    }
+  };
+
+  const [panelNames, setPanelNames] = useState<string[]>(() => {
+    const stored = loadPanelNames(currentProjectCode);
+    // Ensure we have enough names for current panels
+    while (stored.length < projPanels.length) stored.push("");
+    return stored.slice(0, projPanels.length);
+  });
+  
   const { projectName, projectCode } = useContext(ProjectContext);
+
+  // Save panel names for specific project code
+  const savePanelNames = (projectCode: string | null, names: string[]) => {
+    if (!projectCode) return;
+    
+    try {
+      localStorage.setItem(`panelNames_${projectCode}`, JSON.stringify(names));
+    } catch (error) {
+      console.error(`Error saving panel names for project ${projectCode}:`, error);
+    }
+  };
 
   // Keep panelNames in sync if projPanels changes (e.g., remove/add)
   React.useEffect(() => {
@@ -83,6 +117,19 @@ const ProjPanels: React.FC = () => {
     });
   }, [projPanels.length]);
 
+  // Save panel names whenever they change
+  React.useEffect(() => {
+    savePanelNames(currentProjectCode, panelNames);
+  }, [panelNames, currentProjectCode]);
+
+  // Load panel names when project code changes
+  React.useEffect(() => {
+    const stored = loadPanelNames(currentProjectCode);
+    const arr = [...stored];
+    while (arr.length < projPanels.length) arr.push("");
+    setPanelNames(arr.slice(0, projPanels.length));
+  }, [currentProjectCode, projPanels.length]);
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -90,40 +137,36 @@ const ProjPanels: React.FC = () => {
       padding: '0',
       fontFamily: THEME.fontFamily,
     }}>
-      {/* Project Name at top center */}
-      {(projectName || projectCode) && (
-        <div style={{
-          position: 'absolute',
-          top: 20,
-          left: 0,
-          right: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-          zIndex: 10
-        }}>
-          <span style={{
-            fontSize: 14,
-            color: '#ffffff',
-            fontWeight: 400,
-            letterSpacing: 0.5,
-            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-            opacity: 0.8,
-          }}>
-            {projectName}{projectCode && ` - ${projectCode}`}
-          </span>
-        </div>
-      )}
       <div style={{
         maxWidth: 1100,
         margin: '0 auto',
-        padding: '48px 16px 32px 16px',
+        padding: '32px 16px',
         borderRadius: THEME.borderRadius,
         background: THEME.card,
         boxShadow: THEME.shadow,
-        marginTop: 48,
-        marginBottom: 48,
+        marginTop: 32,
+        marginBottom: 32,
       }}>
+        {/* Project Name at top */}
+        {(projectName || projectCode) && (
+          <div style={{
+            textAlign: 'center',
+            marginBottom: 24,
+            padding: '12px 0',
+            borderBottom: '1px solid #f0f0f0',
+          }}>
+            <span style={{
+              fontSize: 16,
+              color: THEME.textSecondary,
+              fontWeight: 500,
+              letterSpacing: 0.5,
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            }}>
+              {projectName}{projectCode && ` - ${projectCode}`}
+            </span>
+          </div>
+        )}
+
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <h1 style={{
             fontWeight: 700,
@@ -141,7 +184,7 @@ const ProjPanels: React.FC = () => {
             background: THEME.primary,
             marginBottom: 8
           }} />
-      </div>
+        </div>
 
         {projPanels.length === 0 ? (
           <div style={{
@@ -149,9 +192,9 @@ const ProjPanels: React.FC = () => {
           }}>
             <span style={{ fontSize: 64, color: '#e0e0e0', marginBottom: 16 }}>🗂️</span>
             <p style={{ fontSize: 20, color: THEME.textSecondary, marginBottom: 24 }}>Your project panels list is empty</p>
-          <button
+            <button
               onClick={() => navigate("/panel-type")}
-            style={{
+              style={{
                 padding: '14px 36px',
                 background: THEME.primary,
                 color: '#fff',
@@ -163,10 +206,10 @@ const ProjPanels: React.FC = () => {
                 boxShadow: THEME.shadow,
                 letterSpacing: '0.5px',
                 transition: 'background 0.2s, transform 0.2s',
-            }}
+              }}
             >Continue Designing !</button>
-        </div>
-      ) : (
+          </div>
+        ) : (
           <div style={{
             display: 'flex',
             flexDirection: 'column',
@@ -174,9 +217,9 @@ const ProjPanels: React.FC = () => {
             marginBottom: 40,
           }}>
             {projPanels.map((item, index) => (
-            <div
-              key={index}
-              style={{
+              <div
+                key={index}
+                style={{
                   background: THEME.card,
                   borderRadius: THEME.borderRadius,
                   boxShadow: THEME.cardShadow,
@@ -234,6 +277,22 @@ const ProjPanels: React.FC = () => {
                       transition: 'border 0.2s',
                     }}
                   />
+                  <div style={{
+                    background: THEME.secondary,
+                    color: '#fff',
+                    borderRadius: 6,
+                    fontWeight: 600,
+                    fontSize: 14,
+                    padding: '6px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 3px rgba(102,102,102,0.15)',
+                    letterSpacing: '0.5px',
+                    minWidth: 'fit-content',
+                  }}>
+                    {getPanelTypeLabel(item.type)}
+                  </div>
                 </div>
                 {/* Quantity controls */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
@@ -284,9 +343,9 @@ const ProjPanels: React.FC = () => {
                   >+</button>
                 </div>
                 {/* Remove button */}
-                  <button
-                    onClick={() => removeFromCart(index)}
-                    style={{
+                <button
+                  onClick={() => removeFromCart(index)}
+                  style={{
                     position: 'absolute',
                     top: 18,
                     right: 18,
@@ -297,11 +356,70 @@ const ProjPanels: React.FC = () => {
                     fontSize: 22,
                     padding: 0,
                     zIndex: 2,
-                    }}
+                  }}
                   title="Remove panel"
                 >
                   <Delete fontSize="inherit" />
+                </button>
+                {/* Edit Panel button */}
+                <div style={{
+                  position: 'absolute',
+                  top: 18,
+                  right: 60,
+                  zIndex: 2,
+                }}>
+                  <button
+                    onClick={() => {
+                      // Navigate to the appropriate customizer based on panel type
+                      const customizerRoutes: { [key: string]: string } = {
+                        'SP': '/customizer/sp',
+                        'TAG': '/customizer/tag',
+                        'DPH': '/customizer/dph',
+                        'DPV': '/customizer/dpv',
+                        'X2V': '/customizer/x2v',
+                        'X2H': '/customizer/x2h',
+                        'X1H': '/customizer/x1h',
+                        'X1V': '/customizer/x1v',
+                      };
+                      const route = customizerRoutes[item.type] || '/panel-type';
+                      navigate(route, { 
+                        state: { 
+                          editMode: true, 
+                          panelIndex: index,
+                          panelData: item 
+                        } 
+                      });
+                    }}
+                    style={{
+                      background: THEME.primary,
+                      border: 'none',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      boxShadow: '0 1px 3px rgba(27,146,209,0.20)',
+                      transition: 'all 0.2s ease',
+                      letterSpacing: '0.3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = THEME.primaryHover;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = THEME.primary;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                    title="Edit panel configuration"
+                  >
+                    <Edit sx={{ fontSize: 14 }} />
+                    Edit Panel
                   </button>
+                </div>
                 {/* Panel Preview and Info Summary side by side */}
                 <div style={{ display: 'flex', gap: 32, alignItems: 'center', width: '100%' }}>
                   <PanelPreview
@@ -324,7 +442,7 @@ const ProjPanels: React.FC = () => {
                 </div>
               </div>
             ))}
-            </div>
+          </div>
         )}
         {/* Action Buttons */}
         {projPanels.length > 0 && (
@@ -363,7 +481,7 @@ const ProjPanels: React.FC = () => {
             >Proceed to Layouts</button>
           </div>
         )}
-        </div>
+      </div>
     </div>
   );
 };

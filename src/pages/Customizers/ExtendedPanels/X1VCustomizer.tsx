@@ -818,6 +818,24 @@ const X1VCustomizer: React.FC = () => {
         if (icon.position >= 0 && icon.position <= 8) {
           const newPosition = mirrorMap[icon.position];
           if (newPosition !== undefined) {
+            // Check if this is a G1/G2/G3 icon and if mirroring would place it in a restricted cell
+            const isG1OrG2 = icon.iconId === "G1" || icon.iconId === "G2";
+            const isG3 = icon.iconId === "G3";
+            
+            // G1/G2 restricted cells: [2, 5, 8] - right column
+            // G3 restricted cells: [0, 3, 6] - left column
+            
+            if (isG1OrG2 && [2, 5, 8].includes(newPosition)) {
+              // Don't mirror G1/G2 if it would end up in a restricted cell
+              return icon;
+            }
+            
+            if (isG3 && [0, 3, 6].includes(newPosition)) {
+              // Don't mirror G3 if it would end up in a restricted cell
+              return icon;
+            }
+            
+            // Safe to mirror this icon
             return { ...icon, position: newPosition };
           }
         }

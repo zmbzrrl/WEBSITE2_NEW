@@ -113,7 +113,7 @@ const PanelTypeSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [showPanels] = useState(true);
-  const { projectName } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
@@ -205,7 +205,7 @@ const PanelTypeSelector = () => {
         py: 8,
       }}
     >
-      {projectName && (
+      {(projectName || projectCode) && (
         <Box sx={{ 
           position: 'absolute', 
           top: 20, 
@@ -224,7 +224,7 @@ const PanelTypeSelector = () => {
             fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
             opacity: 0.8,
           }}>
-            {projectName}
+            {projectName}{projectCode && ` - ${projectCode}`}
           </Typography>
         </Box>
       )}

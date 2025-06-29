@@ -589,7 +589,7 @@ const TAGCustomizer: React.FC = () => {
   // State to track if rows 3 and 4 are swapped
   const [swapRows, setSwapRows] = useState(false);
 
-  const { projectName } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
 
   useEffect(() => {
     import("../../assets/iconLibrary").then((module) => {
@@ -1422,7 +1422,7 @@ const TAGCustomizer: React.FC = () => {
       }}
     >
       {/* Project Name at top center */}
-      {projectName && (
+      {(projectName || projectCode) && (
         <Box sx={{ 
           position: 'absolute', 
           top: 20, 
@@ -1441,7 +1441,7 @@ const TAGCustomizer: React.FC = () => {
             fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
             opacity: 0.8,
           }}>
-            {projectName}
+            {projectName}{projectCode && ` - ${projectCode}`}
           </Typography>
         </Box>
       )}

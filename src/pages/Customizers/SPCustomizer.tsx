@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../../components/CartButton";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from "../../assets/logo.png";
 import {
   Container,
@@ -477,6 +477,7 @@ const InformationBox = ({
 const SPCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
@@ -525,7 +526,15 @@ const SPCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
+  const [selectedFont, setSelectedFont] = useState<string>('Arial');
+  const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
+  
+  // Edit mode state
+  const isEditMode = location.state?.editMode || false;
+  const editPanelIndex = location.state?.panelIndex;
+  const editPanelData = location.state?.panelData;
+  
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
@@ -535,11 +544,50 @@ const SPCustomizer: React.FC = () => {
     });
   }, []);
 
+  // Load existing panel data if in edit mode
+  useEffect(() => {
+    if (isEditMode && editPanelData) {
+      // Load panel design
+      if (editPanelData.panelDesign) {
+        setPanelDesign(editPanelData.panelDesign);
+        setBackbox(editPanelData.panelDesign.backbox || '');
+        setExtraComments(editPanelData.panelDesign.extraComments || '');
+      }
+      
+      // Load placed icons
+      if (editPanelData.icons) {
+        const loadedIcons: PlacedIcon[] = editPanelData.icons
+          .filter((icon: any) => icon.iconId)
+          .map((icon: any) => ({
+            id: Date.now() + Math.random(), // Generate new IDs
+            iconId: icon.iconId,
+            src: icon.src || '',
+            label: icon.label || '',
+            position: icon.position,
+            category: icon.category || ''
+          }));
+        setPlacedIcons(loadedIcons);
+        
+        // Load icon texts
+        const loadedTexts: IconTexts = {};
+        editPanelData.icons.forEach((icon: any) => {
+          if (icon.text) {
+            loadedTexts[icon.position] = icon.text;
+          }
+        });
+        setIconTexts(loadedTexts);
+      }
+      
+      // Set current step to design step (step 3) for editing
+      setCurrentStep(3);
+    }
+  }, [isEditMode, editPanelData]);
+
   if (!cartContext) {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart } = cartContext;
+  const { addToCart, updatePanel } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -627,7 +675,15 @@ const SPCustomizer: React.FC = () => {
       quantity: 1,
       panelDesign: { ...panelDesign, backbox, extraComments },
     };
-    addToCart(design);
+
+    if (isEditMode && editPanelIndex !== undefined) {
+      // Update existing panel
+      updatePanel(editPanelIndex, design);
+      navigate('/cart'); // Go back to cart after updating
+    } else {
+      // Add new panel
+      addToCart(design);
+    }
   };
 
   // Filter icons by selected category
@@ -1053,7 +1109,7 @@ const SPCustomizer: React.FC = () => {
       }}
     >
       {/* Project Name at top center */}
-      {projectName && (
+      {(projectName || projectCode) && (
         <Box sx={{ 
           position: 'absolute', 
           top: 20, 
@@ -1072,7 +1128,7 @@ const SPCustomizer: React.FC = () => {
             fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
             opacity: 0.8,
           }}>
-            {projectName}
+            {projectName}{projectCode && ` - ${projectCode}`}
           </Typography>
         </Box>
       )}
@@ -1817,7 +1873,7 @@ const SPCustomizer: React.FC = () => {
                 },
               }}
             >
-                    Add Panel to Project
+                    {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
             </StyledButton>
         </Box>
               </div>

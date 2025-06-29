@@ -526,11 +526,13 @@ const DPVCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   console.log('RENDER', { backbox, extraComments });
   const [isLayoutReversed, setIsLayoutReversed] = useState(false);
   const [isMirrored, setIsMirrored] = useState(false);
   const [gridsSwitched, setGridsSwitched] = useState(false);
+  const [selectedFont, setSelectedFont] = useState<string>('Arial');
+  const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
 
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
@@ -793,6 +795,24 @@ const DPVCustomizer: React.FC = () => {
         if (icon.position >= 0 && icon.position <= 17) {
           const newPosition = mirrorMap[icon.position];
           if (newPosition !== undefined) {
+            // Check if this is a G1/G2/G3 icon and if mirroring would place it in a restricted cell
+            const isG1OrG2 = icon.iconId === "G1" || icon.iconId === "G2";
+            const isG3 = icon.iconId === "G3";
+            
+            // G1/G2 restricted cells: [2, 5, 8, 11, 14, 17] - right columns of both grids
+            // G3 restricted cells: [0, 3, 6, 9, 12, 15] - left columns of both grids
+            
+            if (isG1OrG2 && [2, 5, 8, 11, 14, 17].includes(newPosition)) {
+              // Don't mirror G1/G2 if it would end up in a restricted cell
+              return icon;
+            }
+            
+            if (isG3 && [0, 3, 6, 9, 12, 15].includes(newPosition)) {
+              // Don't mirror G3 if it would end up in a restricted cell
+              return icon;
+            }
+            
+            // Safe to mirror this icon
             return { ...icon, position: newPosition };
           }
         }
@@ -1162,27 +1182,31 @@ const DPVCustomizer: React.FC = () => {
         py: 8,
       }}
     >
-      {/* Project Name at top center */}
-      {projectName && (
-        <Box sx={{ 
-          position: 'absolute', 
-          top: 20, 
-          left: 0, 
-          right: 0, 
-          display: 'flex', 
-          justifyContent: 'center', 
-          pointerEvents: 'none', 
-          zIndex: 1000 
-        }}>
-          <Typography sx={{
-            fontSize: 14,
-            color: '#1a1f2c',
-            fontWeight: 400,
-            letterSpacing: 0.5,
-            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-            opacity: 0.8,
-          }}>
-            {projectName}
+      {/* Project Name Header */}
+      {(projectName || projectCode) && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 20,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: 14,
+              color: '#1a1f2c',
+              fontWeight: 400,
+              letterSpacing: 0.5,
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              opacity: 0.8,
+            }}
+          >
+            {projectName}{projectCode && ` - ${projectCode}`}
           </Typography>
         </Box>
       )}

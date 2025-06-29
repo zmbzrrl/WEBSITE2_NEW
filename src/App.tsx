@@ -1,4 +1,4 @@
-import React, { useEffect, useState, createContext } from "react";
+import React, { useEffect, useState, createContext, useContext } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AnimatePresence } from 'framer-motion';
@@ -21,7 +21,7 @@ import X1VCustomizer from "./pages/Customizers/ExtendedPanels/X1VCustomizer";
 import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";
 import ProjPanels from "./pages/ProjPanels";
 import Layouts from "./pages/Layouts";
-import { CartProvider } from "./contexts/CartContext";
+import { CartProvider, useCart } from "./contexts/CartContext";
 import PageTransition from "./components/PageTransition";
 
 // Project context to provide project name and code globally
@@ -36,6 +36,23 @@ export const ProjectContext = createContext<{
   projectCode: '',
   setProjectCode: () => {}
 });
+
+// Component to sync project code between contexts
+const ProjectSync: React.FC = () => {
+  const { projectCode } = useContext(ProjectContext);
+  const { setProjectCode } = useCart();
+
+  useEffect(() => {
+    console.log('ProjectSync: projectCode from ProjectContext:', projectCode);
+    // Only set project code if it's not empty
+    if (projectCode && projectCode.trim() !== '') {
+      console.log('ProjectSync: Setting project code in CartContext:', projectCode);
+      setProjectCode(projectCode);
+    }
+  }, [projectCode, setProjectCode]);
+
+  return null;
+};
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -74,9 +91,10 @@ const App: React.FC = () => {
       <CssBaseline />
       <CartProvider>
         <ProjectContext.Provider value={{ projectName, setProjectName, projectCode, setProjectCode }}>
-        <Router>
-          <AppRoutes />
-        </Router>
+          <ProjectSync />
+          <Router>
+            <AppRoutes />
+          </Router>
         </ProjectContext.Provider>
       </CartProvider>
     </ThemeProvider>

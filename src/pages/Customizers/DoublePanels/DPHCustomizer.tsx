@@ -476,7 +476,7 @@ const InformationBox = ({
 const DPHCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
-  const { projectName } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
@@ -528,6 +528,8 @@ const DPHCustomizer: React.FC = () => {
   const [isLayoutReversed, setIsLayoutReversed] = useState(false);
   const [isMirrored, setIsMirrored] = useState(false);
   const [gridsSwitched, setGridsSwitched] = useState(false);
+  const [selectedFont, setSelectedFont] = useState<string>('Arial');
+  const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
@@ -779,6 +781,24 @@ const DPHCustomizer: React.FC = () => {
         if (icon.position >= 0 && icon.position <= 17) {
           const newPosition = mirrorMap[icon.position];
           if (newPosition !== undefined) {
+            // Check if this is a G1/G2/G3 icon and if mirroring would place it in a restricted cell
+            const isG1OrG2 = icon.iconId === "G1" || icon.iconId === "G2";
+            const isG3 = icon.iconId === "G3";
+            
+            // G1/G2 restricted cells: [2, 5, 8, 11, 14, 17] - right columns of both grids
+            // G3 restricted cells: [0, 3, 6, 9, 12, 15] - left columns of both grids
+            
+            if (isG1OrG2 && [2, 5, 8, 11, 14, 17].includes(newPosition)) {
+              // Don't mirror G1/G2 if it would end up in a restricted cell
+              return icon;
+            }
+            
+            if (isG3 && [0, 3, 6, 9, 12, 15].includes(newPosition)) {
+              // Don't mirror G3 if it would end up in a restricted cell
+              return icon;
+            }
+            
+            // Safe to mirror this icon
             return { ...icon, position: newPosition };
           }
         }
@@ -1150,7 +1170,7 @@ const DPHCustomizer: React.FC = () => {
     >
       <Container maxWidth="lg">
         {/* Project Name Header */}
-        {projectName && (
+        {(projectName || projectCode) && (
           <Box
             sx={{
               position: 'absolute',
@@ -1173,7 +1193,7 @@ const DPHCustomizer: React.FC = () => {
                 opacity: 0.8,
               }}
             >
-              {projectName}
+              {projectName}{projectCode && ` - ${projectCode}`}
             </Typography>
           </Box>
         )}

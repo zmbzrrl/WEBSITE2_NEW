@@ -77,7 +77,7 @@ const Layouts: React.FC = () => {
   const [newRoomTypeName, setNewRoomTypeName] = useState('');
   const [showRoomTypeInput, setShowRoomTypeInput] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { projectName } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
 
   // Handle PDF upload
   const handlePdfUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,7 +177,7 @@ const Layouts: React.FC = () => {
       fontFamily: THEME.fontFamily,
     }}>
       {/* Project Name at top center */}
-      {projectName && (
+      {(projectName || projectCode) && (
         <div style={{
           position: 'absolute',
           top: 20,
@@ -196,7 +196,7 @@ const Layouts: React.FC = () => {
             fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
             opacity: 0.8,
           }}>
-            {projectName}
+            {projectName}{projectCode && ` - ${projectCode}`}
           </span>
         </div>
       )}
