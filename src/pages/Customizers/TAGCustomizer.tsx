@@ -680,27 +680,38 @@ const TAGCustomizer: React.FC = () => {
 
   // Cell 1 cycling function - move this before renderGridCell
   const handleCell1Click = () => {
-    if (currentStep === 4 || tagIcons.length === 0) return;
+    if (currentStep === 4) return;
+    
+    // Define the temperature unit icons that should cycle in cell 1
+    const temperatureIcons = ["CF", "C", "F"];
     
     // Find the current icon in cell 1
     const currentIcon = placedIcons.find(icon => icon.position === 1);
-    const currentIndex = currentIcon ? tagIcons.findIndex(icon => icon.id === currentIcon.iconId) : -1;
+    const currentIconId = currentIcon?.iconId;
+    
+    // Find current index in temperature icons array
+    const currentIndex = temperatureIcons.indexOf(currentIconId || "CF");
     
     // Cycle to next icon
-    const nextIndex = (currentIndex + 1) % tagIcons.length;
-    const nextIcon = tagIcons[nextIndex];
+    const nextIndex = (currentIndex + 1) % temperatureIcons.length;
+    const nextIconId = temperatureIcons[nextIndex];
     
-    setPlacedIcons(prev => [
-      ...prev.filter(icon => icon.position !== 1),
-      {
-        id: Date.now(),
-        iconId: nextIcon.id,
-        src: nextIcon.src,
-        label: nextIcon.label,
-        position: 1,
-        category: nextIcon.category
-      }
-    ]);
+    // Find the icon data from icons
+    const nextIcon = (icons as any)[nextIconId];
+    
+    if (nextIcon) {
+      setPlacedIcons(prev => [
+        ...prev.filter(icon => icon.position !== 1),
+        {
+          id: Date.now(),
+          iconId: nextIcon.id,
+          src: nextIcon.src,
+          label: nextIcon.label,
+          position: 1,
+          category: nextIcon.category
+        }
+      ]);
+    }
   };
 
   const handleAddToCart = (): void => {
