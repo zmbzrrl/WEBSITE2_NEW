@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useContext } from "react";
+import React, { useState, useRef, useCallback, useContext, useEffect } from "react";
 import { useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import CartButton from "../components/CartButton";
@@ -51,62 +51,40 @@ interface PlacedPanel {
   };
 }
 
-interface RoomType {
-  id: string;
-  name: string;
-  color: string;
-}
-
 const Layouts: React.FC = () => {
   const navigate = useNavigate();
   const { projPanels } = useCart();
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [roomTypes, setRoomTypes] = useState<RoomType[]>([
-    { id: '1', name: 'Bedroom', color: '#FF6B6B' },
-    { id: '2', name: 'Bathroom', color: '#4ECDC4' },
-    { id: '3', name: 'Kitchen', color: '#45B7D1' },
-    { id: '4', name: 'Living Room', color: '#96CEB4' },
-    { id: '5', name: 'Dining Room', color: '#FFEAA7' },
-  ]);
-  const [selectedRoomType, setSelectedRoomType] = useState<string>('1');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageScale, setImageScale] = useState<number>(1);
+  const [imagePosition, setImagePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'fill'>('contain');
+  const [selectedRoomType, setSelectedRoomType] = useState<string>('Bedroom');
   const [selectedPanelIndex, setSelectedPanelIndex] = useState<number | null>(null);
   const [placedPanels, setPlacedPanels] = useState<PlacedPanel[]>([]);
   const [isPlacingPanel, setIsPlacingPanel] = useState(false);
   const [showPanelSelector, setShowPanelSelector] = useState(false);
-  const [newRoomTypeName, setNewRoomTypeName] = useState('');
-  const [showRoomTypeInput, setShowRoomTypeInput] = useState(false);
+  const [hoveredPanelId, setHoveredPanelId] = useState<string | null>(null);
+  const [draggedPanelId, setDraggedPanelId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [panelSizes, setPanelSizes] = useState<{ [key: string]: number }>({});
+  const [resizingPanelId, setResizingPanelId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const { projectName, projectCode } = useContext(ProjectContext);
 
-  // Handle PDF upload
-  const handlePdfUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle image upload
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setPdfFile(file);
+    if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/jpg')) {
+      setImageFile(file);
       const url = URL.createObjectURL(file);
-      setPdfUrl(url);
-    }
-  };
-
-  // Add new room type
-  const addRoomType = () => {
-    if (newRoomTypeName.trim()) {
-      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
-      const newRoomType: RoomType = {
-        id: Date.now().toString(),
-        name: newRoomTypeName.trim(),
-        color: colors[Math.floor(Math.random() * colors.length)]
-      };
-      setRoomTypes([...roomTypes, newRoomType]);
-      setNewRoomTypeName('');
-      setShowRoomTypeInput(false);
+      setImageUrl(url);
     }
   };
 
   // Handle canvas click to place panel
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {
-    if (!isPlacingPanel || selectedPanelIndex === null || !canvasRef.current) return;
+    if (!isPlacingPanel || selectedPanelIndex === null || !canvasRef.current || draggedPanelId) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -127,7 +105,7 @@ const Layouts: React.FC = () => {
 
     setIsPlacingPanel(false);
     setSelectedPanelIndex(null);
-  }, [isPlacingPanel, selectedPanelIndex, selectedRoomType, placedPanels, projPanels]);
+  }, [isPlacingPanel, selectedPanelIndex, selectedRoomType, placedPanels, projPanels, draggedPanelId]);
 
   // Remove placed panel
   const removePlacedPanel = (panelId: string) => {
@@ -141,16 +119,121 @@ const Layouts: React.FC = () => {
     setShowPanelSelector(false);
   };
 
+  // Start dragging panel
+  const startDragPanel = (e: React.MouseEvent, panelId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const panel = placedPanels.find(p => p.id === panelId);
+    
+    if (panel) {
+      const offsetX = e.clientX - rect.left - panel.x;
+      const offsetY = e.clientY - rect.top - panel.y;
+      
+      setDragOffset({ x: offsetX, y: offsetY });
+      setDraggedPanelId(panelId);
+    }
+  };
+
+  // Handle drag movement
+  const handleDragMove = useCallback((e: MouseEvent) => {
+    if (!draggedPanelId || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const newX = e.clientX - rect.left - dragOffset.x;
+    const newY = e.clientY - rect.top - dragOffset.y;
+    
+    setPlacedPanels(prev => prev.map(panel => 
+      panel.id === draggedPanelId 
+        ? { ...panel, x: newX, y: newY }
+        : panel
+    ));
+  }, [draggedPanelId, dragOffset]);
+
+  // End dragging
+  const endDrag = useCallback(() => {
+    setDraggedPanelId(null);
+    setDragOffset({ x: 0, y: 0 });
+  }, []);
+
+  // Add and remove global mouse event listeners
+  useEffect(() => {
+    if (draggedPanelId) {
+      document.addEventListener('mousemove', handleDragMove);
+      document.addEventListener('mouseup', endDrag);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleDragMove);
+        document.removeEventListener('mouseup', endDrag);
+      };
+    }
+  }, [draggedPanelId, handleDragMove, endDrag]);
+
+  // Start resizing panel
+  const startResizePanel = (e: React.MouseEvent, panelId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingPanelId(panelId);
+  };
+
+  // Handle resize movement
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!resizingPanelId || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const panel = placedPanels.find(p => p.id === resizingPanelId);
+    
+    if (panel) {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - rect.left - panel.x, 2) + 
+        Math.pow(e.clientY - rect.top - panel.y, 2)
+      );
+      
+      // Convert distance to size (minimum 24px, maximum 80px)
+      const newSize = Math.max(24, Math.min(80, distance * 2));
+      
+      setPanelSizes(prev => ({
+        ...prev,
+        [resizingPanelId]: newSize
+      }));
+    }
+  }, [resizingPanelId, placedPanels]);
+
+  // End resizing
+  const endResize = useCallback(() => {
+    setResizingPanelId(null);
+  }, []);
+
+  // Add and remove global mouse event listeners for resize
+  useEffect(() => {
+    if (resizingPanelId) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', endResize);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', endResize);
+      };
+    }
+  }, [resizingPanelId, handleResizeMove, endResize]);
+
   // Get room type color
-  const getRoomTypeColor = (roomTypeId: string) => {
-    const roomType = roomTypes.find(rt => rt.id === roomTypeId);
-    return roomType?.color || '#666666';
+  const getRoomTypeColor = (roomTypeName: string) => {
+    // Generate a consistent color based on the room type name
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+    const hash = roomTypeName.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return colors[Math.abs(hash) % colors.length];
   };
 
   // Get room type name
-  const getRoomTypeName = (roomTypeId: string) => {
-    const roomType = roomTypes.find(rt => rt.id === roomTypeId);
-    return roomType?.name || 'Unknown';
+  const getRoomTypeName = (roomTypeName: string) => {
+    return roomTypeName || 'Unknown';
   };
 
   // Get panel type label
@@ -272,14 +355,14 @@ const Layouts: React.FC = () => {
               Upload Room Plan
               <input
                 type="file"
-                accept=".pdf"
-                onChange={handlePdfUpload}
+                accept=".png,.jpg,.jpeg"
+                onChange={handleImageUpload}
                 style={{ display: 'none' }}
               />
             </label>
-            {pdfFile && (
+            {imageFile && (
               <span style={{ fontSize: 14, color: THEME.textSecondary }}>
-                {pdfFile.name}
+                {imageFile.name}
               </span>
             )}
           </div>
@@ -291,9 +374,11 @@ const Layouts: React.FC = () => {
             gap: 10
           }}>
             <span style={{ fontSize: 14, color: THEME.textSecondary }}>Room Type:</span>
-            <select
+            <input
+              type="text"
               value={selectedRoomType}
               onChange={(e) => setSelectedRoomType(e.target.value)}
+              placeholder="Enter room type..."
               style={{
                 padding: '8px 12px',
                 border: '1px solid #e0e0e0',
@@ -303,32 +388,111 @@ const Layouts: React.FC = () => {
                 color: THEME.textPrimary,
                 minWidth: 120
               }}
-            >
-              {roomTypes.map(roomType => (
-                <option key={roomType.id} value={roomType.id}>
-                  {roomType.name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => setShowRoomTypeInput(true)}
-              style={{
-                padding: '8px 12px',
-                background: THEME.secondary,
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 14,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4
-              }}
-            >
-              <Add fontSize="small" />
-              Add Type
-            </button>
+            />
           </div>
+
+          {/* Image Adjustment Controls */}
+          {imageUrl && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 15,
+              padding: '10px 15px',
+              background: '#f8f9fa',
+              borderRadius: 8,
+              border: '1px solid #e0e0e0'
+            }}>
+              <span style={{ fontSize: 14, color: THEME.textSecondary }}>Image Adjustments:</span>
+              
+              {/* Scale Control */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: THEME.textSecondary }}>Scale:</span>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3"
+                  step="0.1"
+                  value={imageScale}
+                  onChange={(e) => setImageScale(parseFloat(e.target.value))}
+                  style={{ width: 80 }}
+                />
+                <span style={{ fontSize: 12, color: THEME.textSecondary, minWidth: 30 }}>
+                  {Math.round(imageScale * 100)}%
+                </span>
+              </div>
+
+              {/* Position Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: THEME.textSecondary }}>X:</span>
+                <input
+                  type="range"
+                  min="-100"
+                  max="100"
+                  value={imagePosition.x}
+                  onChange={(e) => setImagePosition(prev => ({ ...prev, x: parseInt(e.target.value) }))}
+                  style={{ width: 60 }}
+                />
+                <span style={{ fontSize: 12, color: THEME.textSecondary, minWidth: 25 }}>
+                  {imagePosition.x}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: THEME.textSecondary }}>Y:</span>
+                <input
+                  type="range"
+                  min="-100"
+                  max="100"
+                  value={imagePosition.y}
+                  onChange={(e) => setImagePosition(prev => ({ ...prev, y: parseInt(e.target.value) }))}
+                  style={{ width: 60 }}
+                />
+                <span style={{ fontSize: 12, color: THEME.textSecondary, minWidth: 25 }}>
+                  {imagePosition.y}
+                </span>
+              </div>
+
+              {/* Fit Options */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: THEME.textSecondary }}>Fit:</span>
+                <select
+                  value={imageFit}
+                  onChange={(e) => setImageFit(e.target.value as 'cover' | 'contain' | 'fill')}
+                  style={{
+                    padding: '4px 8px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    background: '#fff'
+                  }}
+                >
+                  <option value="contain">Contain</option>
+                  <option value="cover">Cover</option>
+                  <option value="fill">Fill</option>
+                </select>
+              </div>
+
+              {/* Reset Button */}
+              <button
+                onClick={() => {
+                  setImageScale(1);
+                  setImagePosition({ x: 0, y: 0 });
+                  setImageFit('contain');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  background: THEME.secondary,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  cursor: 'pointer'
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          )}
 
           {/* Panel Selector Button */}
           <button
@@ -345,66 +509,9 @@ const Layouts: React.FC = () => {
               transition: 'background 0.2s'
             }}
           >
-            {isPlacingPanel ? 'Cancel Placement' : 'Select Panel'}
+            {isPlacingPanel ? 'Cancel Placement' : 'Place a Panel'}
           </button>
         </div>
-
-        {/* Add Room Type Input */}
-        {showRoomTypeInput && (
-          <div style={{
-            display: 'flex',
-            gap: 10,
-            marginBottom: 20,
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}>
-            <input
-              type="text"
-              value={newRoomTypeName}
-              onChange={(e) => setNewRoomTypeName(e.target.value)}
-              placeholder="Enter room type name..."
-              style={{
-                padding: '8px 12px',
-                border: '1px solid #e0e0e0',
-                borderRadius: 6,
-                fontSize: 14,
-                minWidth: 200
-              }}
-              onKeyPress={(e) => e.key === 'Enter' && addRoomType()}
-            />
-            <button
-              onClick={addRoomType}
-              style={{
-                padding: '8px 16px',
-                background: THEME.primary,
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 14,
-                cursor: 'pointer'
-              }}
-            >
-              Add
-            </button>
-            <button
-              onClick={() => {
-                setShowRoomTypeInput(false);
-                setNewRoomTypeName('');
-              }}
-              style={{
-                padding: '8px 16px',
-                background: THEME.secondary,
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 14,
-                cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
 
         {/* Main Content */}
         <div style={{ display: 'flex', gap: 20, height: '600px' }}>
@@ -538,7 +645,7 @@ const Layouts: React.FC = () => {
 
           {/* Canvas Area */}
           <div style={{ flex: 1, position: 'relative' }}>
-            {!pdfUrl ? (
+            {!imageUrl ? (
               <div style={{
                 width: '100%',
                 height: '100%',
@@ -551,7 +658,7 @@ const Layouts: React.FC = () => {
                 color: THEME.textSecondary,
                 fontSize: 16
               }}>
-                Upload a PDF room plan to start designing
+                Upload a room plan image (PNG/JPG) to start designing
               </div>
             ) : (
               <div
@@ -568,14 +675,17 @@ const Layouts: React.FC = () => {
                   overflow: 'hidden'
                 }}
               >
-                {/* PDF Display */}
-                <iframe
-                  src={pdfUrl}
+                {/* Image Display */}
+                <img
+                  src={imageUrl}
+                  alt="Room Plan"
                   style={{
                     width: '100%',
                     height: '100%',
-                    border: 'none',
-                    pointerEvents: 'none'
+                    objectFit: imageFit,
+                    transform: `scale(${imageScale}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                    transformOrigin: 'center center',
+                    transition: 'transform 0.1s ease'
                   }}
                 />
                 
@@ -585,125 +695,95 @@ const Layouts: React.FC = () => {
                     key={panel.id}
                     style={{
                       position: 'absolute',
-                      left: panel.x - 100,
-                      top: panel.y - 75,
-                      width: 200,
-                      height: 150,
+                      left: panel.x - (panelSizes[panel.id] || 36) / 2,
+                      top: panel.y - (panelSizes[panel.id] || 36) / 2,
+                      width: panelSizes[panel.id] || 36,
+                      height: panelSizes[panel.id] || 36,
                       cursor: 'pointer',
                       zIndex: 10
                     }}
+                    onMouseEnter={() => setHoveredPanelId(panel.id)}
+                    onMouseLeave={() => setHoveredPanelId(null)}
                   >
                     <div style={{
                       position: 'relative',
                       width: '100%',
                       height: '100%'
                     }}>
-                      <div style={{
-                        transform: 'scale(0.6)',
-                        transformOrigin: 'top left',
-                        marginLeft: -20,
-                        marginTop: -15
-                      }}>
-                        <PanelPreview
-                          icons={panel.panelData.icons.map(icon => ({
-                            ...icon,
-                            src: icon.src || '',
-                            category: icon.category || ''
-                          }))}
-                          panelDesign={panel.panelData.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }}
-                          type={panel.panelData.type}
-                        />
-                      </div>
-                      <button
-                        onClick={() => removePlacedPanel(panel.id)}
+                      {/* Panel Number Circle */}
+                      <div 
                         style={{
-                          position: 'absolute',
-                          top: -8,
-                          right: -8,
-                          width: 24,
-                          height: 24,
-                          borderRadius: '50%',
-                          background: '#ff6b6b',
+                          background: THEME.primary,
                           color: '#fff',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: 14,
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          fontSize: Math.max(12, Math.min(24, (panelSizes[panel.id] || 36) * 0.5)),
+                          minWidth: panelSizes[panel.id] || 36,
+                          height: panelSizes[panel.id] || 36,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
+                          border: 'none',
+                          cursor: draggedPanelId === panel.id ? 'grabbing' : 'grab',
+                          userSelect: 'none'
                         }}
+                        onMouseDown={(e) => startDragPanel(e, panel.id)}
                       >
-                        ×
-                      </button>
-                      <div style={{
-                        position: 'absolute',
-                        bottom: -30,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: getRoomTypeColor(panel.roomType),
-                        color: '#fff',
-                        padding: '4px 8px',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                      }}>
-                        {getRoomTypeName(panel.roomType)}
+                        {panel.panelIndex + 1}
                       </div>
+                      
+                      {/* Resize Handle */}
+                      {hoveredPanelId === panel.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: -6,
+                            right: -6,
+                            width: 12,
+                            height: 12,
+                            background: '#666',
+                            borderRadius: '50%',
+                            cursor: 'nw-resize',
+                            border: '2px solid #fff',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                          }}
+                          onMouseDown={(e) => startResizePanel(e, panel.id)}
+                        />
+                      )}
+                      
+                      {/* Delete Button */}
+                      {hoveredPanelId === panel.id && (
+                        <button
+                          onClick={() => removePlacedPanel(panel.id)}
+                          style={{
+                            position: 'absolute',
+                            top: -6,
+                            right: -6,
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            background: '#ff6b6b',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: 10,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            padding: 0,
+                            lineHeight: 1
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div style={{
-          marginTop: 20,
-          padding: 15,
-          background: '#f8f9fa',
-          borderRadius: THEME.borderRadius,
-          border: '1px solid #e0e0e0'
-        }}>
-          <h4 style={{
-            marginBottom: 10,
-            color: THEME.textPrimary,
-            fontSize: 16,
-            fontWeight: 600
-          }}>
-            Room Type Legend
-          </h4>
-          <div style={{
-            display: 'flex',
-            gap: 15,
-            flexWrap: 'wrap'
-          }}>
-            {roomTypes.map(roomType => (
-              <div
-                key={roomType.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8
-                }}
-              >
-                <div style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  background: roomType.color
-                }} />
-                <span style={{
-                  fontSize: 14,
-                  color: THEME.textSecondary
-                }}>
-                  {roomType.name}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
 
