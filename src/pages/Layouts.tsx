@@ -51,6 +51,21 @@ interface PlacedPanel {
   };
 }
 
+interface PlacedDevice {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  roomType: string;
+}
+
+const DEVICE_TYPES = {
+  doorContact: { name: 'Door Contact', color: '#4CAF50' },
+  pirSensor: { name: 'PIR Sensor', color: '#FF9800' },
+  windowContact: { name: 'Window Contact', color: '#9C27B0' },
+  inbuiltPir: { name: 'In-built PIR', color: '#F44336' }
+};
+
 const Layouts: React.FC = () => {
   const navigate = useNavigate();
   const { projPanels } = useCart();
@@ -64,11 +79,39 @@ const Layouts: React.FC = () => {
   const [placedPanels, setPlacedPanels] = useState<PlacedPanel[]>([]);
   const [isPlacingPanel, setIsPlacingPanel] = useState(false);
   const [showPanelSelector, setShowPanelSelector] = useState(false);
+  const [isPlacingDevice, setIsPlacingDevice] = useState(false);
+  const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [hoveredPanelId, setHoveredPanelId] = useState<string | null>(null);
   const [draggedPanelId, setDraggedPanelId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [draggedDeviceId, setDraggedDeviceId] = useState<string | null>(null);
+  const [deviceDragOffset, setDeviceDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [panelSizes, setPanelSizes] = useState<{ [key: string]: number }>({});
   const [resizingPanelId, setResizingPanelId] = useState<string | null>(null);
+  const [layouts, setLayouts] = useState<Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    imageFile: File | null;
+    imageScale: number;
+    imagePosition: { x: number; y: number };
+    imageFit: 'cover' | 'contain' | 'fill';
+    placedPanels: PlacedPanel[];
+    placedDevices: PlacedDevice[];
+    panelSizes: { [key: string]: number };
+  }>>([{
+    id: '1',
+    name: 'Layout 1',
+    imageUrl: null,
+    imageFile: null,
+    imageScale: 1,
+    imagePosition: { x: 0, y: 0 },
+    imageFit: 'contain',
+    placedPanels: [],
+    placedDevices: [],
+    panelSizes: {}
+  }]);
+  const [currentLayoutId, setCurrentLayoutId] = useState<string>('1');
   const canvasRef = useRef<HTMLDivElement>(null);
   const { projectName, projectCode } = useContext(ProjectContext);
 
@@ -76,19 +119,28 @@ const Layouts: React.FC = () => {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/jpg')) {
-      setImageFile(file);
       const url = URL.createObjectURL(file);
-      setImageUrl(url);
+      updateCurrentLayout({
+        imageFile: file,
+        imageUrl: url
+      });
     }
   };
 
-  // Handle canvas click to place panel
+  // Handle canvas click to place panel or device
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {
-    if (!isPlacingPanel || selectedPanelIndex === null || !canvasRef.current || draggedPanelId) return;
+    if (!canvasRef.current || draggedPanelId || draggedDeviceId) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
+
+    if (isPlacingDevice && selectedDeviceType) {
+      placeDevice(x, y);
+      return;
+    }
+
+    if (!isPlacingPanel || selectedPanelIndex === null) return;
 
     const panelData = projPanels[selectedPanelIndex];
     if (panelData) {
@@ -100,16 +152,23 @@ const Layouts: React.FC = () => {
         roomType: selectedRoomType,
         panelData
       };
-      setPlacedPanels([...placedPanels, newPlacedPanel]);
+      
+      const currentLayout = getCurrentLayout();
+      updateCurrentLayout({
+        placedPanels: [...currentLayout.placedPanels, newPlacedPanel]
+      });
     }
 
     setIsPlacingPanel(false);
     setSelectedPanelIndex(null);
-  }, [isPlacingPanel, selectedPanelIndex, selectedRoomType, placedPanels, projPanels, draggedPanelId]);
+  }, [isPlacingPanel, isPlacingDevice, selectedPanelIndex, selectedDeviceType, selectedRoomType, projPanels, draggedPanelId, draggedDeviceId]);
 
   // Remove placed panel
   const removePlacedPanel = (panelId: string) => {
-    setPlacedPanels(placedPanels.filter(panel => panel.id !== panelId));
+    const currentLayout = getCurrentLayout();
+    updateCurrentLayout({
+      placedPanels: currentLayout.placedPanels.filter(panel => panel.id !== panelId)
+    });
   };
 
   // Start placing panel
@@ -127,7 +186,8 @@ const Layouts: React.FC = () => {
     if (!canvasRef.current) return;
     
     const rect = canvasRef.current.getBoundingClientRect();
-    const panel = placedPanels.find(p => p.id === panelId);
+    const currentLayout = getCurrentLayout();
+    const panel = currentLayout.placedPanels.find(p => p.id === panelId);
     
     if (panel) {
       const offsetX = e.clientX - rect.left - panel.x;
@@ -146,12 +206,19 @@ const Layouts: React.FC = () => {
     const newX = e.clientX - rect.left - dragOffset.x;
     const newY = e.clientY - rect.top - dragOffset.y;
     
-    setPlacedPanels(prev => prev.map(panel => 
-      panel.id === draggedPanelId 
-        ? { ...panel, x: newX, y: newY }
-        : panel
+    setLayouts(prev => prev.map(layout => 
+      layout.id === currentLayoutId 
+        ? {
+            ...layout,
+            placedPanels: layout.placedPanels.map(panel => 
+              panel.id === draggedPanelId 
+                ? { ...panel, x: newX, y: newY }
+                : panel
+            )
+          }
+        : layout
     ));
-  }, [draggedPanelId, dragOffset]);
+  }, [draggedPanelId, dragOffset, currentLayoutId]);
 
   // End dragging
   const endDrag = useCallback(() => {
@@ -184,9 +251,13 @@ const Layouts: React.FC = () => {
     if (!resizingPanelId || !canvasRef.current) return;
     
     const rect = canvasRef.current.getBoundingClientRect();
-    const panel = placedPanels.find(p => p.id === resizingPanelId);
     
-    if (panel) {
+    setLayouts(prev => prev.map(layout => {
+      if (layout.id !== currentLayoutId) return layout;
+      
+      const panel = layout.placedPanels.find(p => p.id === resizingPanelId);
+      if (!panel) return layout;
+      
       const distance = Math.sqrt(
         Math.pow(e.clientX - rect.left - panel.x, 2) + 
         Math.pow(e.clientY - rect.top - panel.y, 2)
@@ -195,12 +266,15 @@ const Layouts: React.FC = () => {
       // Convert distance to size (minimum 24px, maximum 80px)
       const newSize = Math.max(24, Math.min(80, distance * 2));
       
-      setPanelSizes(prev => ({
-        ...prev,
-        [resizingPanelId]: newSize
-      }));
-    }
-  }, [resizingPanelId, placedPanels]);
+      return {
+        ...layout,
+        panelSizes: {
+          ...layout.panelSizes,
+          [resizingPanelId]: newSize
+        }
+      };
+    }));
+  }, [resizingPanelId, currentLayoutId]);
 
   // End resizing
   const endResize = useCallback(() => {
@@ -219,6 +293,17 @@ const Layouts: React.FC = () => {
       };
     }
   }, [resizingPanelId, handleResizeMove, endResize]);
+
+  // Update current layout name when room type changes
+  useEffect(() => {
+    if (selectedRoomType && selectedRoomType.trim()) {
+      setLayouts(prev => prev.map(layout => 
+        layout.id === currentLayoutId 
+          ? { ...layout, name: selectedRoomType }
+          : layout
+      ));
+    }
+  }, [selectedRoomType, currentLayoutId]);
 
   // Get room type color
   const getRoomTypeColor = (roomTypeName: string) => {
@@ -251,6 +336,154 @@ const Layouts: React.FC = () => {
       default: return "Panel";
     }
   };
+
+  // Helper functions for current layout
+  const getCurrentLayout = () => {
+    return layouts.find(layout => layout.id === currentLayoutId) || layouts[0];
+  };
+
+  const updateCurrentLayout = (updates: Partial<typeof layouts[0]>) => {
+    setLayouts(prev => prev.map(layout => 
+      layout.id === currentLayoutId 
+        ? { ...layout, ...updates }
+        : layout
+    ));
+  };
+
+  // Layout management functions
+  const addNewLayout = () => {
+    const newId = Date.now().toString();
+    const newLayout = {
+      id: newId,
+      name: selectedRoomType || 'Untitled Layout',
+      imageUrl: null,
+      imageFile: null,
+      imageScale: 1,
+      imagePosition: { x: 0, y: 0 },
+      imageFit: 'contain' as const,
+      placedPanels: [],
+      placedDevices: [],
+      panelSizes: {}
+    };
+    setLayouts(prev => [...prev, newLayout]);
+    setCurrentLayoutId(newId);
+  };
+
+  const deleteLayout = (layoutId: string) => {
+    if (layouts.length <= 1) return; // Don't delete the last layout
+    
+    setLayouts(prev => prev.filter(layout => layout.id !== layoutId));
+    
+    // If we deleted the current layout, switch to the first available one
+    if (currentLayoutId === layoutId) {
+      const remainingLayouts = layouts.filter(layout => layout.id !== layoutId);
+      setCurrentLayoutId(remainingLayouts[0]?.id || '1');
+    }
+  };
+
+  const renameLayout = (layoutId: string, newName: string) => {
+    setLayouts(prev => prev.map(layout => 
+      layout.id === layoutId 
+        ? { ...layout, name: newName }
+        : layout
+    ));
+  };
+
+  // Device management functions
+  const startPlacingDevice = (deviceType: string) => {
+    setSelectedDeviceType(deviceType);
+    setIsPlacingDevice(true);
+    setIsPlacingPanel(false);
+    setShowPanelSelector(false);
+  };
+
+  const placeDevice = (x: number, y: number) => {
+    if (!selectedDeviceType) return;
+    
+    const newDevice: PlacedDevice = {
+      id: Date.now().toString(),
+      type: selectedDeviceType,
+      x,
+      y,
+      roomType: selectedRoomType
+    };
+    
+    const currentLayout = getCurrentLayout();
+    updateCurrentLayout({
+      placedDevices: [...currentLayout.placedDevices, newDevice]
+    });
+    
+    setIsPlacingDevice(false);
+    setSelectedDeviceType(null);
+  };
+
+  const removeDevice = (deviceId: string) => {
+    const currentLayout = getCurrentLayout();
+    updateCurrentLayout({
+      placedDevices: currentLayout.placedDevices.filter(device => device.id !== deviceId)
+    });
+  };
+
+  // Start dragging device
+  const startDragDevice = (e: React.MouseEvent, deviceId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const currentLayout = getCurrentLayout();
+    const device = currentLayout.placedDevices.find(d => d.id === deviceId);
+    
+    if (device) {
+      const offsetX = e.clientX - rect.left - device.x;
+      const offsetY = e.clientY - rect.top - device.y;
+      
+      setDeviceDragOffset({ x: offsetX, y: offsetY });
+      setDraggedDeviceId(deviceId);
+    }
+  };
+
+  // Handle device drag movement
+  const handleDeviceDragMove = useCallback((e: MouseEvent) => {
+    if (!draggedDeviceId || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const newX = e.clientX - rect.left - deviceDragOffset.x;
+    const newY = e.clientY - rect.top - deviceDragOffset.y;
+    
+    setLayouts(prev => prev.map(layout => 
+      layout.id === currentLayoutId 
+        ? {
+            ...layout,
+            placedDevices: layout.placedDevices.map(device => 
+              device.id === draggedDeviceId 
+                ? { ...device, x: newX, y: newY }
+                : device
+            )
+          }
+        : layout
+    ));
+  }, [draggedDeviceId, deviceDragOffset, currentLayoutId]);
+
+  // End device dragging
+  const endDeviceDrag = useCallback(() => {
+    setDraggedDeviceId(null);
+    setDeviceDragOffset({ x: 0, y: 0 });
+  }, []);
+
+  // Add and remove global mouse event listeners for device drag
+  useEffect(() => {
+    if (draggedDeviceId) {
+      document.addEventListener('mousemove', handleDeviceDragMove);
+      document.addEventListener('mouseup', endDeviceDrag);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleDeviceDragMove);
+        document.removeEventListener('mouseup', endDeviceDrag);
+      };
+    }
+  }, [draggedDeviceId, handleDeviceDragMove, endDeviceDrag]);
 
   return (
     <div style={{
@@ -323,6 +556,104 @@ const Layouts: React.FC = () => {
           }} />
         </div>
 
+        {/* Layout Tabs */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 20,
+          padding: '0 20px',
+          overflowX: 'auto'
+        }}>
+          {layouts.map((layout) => (
+            <div
+              key={layout.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                background: currentLayoutId === layout.id ? THEME.primary : '#f8f9fa',
+                color: currentLayoutId === layout.id ? '#fff' : THEME.textSecondary,
+                borderRadius: 8,
+                cursor: 'pointer',
+                border: currentLayoutId === layout.id ? 'none' : '1px solid #e0e0e0',
+                fontSize: 14,
+                fontWeight: currentLayoutId === layout.id ? 600 : 500,
+                minWidth: 'fit-content',
+                transition: 'all 0.2s ease'
+              }}
+              onClick={() => setCurrentLayoutId(layout.id)}
+            >
+              <span>{layout.name}</span>
+              {layouts.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteLayout(layout.id);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    padding: 0,
+                    width: 16,
+                    height: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    opacity: 0.7
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '1';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '0.7';
+                    e.currentTarget.style.background = 'none';
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          
+          {/* Add New Layout Button */}
+          <button
+            onClick={addNewLayout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 32,
+              height: 32,
+              background: '#f8f9fa',
+              border: '1px solid #e0e0e0',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 18,
+              color: THEME.textSecondary,
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = THEME.primary;
+              e.currentTarget.style.color = '#fff';
+              e.currentTarget.style.borderColor = THEME.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#f8f9fa';
+              e.currentTarget.style.color = THEME.textSecondary;
+              e.currentTarget.style.borderColor = '#e0e0e0';
+            }}
+          >
+            +
+          </button>
+        </div>
+
         {/* Top Controls */}
         <div style={{
           display: 'flex',
@@ -360,9 +691,9 @@ const Layouts: React.FC = () => {
                 style={{ display: 'none' }}
               />
             </label>
-            {imageFile && (
+            {getCurrentLayout().imageFile && (
               <span style={{ fontSize: 14, color: THEME.textSecondary }}>
-                {imageFile.name}
+                {getCurrentLayout().imageFile?.name}
               </span>
             )}
           </div>
@@ -392,7 +723,7 @@ const Layouts: React.FC = () => {
           </div>
 
           {/* Image Adjustment Controls */}
-          {imageUrl && (
+          {getCurrentLayout().imageUrl && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -412,12 +743,12 @@ const Layouts: React.FC = () => {
                   min="0.1"
                   max="3"
                   step="0.1"
-                  value={imageScale}
-                  onChange={(e) => setImageScale(parseFloat(e.target.value))}
+                  value={getCurrentLayout().imageScale}
+                  onChange={(e) => updateCurrentLayout({ imageScale: parseFloat(e.target.value) })}
                   style={{ width: 80 }}
                 />
                 <span style={{ fontSize: 12, color: THEME.textSecondary, minWidth: 30 }}>
-                  {Math.round(imageScale * 100)}%
+                  {Math.round(getCurrentLayout().imageScale * 100)}%
                 </span>
               </div>
 
@@ -428,12 +759,14 @@ const Layouts: React.FC = () => {
                   type="range"
                   min="-100"
                   max="100"
-                  value={imagePosition.x}
-                  onChange={(e) => setImagePosition(prev => ({ ...prev, x: parseInt(e.target.value) }))}
+                  value={getCurrentLayout().imagePosition.x}
+                  onChange={(e) => updateCurrentLayout({ 
+                    imagePosition: { ...getCurrentLayout().imagePosition, x: parseInt(e.target.value) }
+                  })}
                   style={{ width: 60 }}
                 />
                 <span style={{ fontSize: 12, color: THEME.textSecondary, minWidth: 25 }}>
-                  {imagePosition.x}
+                  {getCurrentLayout().imagePosition.x}
                 </span>
               </div>
 
@@ -443,12 +776,14 @@ const Layouts: React.FC = () => {
                   type="range"
                   min="-100"
                   max="100"
-                  value={imagePosition.y}
-                  onChange={(e) => setImagePosition(prev => ({ ...prev, y: parseInt(e.target.value) }))}
+                  value={getCurrentLayout().imagePosition.y}
+                  onChange={(e) => updateCurrentLayout({ 
+                    imagePosition: { ...getCurrentLayout().imagePosition, y: parseInt(e.target.value) }
+                  })}
                   style={{ width: 60 }}
                 />
                 <span style={{ fontSize: 12, color: THEME.textSecondary, minWidth: 25 }}>
-                  {imagePosition.y}
+                  {getCurrentLayout().imagePosition.y}
                 </span>
               </div>
 
@@ -456,8 +791,8 @@ const Layouts: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 12, color: THEME.textSecondary }}>Fit:</span>
                 <select
-                  value={imageFit}
-                  onChange={(e) => setImageFit(e.target.value as 'cover' | 'contain' | 'fill')}
+                  value={getCurrentLayout().imageFit}
+                  onChange={(e) => updateCurrentLayout({ imageFit: e.target.value as 'cover' | 'contain' | 'fill' })}
                   style={{
                     padding: '4px 8px',
                     border: '1px solid #e0e0e0',
@@ -475,9 +810,11 @@ const Layouts: React.FC = () => {
               {/* Reset Button */}
               <button
                 onClick={() => {
-                  setImageScale(1);
-                  setImagePosition({ x: 0, y: 0 });
-                  setImageFit('contain');
+                  updateCurrentLayout({
+                    imageScale: 1,
+                    imagePosition: { x: 0, y: 0 },
+                    imageFit: 'contain'
+                  });
                 }}
                 style={{
                   padding: '4px 8px',
@@ -511,7 +848,82 @@ const Layouts: React.FC = () => {
           >
             {isPlacingPanel ? 'Cancel Placement' : 'Place a Panel'}
           </button>
+
+          {/* Field Devices Button */}
+          <button
+            onClick={() => setIsPlacingDevice(!isPlacingDevice)}
+            style={{
+              padding: '10px 20px',
+              background: isPlacingDevice ? '#ff6b6b' : '#28a745',
+              color: '#fff',
+              border: 'none',
+              borderRadius: THEME.buttonRadius,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'background 0.2s'
+            }}
+          >
+            {isPlacingDevice ? 'Cancel Device' : 'Field Devices'}
+          </button>
         </div>
+
+        {/* Device Selector */}
+        {isPlacingDevice && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: 20,
+            gap: 15
+          }}>
+            {Object.entries(DEVICE_TYPES).map(([key, device]) => (
+              <button
+                key={key}
+                onClick={() => startPlacingDevice(key)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '12px 16px',
+                  background: selectedDeviceType === key ? device.color : '#f8f9fa',
+                  color: selectedDeviceType === key ? '#fff' : '#333',
+                  border: `2px solid ${selectedDeviceType === key ? device.color : '#e0e0e0'}`,
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                  minWidth: 80
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedDeviceType !== key) {
+                    e.currentTarget.style.background = device.color;
+                    e.currentTarget.style.color = '#fff';
+                    e.currentTarget.style.borderColor = device.color;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedDeviceType !== key) {
+                    e.currentTarget.style.background = '#f8f9fa';
+                    e.currentTarget.style.color = '#333';
+                    e.currentTarget.style.borderColor = '#e0e0e0';
+                  }
+                }}
+              >
+                <div style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: device.color,
+                  border: '2px solid #fff',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }} />
+                {device.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Main Content */}
         <div style={{ display: 'flex', gap: 20, height: '600px' }}>
@@ -645,7 +1057,7 @@ const Layouts: React.FC = () => {
 
           {/* Canvas Area */}
           <div style={{ flex: 1, position: 'relative' }}>
-            {!imageUrl ? (
+            {!getCurrentLayout().imageUrl ? (
               <div style={{
                 width: '100%',
                 height: '100%',
@@ -671,34 +1083,34 @@ const Layouts: React.FC = () => {
                   borderRadius: THEME.borderRadius,
                   position: 'relative',
                   background: '#fff',
-                  cursor: isPlacingPanel ? 'crosshair' : 'default',
+                  cursor: isPlacingPanel || isPlacingDevice ? 'crosshair' : 'default',
                   overflow: 'hidden'
                 }}
               >
                 {/* Image Display */}
                 <img
-                  src={imageUrl}
+                  src={getCurrentLayout().imageUrl || ''}
                   alt="Room Plan"
                   style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: imageFit,
-                    transform: `scale(${imageScale}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                    objectFit: getCurrentLayout().imageFit,
+                    transform: `scale(${getCurrentLayout().imageScale}) translate(${getCurrentLayout().imagePosition.x}px, ${getCurrentLayout().imagePosition.y}px)`,
                     transformOrigin: 'center center',
                     transition: 'transform 0.1s ease'
                   }}
                 />
                 
                 {/* Placed Panels */}
-                {placedPanels.map(panel => (
+                {getCurrentLayout().placedPanels.map(panel => (
                   <div
                     key={panel.id}
                     style={{
                       position: 'absolute',
-                      left: panel.x - (panelSizes[panel.id] || 36) / 2,
-                      top: panel.y - (panelSizes[panel.id] || 36) / 2,
-                      width: panelSizes[panel.id] || 36,
-                      height: panelSizes[panel.id] || 36,
+                      left: panel.x - (getCurrentLayout().panelSizes[panel.id] || 36) / 2,
+                      top: panel.y - (getCurrentLayout().panelSizes[panel.id] || 36) / 2,
+                      width: getCurrentLayout().panelSizes[panel.id] || 36,
+                      height: getCurrentLayout().panelSizes[panel.id] || 36,
                       cursor: 'pointer',
                       zIndex: 10
                     }}
@@ -717,9 +1129,9 @@ const Layouts: React.FC = () => {
                           color: '#fff',
                           borderRadius: 8,
                           fontWeight: 700,
-                          fontSize: Math.max(12, Math.min(24, (panelSizes[panel.id] || 36) * 0.5)),
-                          minWidth: panelSizes[panel.id] || 36,
-                          height: panelSizes[panel.id] || 36,
+                          fontSize: Math.max(12, Math.min(24, (getCurrentLayout().panelSizes[panel.id] || 36) * 0.5)),
+                          minWidth: getCurrentLayout().panelSizes[panel.id] || 36,
+                          height: getCurrentLayout().panelSizes[panel.id] || 36,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -756,6 +1168,73 @@ const Layouts: React.FC = () => {
                       {hoveredPanelId === panel.id && (
                         <button
                           onClick={() => removePlacedPanel(panel.id)}
+                          style={{
+                            position: 'absolute',
+                            top: -6,
+                            right: -6,
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            background: '#ff6b6b',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: 10,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            padding: 0,
+                            lineHeight: 1
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Placed Devices */}
+                {getCurrentLayout().placedDevices.map(device => (
+                  <div
+                    key={device.id}
+                    style={{
+                      position: 'absolute',
+                      left: device.x - 12,
+                      top: device.y - 12,
+                      width: 24,
+                      height: 24,
+                      cursor: 'pointer',
+                      zIndex: 10
+                    }}
+                    onMouseEnter={() => setHoveredPanelId(device.id)}
+                    onMouseLeave={() => setHoveredPanelId(null)}
+                  >
+                    <div style={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '100%'
+                    }}>
+                      {/* Device Circle */}
+                      <div 
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          background: DEVICE_TYPES[device.type as keyof typeof DEVICE_TYPES]?.color || '#666',
+                          border: '2px solid #fff',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          cursor: draggedDeviceId === device.id ? 'grabbing' : 'grab',
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => startDragDevice(e, device.id)}
+                      />
+                      
+                      {/* Delete Button */}
+                      {hoveredPanelId === device.id && (
+                        <button
+                          onClick={() => removeDevice(device.id)}
                           style={{
                             position: 'absolute',
                             top: -6,

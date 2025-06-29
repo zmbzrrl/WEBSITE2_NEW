@@ -1651,6 +1651,33 @@ const X1VCustomizer: React.FC = () => {
               {/* Mirror Button */}
               <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
                 <button
+                  onClick={() => setIsLayoutReversed(!isLayoutReversed)}
+                  style={{
+                    background: 'rgba(25, 118, 210, 0.9)',
+                    color: 'white',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(25, 118, 210, 1)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(25, 118, 210, 0.9)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+                  }}
+                >
+                  {isLayoutReversed ? 'Bottom ↓' : '↑ Top'}
+                </button>
+                <button
                   onClick={handleMirrorIcons}
                   style={{
                     background: 'rgba(255, 255, 255, 0.95)',
