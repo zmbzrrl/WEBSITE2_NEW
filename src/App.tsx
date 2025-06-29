@@ -43,10 +43,8 @@ const ProjectSync: React.FC = () => {
   const { setProjectCode } = useCart();
 
   useEffect(() => {
-    console.log('ProjectSync: projectCode from ProjectContext:', projectCode);
     // Only set project code if it's not empty
     if (projectCode && projectCode.trim() !== '') {
-      console.log('ProjectSync: Setting project code in CartContext:', projectCode);
       setProjectCode(projectCode);
     }
   }, [projectCode, setProjectCode]);

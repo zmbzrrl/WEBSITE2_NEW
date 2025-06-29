@@ -72,8 +72,6 @@ const ProjPanels: React.FC = () => {
   const { projPanels, updateQuantity, removeFromCart, currentProjectCode } = useCart();
   const navigate = useNavigate();
   
-  console.log('ProjPanels render:', { projPanels, currentProjectCode, projPanelsLength: projPanels.length });
-  
   // Load panel names for specific project code
   const loadPanelNames = (projectCode: string | null): string[] => {
     if (!projectCode) return [];
