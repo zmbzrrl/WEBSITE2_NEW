@@ -877,6 +877,16 @@ const TAGCustomizer: React.FC = () => {
           return;
         }
 
+        // Check G3 restrictions for restricted cells (0, 3, 6, 9) - left column
+        if (sourceIcon.iconId === "G3" && [0, 3, 6, 9].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
+          return;
+        }
+        if (targetIcon?.iconId === "G3" && [0, 3, 6, 9].includes(dragData.position)) {
+          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
+          return;
+        }
+
         // Swap icon positions
         setPlacedIcons(prev => prev.map(icon => {
           if (icon.id === sourceIcon.id) {

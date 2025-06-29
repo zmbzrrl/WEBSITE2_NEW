@@ -729,6 +729,16 @@ const X2VCustomizer: React.FC = () => {
           return;
         }
 
+        // Check G3 restrictions for restricted cells (0, 3, 6) - left column
+        if (sourceIcon.iconId === "G3" && [0, 3, 6].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6)");
+          return;
+        }
+        if (targetIcon?.iconId === "G3" && [0, 3, 6].includes(dragData.position)) {
+          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6)");
+          return;
+        }
+
         // Check big icon area restrictions (positions 100, 101) - only allow socket icons
         if ([100, 101].includes(cellIndex) && sourceIcon.category !== "Sockets") {
           console.log("DROP: BLOCKED non-socket icon placement in big icon area");

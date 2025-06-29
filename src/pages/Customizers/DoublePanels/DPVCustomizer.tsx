@@ -686,7 +686,7 @@ const DPVCustomizer: React.FC = () => {
           return;
         }
 
-        // Check if trying to place G3 icon in restricted cells (0, 3, 6, 9, 12, 15) - left columns of both grids
+        // Check G3 restrictions for restricted cells (0, 3, 6, 9, 12, 15) - left columns of both grids
         if (icon.id === "G3" && [0, 3, 6, 9, 12, 15].includes(cellIndex)) {
           console.log("DROP: BLOCKED G3 icon placement in left columns (cells 0, 3, 6, 9, 12, 15)");
           return;
@@ -727,6 +727,16 @@ const DPVCustomizer: React.FC = () => {
         }
         if ((targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") && [2, 5, 8, 11, 14, 17].includes(dragData.position)) {
           console.log("DROP: BLOCKED G1/G2 icon placement in right columns (cells 2, 5, 8, 11, 14, 17)");
+          return;
+        }
+
+        // Check G3 restrictions for restricted cells (0, 3, 6, 9, 12, 15) - left columns of both grids
+        if (sourceIcon.iconId === "G3" && [0, 3, 6, 9, 12, 15].includes(cellIndex)) {
+          console.log("DROP: BLOCKED G3 icon placement in left columns (cells 0, 3, 6, 9, 12, 15)");
+          return;
+        }
+        if (targetIcon?.iconId === "G3" && [0, 3, 6, 9, 12, 15].includes(dragData.position)) {
+          console.log("DROP: BLOCKED G3 icon placement in left columns (cells 0, 3, 6, 9, 12, 15)");
           return;
         }
 
