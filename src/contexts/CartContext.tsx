@@ -51,17 +51,17 @@ interface CartProviderProps {
 }
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
-  // Initialize with a stable default project code
-  const [currentProjectCode, setCurrentProjectCode] = useState<string>('default-project');
+  const [currentProjectCode, setCurrentProjectCode] = useState<string | null>(null);
   const [projPanels, setProjPanels] = useState<CartItem[]>([]);
   const [isCounting, setIsCounting] = useState<boolean>(false);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   // Calculate projCount from projPanels
   const projCount = projPanels.reduce((sum, item) => sum + item.quantity, 0);
 
   // Load panels for a specific project code
-  const loadProjectPanels = (projectCode: string): CartItem[] => {
+  const loadProjectPanels = (projectCode: string | null): CartItem[] => {
+    if (!projectCode) return [];
+    
     try {
       const stored = localStorage.getItem(`panels_${projectCode}`);
       return stored ? JSON.parse(stored) : [];
@@ -72,7 +72,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   // Save panels for a specific project code
-  const saveProjectPanels = (projectCode: string, panels: CartItem[]) => {
+  const saveProjectPanels = (projectCode: string | null, panels: CartItem[]) => {
+    if (!projectCode) return;
+    
     try {
       localStorage.setItem(`panels_${projectCode}`, JSON.stringify(panels));
     } catch (error) {
@@ -80,49 +82,32 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   };
 
-  // Initialize on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('currentProjectCode');
-      const projectCode = stored || 'default-project';
-      setCurrentProjectCode(projectCode);
-      
-      // Load panels for the project code
-      const panels = loadProjectPanels(projectCode);
-      setProjPanels(panels);
-      setIsInitialized(true);
-    } catch (error) {
-      console.error('Error initializing CartContext:', error);
-      setIsInitialized(true);
-    }
-  }, []);
-
   // Set project code and load corresponding panels
   const setProjectCode = (projectCode: string | null) => {
-    const effectiveProjectCode = projectCode || 'default-project';
-    setCurrentProjectCode(effectiveProjectCode);
+    setCurrentProjectCode(projectCode);
     
-    // Save the current project code to localStorage
-    localStorage.setItem('currentProjectCode', effectiveProjectCode);
-    
-    // Load panels for the new project code
-    const projectPanels = loadProjectPanels(effectiveProjectCode);
-    setProjPanels(projectPanels);
+    if (projectCode) {
+      // Load panels for the new project code
+      const projectPanels = loadProjectPanels(projectCode);
+      setProjPanels(projectPanels);
+    } else {
+      // Clear panels when no project code
+      setProjPanels([]);
+    }
   };
 
   // Clear current project
   const clearProject = () => {
-    setCurrentProjectCode('default-project');
+    setCurrentProjectCode(null);
     setProjPanels([]);
-    localStorage.removeItem('currentProjectCode');
   };
 
-  // Save to localStorage whenever projPanels changes (only after initialization)
+  // Save to localStorage whenever projPanels changes
   useEffect(() => {
-    if (isInitialized && currentProjectCode) {
+    if (currentProjectCode) {
       saveProjectPanels(currentProjectCode, projPanels);
     }
-  }, [projPanels, currentProjectCode, isInitialized]);
+  }, [projPanels, currentProjectCode]);
 
   const addToCart = (item: CartItem): void => {
     setProjPanels((prev) => [...prev, item]);
