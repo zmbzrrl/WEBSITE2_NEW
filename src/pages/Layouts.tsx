@@ -903,7 +903,7 @@ const Layouts: React.FC = () => {
             onClick={() => setIsPlacingDevice(!isPlacingDevice)}
             style={{
               padding: '10px 20px',
-              background: isPlacingDevice ? '#ff6b6b' : '#28a745',
+              background: isPlacingDevice ? '#ff6b6b' : THEME.primary,
               color: '#fff',
               border: 'none',
               borderRadius: THEME.buttonRadius,
@@ -935,28 +935,33 @@ const Layouts: React.FC = () => {
                   alignItems: 'center',
                   gap: 8,
                   padding: '12px 16px',
-                  background: selectedDeviceType === key ? device.color : '#f8f9fa',
-                  color: selectedDeviceType === key ? '#fff' : '#333',
+                  background: selectedDeviceType === key ? device.color : '#fff',
+                  color: selectedDeviceType === key ? '#fff' : THEME.textPrimary,
                   border: `2px solid ${selectedDeviceType === key ? device.color : '#e0e0e0'}`,
-                  borderRadius: 8,
+                  borderRadius: THEME.borderRadius,
                   cursor: 'pointer',
                   fontSize: 12,
                   fontWeight: 600,
                   transition: 'all 0.2s ease',
-                  minWidth: 80
+                  minWidth: 80,
+                  boxShadow: selectedDeviceType === key ? '0 2px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.1)'
                 }}
                 onMouseEnter={(e) => {
                   if (selectedDeviceType !== key) {
                     e.currentTarget.style.background = device.color;
                     e.currentTarget.style.color = '#fff';
                     e.currentTarget.style.borderColor = device.color;
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (selectedDeviceType !== key) {
-                    e.currentTarget.style.background = '#f8f9fa';
-                    e.currentTarget.style.color = '#333';
+                    e.currentTarget.style.background = '#fff';
+                    e.currentTarget.style.color = THEME.textPrimary;
                     e.currentTarget.style.borderColor = '#e0e0e0';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }
                 }}
               >
