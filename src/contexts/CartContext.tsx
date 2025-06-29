@@ -52,7 +52,16 @@ interface CartProviderProps {
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [currentProjectCode, setCurrentProjectCode] = useState<string | null>(null);
-  const [projPanels, setProjPanels] = useState<CartItem[]>([]);
+  const [projPanels, setProjPanels] = useState<CartItem[]>(() => {
+    // Load panels from localStorage on initialization
+    try {
+      const stored = localStorage.getItem('currentPanels');
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.error('Error loading panels from localStorage:', error);
+      return [];
+    }
+  });
   const [isCounting, setIsCounting] = useState<boolean>(false);
 
   // Calculate projCount from projPanels
@@ -102,7 +111,16 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setProjPanels([]);
   }, []);
 
-  // Save to localStorage whenever projPanels changes
+  // Save current panels to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('currentPanels', JSON.stringify(projPanels));
+    } catch (error) {
+      console.error('Error saving panels to localStorage:', error);
+    }
+  }, [projPanels]);
+
+  // Save to localStorage whenever projPanels changes (for project-specific storage)
   useEffect(() => {
     if (currentProjectCode && projPanels.length > 0) {
       saveProjectPanels(currentProjectCode, projPanels);
