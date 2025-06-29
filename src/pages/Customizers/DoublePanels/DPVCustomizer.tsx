@@ -553,6 +553,43 @@ const DPVCustomizer: React.FC = () => {
     }
   }, [iconCategories]);
 
+  // Handle clicks outside font dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(event.target as Node)) {
+        setShowFontDropdown(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Load Google Fonts API
+  useEffect(() => {
+    const loadGoogleFonts = async () => {
+      setFontsLoading(true);
+      try {
+        const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?key=${GOOGLE_FONTS_API_KEY}&sort=popularity`);
+        if (response.ok) {
+          const data = await response.json();
+          const fontNames = data.items.map((font: any) => font.family);
+          setAllGoogleFonts(fontNames);
+        } else {
+          console.warn('Failed to load Google Fonts, using fallback fonts');
+        }
+      } catch (error) {
+        console.warn('Error loading Google Fonts:', error);
+      } finally {
+        setFontsLoading(false);
+      }
+    };
+
+    loadGoogleFonts();
+  }, []);
+
   const handlePlaceIcon = (cellIndex: number): void => {
     const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
     if (isOccupied || selectedIcon === null) return;
@@ -1149,41 +1186,6 @@ const DPVCustomizer: React.FC = () => {
     </Box>
   );
 
-  // Fetch Google Fonts list on mount
-  useEffect(() => {
-    if (!GOOGLE_FONTS_API_KEY) return; // skip if no key
-    setFontsLoading(true);
-    fetch(`https://www.googleapis.com/webfonts/v1/webfonts?key=${GOOGLE_FONTS_API_KEY}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.items) {
-          setAllGoogleFonts(data.items.map((item: any) => item.family));
-          console.log('Total Google Fonts loaded:', data.items.length);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setFontsLoading(false));
-  }, []);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node)) {
-        setShowFontDropdown(false);
-      }
-    }
-    if (showFontDropdown) {
-      document.addEventListener('mousedown', handleClick);
-    }
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showFontDropdown]);
-
-  useEffect(() => {
-    if (panelDesign.fonts) {
-      loadGoogleFont(panelDesign.fonts);
-    }
-  }, [panelDesign.fonts]);
-
   return (
     <Box
       sx={{
@@ -1500,10 +1502,8 @@ const DPVCustomizer: React.FC = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 0,
-                  transform: "perspective(1000px) rotateX(5deg)",
-                  transformStyle: "preserve-3d",
-        }}
-      >
+                }}
+              >
                 {/* Inner glow effect */}
                 <div
                   style={{
@@ -1533,7 +1533,503 @@ const DPVCustomizer: React.FC = () => {
                     }}
                   >
                     {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
-    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Panel Design */}
+        {currentStep === 3 && (
+          <div style={{ display: 'flex', gap: '80px', alignItems: 'flex-start', justifyContent: 'center', maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
+            {/* Left side - Panel Design Controls */}
+            <div style={{ flex: '0 0 480px', background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)', padding: '28px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)', border: '1px solid #e9ecef', fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', position: 'relative', overflow: 'hidden' }}>
+              {/* Subtle background pattern */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, #0056b3 0%, #007bff 50%, #0056b3 100%)',
+                borderRadius: '12px 12px 0 0'
+              }} />
+              
+              <h3 style={{
+                margin: '0 0 24px 0',
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#1a1f2c',
+                textAlign: 'center',
+                letterSpacing: '0.5px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>
+                Panel Design
+              </h3>
+
+              {/* Background Color Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Background Color (RAL)
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                    gap: '10px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    border: '1px solid #dee2e6',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
+                  }}
+                >
+                  {ralColors.map((color: RALColor) => (
+                    <button
+                      key={color.code}
+                      type="button"
+                      onClick={() => setPanelDesign({ ...panelDesign, backgroundColor: color.hex })}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        border: panelDesign.backgroundColor === color.hex ? '2px solid #0056b3' : '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        background: panelDesign.backgroundColor === color.hex ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        cursor: 'pointer',
+                        padding: '8px 6px',
+                        outline: 'none',
+                        boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 3px rgba(0, 86, 179, 0.15), 0 2px 8px rgba(0,0,0,0.1)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transition: 'all 0.2s ease',
+                        transform: panelDesign.backgroundColor === color.hex ? 'translateY(-1px)' : 'translateY(0)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '6px',
+                          background: color.hex,
+                          border: '2px solid #ffffff',
+                          marginBottom: '6px',
+                          display: 'block',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)'
+                        }}
+                      />
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Font Selection Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Typography Font
+                </div>
+                <div style={{ position: 'relative' }} ref={fontDropdownRef}>
+                  <input
+                    type="text"
+                    placeholder="Search Google Fonts..."
+                    value={fontSearch || panelDesign.fonts || ''}
+                    onChange={e => {
+                      const newSearch = e.target.value;
+                      setFontSearch(newSearch);
+                      if (newSearch === '') {
+                        setPanelDesign(prev => ({ ...prev, fonts: '' }));
+                      }
+                      setShowFontDropdown(true);
+                    }}
+                    onFocus={() => setShowFontDropdown(true)}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #dee2e6',
+                      fontSize: '14px',
+                      width: '100%',
+                      fontFamily: panelDesign.fonts || undefined,
+                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
+                    }}
+                  />
+                  {showFontDropdown && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '110%',
+                      left: 0,
+                      right: 0,
+                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 10,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
+                    }}>
+                      {fontsLoading ? (
+                        <div style={{ padding: 16, textAlign: 'center', color: '#6c757d' }}>Loading fonts...</div>
+                      ) : (
+                        <>
+                          <div
+                            style={{ 
+                              padding: 12, 
+                              cursor: 'pointer', 
+                              fontFamily: 'inherit', 
+                              color: '#6c757d',
+                              borderBottom: '1px solid #f8f9fa',
+                              transition: 'background 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            onClick={() => {
+                              setPanelDesign({ ...panelDesign, fonts: '' });
+                              setFontSearch('');
+                              setShowFontDropdown(false);
+                            }}
+                          >Default</div>
+                          {allGoogleFonts
+                            .filter(f => f.toLowerCase().includes(fontSearch.toLowerCase()))
+                            .slice(0, 20)
+                            .map(font => (
+                              <div
+                                key={font}
+                                style={{
+                                  padding: 12,
+                                  cursor: 'pointer',
+                                  fontFamily: font,
+                                  background: font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent',
+                                  transition: 'background 0.2s ease',
+                                  borderBottom: '1px solid #f8f9fa'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent'}
+                                onClick={() => {
+                                  setPanelDesign({ ...panelDesign, fonts: font });
+                                  setFontSearch(font);
+                                  setShowFontDropdown(false);
+                                }}
+                              >
+                                {font}
+                              </div>
+                            ))}
+                          {allGoogleFonts.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && !fontsLoading && (
+                            <div style={{ padding: 16, color: '#adb5bd' }}>No fonts found</div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Font Size Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Font Size
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  {['10px', '12px', '14px', '16px'].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setPanelDesign(prev => ({ ...prev, fontSize: size }))}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: panelDesign.fontSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
+                        background: panelDesign.fontSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        color: panelDesign.fontSize === size ? '#ffffff' : '#495057',
+                        cursor: 'pointer',
+                        fontSize: size,
+                        fontWeight: panelDesign.fontSize === size ? '700' : '600',
+                        transition: 'all 0.2s ease',
+                        minWidth: '45px',
+                        textAlign: 'center',
+                        boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)',
+                      }}
+                    >
+                      {size.replace('px', '')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Colors Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Colors
+                </div>
+                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      marginBottom: '12px', 
+                      color: '#495057',
+                      fontSize: '13px',
+                      letterSpacing: '0.3px'
+                    }}>
+                      Icon Color
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
+                        <button
+                          key={color}
+                          onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: color,
+                            border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
+                            cursor: 'pointer',
+                            padding: 0,
+                            outline: 'none',
+                            boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
+                            transition: 'all 0.2s ease',
+                            transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      marginBottom: '12px', 
+                      color: '#495057',
+                      fontSize: '13px',
+                      letterSpacing: '0.3px'
+                    }}>
+                      Text Color
+                    </div>
+                    <input
+                      type="color"
+                      value={panelDesign.textColor}
+                      onChange={e => setPanelDesign(prev => ({ ...prev, textColor: e.target.value }))}
+                      style={{
+                        width: '64px',
+                        height: '40px',
+                        border: '2px solid #dee2e6',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        background: '#ffffff',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Icon Size Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Icon Size
+                </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  {['30px', '40px', '50px'].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
+                        background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: panelDesign.iconSize === size ? '700' : '600',
+                        transition: 'all 0.2s ease',
+                        minWidth: '60px',
+                        textAlign: 'center',
+                        boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
+                      }}
+                    >
+                      {size.replace('px', '')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right side - Panel Template (vertical double panel) */}
+            <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
+              <div
+                style={{
+                  width: "350px",
+                  background: `linear-gradient(135deg, 
+                    rgba(255, 255, 255, 0.3) 0%, 
+                    rgba(255, 255, 255, 0.1) 50%, 
+                    rgba(255, 255, 255, 0.05) 100%), 
+                    ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                  padding: "15px",
+                  border: "2px solid rgba(255, 255, 255, 0.2)",
+                  borderTop: "3px solid rgba(255, 255, 255, 0.4)",
+                  borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
+                  boxShadow: `
+                    0 20px 40px rgba(0, 0, 0, 0.3),
+                    0 8px 16px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+                    0 0 0 1px rgba(255, 255, 255, 0.1)
+                  `,
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  transition: "all 0.3s ease",
+                  position: "relative",
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0,
+                }}
+              >
+                {/* Inner glow effect */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "2px",
+                    left: "2px",
+                    right: "2px",
+                    bottom: "2px",
+                    background: `linear-gradient(135deg, 
+                      rgba(255, 255, 255, 0.1) 0%, 
+                      transparent 50%, 
+                      rgba(0, 0, 0, 0.05) 100%)`,
+                    pointerEvents: "none",
+                    zIndex: 1,
+                  }}
+                />
+                {/* Two 3x3 grids, stacked vertically */}
+                {[0, 9].map((offset) => (
+                  <div
+                    key={offset}
+                    style={{
+                      width: "100%",
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      position: 'relative',
+                      zIndex: 2,
+                    }}
+                  >
+                    {Array.from({ length: 9 }).map((_, i) => renderGridCell(i + offset))}
+                  </div>
                 ))}
               </div>
             </div>
