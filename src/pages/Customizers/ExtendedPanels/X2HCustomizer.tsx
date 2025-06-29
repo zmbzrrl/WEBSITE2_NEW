@@ -2113,7 +2113,7 @@ const X2HCustomizer: React.FC = () => {
               justifyContent: 'center',
               alignItems: 'flex-start',
               gap: '40px',
-              flexWrap: 'wrap'
+              flexWrap: 'nowrap'
             }}>
               {/* Information Box */}
               <div style={{ flex: '0 0 auto' }}>
