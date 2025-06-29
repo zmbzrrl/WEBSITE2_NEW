@@ -33,6 +33,7 @@ const getPanelTypeLabel = (type: string) => {
     case "X2H": return "Extended Panel - H2";
     case "X1H": return "Extended Panel - H1";
     case "X1V": return "Extended Panel - V1";
+    case "IDPG": return "Corridor Panel";
     default: return "Panel";
   }
 };

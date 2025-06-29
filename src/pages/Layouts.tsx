@@ -853,11 +853,11 @@ const Layouts: React.FC = () => {
                   <option value="contain">Contain</option>
                   <option value="cover">Cover</option>
                   <option value="fill">Fill</option>
-                </select>
+            </select>
               </div>
 
               {/* Reset Button */}
-              <button
+            <button
                 onClick={() => {
                   updateCurrentLayout({
                     imageScale: 1,
@@ -865,19 +865,19 @@ const Layouts: React.FC = () => {
                     imageFit: 'contain'
                   });
                 }}
-                style={{
+              style={{
                   padding: '4px 8px',
-                  background: THEME.secondary,
-                  color: '#fff',
-                  border: 'none',
+                background: THEME.secondary,
+                color: '#fff',
+                border: 'none',
                   borderRadius: 4,
                   fontSize: 12,
                   cursor: 'pointer'
                 }}
               >
                 Reset
-              </button>
-            </div>
+            </button>
+          </div>
           )}
 
           {/* Panel Selector Button */}
@@ -899,22 +899,22 @@ const Layouts: React.FC = () => {
           </button>
 
           {/* Field Devices Button */}
-          <button
+            <button
             onClick={() => setIsPlacingDevice(!isPlacingDevice)}
-            style={{
+              style={{
               padding: '10px 20px',
               background: isPlacingDevice ? '#ff6b6b' : THEME.primary,
-              color: '#fff',
-              border: 'none',
+                color: '#fff',
+                border: 'none',
               borderRadius: THEME.buttonRadius,
-              fontSize: 14,
+                fontSize: 14,
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'background 0.2s'
-            }}
-          >
+              }}
+            >
             {isPlacingDevice ? 'Cancel Device' : 'Field Devices'}
-          </button>
+            </button>
         </div>
 
         {/* Device Selector */}
@@ -926,10 +926,10 @@ const Layouts: React.FC = () => {
             gap: 15
           }}>
             {Object.entries(DEVICE_TYPES).map(([key, device]) => (
-              <button
+            <button
                 key={key}
                 onClick={() => startPlacingDevice(key)}
-                style={{
+              style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -974,7 +974,7 @@ const Layouts: React.FC = () => {
                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                 }} />
                 {device.name}
-              </button>
+            </button>
             ))}
           </div>
         )}
@@ -1220,40 +1220,40 @@ const Layouts: React.FC = () => {
                       
                       {/* Delete Button */}
                       {hoveredPanelId === panel.id && (
-                        <button
-                          onClick={() => removePlacedPanel(panel.id)}
-                          style={{
-                            position: 'absolute',
+                      <button
+                        onClick={() => removePlacedPanel(panel.id)}
+                        style={{
+                          position: 'absolute',
                             top: -6,
                             right: -6,
                             width: 16,
                             height: 16,
-                            borderRadius: '50%',
-                            background: '#ff6b6b',
-                            color: '#fff',
-                            border: 'none',
-                            cursor: 'pointer',
+                          borderRadius: '50%',
+                          background: '#ff6b6b',
+                          color: '#fff',
+                          border: 'none',
+                          cursor: 'pointer',
                             fontSize: 10,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                             padding: 0,
                             lineHeight: 1
-                          }}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                        }}
+                      >
+                        ×
+                      </button>
+            )}
+          </div>
+        </div>
                 ))}
 
                 {/* Placed Devices */}
                 {getCurrentLayout().placedDevices.map(device => (
                   <div
                     key={device.id}
-                    style={{
+                style={{
                       position: 'absolute',
                       left: device.x - (deviceSizes[device.id] || 24) / 2,
                       top: device.y - (deviceSizes[device.id] || 24) / 2,
@@ -1264,8 +1264,8 @@ const Layouts: React.FC = () => {
                     }}
                     onMouseEnter={() => setHoveredPanelId(device.id)}
                     onMouseLeave={() => setHoveredPanelId(null)}
-                  >
-                    <div style={{
+              >
+                <div style={{
                       position: 'relative',
                       width: '100%',
                       height: '100%'
@@ -1292,10 +1292,10 @@ const Layouts: React.FC = () => {
                             position: 'absolute',
                             bottom: -6,
                             right: -6,
-                            width: 12,
-                            height: 12,
+                  width: 12,
+                  height: 12,
                             background: '#666',
-                            borderRadius: '50%',
+                  borderRadius: '50%',
                             cursor: 'nw-resize',
                             border: '2px solid #fff',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
@@ -1332,8 +1332,8 @@ const Layouts: React.FC = () => {
                         </button>
                       )}
                     </div>
-                  </div>
-                ))}
+              </div>
+            ))}
               </div>
             )}
           </div>

@@ -3,7 +3,16 @@ import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../../components/CartButton";
 import { useNavigate } from "react-router-dom";
-import logo2 from "../../assets/logo.png";
+import logo from "../../assets/logo.png";
+import g18Icon from "../../assets/icons/G-GuestServices/G18.png";
+import g1Icon from "../../assets/icons/G-GuestServices/G1.png";
+import g2Icon from "../../assets/icons/G-GuestServices/G2.png";
+import g3Icon from "../../assets/icons/G-GuestServices/G3.png";
+import crIcon from "../../assets/icons/CR.png";
+import allIcons from "../../assets/iconLibrary";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { ProjectContext } from '../../App';
+import { motion } from 'framer-motion';
 import {
   Container,
   Typography,
@@ -19,18 +28,7 @@ import {
   ToggleButton,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { motion } from 'framer-motion';
 import { ralColors, RALColor } from '../../data/ralColors';
-import logo from "../../assets/logo.png";
-import g18Icon from "../../assets/icons/G-GuestServices/G18.png";
-import g1Icon from "../../assets/icons/G-GuestServices/G1.png";
-import g2Icon from "../../assets/icons/G-GuestServices/G2.png";
-import g3Icon from "../../assets/icons/G-GuestServices/G3.png";
-import crIcon from "../../assets/icons/CR.png";
-import allIcons from "../../assets/iconLibrary";
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { ProjectContext } from '../../App';
-import { getIconColorName } from '../../data/iconColors';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -46,6 +44,8 @@ const CheckboxContainer = styled(Box)(({ theme }) => ({
   border: '1px solid rgba(255, 255, 255, 0.2)',
   borderRadius: 12,
   padding: theme.spacing(3),
+  maxWidth: '600px',
+  margin: '0 auto',
   marginBottom: theme.spacing(4),
   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
 }));
@@ -62,10 +62,6 @@ const StyledCheckbox = styled(Checkbox)(({ theme }) => ({
 
 const StyledFormControlLabel = styled(FormControlLabel)(({ theme }) => ({
   color: 'rgba(255, 255, 255, 0.9)',
-  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-  fontSize: '16px',
-  fontWeight: 500,
-  letterSpacing: '0.5px',
   '& .MuiFormControlLabel-label': {
     fontSize: '16px',
     fontWeight: 500,
@@ -210,28 +206,28 @@ const IconSelector = styled(Box)(({ theme }) => ({
 
 const IconGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))',
-  gap: theme.spacing(2),
-  marginTop: theme.spacing(2),
+  gridTemplateColumns: 'repeat(auto-fit, minmax(45px, 1fr))',
+  gap: theme.spacing(1),
+  marginTop: theme.spacing(1),
 }));
 
 const IconButton = styled(Box)(({ theme }) => ({
-  width: '60px',
-  height: '60px',
+  width: '45px',
+  height: '45px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  border: '2px solid rgba(255, 255, 255, 0.3)',
-  borderRadius: '8px',
+  border: '1px solid rgba(255, 255, 255, 0.3)',
+  borderRadius: '6px',
   cursor: 'pointer',
   transition: 'all 0.2s ease',
   backgroundColor: 'rgba(255, 255, 255, 0.05)',
   '&:hover': {
-    border: '2px solid rgba(255, 255, 255, 0.6)',
+    border: '1px solid rgba(255, 255, 255, 0.6)',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   '&.selected': {
-    border: '2px solid rgba(255, 255, 255, 0.8)',
+    border: '1px solid rgba(255, 255, 255, 0.8)',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
 }));
@@ -257,34 +253,45 @@ function loadGoogleFont(font: string) {
   }
 }
 
+// Add ICON_COLOR_FILTERS definition (from SPCustomizer)
+const ICON_COLOR_FILTERS: { [key: string]: string } = {
+  '#000000': 'brightness(0) saturate(100%)',
+  '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
+  '#808080': 'brightness(0) saturate(100%) opacity(0.5)',
+  '#FF0000': 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)',
+  '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
+  '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
+};
+
+// Helper function to get icon filter
+const getIconFilter = (color: string): string => {
+  switch (color) {
+    case '#000000':
+      return 'brightness(0) saturate(100%)';
+    case '#FFFFFF':
+      return 'brightness(0) saturate(100%) invert(1)';
+    case '#808080':
+      return 'brightness(0) saturate(100%) opacity(0.5)';
+    case '#FF0000':
+      return 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)';
+    case '#0000FF':
+      return 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)';
+    case '#008000':
+      return 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)';
+    default:
+      return 'brightness(0) saturate(100%) invert(1)';
+  }
+};
+
 const IDPGCustomizer = () => {
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
   const [cardReader, setCardReader] = useState(false);
   const [roomNumber, setRoomNumber] = useState(false);
-  const [statusIcons, setStatusIcons] = useState(false);
-  const [roomNumberText, setRoomNumberText] = useState("101");
+  const [statusMode, setStatusMode] = useState<'bar' | 'icons'>('bar');
+  const [roomNumberText, setRoomNumberText] = useState("");
   const [selectedIcon1, setSelectedIcon1] = useState("G1");
   const [selectedIcon2, setSelectedIcon2] = useState("G2");
-  const [panelDesign, setPanelDesign] = useState<{
-    backgroundColor: string;
-    fonts: string;
-    backlight: string;
-    iconColor: string;
-    plasticColor: string;
-    textColor: string;
-    fontSize: string;
-    backbox?: string;
-    extraComments?: string;
-  }>({
-    backgroundColor: '',
-    fonts: '',
-    backlight: '',
-    iconColor: '#000000',
-    plasticColor: '',
-    textColor: '#000000',
-    fontSize: '12px',
-  });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
   const [backboxError, setBackboxError] = useState('');
@@ -293,14 +300,6 @@ const IDPGCustomizer = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
-  const ICON_COLOR_FILTERS: { [key: string]: string } = {
-    '#000000': 'brightness(0) saturate(100%)',
-    '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-    '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-    '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-    '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-    '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
-  };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const [icons, setIcons] = useState({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
@@ -310,6 +309,14 @@ const IDPGCustomizer = () => {
   const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
+  const [panelDesign, setPanelDesign] = useState({
+    backgroundColor: '#FFFFFF',
+    iconColor: '#000000',
+    textColor: '#000000',
+    fontSize: '12px',
+    fonts: '',
+    iconSize: '40px',
+  });
 
   // Guest Services icons mapping
   const guestServicesIcons = {
@@ -317,6 +324,21 @@ const IDPGCustomizer = () => {
     G2: g2Icon,
     G3: g3Icon,
     G18: g18Icon,
+  };
+
+  // Only allow G1 and G2 for left icon
+  const leftIconOptions = ['G1', 'G2'];
+
+  // Always use G3 for right icon
+  const rightIcon = 'G3';
+
+  // Default panel design values
+  const defaultPanelDesign = {
+    backgroundColor: '#FFFFFF',
+    iconColor: '#000000',
+    textColor: '#000000',
+    fontSize: '12px',
+    fonts: undefined,
   };
 
   useEffect(() => {
@@ -343,7 +365,7 @@ const IDPGCustomizer = () => {
     const features = [];
     if (cardReader) features.push("CR");
     if (roomNumber) features.push("RN");
-    if (statusIcons) features.push("SI");
+    features.push(statusMode === 'icons' ? "SI" : "SB");
     if (features.length > 0) {
       name += ` ${features.join(" ")}`;
     }
@@ -352,8 +374,92 @@ const IDPGCustomizer = () => {
 
   // Render panel based on checkbox combinations
   const renderPanelTemplate = () => {
-    // No boxes checked - Square template
-    if (!cardReader && !roomNumber && !statusIcons) {
+    // No card reader and no room number - Square template with status
+    if (!cardReader && !roomNumber) {
+      if (statusMode === 'icons') {
+        return (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            height: "100%",
+            padding: "15px",
+          }}>
+            {/* Two icon fields */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              height: "60px",
+              margin: "10px 0",
+              gap: "20px",
+            }}>
+              {/* Left icon */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+              }}>
+                <img 
+                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  alt="Icon 1" 
+                  style={{
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconFilter(panelDesign.iconColor),
+                  }}
+                />
+              </div>
+              {/* Right icon */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+              }}>
+                <img 
+                  src={guestServicesIcons[rightIcon]} 
+                  alt="Icon 2" 
+                  style={{
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconFilter(panelDesign.iconColor),
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* G18 icon in bottom center */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: "auto",
+              paddingBottom: "10px",
+            }}>
+              <img 
+                src={g18Icon} 
+                alt="G18 Icon" 
+                style={{
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconFilter(panelDesign.iconColor),
+                }}
+              />
+            </div>
+          </div>
+        );
+      } else {
+        // Status bar mode
       return (
         <div style={{
           display: "flex",
@@ -383,18 +489,19 @@ const IDPGCustomizer = () => {
               src={g18Icon} 
               alt="G18 Icon" 
               style={{
-                width: "25px",
-                height: "25px",
-                filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
+                width: panelDesign.iconSize,
+                height: panelDesign.iconSize,
+                filter: getIconFilter(panelDesign.iconColor),
               }}
             />
           </div>
         </div>
       );
+      }
     }
 
     // Room number only - Rectangle vertical template
-    if (!cardReader && roomNumber && !statusIcons) {
+    if (!cardReader && roomNumber) {
       return (
         <div style={{
           display: "flex",
@@ -443,9 +550,10 @@ const IDPGCustomizer = () => {
                   padding: '12px 16px',
                   backgroundColor: 'transparent',
                   border: 'none',
+                  color: panelDesign.textColor,
                 },
                 '& .MuiInputBase-input::placeholder': {
-                  color: 'rgba(255, 255, 255, 0.5)',
+                  color: 'rgba(120, 120, 120, 0.85)',
                   opacity: 1,
                   fontSize: '24px',
                   fontWeight: 'normal',
@@ -458,11 +566,67 @@ const IDPGCustomizer = () => {
                   fontWeight: 'bold',
                   backgroundColor: 'transparent',
                   border: 'none',
+                  color: panelDesign.textColor,
                 }
               }}
             />
           </div>
-          {/* Middle bar */}
+          
+          {statusMode === 'icons' ? (
+            /* Two icon fields replacing the bar */
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              height: "60px",
+              margin: "10px 0",
+              gap: "20px",
+            }}>
+              {/* Left icon */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+              }}>
+                <img 
+                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  alt="Icon 1" 
+                  style={{
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconFilter(panelDesign.iconColor),
+                  }}
+                />
+              </div>
+              {/* Right icon */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+              }}>
+                <img 
+                  src={guestServicesIcons[rightIcon]} 
+                  alt="Icon 2" 
+                  style={{
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconFilter(panelDesign.iconColor),
+                  }}
+                />
+              </div>
+            </div>
+          ) : (
+            /* Status bar */
           <div style={{
             width: "100%",
             height: "8px",
@@ -471,6 +635,8 @@ const IDPGCustomizer = () => {
             borderRadius: "4px",
             margin: "10px 0",
           }} />
+          )}
+          
           {/* G18 icon in bottom center */}
           <div style={{
             display: "flex",
@@ -483,9 +649,9 @@ const IDPGCustomizer = () => {
               src={g18Icon} 
               alt="G18 Icon" 
               style={{
-                width: "25px",
-                height: "25px",
-                filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
+                width: panelDesign.iconSize,
+                height: panelDesign.iconSize,
+                filter: getIconFilter(panelDesign.iconColor),
               }}
             />
           </div>
@@ -494,7 +660,7 @@ const IDPGCustomizer = () => {
     }
 
     // Card Reader only - Rectangle vertical template
-    if (cardReader && !roomNumber && !statusIcons) {
+    if (cardReader && !roomNumber) {
       return (
         <div style={{
           display: "flex",
@@ -503,7 +669,61 @@ const IDPGCustomizer = () => {
           height: "100%",
           padding: "15px",
         }}>
-          {/* Middle bar at top */}
+          {statusMode === 'icons' ? (
+            /* Two icon fields at top */
+          <div style={{
+            display: "flex",
+              justifyContent: "space-between",
+            alignItems: "center",
+              height: "60px",
+              margin: "10px 0",
+              gap: "20px",
+            }}>
+              {/* Left icon */}
+              <div style={{
+            flex: "1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+          }}>
+            <img 
+                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  alt="Icon 1" 
+              style={{
+                width: panelDesign.iconSize,
+                height: panelDesign.iconSize,
+                filter: getIconFilter(panelDesign.iconColor),
+              }}
+            />
+          </div>
+              {/* Right icon */}
+          <div style={{
+                flex: "1",
+            display: "flex",
+            alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+          }}>
+            <img 
+                  src={guestServicesIcons[rightIcon]} 
+                  alt="Icon 2" 
+              style={{
+                    width: panelDesign.iconSize,
+                height: panelDesign.iconSize,
+                    filter: getIconFilter(panelDesign.iconColor),
+              }}
+            />
+          </div>
+        </div>
+          ) : (
+            /* Status bar at top */
           <div style={{
             width: "100%",
             height: "8px",
@@ -512,48 +732,48 @@ const IDPGCustomizer = () => {
             borderRadius: "4px",
             marginBottom: "20px",
           }} />
+          )}
+          
           {/* G18 icon in center */}
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
             flex: "1",
-          }}>
-            <img 
+            }}>
+              <img 
               src={g18Icon} 
               alt="G18 Icon" 
-              style={{
-                width: "35px",
-                height: "35px",
-                filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
-              }}
-            />
-          </div>
+                style={{
+                width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                filter: getIconFilter(panelDesign.iconColor),
+                }}
+              />
+            </div>
           {/* CR icon in bottom center */}
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            paddingBottom: "10px",
-          }}>
-            <img 
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              paddingBottom: "10px",
+            }}>
+              <img 
               src={crIcon} 
               alt="CR Icon" 
-              style={{
-                width: "40px",
-                height: "30px",
-                filter: panelDesign.iconColor === '#000000' ? 'brightness(0)' : 
-                       panelDesign.iconColor === '#FFFFFF' ? 'none' :
-                       `brightness(0) saturate(100%) invert(1) sepia(1) saturate(10000%) hue-rotate(${getHueRotation(panelDesign.iconColor)}deg)`,
-              }}
-            />
-          </div>
+                style={{
+                width: panelDesign.iconSize,
+                height: panelDesign.iconSize,
+                filter: getIconFilter(panelDesign.iconColor),
+                }}
+              />
+            </div>
         </div>
       );
     }
 
     // Card Reader & Room Number - Rectangle vertical template
-    if (cardReader && roomNumber && !statusIcons) {
+    if (cardReader && roomNumber) {
       return (
         <div style={{
           display: "flex",
@@ -563,125 +783,6 @@ const IDPGCustomizer = () => {
           padding: "15px",
         }}>
           {/* Room number at top */}
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: "10px",
-            marginBottom: "10px",
-          }}>
-            <TextField
-              value={roomNumberText}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                setRoomNumberText(value);
-              }}
-              placeholder="Type room number"
-              variant="standard"
-              size="small"
-              sx={{
-                '& .MuiInput-root': {
-                  color: panelDesign.textColor,
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  fontFamily: panelDesign.fonts || undefined,
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  '&:before': {
-                    borderBottom: 'none',
-                  },
-                  '&:after': {
-                    borderBottom: 'none',
-                  },
-                  '&:hover:not(.Mui-disabled):before': {
-                    borderBottom: 'none',
-                  },
-                },
-                '& .MuiInputBase-input': {
-                  textAlign: 'center',
-                  padding: '12px 16px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                },
-                '& .MuiInputBase-input::placeholder': {
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  opacity: 1,
-                  fontSize: '24px',
-                  fontWeight: 'normal',
-                },
-              }}
-              inputProps={{
-                style: {
-                  textAlign: 'center',
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                }
-              }}
-            />
-          </div>
-          {/* Middle bar right below the number */}
-          <div style={{
-            width: "100%",
-            height: "8px",
-            background: "transparent",
-            border: `2px solid ${panelDesign.iconColor}`,
-            borderRadius: "4px",
-            marginBottom: "20px",
-          }} />
-          {/* G18 icon in center */}
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            flex: "1",
-          }}>
-            <img 
-              src={g18Icon} 
-              alt="G18 Icon" 
-              style={{
-                width: "35px",
-                height: "35px",
-                filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
-              }}
-            />
-          </div>
-          {/* CR icon in bottom center */}
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            paddingBottom: "10px",
-          }}>
-            <img 
-              src={crIcon} 
-              alt="CR Icon" 
-              style={{
-                width: "40px",
-                height: "30px",
-                filter: panelDesign.iconColor === '#000000' ? 'brightness(0)' : 
-                       panelDesign.iconColor === '#FFFFFF' ? 'none' :
-                       `brightness(0) saturate(100%) invert(1) sepia(1) saturate(10000%) hue-rotate(${getHueRotation(panelDesign.iconColor)}deg)`,
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    // Templates with Status Icons - Replace bar with two icon fields
-    if (statusIcons) {
-      return (
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          padding: "15px",
-        }}>
-          {/* Room number at top (if enabled) */}
-          {roomNumber && (
             <div style={{
               display: "flex",
               justifyContent: "center",
@@ -721,9 +822,10 @@ const IDPGCustomizer = () => {
                     padding: '12px 16px',
                     backgroundColor: 'transparent',
                     border: 'none',
+                    color: panelDesign.textColor,
                   },
                   '& .MuiInputBase-input::placeholder': {
-                    color: 'rgba(255, 255, 255, 0.5)',
+                    color: 'rgba(120, 120, 120, 0.85)',
                     opacity: 1,
                     fontSize: '24px',
                     fontWeight: 'normal',
@@ -736,13 +838,14 @@ const IDPGCustomizer = () => {
                     fontWeight: 'bold',
                     backgroundColor: 'transparent',
                     border: 'none',
+                    color: panelDesign.textColor,
                   }
                 }}
               />
             </div>
-          )}
           
-          {/* Two icon fields replacing the bar */}
+          {statusMode === 'icons' ? (
+            /* Two icon fields replacing the bar */
           <div style={{
             display: "flex",
             justifyContent: "space-between",
@@ -766,9 +869,9 @@ const IDPGCustomizer = () => {
                 src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                 alt="Icon 1" 
                 style={{
-                  width: "35px",
-                  height: "35px",
-                  filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconFilter(panelDesign.iconColor),
                 }}
               />
             </div>
@@ -784,19 +887,46 @@ const IDPGCustomizer = () => {
               height: "100%",
             }}>
               <img 
-                src={guestServicesIcons[selectedIcon2 as keyof typeof guestServicesIcons]} 
+                src={guestServicesIcons[rightIcon]} 
                 alt="Icon 2" 
                 style={{
-                  width: "35px",
-                  height: "35px",
-                  filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconFilter(panelDesign.iconColor),
                 }}
               />
             </div>
           </div>
-
-          {/* CR icon in bottom center (if card reader is enabled) */}
-          {cardReader && (
+          ) : (
+            /* Status bar right below the number */
+            <div style={{
+              width: "100%",
+              height: "8px",
+              background: "transparent",
+              border: `2px solid ${panelDesign.iconColor}`,
+              borderRadius: "4px",
+              marginBottom: "20px",
+            }} />
+          )}
+          
+          {/* G18 icon in center */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            flex: "1",
+            }}>
+              <img 
+              src={g18Icon} 
+              alt="G18 Icon" 
+                style={{
+                width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                filter: getIconFilter(panelDesign.iconColor),
+                }}
+              />
+            </div>
+          {/* CR icon in bottom center */}
             <div style={{
               display: "flex",
               justifyContent: "center",
@@ -804,39 +934,15 @@ const IDPGCustomizer = () => {
               paddingBottom: "10px",
             }}>
               <img 
-                src={crIcon} 
-                alt="CR Icon" 
+              src={crIcon} 
+              alt="CR Icon" 
                 style={{
-                  width: "40px",
-                  height: "30px",
-                  filter: panelDesign.iconColor === '#000000' ? 'brightness(0)' : 
-                         panelDesign.iconColor === '#FFFFFF' ? 'none' :
-                         `brightness(0) saturate(100%) invert(1) sepia(1) saturate(10000%) hue-rotate(${getHueRotation(panelDesign.iconColor)}deg)`,
+                width: panelDesign.iconSize,
+                height: panelDesign.iconSize,
+                filter: getIconFilter(panelDesign.iconColor),
                 }}
               />
             </div>
-          )}
-
-          {/* G18 icon in bottom center (if no card reader) */}
-          {!cardReader && (
-            <div style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              marginTop: "auto",
-              paddingBottom: "10px",
-            }}>
-              <img 
-                src={g18Icon} 
-                alt="G18 Icon" 
-                style={{
-                  width: "25px",
-                  height: "25px",
-                  filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
-                }}
-              />
-            </div>
-          )}
         </div>
       );
     }
@@ -887,7 +993,7 @@ const IDPGCustomizer = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)',
+        background: 'linear-gradient(135deg, #b8c5d7 0%, #d1dce8 100%)',
         py: 8,
       }}
     >
@@ -967,7 +1073,6 @@ const IDPGCustomizer = () => {
           </Typography>
         </ProgressContainer>
         
-        {/* Checkbox Options */}
         <CheckboxContainer>
           <Typography
             variant="h6"
@@ -980,9 +1085,18 @@ const IDPGCustomizer = () => {
               letterSpacing: '0.5px',
             }}
           >
-            Select Panel Features
+            Panel Configuration
           </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
+          
+          {/* Panel Features Section */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: 4, 
+            flexWrap: 'wrap', 
+            alignItems: 'center',
+            marginBottom: 2,
+          }}>
             <StyledFormControlLabel
               control={
                 <StyledCheckbox
@@ -1001,191 +1115,365 @@ const IDPGCustomizer = () => {
               }
               label="Room Number"
             />
-            <StyledFormControlLabel
-              control={
-                <StyledCheckbox
-                  checked={statusIcons}
-                  onChange={(e) => setStatusIcons(e.target.checked)}
-                />
-              }
-              label="Status Icons"
-            />
-          </Box>
-        </CheckboxContainer>
-
-        {/* Guest Services Icon Selector */}
-        {statusIcons && (
-          <IconSelector>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
             <Typography
-              variant="h6"
+                variant="subtitle2"
               sx={{
-                color: 'rgba(255, 255, 255, 0.95)',
-                fontWeight: 600,
-                marginBottom: 2,
-                textAlign: 'center',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontWeight: 500,
                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                letterSpacing: '0.5px',
+                  fontSize: '14px',
               }}
             >
-              Select Guest Services Icons
+                Status Type
             </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontWeight: 500,
-                    marginBottom: 2,
-                    textAlign: 'center',
+              <button
+                onClick={() => {
+                  setStatusMode(statusMode === 'bar' ? 'icons' : 'bar');
+                }}
+                style={{
+                  background: 'rgba(25, 118, 210, 0.9)',
+                  color: 'white',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
                     fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  }}
-                >
-                  Left Icon
-                </Typography>
-                <IconGrid>
-                  {Object.entries(guestServicesIcons).map(([key, icon]) => (
-                    <IconButton
-                      key={key}
-                      className={selectedIcon1 === key ? 'selected' : ''}
-                      onClick={() => setSelectedIcon1(key)}
-                    >
-                      <img 
-                        src={icon} 
-                        alt={key} 
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
-                        }}
-                      />
-                    </IconButton>
-                  ))}
-                </IconGrid>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontWeight: 500,
-                    marginBottom: 2,
-                    textAlign: 'center',
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  }}
-                >
-                  Right Icon
-                </Typography>
-                <IconGrid>
-                  {Object.entries(guestServicesIcons).map(([key, icon]) => (
-                    <IconButton
-                      key={key}
-                      className={selectedIcon2 === key ? 'selected' : ''}
-                      onClick={() => setSelectedIcon2(key)}
-                    >
-                      <img 
-                        src={icon} 
-                        alt={key} 
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          filter: panelDesign.iconColor === '#000000' ? 'none' : 'brightness(0) invert(1)',
-                        }}
-                      />
-                    </IconButton>
-                  ))}
-                </IconGrid>
-              </Grid>
-            </Grid>
-          </IconSelector>
-        )}
-        
-        {/* Panel Design Controls */}
-        <DesignContainer>
-          <Typography
-            variant="h6"
-            sx={{
-              color: 'rgba(255, 255, 255, 0.95)',
-              fontWeight: 600,
-              marginBottom: 3,
-              textAlign: 'center',
-              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-              letterSpacing: '0.5px',
-            }}
-          >
-            Panel Design
-          </Typography>
-          <Grid container spacing={4} justifyContent="center">
-            {/* Background Color */}
-            <Grid item xs={12} sm={4}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: 500,
-                  marginBottom: 2,
-                  textAlign: 'center',
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  minWidth: '120px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(25, 118, 210, 1)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(25, 118, 210, 0.9)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
                 }}
               >
-                Background Color
-              </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
-                {ralColors.slice(0, 6).map((color) => (
-                  <ColorButton
-                    key={color.code}
-                    onClick={() => setPanelDesign(prev => ({ ...prev, backgroundColor: color.hex }))}
+                {statusMode === 'bar' ? 'Status Icons' : 'Status Bar'}
+              </button>
+            </Box>
+          </Box>
+          
+          {/* Guest Services Icons Section - Only show when Status Icons is selected */}
+          {statusMode === 'icons' && (
+            <Box sx={{
+              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              paddingTop: 2,
+              marginTop: 2,
+            }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontWeight: 500,
+                  marginBottom: 1,
+                    textAlign: 'center',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  }}
+                >
+                Guest Services Icons
+                </Typography>
+              
+              {/* Minimal Icon Selector */}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 3,
+              }}>
+                
+                {/* Left Icon */}
+                <Box sx={{ textAlign: 'center' }}>
+                <Typography
+                  sx={{
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      fontSize: '12px',
+                      marginBottom: '8px',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  }}
+                >
+                    Left
+                </Typography>
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 1,
+                  }}>
+                    {leftIconOptions.map((opt) => (
+                      <Box
+                        key={opt}
+                        onClick={() => setSelectedIcon1(opt)}
                     sx={{
-                      background: color.hex,
-                      border: panelDesign.backgroundColor === color.hex ? '3px solid rgba(255, 255, 255, 0.8)' : '3px solid rgba(255, 255, 255, 0.3)',
-                      transform: panelDesign.backgroundColor === color.hex ? 'scale(1.1)' : 'scale(1)',
-                    }}
-                  />
+                          width: '40px',
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: selectedIcon1 === opt ? '2px solid rgba(255, 255, 255, 0.8)' : '1px solid rgba(255, 255, 255, 0.3)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          background: selectedIcon1 === opt ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            border: '2px solid rgba(255, 255, 255, 0.6)',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                          }
+                        }}
+                    >
+                      <img 
+                          src={guestServicesIcons[opt as keyof typeof guestServicesIcons]} 
+                          alt={opt} 
+                        style={{
+                            width: "24px",
+                            height: "24px",
+                            filter: getIconFilter(panelDesign.iconColor),
+                          }}
+                        />
+                      </Box>
                 ))}
               </Box>
-            </Grid>
-            {/* Icon Color */}
-            <Grid item xs={12} sm={4}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: 500,
-                  marginBottom: 2,
-                  textAlign: 'center',
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                }}
+                </Box>
+                
+                {/* Right Icon */}
+                <Box sx={{ textAlign: 'center' }}>
+          <Typography
+            sx={{
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      fontSize: '12px',
+                      marginBottom: '8px',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            }}
+          >
+                    Right (G3)
+          </Typography>
+                  <Box sx={{
+                    width: '40px',
+                  height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '6px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    opacity: 0.7,
+                  }}>
+                    <img 
+                      src={guestServicesIcons[rightIcon]} 
+                      alt={rightIcon} 
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        filter: getIconFilter(panelDesign.iconColor),
+                      }}
+                    />
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </CheckboxContainer>
+        
+        {showPanels && (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            style={{ width: '100%' }}
+          >
+          <Grid container spacing={4} justifyContent="center">
+              {/* Panel Design Component - Left Side */}
+              <Grid 
+                item 
+                xs={12} 
+                md={5}
+                component="div"
               >
+                <div style={{
+                  background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                  padding: '28px',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                  border: '1px solid #e9ecef',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  height: 'fit-content',
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '3px',
+                    background: 'linear-gradient(90deg, #0056b3 0%, #007bff 50%, #0056b3 100%)',
+                    borderRadius: '12px 12px 0 0',
+                  }} />
+                  <h3 style={{
+                    margin: '0 0 24px 0',
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    color: '#1a1f2c',
+                    textAlign: 'center',
+                    letterSpacing: '0.5px',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  }}>
+                    Panel Design
+                  </h3>
+                  {/* Background Color Section */}
+                  <div style={{
+                    marginBottom: '28px',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                    padding: '20px',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    border: '1px solid #e9ecef',
+                  }}>
+                    <div style={{
+                      fontWeight: '600',
+                      marginBottom: '16px',
+                      color: '#1a1f2c',
+                      fontSize: '15px',
+                      letterSpacing: '0.3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <div style={{
+                        width: '4px',
+                        height: '16px',
+                        background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                        borderRadius: '2px',
+                      }} />
+                      Background Color (RAL)
+                    </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                        gap: '10px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                        borderRadius: '8px',
+                        padding: '16px',
+                        border: '1px solid #dee2e6',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)',
+                      }}
+                    >
+                      {ralColors.map((color: RALColor) => (
+                        <button
+                    key={color.code}
+                          type="button"
+                          onClick={() => setPanelDesign({ ...panelDesign, backgroundColor: color.hex })}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            border: panelDesign.backgroundColor === color.hex ? '2px solid #0056b3' : '1px solid #dee2e6',
+                            borderRadius: '8px',
+                            background: panelDesign.backgroundColor === color.hex ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                            cursor: 'pointer',
+                            padding: '8px 6px',
+                            outline: 'none',
+                            boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 3px rgba(0, 86, 179, 0.15), 0 2px 8px rgba(0,0,0,0.1)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                            transition: 'all 0.2s ease',
+                            transform: panelDesign.backgroundColor === color.hex ? 'translateY(-1px)' : 'translateY(0)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                      background: color.hex,
+                              border: '2px solid #ffffff',
+                              marginBottom: '6px',
+                              display: 'block',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)',
+                            }}
+                          />
+                          <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Icon Color and Text Color Section */}
+                  <div style={{
+                    marginBottom: '28px',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                    padding: '20px',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    border: '1px solid #e9ecef',
+                  }}>
+                    <div style={{
+                      fontWeight: '600',
+                      marginBottom: '16px',
+                      color: '#1a1f2c',
+                      fontSize: '15px',
+                      letterSpacing: '0.3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <div style={{
+                        width: '4px',
+                        height: '16px',
+                        background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                        borderRadius: '2px',
+                      }} />
+                      Colors
+                    </div>
+                    <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{
+                          fontWeight: '600',
+                          marginBottom: '12px',
+                          color: '#495057',
+                          fontSize: '13px',
+                          letterSpacing: '0.3px',
+                        }}>
                 Icon Color
-              </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-                  <ColorButton
+                            <button
                     key={color}
                     onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-                    sx={{
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
                       background: color,
-                      border: panelDesign.iconColor === color ? '3px solid rgba(255, 255, 255, 0.8)' : '3px solid rgba(255, 255, 255, 0.3)',
+                                border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
+                                cursor: 'pointer',
+                                padding: 0,
+                                outline: 'none',
+                                boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
+                                transition: 'all 0.2s ease',
                       transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
                     }}
                   />
                 ))}
-              </Box>
-            </Grid>
-            {/* Text Color */}
-            <Grid item xs={12} sm={4}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: 500,
-                  marginBottom: 2,
-                  textAlign: 'center',
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                }}
-              >
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{
+                          fontWeight: '600',
+                          marginBottom: '12px',
+                          color: '#495057',
+                          fontSize: '13px',
+                          letterSpacing: '0.3px',
+                        }}>
                 Text Color
-              </Typography>
+                        </div>
               <input
                 type="color"
                 value={panelDesign.textColor}
@@ -1199,27 +1487,75 @@ const IDPGCustomizer = () => {
                   padding: '2px',
                   background: '#ffffff',
                   boxShadow: '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                  transition: 'all 0.2s ease'
-                }}
-              />
+                            transition: 'all 0.2s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Icon Size Section */}
+                  <div style={{
+                    marginBottom: '28px',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                    padding: '20px',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    border: '1px solid #e9ecef',
+                  }}>
+                    <div style={{
+                      fontWeight: '600',
+                      marginBottom: '16px',
+                      color: '#1a1f2c',
+                      fontSize: '15px',
+                      letterSpacing: '0.3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <div style={{
+                        width: '4px',
+                        height: '16px',
+                        background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                        borderRadius: '2px',
+                      }} />
+                      Icon Size
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {['30px', '40px', '50px'].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
+                          style={{
+                            padding: '10px 16px',
+                            borderRadius: '8px',
+                            border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
+                            background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                            color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: panelDesign.iconSize === size ? '700' : '600',
+                            transition: 'all 0.2s ease',
+                            minWidth: '45px',
+                            textAlign: 'center',
+                            boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                            transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
+                          }}
+                        >
+                          {size.replace('px', '')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
             </Grid>
-          </Grid>
-        </DesignContainer>
-        
-        {showPanels && (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            style={{ width: '100%' }}
-          >
-            <Grid container spacing={4} justifyContent="center">
+              
+              {/* Panel Template Component - Right Side */}
               <Grid 
                 item 
                 xs={12} 
-                sm={6} 
-                md={4}
+                md={7}
                 component="div"
+                sx={{ marginTop: '50px' }}
               >
                 <StyledPanel variants={itemVariants}>
                   <Box
@@ -1231,10 +1567,18 @@ const IDPGCustomizer = () => {
                     }}
                   >
                     {/* Live Panel Preview */}
+                    {(() => {
+                      let panelHeight = "350px"; // Default
+                      if (!cardReader && !roomNumber) panelHeight = "350px"; // Basic template
+                      else if (!cardReader && roomNumber) panelHeight = "450px"; // Room Number only
+                      else if (cardReader && !roomNumber) panelHeight = "500px"; // Card Reader only
+                      else if (cardReader && roomNumber) panelHeight = "600px"; // Card Reader + Room Number
+                      
+                      return (
                     <div
                       style={{
                         width: "350px",
-                        height: roomNumber || cardReader || statusIcons ? "450px" : "350px", // Adjust height based on template
+                            height: panelHeight,
                         background: `linear-gradient(135deg, 
                           rgba(255, 255, 255, 0.3) 0%, 
                           rgba(255, 255, 255, 0.1) 50%, 
@@ -1289,6 +1633,8 @@ const IDPGCustomizer = () => {
                         {renderPanelTemplate()}
                       </div>
                     </div>
+                      );
+                    })()}
                     <PanelTitle 
                       variant="h5" 
                       className="panel-title"
