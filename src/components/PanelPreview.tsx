@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { ralColors } from '../data/ralColors';
 import { getIconColorName } from '../data/iconColors';
+import { allIcons } from '../assets/iconLibrary';
 
 // Copy hexToRgba and ICON_COLOR_FILTERS from SPCustomizer
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -68,6 +69,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   const isDPH = type === 'DPH';
   const isDPV = type === 'DPV';
   const isX2V = type === 'X2V';
+  const isTAG = type === 'TAG';
   const isDoublePanel = isDPH || isDPV;
 
   if (isX2V) {
@@ -218,6 +220,220 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             <div style={{ flex: '0 0 68%', height: '68%', width: '100%' }}><Grid /></div>
           </>
         )}
+      </div>
+    );
+  }
+
+  // Handle TAG (Thermostat) panel
+  if (isTAG) {
+    // Get the FAN and DISPLAY icons from the icon library
+    const fanIcon = (allIcons as any).FAN || { src: '', label: 'FAN', category: 'TAG' };
+    const displayIcon = (allIcons as any).DISPLAY || { src: '', label: 'DISPLAY', category: 'TAG' };
+
+    const renderTAGGridCell = (index: number) => {
+      const displayIndex = index;
+      const isThirdRow = displayIndex >= 6 && displayIndex <= 8;
+      const isFourthRow = displayIndex >= 9 && displayIndex <= 11;
+      const isFirstRow = displayIndex >= 0 && displayIndex <= 2;
+      const isSecondRow = displayIndex >= 3 && displayIndex <= 5;
+      
+      const icon = icons.find((i) => i.position === displayIndex);
+      const text = (iconTexts && iconTexts[displayIndex]) || icon?.text;
+      const isPIR = icon?.category === "PIR";
+      const isDisplay = icon?.iconId === "DISPLAY";
+
+      // Special margin for cells 9 and 11
+      let cellMargin;
+      if (displayIndex === 9 || displayIndex === 11) {
+        cellMargin = '-65px 5px 5px 5px';
+      } else if (isFourthRow) {
+        cellMargin = '-35px 5px 5px 5px';
+      } else if (isThirdRow) {
+        cellMargin = '-35px 5px 5px 5px';
+      } else if (isFirstRow) {
+        cellMargin = '-10px 5px 5px 5px';
+      } else if (isSecondRow) {
+        cellMargin = '-40px 5px 5px 5px';
+      } else {
+        cellMargin = '5px 5px 5px 5px';
+      }
+
+      return (
+        <div
+          key={index}
+          style={{
+            width: "30%",
+            height: "100px",
+            display: "inline-block",
+            textAlign: "center",
+            background: "transparent",
+            margin: cellMargin,
+            position: "relative",
+            boxSizing: "border-box",
+            verticalAlign: "top",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "flex-start",
+              position: "relative",
+              height: "100%",
+              paddingTop: "10px",
+            }}
+          >
+            {/* Permanent DISPLAY icon in cell 4 */}
+            {displayIndex === 4 && (
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <img
+                  src={displayIcon.src}
+                  alt="DISPLAY"
+                  style={{
+                    width: "240px",
+                    height: "80px",
+                    objectFit: "contain",
+                    position: "absolute",
+                    left: "-60px",
+                    zIndex: 2,
+                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
+                    transition: 'filter 0.2s',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Always show FAN icon in third row */}
+            {isThirdRow && fanIcon.src && (
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <img
+                  src={fanIcon.src}
+                  alt="FAN"
+                  style={{
+                    width: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
+                    height: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
+                    objectFit: "contain",
+                    marginBottom: "5px",
+                    position: "relative",
+                    zIndex: 1,
+                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
+                    transition: 'filter 0.2s',
+                    top: displayIndex === 6 ? "10px" : displayIndex === 7 ? "6px" : undefined,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Render other icons */}
+            {!isThirdRow && icon && displayIndex !== 4 && icon.src && (
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <img
+                  src={icon.src}
+                  alt={icon.label}
+                  style={{
+                    width: isPIR ? "40px" : isDisplay ? "180px" : "40px",
+                    height: isPIR ? "40px" : isDisplay ? "60px" : "40px",
+                    objectFit: "contain",
+                    marginBottom: "5px",
+                    position: "relative",
+                    zIndex: 1,
+                    marginTop: isPIR ? "20px" : "0",
+                    filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                    transition: 'filter 0.2s',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Text display */}
+            <div style={{
+              position: icon ? 'absolute' : 'static',
+              bottom: icon ? '5px' : '25px',
+              left: icon ? '50%' : undefined,
+              transform: icon ? 'translateX(-50%)' : undefined,
+              width: '90%',
+              zIndex: 0,
+              display: icon ? undefined : 'flex',
+              alignItems: icon ? undefined : 'center',
+              justifyContent: icon ? undefined : 'center',
+              height: icon ? undefined : '100%',
+            }}>
+              {!isPIR && text && (
+                <div
+                  style={{
+                    fontSize: panelDesign.fontSize || '12px',
+                    color: panelDesign.textColor || '#000000',
+                    wordBreak: 'break-word',
+                    maxWidth: '100%',
+                    textAlign: 'center',
+                    padding: '4px',
+                    borderRadius: '4px',
+                    fontFamily: panelDesign.fonts || undefined,
+                  }}
+                >
+                  {text}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div
+        style={{
+          width: '350px',
+          height: '330px',
+          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+          padding: '15px',
+          border: '2px solid rgba(255, 255, 255, 0.2)',
+          borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+          borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          transition: 'all 0.3s ease',
+          position: 'relative',
+          transform: 'perspective(1000px) rotateX(5deg)',
+          transformStyle: 'preserve-3d',
+          margin: '0 auto',
+          fontFamily: panelDesign.fonts || undefined,
+        }}
+      >
+        {/* Inner glow effect */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '2px',
+            left: '2px',
+            right: '2px',
+            bottom: '2px',
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+        
+        {/* TAG Grid */}
+        <div style={{ 
+          width: '100%',
+          height: '100%',
+          position: "relative",
+          zIndex: 2,
+        }}>
+          {Array.from({ length: 12 }).map((_, index) => renderTAGGridCell(index))}
+        </div>
       </div>
     );
   }
