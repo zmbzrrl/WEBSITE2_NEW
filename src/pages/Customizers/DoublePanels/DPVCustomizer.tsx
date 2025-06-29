@@ -1471,7 +1471,7 @@ const DPVCustomizer: React.FC = () => {
                     },
                   }}
                 >
-                  {gridsSwitched ? '⇅' : '⇄'}
+                  ⇅
                 </Button>
               </div>
               
