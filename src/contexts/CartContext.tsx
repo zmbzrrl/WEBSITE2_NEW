@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from "react";
 
 interface CartItem {
   type: string;
@@ -59,7 +59,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const projCount = projPanels.reduce((sum, item) => sum + item.quantity, 0);
 
   // Load panels for a specific project code
-  const loadProjectPanels = (projectCode: string | null): CartItem[] => {
+  const loadProjectPanels = useCallback((projectCode: string | null): CartItem[] => {
     if (!projectCode) return [];
     
     try {
@@ -69,10 +69,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       console.error(`Error loading panels for project ${projectCode}:`, error);
       return [];
     }
-  };
+  }, []);
 
   // Save panels for a specific project code
-  const saveProjectPanels = (projectCode: string | null, panels: CartItem[]) => {
+  const saveProjectPanels = useCallback((projectCode: string | null, panels: CartItem[]) => {
     if (!projectCode) return;
     
     try {
@@ -80,10 +80,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     } catch (error) {
       console.error(`Error saving panels for project ${projectCode}:`, error);
     }
-  };
+  }, []);
 
   // Set project code and load corresponding panels
-  const setProjectCode = (projectCode: string | null) => {
+  const setProjectCode = useCallback((projectCode: string | null) => {
     setCurrentProjectCode(projectCode);
     
     if (projectCode) {
@@ -94,52 +94,60 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       // Clear panels when no project code
       setProjPanels([]);
     }
-  };
+  }, [loadProjectPanels]);
 
   // Clear current project
-  const clearProject = () => {
+  const clearProject = useCallback(() => {
     setCurrentProjectCode(null);
     setProjPanels([]);
-  };
+  }, []);
 
   // Save to localStorage whenever projPanels changes
   useEffect(() => {
-    if (currentProjectCode) {
+    if (currentProjectCode && projPanels.length > 0) {
       saveProjectPanels(currentProjectCode, projPanels);
     }
-  }, [projPanels, currentProjectCode]);
+  }, [projPanels, currentProjectCode, saveProjectPanels]);
 
-  const addToCart = (item: CartItem): void => {
+  const addToCart = useCallback((item: CartItem): void => {
     setProjPanels((prev) => [...prev, item]);
     setIsCounting(true);
-  };
+  }, []);
 
-  const updateQuantity = (index: number, newQty: number): void => {
-    const updated = [...projPanels];
-    if (newQty <= 0) {
+  const updateQuantity = useCallback((index: number, newQty: number): void => {
+    setProjPanels((prev) => {
+      const updated = [...prev];
+      if (newQty <= 0) {
+        updated.splice(index, 1);
+      } else {
+        updated[index].quantity = newQty;
+      }
+      return updated;
+    });
+  }, []);
+
+  const removeFromCart = useCallback((index: number): void => {
+    setProjPanels((prev) => {
+      const updated = [...prev];
       updated.splice(index, 1);
-    } else {
-      updated[index].quantity = newQty;
-    }
-    setProjPanels(updated);
-  };
+      return updated;
+    });
+  }, []);
 
-  const removeFromCart = (index: number): void => {
-    const updated = [...projPanels];
-    updated.splice(index, 1);
-    setProjPanels(updated);
-  };
+  const reorderPanels = useCallback((newOrder: number[]): void => {
+    setProjPanels((prev) => {
+      const reordered = newOrder.map(index => prev[index]);
+      return reordered;
+    });
+  }, []);
 
-  const reorderPanels = (newOrder: number[]): void => {
-    const reordered = newOrder.map(index => projPanels[index]);
-    setProjPanels(reordered);
-  };
-
-  const updatePanel = (index: number, updatedPanel: CartItem): void => {
-    const updated = [...projPanels];
-    updated[index] = updatedPanel;
-    setProjPanels(updated);
-  };
+  const updatePanel = useCallback((index: number, updatedPanel: CartItem): void => {
+    setProjPanels((prev) => {
+      const updated = [...prev];
+      updated[index] = updatedPanel;
+      return updated;
+    });
+  }, []);
 
   useEffect(() => {
     if (isCounting) {

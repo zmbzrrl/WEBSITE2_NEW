@@ -23,28 +23,6 @@ const THEME = {
   cardShadow: '0 4px 16px rgba(0,0,0,0.07)',
 };
 
-interface CartItem {
-  type: string;
-  icons: Array<{
-    iconId: string | null;
-    label: string;
-    position: number;
-    text: string;
-    src?: string;
-    category?: string;
-  }>;
-  quantity: number;
-  panelDesign?: {
-    backgroundColor: string;
-    iconColor: string;
-    textColor: string;
-    fontSize: string;
-    fonts?: string;
-    backbox?: string;
-    extraComments?: string;
-  };
-}
-
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
     case "SP": return "Single Panel";
@@ -71,62 +49,7 @@ const ICON_COLOR_FILTERS: { [key: string]: string } = {
 const ProjPanels: React.FC = () => {
   const { projPanels, updateQuantity, removeFromCart, currentProjectCode } = useCart();
   const navigate = useNavigate();
-  
-  // Load panel names for specific project code
-  const loadPanelNames = (projectCode: string | null): string[] => {
-    if (!projectCode) return [];
-    
-    try {
-      const stored = localStorage.getItem(`panelNames_${projectCode}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error(`Error loading panel names for project ${projectCode}:`, error);
-      return [];
-    }
-  };
-
-  const [panelNames, setPanelNames] = useState<string[]>(() => {
-    const stored = loadPanelNames(currentProjectCode);
-    // Ensure we have enough names for current panels
-    while (stored.length < projPanels.length) stored.push("");
-    return stored.slice(0, projPanels.length);
-  });
-  
   const { projectName, projectCode } = useContext(ProjectContext);
-
-  // Save panel names for specific project code
-  const savePanelNames = (projectCode: string | null, names: string[]) => {
-    if (!projectCode) return;
-    
-    try {
-      localStorage.setItem(`panelNames_${projectCode}`, JSON.stringify(names));
-    } catch (error) {
-      console.error(`Error saving panel names for project ${projectCode}:`, error);
-    }
-  };
-
-  // Keep panelNames in sync if projPanels changes (e.g., remove/add)
-  React.useEffect(() => {
-    setPanelNames((prev) => {
-      const arr = [...prev];
-      while (arr.length < projPanels.length) arr.push("");
-      if (arr.length > projPanels.length) arr.length = projPanels.length;
-      return arr;
-    });
-  }, [projPanels.length]);
-
-  // Save panel names whenever they change
-  React.useEffect(() => {
-    savePanelNames(currentProjectCode, panelNames);
-  }, [panelNames, currentProjectCode]);
-
-  // Load panel names when project code changes
-  React.useEffect(() => {
-    const stored = loadPanelNames(currentProjectCode);
-    const arr = [...stored];
-    while (arr.length < projPanels.length) arr.push("");
-    setPanelNames(arr.slice(0, projPanels.length));
-  }, [currentProjectCode, projPanels.length]);
 
   return (
     <div style={{
@@ -231,7 +154,7 @@ const ProjPanels: React.FC = () => {
                   border: '1px solid #f0f0f0',
                 }}
               >
-                {/* Panel Number and Name (in normal flow) */}
+                {/* Panel Number and Type */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -251,30 +174,6 @@ const ProjPanels: React.FC = () => {
                     justifyContent: 'center',
                     boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
                   }}>{index + 1}</div>
-                  <input
-                    type="text"
-                    value={panelNames[index] || ""}
-                    onChange={e => {
-                      const newNames = [...panelNames];
-                      newNames[index] = e.target.value;
-                      setPanelNames(newNames);
-                    }}
-                    placeholder="Panel name..."
-                    style={{
-                      fontSize: 16,
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 8,
-                      padding: '7px 12px',
-                      outline: 'none',
-                      fontFamily: THEME.fontFamily,
-                      minWidth: 180,
-                      background: '#f8f9fa',
-                      color: THEME.textPrimary,
-                      fontWeight: 500,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                      transition: 'border 0.2s',
-                    }}
-                  />
                   <div style={{
                     background: THEME.secondary,
                     color: '#fff',
