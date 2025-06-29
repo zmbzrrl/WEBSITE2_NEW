@@ -73,9 +73,7 @@ const ProjPanels: React.FC = () => {
   const navigate = useNavigate();
   
   // Load panel names for specific project code
-  const loadPanelNames = (projectCode: string | null): string[] => {
-    if (!projectCode) return [];
-    
+  const loadPanelNames = (projectCode: string): string[] => {
     try {
       const stored = localStorage.getItem(`panelNames_${projectCode}`);
       return stored ? JSON.parse(stored) : [];
@@ -86,7 +84,7 @@ const ProjPanels: React.FC = () => {
   };
 
   const [panelNames, setPanelNames] = useState<string[]>(() => {
-    const stored = loadPanelNames(currentProjectCode);
+    const stored = loadPanelNames(currentProjectCode || 'default-project');
     // Ensure we have enough names for current panels
     while (stored.length < projPanels.length) stored.push("");
     return stored.slice(0, projPanels.length);
@@ -95,9 +93,7 @@ const ProjPanels: React.FC = () => {
   const { projectName, projectCode } = useContext(ProjectContext);
 
   // Save panel names for specific project code
-  const savePanelNames = (projectCode: string | null, names: string[]) => {
-    if (!projectCode) return;
-    
+  const savePanelNames = (projectCode: string, names: string[]) => {
     try {
       localStorage.setItem(`panelNames_${projectCode}`, JSON.stringify(names));
     } catch (error) {
@@ -117,12 +113,12 @@ const ProjPanels: React.FC = () => {
 
   // Save panel names whenever they change
   React.useEffect(() => {
-    savePanelNames(currentProjectCode, panelNames);
+    savePanelNames(currentProjectCode || 'default-project', panelNames);
   }, [panelNames, currentProjectCode]);
 
   // Load panel names when project code changes
   React.useEffect(() => {
-    const stored = loadPanelNames(currentProjectCode);
+    const stored = loadPanelNames(currentProjectCode || 'default-project');
     const arr = [...stored];
     while (arr.length < projPanels.length) arr.push("");
     setPanelNames(arr.slice(0, projPanels.length));
