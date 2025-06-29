@@ -47,9 +47,115 @@ const ICON_COLOR_FILTERS: { [key: string]: string } = {
 };
 
 const ProjPanels: React.FC = () => {
-  const { projPanels, updateQuantity, removeFromCart, currentProjectCode } = useCart();
+  const { projPanels, updateQuantity, removeFromCart, reorderPanels, updatePanel, currentProjectCode } = useCart();
   const navigate = useNavigate();
   const { projectName, projectCode } = useContext(ProjectContext);
+  
+  // State for panel number editing
+  const [editingPanelIndex, setEditingPanelIndex] = useState<number | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
+  
+  // State for panel name editing
+  const [editingNameIndex, setEditingNameIndex] = useState<number | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState<string>('');
+
+  // Handle panel number editing
+  const handlePanelNumberEdit = (index: number) => {
+    setEditingPanelIndex(index);
+    setEditingValue(getDisplayNumber(index).toString());
+  };
+
+  // Handle panel number save
+  const handlePanelNumberSave = (index: number) => {
+    const newNumber = parseFloat(editingValue);
+    if (isNaN(newNumber) || newNumber <= 0) {
+      // Invalid number, revert to original
+      setEditingPanelIndex(null);
+      return;
+    }
+
+    try {
+      // Update the panel's display number using the updatePanel function
+      const updatedPanel = { ...projPanels[index], displayNumber: newNumber };
+      updatePanel(index, updatedPanel);
+      
+      // Auto-sort panels by their display numbers
+      setTimeout(() => {
+        const panelsWithIndices = projPanels.map((panel, i) => ({
+          panel: i === index ? updatedPanel : panel,
+          originalIndex: i,
+          displayNumber: i === index ? newNumber : (panel.displayNumber || (i + 1))
+        }));
+        
+        // Sort by display numbers
+        panelsWithIndices.sort((a, b) => a.displayNumber - b.displayNumber);
+        
+        // Create new order array
+        const newOrder = panelsWithIndices.map(item => item.originalIndex);
+        
+        // Reorder the panels
+        reorderPanels(newOrder);
+      }, 100); // Small delay to ensure the panel update is processed first
+      
+    } catch (error) {
+      console.error('Error updating panel number:', error);
+    }
+    
+    setEditingPanelIndex(null);
+  };
+
+  // Handle panel name editing
+  const handlePanelNameEdit = (index: number) => {
+    setEditingNameIndex(index);
+    setEditingNameValue(projPanels[index].panelName || '');
+  };
+
+  // Handle panel name save
+  const handlePanelNameSave = (index: number) => {
+    try {
+      // Update the panel's name using the updatePanel function
+      const updatedPanel = { ...projPanels[index], panelName: editingNameValue.trim() };
+      updatePanel(index, updatedPanel);
+    } catch (error) {
+      console.error('Error updating panel name:', error);
+    }
+    
+    setEditingNameIndex(null);
+  };
+
+  // Handle panel name cancel
+  const handlePanelNameCancel = () => {
+    setEditingNameIndex(null);
+  };
+
+  // Handle key press in name edit mode
+  const handleNameKeyPress = (e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Enter') {
+      handlePanelNameSave(index);
+    } else if (e.key === 'Escape') {
+      handlePanelNameCancel();
+    }
+  };
+
+  // Handle panel number cancel
+  const handlePanelNumberCancel = () => {
+    setEditingPanelIndex(null);
+  };
+
+  // Handle key press in edit mode
+  const handleKeyPress = (e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Enter') {
+      handlePanelNumberSave(index);
+    } else if (e.key === 'Escape') {
+      handlePanelNumberCancel();
+    }
+  };
+
+  // Get display number for a panel
+  const getDisplayNumber = (index: number) => {
+    const panel = projPanels[index];
+    return panel.displayNumber || (index + 1);
+  };
 
   return (
     <div style={{
@@ -161,19 +267,70 @@ const ProjPanels: React.FC = () => {
                   gap: 10,
                   marginBottom: 12,
                 }}>
-                  <div style={{
-                    background: THEME.primary,
-                    color: '#fff',
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    fontSize: 20,
-                    minWidth: 36,
-                    height: 36,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
-                  }}>{index + 1}</div>
+                  {editingPanelIndex === index ? (
+                    // Edit mode
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}>
+                      <input
+                        type="text"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onKeyDown={(e) => handleKeyPress(e, index)}
+                        onBlur={() => handlePanelNumberSave(index)}
+                        style={{
+                          background: THEME.primary,
+                          color: '#fff',
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          fontSize: 20,
+                          width: 60,
+                          height: 36,
+                          border: 'none',
+                          textAlign: 'center',
+                          boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
+                          outline: 'none',
+                        }}
+                        autoFocus
+                      />
+                      <div style={{ fontSize: 12, color: THEME.textSecondary }}>
+                        Press Enter to save, Esc to cancel
+                      </div>
+                    </div>
+                  ) : (
+                    // Display mode
+                    <div 
+                      style={{
+                        background: THEME.primary,
+                        color: '#fff',
+                        borderRadius: 8,
+                        fontWeight: 700,
+                        fontSize: 20,
+                        minWidth: 36,
+                        height: 36,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onClick={() => handlePanelNumberEdit(index)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = THEME.primaryHover;
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = THEME.primary;
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                      title="Click to edit panel number"
+                    >
+                      {getDisplayNumber(index)}
+                    </div>
+                  )}
                   <div style={{
                     background: THEME.secondary,
                     color: '#fff',
@@ -190,6 +347,82 @@ const ProjPanels: React.FC = () => {
                   }}>
                     {getPanelTypeLabel(item.type)}
                   </div>
+                </div>
+                
+                {/* Panel Name */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  marginBottom: 12,
+                }}>
+                  <span style={{ color: THEME.textSecondary, fontSize: 15, fontWeight: 500 }}>Name:</span>
+                  {editingNameIndex === index ? (
+                    // Edit mode for name
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flex: 1,
+                    }}>
+                      <input
+                        type="text"
+                        value={editingNameValue}
+                        onChange={(e) => setEditingNameValue(e.target.value)}
+                        onKeyDown={(e) => handleNameKeyPress(e, index)}
+                        onBlur={() => handlePanelNameSave(index)}
+                        style={{
+                          background: '#fff',
+                          color: THEME.textPrimary,
+                          borderRadius: 6,
+                          fontWeight: 500,
+                          fontSize: 15,
+                          border: `2px solid ${THEME.primary}`,
+                          padding: '8px 12px',
+                          outline: 'none',
+                          flex: 1,
+                          maxWidth: 300,
+                        }}
+                        placeholder="Enter panel name..."
+                        autoFocus
+                      />
+                      <div style={{ fontSize: 12, color: THEME.textSecondary }}>
+                        Press Enter to save, Esc to cancel
+                      </div>
+                    </div>
+                  ) : (
+                    // Display mode for name
+                    <div 
+                      style={{
+                        background: '#f8f9fa',
+                        color: THEME.textPrimary,
+                        borderRadius: 6,
+                        fontWeight: 500,
+                        fontSize: 15,
+                        padding: '8px 12px',
+                        border: '1px solid #e9ecef',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        minWidth: 200,
+                        maxWidth: 300,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      onClick={() => handlePanelNameEdit(index)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#e9ecef';
+                        e.currentTarget.style.borderColor = THEME.primary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#f8f9fa';
+                        e.currentTarget.style.borderColor = '#e9ecef';
+                      }}
+                      title={item.panelName ? `Click to edit: ${item.panelName}` : "Click to add panel name"}
+                    >
+                      {item.panelName || "Click to add panel name"}
+                    </div>
+                  )}
                 </div>
                 {/* Quantity controls */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>

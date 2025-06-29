@@ -11,6 +11,8 @@ interface CartItem {
     category?: string;
   }>;
   quantity: number;
+  displayNumber?: number;
+  panelName?: string;
   panelDesign?: {
     backgroundColor: string;
     iconColor: string;
