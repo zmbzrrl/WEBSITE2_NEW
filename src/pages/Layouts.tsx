@@ -87,7 +87,9 @@ const Layouts: React.FC = () => {
   const [draggedDeviceId, setDraggedDeviceId] = useState<string | null>(null);
   const [deviceDragOffset, setDeviceDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [panelSizes, setPanelSizes] = useState<{ [key: string]: number }>({});
+  const [deviceSizes, setDeviceSizes] = useState<{ [key: string]: number }>({});
   const [resizingPanelId, setResizingPanelId] = useState<string | null>(null);
+  const [resizingDeviceId, setResizingDeviceId] = useState<string | null>(null);
   const [layouts, setLayouts] = useState<Array<{
     id: string;
     name: string;
@@ -129,7 +131,7 @@ const Layouts: React.FC = () => {
 
   // Handle canvas click to place panel or device
   const handleCanvasClick = useCallback((event: React.MouseEvent) => {
-    if (!canvasRef.current || draggedPanelId || draggedDeviceId) return;
+    if (!canvasRef.current || draggedPanelId || draggedDeviceId || resizingPanelId || resizingDeviceId) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -161,7 +163,7 @@ const Layouts: React.FC = () => {
 
     setIsPlacingPanel(false);
     setSelectedPanelIndex(null);
-  }, [isPlacingPanel, isPlacingDevice, selectedPanelIndex, selectedDeviceType, selectedRoomType, projPanels, draggedPanelId, draggedDeviceId]);
+  }, [isPlacingPanel, isPlacingDevice, selectedPanelIndex, selectedDeviceType, selectedRoomType, projPanels, draggedPanelId, draggedDeviceId, resizingPanelId, resizingDeviceId]);
 
   // Remove placed panel
   const removePlacedPanel = (panelId: string) => {
@@ -413,6 +415,9 @@ const Layouts: React.FC = () => {
       placedDevices: [...currentLayout.placedDevices, newDevice]
     });
     
+    // Initialize device size
+    setDeviceSizes(prev => ({ ...prev, [newDevice.id]: 24 }));
+    
     setIsPlacingDevice(false);
     setSelectedDeviceType(null);
   };
@@ -484,6 +489,50 @@ const Layouts: React.FC = () => {
       };
     }
   }, [draggedDeviceId, handleDeviceDragMove, endDeviceDrag]);
+
+  // Start resizing device
+  const startResizeDevice = (e: React.MouseEvent, deviceId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingDeviceId(deviceId);
+  };
+
+  // Handle device resize movement
+  const handleDeviceResizeMove = useCallback((e: MouseEvent) => {
+    if (!resizingDeviceId || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const currentLayout = getCurrentLayout();
+    const device = currentLayout.placedDevices.find(d => d.id === resizingDeviceId);
+    
+    if (device) {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - rect.left - device.x, 2) + 
+        Math.pow(e.clientY - rect.top - device.y, 2)
+      );
+      
+      const newSize = Math.max(16, Math.min(60, distance * 2));
+      setDeviceSizes(prev => ({ ...prev, [resizingDeviceId]: newSize }));
+    }
+  }, [resizingDeviceId, getCurrentLayout]);
+
+  // End device resizing
+  const endDeviceResize = useCallback(() => {
+    setResizingDeviceId(null);
+  }, []);
+
+  // Add and remove global mouse event listeners for device resize
+  useEffect(() => {
+    if (resizingDeviceId) {
+      document.addEventListener('mousemove', handleDeviceResizeMove);
+      document.addEventListener('mouseup', endDeviceResize);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleDeviceResizeMove);
+        document.removeEventListener('mouseup', endDeviceResize);
+      };
+    }
+  }, [resizingDeviceId, handleDeviceResizeMove, endDeviceResize]);
 
   return (
     <div style={{
@@ -1201,10 +1250,10 @@ const Layouts: React.FC = () => {
                     key={device.id}
                     style={{
                       position: 'absolute',
-                      left: device.x - 12,
-                      top: device.y - 12,
-                      width: 24,
-                      height: 24,
+                      left: device.x - (deviceSizes[device.id] || 24) / 2,
+                      top: device.y - (deviceSizes[device.id] || 24) / 2,
+                      width: deviceSizes[device.id] || 24,
+                      height: deviceSizes[device.id] || 24,
                       cursor: 'pointer',
                       zIndex: 10
                     }}
@@ -1219,8 +1268,8 @@ const Layouts: React.FC = () => {
                       {/* Device Circle */}
                       <div 
                         style={{
-                          width: '24px',
-                          height: '24px',
+                          width: '100%',
+                          height: '100%',
                           borderRadius: '50%',
                           background: DEVICE_TYPES[device.type as keyof typeof DEVICE_TYPES]?.color || '#666',
                           border: '2px solid #fff',
@@ -1230,6 +1279,25 @@ const Layouts: React.FC = () => {
                         }}
                         onMouseDown={(e) => startDragDevice(e, device.id)}
                       />
+                      
+                      {/* Resize Handle */}
+                      {hoveredPanelId === device.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: -6,
+                            right: -6,
+                            width: 12,
+                            height: 12,
+                            background: '#666',
+                            borderRadius: '50%',
+                            cursor: 'nw-resize',
+                            border: '2px solid #fff',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                          }}
+                          onMouseDown={(e) => startResizeDevice(e, device.id)}
+                        />
+                      )}
                       
                       {/* Delete Button */}
                       {hoveredPanelId === device.id && (
