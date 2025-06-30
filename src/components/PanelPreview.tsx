@@ -69,8 +69,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   const isDPH = type === 'DPH';
   const isDPV = type === 'DPV';
   const isX2V = type === 'X2V';
+  const isX1H = type === 'X1H';
+  const isX1V = type === 'X1V';
+  const isX2H = type === 'X2H';
   const isTAG = type === 'TAG';
   const isDoublePanel = isDPH || isDPV;
+  const isExtendedPanel = isX2V || isX1H || isX1V || isX2H;
 
   if (isX2V) {
     const bigIconTop = icons.find(i => i.position === 100);
@@ -106,7 +110,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             <div
               key={cellIndex}
               style={{
-                width: '33.33%',
+                width: '30%',
                 height: '33.33%',
                 minHeight: 0,
                 minWidth: 0,
@@ -116,6 +120,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 justifyContent: hasIcon ? 'flex-start' : 'center',
                 position: 'relative',
                 paddingTop: hasIcon ? '10px' : 0,
+                margin: '0 -5px',
               }}
             >
               {hasIcon && (
@@ -396,7 +401,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
           width: '350px',
           height: '330px',
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-          padding: '15px',
+          padding: '0',
           border: '2px solid rgba(255, 255, 255, 0.2)',
           borderTop: '3px solid rgba(255, 255, 255, 0.4)',
           borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
@@ -405,10 +410,13 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
           WebkitBackdropFilter: 'blur(20px)',
           transition: 'all 0.3s ease',
           position: 'relative',
-          transform: 'perspective(1000px) rotateX(5deg)',
-          transformStyle: 'preserve-3d',
           margin: '0 auto',
           fontFamily: panelDesign.fonts || undefined,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 0,
+          overflow: 'hidden',
         }}
       >
         {/* Inner glow effect */}
@@ -438,12 +446,444 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     );
   }
 
+  // Handle extended panels (X1H, X1V, X2H, X2V) except X2V which is handled above
+  if (isExtendedPanel && !isX2V) {
+    const bigIcon = icons.find(i => i.position === 100);
+    const bigIcon2 = icons.find(i => i.position === 101); // For X2H
+    const isReversed = !!panelDesign.isLayoutReversed;
+    const isVerticalPanel = isX1V; // Only X1V is vertical among extended panels
+
+    // Debug logging
+    console.log('Extended Panel Debug:', {
+      type,
+      bigIcon,
+      bigIcon2,
+      allIcons: icons,
+      bigIconSrc: bigIcon?.src,
+      bigIcon2Src: bigIcon2?.src,
+      bigIconLabel: bigIcon?.label,
+      bigIcon2Label: bigIcon2?.label,
+      panelDesignIconColor: panelDesign.iconColor,
+      isReversed,
+      isVerticalPanel,
+      fullPanelDesign: panelDesign,
+      filterValue: panelDesign.iconColor && 
+                   panelDesign.iconColor !== '#000000' && 
+                   panelDesign.iconColor !== '#FFFFFF'
+        ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
+        : 'none'
+    });
+
+    const getBigIconSrc = () => {
+      if (!bigIcon || !bigIcon.src) return null;
+      try {
+        return new URL(bigIcon.src, import.meta.url).href;
+      } catch (error) {
+        console.error('Error creating URL for big icon:', error);
+        return bigIcon.src;
+      }
+    };
+
+    const getBigIcon2Src = () => {
+      if (!bigIcon2 || !bigIcon2.src) return null;
+      try {
+        return new URL(bigIcon2.src, import.meta.url).href;
+      } catch (error) {
+        console.error('Error creating URL for big icon 2:', error);
+        return bigIcon2.src;
+      }
+    };
+
+    const bigIconSrc = getBigIconSrc();
+    const bigIcon2Src = getBigIcon2Src();
+
+    // Special BigIconContainer for X2H with two icons side by side
+    const BigIconContainer = () => {
+      if (isX2H) {
+        // X2H has two big icons side by side
+        return (
+          <div style={{ 
+            width: '50%', 
+            height: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            position: 'relative',
+            zIndex: 2,
+            gap: '40px',
+            transform: isReversed ? 'translateX(-30px)' : 'translateX(20px)'
+          }}>
+            {/* First big icon */}
+            {bigIcon && bigIconSrc && (
+              <img
+                src={bigIconSrc}
+                alt={bigIcon.label || 'Big Icon 1'}
+                style={{ 
+                  maxWidth: '45%', 
+                  maxHeight: '250px', 
+                  objectFit: 'contain', 
+                  display: 'block',
+                  filter: panelDesign.iconColor && 
+                         panelDesign.iconColor !== '#000000' && 
+                         panelDesign.iconColor !== '#FFFFFF'
+                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
+                    : 'none',
+                  transition: 'filter 0.2s',
+                }}
+                onError={(e) => {
+                  console.error('Failed to load big icon 1:', bigIconSrc, 'Original src:', bigIcon.src);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('Big icon 1 loaded successfully:', bigIconSrc);
+                }}
+              />
+            )}
+            {/* Second big icon */}
+            {bigIcon2 && bigIcon2Src && (
+              <img
+                src={bigIcon2Src}
+                alt={bigIcon2.label || 'Big Icon 2'}
+                style={{ 
+                  maxWidth: '45%', 
+                  maxHeight: '250px', 
+                  objectFit: 'contain', 
+                  display: 'block',
+                  filter: panelDesign.iconColor && 
+                         panelDesign.iconColor !== '#000000' && 
+                         panelDesign.iconColor !== '#FFFFFF'
+                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
+                    : 'none',
+                  transition: 'filter 0.2s',
+                }}
+                onError={(e) => {
+                  console.error('Failed to load big icon 2:', bigIcon2Src, 'Original src:', bigIcon2.src);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('Big icon 2 loaded successfully:', bigIcon2Src);
+                }}
+              />
+            )}
+            {(!bigIcon || !bigIconSrc) && (!bigIcon2 || !bigIcon2Src) && (
+              <div style={{
+                color: '#999',
+                fontSize: '14px',
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                No big icons
+              </div>
+            )}
+          </div>
+        );
+      } else if (isVerticalPanel) {
+        // X1V - Single big icon for vertical layout
+        return (
+          <div style={{ 
+            width: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            position: 'relative',
+            zIndex: 2
+          }}>
+            {bigIcon && bigIconSrc && (
+              <img
+                src={bigIconSrc}
+                alt={bigIcon.label || 'Big Icon'}
+                style={{ 
+                  maxWidth: '120%', 
+                  maxHeight: '225px', 
+                  objectFit: 'contain', 
+                  display: 'block',
+                  filter: panelDesign.iconColor && 
+                         panelDesign.iconColor !== '#000000' && 
+                         panelDesign.iconColor !== '#FFFFFF'
+                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
+                    : 'none',
+                  transition: 'filter 0.2s',
+                }}
+                onError={(e) => {
+                  console.error('Failed to load big icon:', bigIconSrc, 'Original src:', bigIcon.src);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('Big icon loaded successfully:', bigIconSrc);
+                }}
+              />
+            )}
+            {(!bigIcon || !bigIconSrc) && (
+              <div style={{
+                color: '#999',
+                fontSize: '14px',
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                No big icon
+              </div>
+            )}
+          </div>
+        );
+      } else {
+        // X1H - Single big icon for horizontal layout
+        return (
+          <div style={{ 
+            width: '50%', 
+            height: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            position: 'relative',
+            zIndex: 2
+          }}>
+            {bigIcon && bigIconSrc && (
+              <img
+                src={bigIconSrc}
+                alt={bigIcon.label || 'Big Icon'}
+                style={{ 
+                  maxWidth: '80%', 
+                  maxHeight: '200px', 
+                  objectFit: 'contain', 
+                  display: 'block',
+                  filter: panelDesign.iconColor && 
+                         panelDesign.iconColor !== '#000000' && 
+                         panelDesign.iconColor !== '#FFFFFF'
+                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
+                    : 'none',
+                  transition: 'filter 0.2s',
+                }}
+                onError={(e) => {
+                  console.error('Failed to load big icon:', bigIconSrc, 'Original src:', bigIcon.src);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('Big icon loaded successfully:', bigIconSrc);
+                }}
+              />
+            )}
+            {(!bigIcon || !bigIconSrc) && (
+              <div style={{
+                color: '#999',
+                fontSize: '14px',
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                No big icon
+              </div>
+            )}
+          </div>
+        );
+      }
+    };
+
+    const Grid = () => (
+      <div style={{ 
+        width: '100%', 
+        height: '100%', 
+        display: 'flex', 
+        flexWrap: 'wrap', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        background: 'none', 
+        position: 'relative', 
+        zIndex: 2,
+        // Move grid down by 20px for X2H panels, 30px to the right when on the right side, and 30px to the left when on the left side
+        transform: isX2H ? (isReversed ? 'translate(-30px, 20px)' : 'translate(30px, 20px)') : 'none'
+      }}>
+        {Array.from({ length: 9 }).map((_, index) => {
+          const cellIndex = index;
+          const icon = icons.find((i) => i.position === cellIndex);
+          const isPIR = icon?.category === 'PIR';
+          const text = (iconTexts && iconTexts[cellIndex]) || icon?.text;
+          const hasIcon = icon && icon.src;
+          return (
+            <div
+              key={cellIndex}
+              style={{
+                width: '30%',
+                height: type === 'X1V' ? '2%' : '33.33%',
+                minHeight: 0,
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: hasIcon ? 'flex-start' : 'center',
+                position: 'relative',
+                paddingTop: hasIcon ? '10px' : 0,
+                margin: type === 'X1V' ? '0 -2.5px' : '0 -5px',
+              }}
+            >
+              {hasIcon && (
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <img
+                    src={icon.src}
+                    alt={icon.label}
+                    style={{
+                      width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
+                      height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
+                      objectFit: 'contain',
+                      marginBottom: '5px',
+                      position: 'relative',
+                      zIndex: 1,
+                      marginTop: isPIR ? '20px' : '0',
+                      filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                      transition: 'filter 0.2s',
+                    }}
+                  />
+                </div>
+              )}
+              <div style={{
+                position: hasIcon ? 'absolute' : 'static',
+                bottom: hasIcon ? (icon ? '5px' : '25px') : undefined,
+                left: hasIcon ? '50%' : undefined,
+                transform: hasIcon ? 'translateX(-50%)' : undefined,
+                width: '90%',
+                zIndex: 0,
+                display: hasIcon ? undefined : 'flex',
+                alignItems: hasIcon ? undefined : 'center',
+                justifyContent: hasIcon ? undefined : 'center',
+                height: hasIcon ? undefined : '100%',
+              }}>
+                {!isPIR && text && (
+                  <div
+                    style={{
+                      fontSize: panelDesign.fontSize || '12px',
+                      color: panelDesign.textColor || '#000000',
+                      wordBreak: 'break-word',
+                      maxWidth: '100%',
+                      textAlign: 'center',
+                      padding: '4px',
+                      borderRadius: '4px',
+                      fontFamily: panelDesign.fonts || undefined,
+                    }}
+                  >
+                    {text}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    // Special handling for X1V - use proper vertical layout like X2V
+    if (isVerticalPanel) {
+      return (
+        <div
+          style={{
+            width: '350px',
+            height: '700px',
+            background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+            padding: '0',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+            borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            margin: '0 auto',
+            fontFamily: panelDesign.fonts || undefined,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Inner glow effect */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '2px',
+              left: '2px',
+              right: '2px',
+              bottom: '2px',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}
+          />
+          {/* Render big icon and grid in correct order */}
+          {isReversed ? (
+            <>
+              <div style={{ flex: '0 0 60%', height: '60%', width: '100%', marginTop: type === 'X1V' ? '-30px' : '0px' }}><Grid /></div>
+              <div style={{ flex: '0 0 40%', height: '40%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: type === 'X1V' ? '-10px' : '0px' }}><BigIconContainer /></div>
+            </>
+          ) : (
+            <>
+              <div style={{ flex: '0 0 40%', height: '40%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: type === 'X1V' ? '20px' : '0px' }}><BigIconContainer /></div>
+              <div style={{ flex: '0 0 60%', height: '60%', width: '100%', marginTop: type === 'X1V' ? '-50px' : '0px' }}><Grid /></div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          width: isX2H ? '800px' : '700px',
+          height: '350px',
+          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+          padding: '15px',
+          border: '2px solid rgba(255, 255, 255, 0.2)',
+          borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+          borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          transition: 'all 0.3s ease',
+          position: 'relative',
+          transform: 'perspective(1000px) rotateX(2deg)',
+          transformStyle: 'preserve-3d',
+          margin: '0 auto',
+          fontFamily: panelDesign.fonts || undefined,
+          display: 'flex',
+          flexDirection: 'row',
+          gap: 0,
+        }}
+      >
+        {/* Inner glow effect */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '2px',
+            left: '2px',
+            right: '2px',
+            bottom: '2px',
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+        
+        {/* Horizontal panel layout (X1H, X2H) - left/right */}
+        {isReversed ? (
+          <>
+            <Grid />
+            <BigIconContainer />
+          </>
+        ) : (
+          <>
+            <BigIconContainer />
+            <Grid />
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
         width: isDPV ? '350px' : isDPH ? '700px' : '350px',
+        height: isDPV ? undefined : isDPH ? undefined : '330px',
         background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-        padding: '15px',
+        padding: isDPV ? '15px' : isDPH ? '15px' : '0',
         border: '2px solid rgba(255, 255, 255, 0.2)',
         borderTop: '3px solid rgba(255, 255, 255, 0.4)',
         borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
@@ -452,8 +892,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         WebkitBackdropFilter: 'blur(20px)',
         transition: 'all 0.3s ease',
         position: 'relative',
-        transform: 'perspective(1000px) rotateX(5deg)',
-        transformStyle: 'preserve-3d',
+        transform: isDPV ? 'perspective(1000px) rotateX(2deg)' : isDPH ? 'perspective(1000px) rotateX(2deg)' : 'none',
+        transformStyle: isDPV ? 'preserve-3d' : isDPH ? 'preserve-3d' : 'flat',
         margin: '0 auto',
         fontFamily: panelDesign.fonts || undefined,
         display: 'flex',
@@ -497,14 +937,17 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               <div
                 key={cellIndex}
                 style={{
-                  width: '33.33%',
-                  minHeight: '100px',
+                  width: '30%',
+                  height: type === 'X1V' ? '2%' : '33.33%',
+                  minHeight: 0,
+                  minWidth: 0,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: hasIcon ? 'flex-start' : 'center',
                   position: 'relative',
                   paddingTop: hasIcon ? '10px' : 0,
+                  margin: type === 'X1V' ? '0 -2.5px' : '0 -5px',
                 }}
               >
                 {hasIcon && (

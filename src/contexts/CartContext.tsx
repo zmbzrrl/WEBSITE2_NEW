@@ -21,6 +21,7 @@ interface CartItem {
     fonts?: string;
     backbox?: string;
     extraComments?: string;
+    isLayoutReversed?: boolean;
   };
 }
 

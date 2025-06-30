@@ -601,23 +601,24 @@ const X1VCustomizer: React.FC = () => {
       return;
     }
 
+    // Include all placedIcons (including position 100), sort by position
+    const sortedIcons = [...placedIcons]
+      .map(icon => ({
+        iconId: icon.iconId || null,
+        src: icon.src || "",
+        label: icon.label || "",
+        position: icon.position,
+        text: iconTexts[icon.position] || "",
+        category: icon.category || undefined,
+      }))
+      .filter(entry => entry.iconId || entry.text)
+      .sort((a, b) => a.position - b.position);
+
     const design: Design & { panelDesign: typeof panelDesign } = {
       type: "X1V",
-      icons: Array.from({ length: 18 })
-        .map((_, index) => {
-          const icon = placedIcons.find((i) => i.position === index);
-          return {
-            iconId: icon?.iconId || null,
-            src: icon?.src || "",
-            label: icon?.label || "",
-            position: index,
-            text: iconTexts[index] || "",
-            category: icon?.category || undefined,
-          };
-        })
-        .filter((entry) => entry.iconId || entry.text),
+      icons: sortedIcons,
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { ...panelDesign, backbox, extraComments, isLayoutReversed },
     };
     addToCart(design);
   };

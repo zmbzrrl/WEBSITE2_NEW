@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../../contexts/CartContext";
 import "../Customizer.css";
 import CartButton from "../../../components/CartButton";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from "../../../assets/logo.png";
 import icons from "../../../assets/iconLibrary";
 import {
@@ -477,6 +477,7 @@ const InformationBox = ({
 const X2HCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
@@ -530,6 +531,11 @@ const X2HCustomizer: React.FC = () => {
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   console.log('RENDER', { backbox, extraComments });
   const { projectName, projectCode } = useContext(ProjectContext);
+  
+  // Edit mode state
+  const isEditMode = location.state?.editMode || false;
+  const editPanelIndex = location.state?.panelIndex;
+  const editPanelData = location.state?.panelData;
 
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
@@ -538,11 +544,51 @@ const X2HCustomizer: React.FC = () => {
     });
   }, []);
 
+  // Load existing panel data if in edit mode
+  useEffect(() => {
+    if (isEditMode && editPanelData) {
+      // Load panel design
+      if (editPanelData.panelDesign) {
+        setPanelDesign(editPanelData.panelDesign);
+        setBackbox(editPanelData.panelDesign.backbox || '');
+        setExtraComments(editPanelData.panelDesign.extraComments || '');
+        setIsLayoutReversed(editPanelData.panelDesign.isLayoutReversed || false);
+      }
+      
+      // Load placed icons
+      if (editPanelData.icons) {
+        const loadedIcons: PlacedIcon[] = editPanelData.icons
+          .filter((icon: any) => icon.iconId)
+          .map((icon: any) => ({
+            id: Date.now() + Math.random(), // Generate new IDs
+            iconId: icon.iconId,
+            src: icon.src || '',
+            label: icon.label || '',
+            position: icon.position,
+            category: icon.category || ''
+          }));
+        setPlacedIcons(loadedIcons);
+        
+        // Load icon texts
+        const loadedTexts: IconTexts = {};
+        editPanelData.icons.forEach((icon: any) => {
+          if (icon.text) {
+            loadedTexts[icon.position] = icon.text;
+          }
+        });
+        setIconTexts(loadedTexts);
+      }
+      
+      // Set current step to design step (step 3) for editing
+      setCurrentStep(3);
+    }
+  }, [isEditMode, editPanelData]);
+
   if (!cartContext) {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart } = cartContext;
+  const { addToCart, updatePanel } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -600,25 +646,32 @@ const X2HCustomizer: React.FC = () => {
       return;
     }
 
+    // Include all placedIcons (including position 100), sort by position
+    const sortedIcons = [...placedIcons]
+      .map(icon => ({
+        iconId: icon.iconId || null,
+        src: icon.src || "",
+        label: icon.label || "",
+        position: icon.position,
+        text: iconTexts[icon.position] || "",
+        category: icon.category || undefined,
+      }))
+      .filter(entry => entry.iconId || entry.text)
+      .sort((a, b) => a.position - b.position);
+
     const design: Design & { panelDesign: typeof panelDesign } = {
       type: "X2H",
-      icons: Array.from({ length: 18 })
-        .map((_, index) => {
-          const icon = placedIcons.find((i) => i.position === index);
-          return {
-            iconId: icon?.iconId || null,
-            src: icon?.src || "",
-            label: icon?.label || "",
-            position: index,
-            text: iconTexts[index] || "",
-            category: icon?.category || undefined,
-          };
-        })
-        .filter((entry) => entry.iconId || entry.text),
+      icons: sortedIcons,
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { ...panelDesign, backbox, extraComments, isLayoutReversed },
     };
-    addToCart(design);
+    
+    if (isEditMode && editPanelIndex !== undefined) {
+      updatePanel(editPanelIndex, design);
+      navigate('/proj-panels');
+    } else {
+      addToCart(design);
+    }
   };
 
   // Filter icons by selected category
@@ -2211,7 +2264,7 @@ const X2HCustomizer: React.FC = () => {
                 },
               }}
             >
-                    Add Panel to Project
+              {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
             </StyledButton>
         </Box>
               </div>

@@ -551,8 +551,14 @@ const ProjPanels: React.FC = () => {
                     Edit Panel
                   </button>
                 </div>
-                {/* Panel Preview and Info Summary side by side */}
-                <div style={{ display: 'flex', gap: 32, alignItems: 'center', width: '100%' }}>
+                {/* Panel Preview and Info Summary - stacked for horizontal panels */}
+                <div style={{ 
+                  display: 'flex', 
+                  gap: 32, 
+                  alignItems: 'center', 
+                  width: '100%',
+                  flexDirection: (item.type === 'X2H' || item.type === 'X1H') ? 'column' : 'row'
+                }}>
                   <PanelPreview
                     icons={item.icons.map(icon => ({
                       ...icon,
