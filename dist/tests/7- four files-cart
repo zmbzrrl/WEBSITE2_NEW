@@ -1,0 +1,1865 @@
+import { useContext } from "react";
+import { CartContext } from "../contexts/CartContext";
+import { useNavigate } from "react-router-dom";
+import CartButton from "../components/CartButton";
+
+function Cart() {
+  const { cartItems, updateQuantity, removeFromCart } = useContext(CartContext);
+  const navigate = useNavigate();
+
+  const renderGlassPanel = (item) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: "5px",
+        width: "350px",
+        margin: "20px auto",
+        background: "#f0f0f0",
+        padding: "10px",
+        border: "2px solid #ccc",
+      }}
+    >
+      {Array.from({ length: 9 }).map((_, index) => {
+        const icon = item.icons.find((i) => i.position === index);
+        return (
+          <div
+            key={index}
+            style={{
+              minHeight: "80px",
+              border: "0px solid #ddd",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+            }}
+          >
+            {icon?.label}
+            {icon?.text && (
+              <div style={{ fontSize: "14px", marginTop: "4px" }}>
+                {icon.text}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderMetalPanel = (item) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(6, 1fr)",
+        gap: "5px",
+        width: "90%",
+        maxWidth: "600px",
+        margin: "20px auto",
+        background: "#f0f0f0",
+        padding: "10px",
+        border: "2px solid #ccc",
+      }}
+    >
+      {Array.from({ length: 18 }).map((_, index) => {
+        const icon = item.icons.find((i) => i.position === index);
+        return (
+          <div
+            key={index}
+            style={{
+              minHeight: "80px",
+              border: "0px solid #ddd",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+            }}
+          >
+            {icon?.label}
+            {icon?.text && (
+              <div style={{ fontSize: "14px", marginTop: "4px" }}>
+                {icon.text}
+              </div>
+            )}
+          </div>
+        );
+        // After the 9th element (index 8), insert a spacer
+        if (index === 9) {
+          return [
+            <div
+              key="spacer"
+              style={{
+                gridColumn: "1 / -1", // full width
+                height: "100px",
+              }}
+            />,
+            cell,
+          ];
+        }
+
+        return cell;
+      })}
+    </div>
+  );
+  const renderMetal2Panel = (item) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: "5px",
+        width: "95%",
+        maxWidth: "350px",
+        margin: "20px auto",
+        background: "#f0f0f0",
+        padding: "10px",
+        border: "2px solid #ccc",
+        borderRadius: "8px",
+      }}
+    >
+      {Array.from({ length: 18 }).flatMap((_, index) => {
+        const icon = item.icons.find((i) => i.position === index);
+        const cell = (
+          <div
+            key={index}
+            style={{
+              minHeight: "80px",
+              border: "0px solid #ddd",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              backgroundColor: "#f0f0f0",
+              borderRadius: "4px",
+            }}
+          >
+            {icon?.label}
+            {icon?.text && (
+              <div style={{ fontSize: "14px", marginTop: "5px" }}>
+                {icon.text}
+              </div>
+            )}
+          </div>
+        );
+
+        // After the 9th element (index 8), insert a spacer
+        if (index === 9) {
+          return [
+            <div
+              key="spacer"
+              style={{
+                gridColumn: "1 / -1", // full width
+                height: "40px",
+              }}
+            />,
+            cell,
+          ];
+        }
+
+        return cell;
+      })}
+    </div>
+  );
+
+  const renderPlasticPanel = (item) => (
+    <div style={{ margin: "20px auto", maxWidth: "600px" }}>
+      {/* 3x3 small icon grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "5px",
+          marginBottom: "10px",
+          background: "#f0f0f0",
+          border: "2px solid #ccc",
+          padding: "10px",
+        }}
+      >
+        {Array.from({ length: 9 }).map((_, index) => {
+          const icon = item.icons.find((i) => i.position === index);
+          return (
+            <div
+              key={index}
+              style={{
+                minHeight: "60px",
+                border: "0px solid #ddd",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+              }}
+            >
+              {icon?.label}
+              {icon?.text && (
+                <div style={{ fontSize: "12px", marginTop: "4px" }}>
+                  {icon.text}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 1x2 big icon grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: "5px",
+          background: "#f0f0f0",
+          border: "2px solid #ccc",
+          padding: "10px",
+        }}
+      >
+        {Array.from({ length: 2 }).map((_, index) => {
+          const positionIndex = 9 + index;
+          const icon = item.icons.find((i) => i.position === positionIndex);
+          return (
+            <div
+              key={positionIndex}
+              style={{
+                minHeight: "80px",
+                border: "0px solid #ddd",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "20px",
+              }}
+            >
+              {icon?.label}
+              {icon?.text && (
+                <div style={{ fontSize: "14px", marginTop: "4px" }}>
+                  {icon.text}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderPanelGrid = (item) => {
+    switch (item.type) {
+      case "glass":
+        return renderGlassPanel(item);
+      case "metal":
+        return renderMetalPanel(item);
+      case "metal2":
+        return renderMetal2Panel(item);
+      case "plastic":
+        return renderPlasticPanel(item);
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ padding: "40px", textAlign: "center", position: "relative" }}>
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Your Cart</h2>
+
+      {cartItems.length === 0 ? (
+        <p>No items in cart.</p>
+      ) : (
+        cartItems.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              borderBottom: "1px solid #ccc",
+              margin: "20px auto",
+              maxWidth: "600px",
+              paddingBottom: "20px",
+            }}
+          >
+            <p>
+              <strong>{item.type}</strong>
+              {" - Quantity: "}
+              <button
+                onClick={() => updateQuantity(index, item.quantity - 1)}
+                disabled={item.quantity <= 1}
+              >
+                {" - "}
+              </button>
+              {item.quantity}
+              <button onClick={() => updateQuantity(index, item.quantity + 1)}>
+                {" + "}
+              </button>
+            </p>
+
+            {renderPanelGrid(item)}
+            <button onClick={() => removeFromCart(index)}>Remove</button>
+          </div>
+        ))
+      )}
+
+      <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+    </div>
+  );
+}
+
+export default Cart;
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import PanelTypeSelector from "./pages/PanelTypeSelector";
+
+import GlassCustomizer from "./pages/GlassCustomizer";
+import MetalCustomizer from "./pages/MetalCustomizer";
+import PlasticCustomizer from "./pages/PlasticCustomizer";
+import Metal2Customizer from "./pages/Metal2Customizer";
+
+import Cart from "./pages/Cart";
+import { CartProvider } from "./contexts/CartContext";
+
+function App() {
+  return (
+    <CartProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<PanelTypeSelector />} />
+          <Route path="/customizer/glass" element={<GlassCustomizer />} />
+          <Route path="/customizer/metal" element={<MetalCustomizer />} />
+          <Route path="/customizer/plastic" element={<PlasticCustomizer />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/customizer/metal2" element={<Metal2Customizer />} />
+        </Routes>
+      </Router>
+    </CartProvider>
+  );
+}
+
+export default App;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useContext, useState } from "react";
+import { CartContext } from "../contexts/CartContext";
+import "./Customizer.css";
+import CartButton from "../components/CartButton";
+import { useNavigate } from "react-router-dom";
+
+const iconOptions = [
+  { id: "ac", label: "❄️ AC" },
+  { id: "fan", label: "🌀 Fan" },
+  { id: "light", label: "💡 Light" },
+  { id: "tv", label: "📺 TV" },
+];
+
+const GridCell = ({ index, onClick, children }) => (
+  <div
+    onClick={() => onClick(index)}
+    style={{
+      width: "30%",
+      height: "100px",
+      display: "inline-block",
+      textAlign: "center",
+      background: "transparent",
+      margin: "5px",
+      position: "relative",
+      boxSizing: "border-box",
+      verticalAlign: "top",
+    }}
+  >
+    {children}
+  </div>
+);
+
+function PlasticCustomizer() {
+  const { addToCart } = useContext(CartContext);
+  const [selectedIcon, setSelectedIcon] = useState(null);
+  const [placedIcons, setPlacedIcons] = useState([]);
+  const [iconTexts, setIconTexts] = useState({});
+  const navigate = useNavigate();
+
+  const handlePlaceIcon = (cellIndex) => {
+    const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
+    if (isOccupied || selectedIcon === null) return;
+
+    const iconPosition = {
+      id: Date.now(),
+      iconId: selectedIcon.id,
+      label: selectedIcon.label,
+      position: cellIndex,
+    };
+
+    setPlacedIcons((prev) => [...prev, iconPosition]);
+    setSelectedIcon(null);
+  };
+
+  const handleIconClick = (icon) => {
+    setSelectedIcon(icon);
+  };
+
+  const handleTextChange = (e, cellIndex) => {
+    const newText = e.target.value;
+    setIconTexts((prev) => ({
+      ...prev,
+      [cellIndex]: newText,
+    }));
+  };
+
+  const handleDeleteIcon = (id) => {
+    setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
+  };
+
+  const handleAddToCart = () => {
+    const design = {
+      type: "plastic",
+      icons: Array.from({ length: 11 })
+        .map((_, index) => {
+          const icon = placedIcons.find((i) => i.position === index);
+          return {
+            iconId: icon?.iconId || null,
+            label: icon?.label || "",
+            position: index,
+            text: iconTexts[index] || "",
+          };
+        })
+        .filter((entry) => entry.iconId || entry.text),
+      quantity: 1,
+    };
+    addToCart(design);
+  };
+
+  return (
+    <div className="customizer-container">
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Customize your Plastic Panel</h2>
+
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        {iconOptions.map((icon) => (
+          <div
+            key={icon.id}
+            onClick={() => handleIconClick(icon)}
+            style={{
+              padding: "10px",
+              background: "#e0e0e0",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            {icon.label}
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          width: "500px",
+          background: "#f0f0f0",
+          padding: "10px",
+          border: "2px solid #ccc",
+        }}
+      >
+        <h4>Small Icons Grid (3x3)</h4>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {Array.from({ length: 9 }).map((_, index) => (
+            <GridCell key={index} index={index} onClick={handlePlaceIcon}>
+              {(() => {
+                const icon = placedIcons.find((i) => i.position === index);
+                const text = iconTexts[index];
+                return (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      position: "relative",
+                      height: "100%",
+                    }}
+                  >
+                    {icon && (
+                      <div style={{ fontSize: "24px" }}>{icon.label}</div>
+                    )}
+                    {text && (
+                      <div style={{ fontSize: "12px", marginTop: "5px" }}>
+                        {text}
+                      </div>
+                    )}
+                    {icon && (
+                      <button
+                        onClick={() => handleDeleteIcon(icon.id)}
+                        style={{
+                          position: "absolute",
+                          top: "-5px",
+                          right: "-5px",
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          backgroundColor: "red",
+                          color: "white",
+                          fontSize: "14px",
+                          border: "none",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 0,
+                        }}
+                      >
+                        −
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+              <input
+                type="text"
+                value={iconTexts[index] || ""}
+                onChange={(e) => handleTextChange(e, index)}
+                placeholder="Add text"
+                style={{
+                  position: "absolute",
+                  bottom: "5px",
+                  left: "5px",
+                  width: "90%",
+                  fontSize: "12px",
+                  textAlign: "center",
+                }}
+              />
+            </GridCell>
+          ))}
+        </div>
+
+        <h4 style={{ marginTop: "30px" }}>Large Icons Grid (1x2)</h4>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          {Array.from({ length: 2 }).map((_, i) => {
+            const index = 9 + i;
+            const icon = placedIcons.find((i) => i.position === index);
+            const text = iconTexts[index];
+
+            return (
+              <div
+                key={index}
+                onClick={() => handlePlaceIcon(index)}
+                style={{
+                  width: "45%",
+                  height: "120px",
+                  backgroundColor: "#ffffff",
+                  margin: "5px",
+                  position: "relative",
+                  border: "1px solid #999",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "100%",
+                    position: "relative",
+                  }}
+                >
+                  {icon && <div style={{ fontSize: "28px" }}>{icon.label}</div>}
+                  {text && (
+                    <div style={{ fontSize: "12px", marginTop: "5px" }}>
+                      {text}
+                    </div>
+                  )}
+                  {icon && (
+                    <button
+                      onClick={() => handleDeleteIcon(icon.id)}
+                      style={{
+                        position: "absolute",
+                        top: "-5px",
+                        right: "-5px",
+                        width: "20px",
+                        height: "20px",
+                        borderRadius: "50%",
+                        backgroundColor: "red",
+                        color: "white",
+                        fontSize: "14px",
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                      }}
+                    >
+                      −
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  type="text"
+                  value={iconTexts[index] || ""}
+                  onChange={(e) => handleTextChange(e, index)}
+                  placeholder="Add text"
+                  style={{
+                    position: "absolute",
+                    bottom: "5px",
+                    left: "5px",
+                    width: "90%",
+                    fontSize: "12px",
+                    textAlign: "center",
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+        <button
+          onClick={handleAddToCart}
+          style={{ marginLeft: 10, cursor: "pointer" }}
+        >
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default PlasticCustomizer;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { Link } from "react-router-dom";
+import glassImage from "../assets/panels/glass.jpg";
+import plasticImage from "../assets/panels/plastic.jpg";
+import metalImage from "../assets/panels/metal.jpg";
+import placeholderImage from "../assets/panels/metal.jpg"; // Add a placeholder image to your assets
+import CartButton from "../components/CartButton";
+
+function PanelTypeSelector() {
+  return (
+    <div style={{ textAlign: "center", padding: "40px", position: "relative" }}>
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Select a Panel Type</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: "40px",
+          flexWrap: "wrap",
+        }}
+      >
+        <Link to="/customizer/glass">
+          <img
+            src={glassImage}
+            alt="Glass Panel"
+            style={{ width: "200px", cursor: "pointer" }}
+          />
+          <p>Glass Panel</p>
+        </Link>
+
+        <Link to="/customizer/plastic">
+          <img
+            src={plasticImage}
+            alt="Plastic Panel"
+            style={{ width: "200px", cursor: "pointer" }}
+          />
+          <p>Plastic Panel</p>
+        </Link>
+
+        <Link to="/customizer/metal">
+          <img
+            src={metalImage}
+            alt="Metal Panel"
+            style={{ width: "200px", cursor: "pointer" }}
+          />
+          <p>Metal Panel</p>
+        </Link>
+
+        <Link to="/customizer/metal2">
+          <img
+            src={placeholderImage}
+            alt="Vertical Metal Panel"
+            style={{ width: "200px", cursor: "pointer" }}
+          />
+          <p>Vertical Metal Panel</p>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default PanelTypeSelector;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useContext, useState } from "react";
+import { CartContext } from "../contexts/CartContext";
+import "./Customizer.css";
+import CartButton from "../components/CartButton";
+import { useNavigate } from "react-router-dom";
+
+const iconOptions = [
+  { id: "ac", label: "❄️ AC" },
+  { id: "fan", label: "🌀 Fan" },
+  { id: "light", label: "💡 Light" },
+  { id: "tv", label: "📺 TV" },
+];
+
+const GridCell = ({ index, onClick, children }) => (
+  <div
+    onClick={() => onClick(index)}
+    style={{
+      width: "14%",
+      height: "110px",
+      display: "inline-block",
+      textAlign: "center",
+      background: "transparent",
+      margin: "7px",
+      position: "relative",
+      boxSizing: "content-box",
+      verticalAlign: "10%",
+    }}
+  >
+    {children}
+  </div>
+);
+
+function MetalCustomizer() {
+  const { addToCart } = useContext(CartContext);
+  const [selectedIcon, setSelectedIcon] = useState(null);
+  const [placedIcons, setPlacedIcons] = useState([]);
+  const [iconTexts, setIconTexts] = useState({});
+  const navigate = useNavigate();
+
+  const rows = 3;
+  const columns = 6;
+
+  const handlePlaceIcon = (cellIndex) => {
+    const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
+    if (isOccupied || selectedIcon === null) return;
+
+    const iconPosition = {
+      id: Date.now(),
+      iconId: selectedIcon.id,
+      label: selectedIcon.label,
+      position: cellIndex,
+    };
+
+    setPlacedIcons((prev) => [...prev, iconPosition]);
+    setSelectedIcon(null);
+  };
+
+  const handleIconClick = (icon) => {
+    setSelectedIcon(icon);
+  };
+
+  const handleTextChange = (e, cellIndex) => {
+    const newText = e.target.value;
+    setIconTexts((prev) => ({
+      ...prev,
+      [cellIndex]: newText,
+    }));
+  };
+
+  const handleDeleteIcon = (id) => {
+    setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
+  };
+
+  const handleAddToCart = () => {
+    const design = {
+      type: "metal",
+      icons: Array.from({ length: rows * columns })
+        .map((_, index) => {
+          const icon = placedIcons.find((i) => i.position === index);
+          return {
+            iconId: icon?.iconId || null,
+            label: icon?.label || "",
+            position: index,
+            text: iconTexts[index] || "",
+          };
+        })
+        .filter((entry) => entry.iconId || entry.text),
+      quantity: 1,
+    };
+    addToCart(design);
+  };
+
+  return (
+    <div className="customizer-container">
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Customize your Metal Panel</h2>
+
+      <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+        {iconOptions.map((icon) => (
+          <div
+            key={icon.id}
+            onClick={() => handleIconClick(icon)}
+            style={{
+              padding: "10px",
+              background: "#e0e0e0",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            {icon.label}
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          width: "660px",
+          background: "#f0f0f0",
+          position: "relative",
+          border: "2px solid #ccc",
+          margin: "0 auto",
+        }}
+      >
+        {Array.from({ length: rows }).map((_, rowIdx) => (
+          <div
+            key={`row-${rowIdx}`}
+            style={{ display: "flex", justifyContent: "center" }}
+          >
+            {Array.from({ length: columns }).map((_, colIdx) => {
+              const index = rowIdx * columns + colIdx;
+              const icon = placedIcons.find((i) => i.position === index);
+              const text = iconTexts[index];
+
+              return (
+                <React.Fragment key={index}>
+                  {colIdx === 3 && <div style={{ width: "20px" }} />}
+                  <GridCell index={index} onClick={handlePlaceIcon}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        position: "relative",
+                        height: "80%",
+                      }}
+                    >
+                      {icon && (
+                        <div style={{ fontSize: "24px" }}>{icon.label}</div>
+                      )}
+                      {text && (
+                        <div style={{ fontSize: "20px", marginTop: "5px" }}>
+                          {text}
+                        </div>
+                      )}
+                      {icon && (
+                        <button
+                          onClick={() => handleDeleteIcon(icon.id)}
+                          style={{
+                            position: "absolute",
+                            top: "-5px",
+                            right: "-5px",
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "50%",
+                            backgroundColor: "red",
+                            color: "white",
+                            fontSize: "14px",
+                            border: "none",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 0,
+                          }}
+                        >
+                          −
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={iconTexts[index] || ""}
+                      onChange={(e) => handleTextChange(e, index)}
+                      placeholder="Add text"
+                      style={{
+                        position: "absolute",
+                        bottom: "5px",
+                        left: "3px",
+                        width: "90%",
+                        fontSize: "12px",
+                        textAlign: "center",
+                      }}
+                    />
+                  </GridCell>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+        <button
+          onClick={handleAddToCart}
+          style={{ marginLeft: 10, cursor: "pointer" }}
+        >
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default MetalCustomizer;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useContext, useState } from "react";
+import { CartContext } from "../contexts/CartContext";
+import "./Customizer.css";
+import CartButton from "../components/CartButton";
+import { useNavigate } from "react-router-dom";
+
+const iconOptions = [
+  { id: "ac", label: "❄️ AC" },
+  { id: "fan", label: "🌀 Fan" },
+  { id: "light", label: "💡 Light" },
+  { id: "tv", label: "📺 TV" },
+];
+
+const GridCell = ({ index, onClick, children }) => (
+  <div
+    onClick={() => onClick(index)}
+    style={{
+      width: "140%",
+      height: "100px",
+      display: "inline-block",
+      textAlign: "center",
+      background: "transparent",
+      margin: "10px",
+      position: "relative",
+      boxSizing: "content-box",
+      verticalAlign: "10%",
+    }}
+  >
+    {children}
+  </div>
+);
+
+function Metal2Customizer() {
+  const { addToCart } = useContext(CartContext);
+  const [selectedIcon, setSelectedIcon] = useState(null);
+  const [placedIcons, setPlacedIcons] = useState([]);
+  const [iconTexts, setIconTexts] = useState({});
+  const navigate = useNavigate();
+
+  const rows = 6;
+  const columns = 3;
+
+  const handlePlaceIcon = (cellIndex) => {
+    const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
+    if (isOccupied || selectedIcon === null) return;
+
+    const iconPosition = {
+      id: Date.now(),
+      iconId: selectedIcon.id,
+      label: selectedIcon.label,
+      position: cellIndex,
+    };
+
+    setPlacedIcons((prev) => [...prev, iconPosition]);
+    setSelectedIcon(null);
+  };
+
+  const handleIconClick = (icon) => {
+    setSelectedIcon(icon);
+  };
+
+  const handleTextChange = (e, cellIndex) => {
+    const newText = e.target.value;
+    setIconTexts((prev) => ({
+      ...prev,
+      [cellIndex]: newText,
+    }));
+  };
+
+  const handleDeleteIcon = (id) => {
+    setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
+  };
+
+  const handleAddToCart = () => {
+    const design = {
+      type: "metal2",
+      rows,
+      columns,
+      icons: Array.from({ length: columns * rows })
+        .map((_, index) => {
+          const icon = placedIcons.find((i) => i.position === index);
+          return {
+            iconId: icon?.iconId || null,
+            label: icon?.label || "",
+            position: index,
+            text: iconTexts[index] || "",
+          };
+        })
+        .filter((entry) => entry.iconId || entry.text),
+      quantity: 1,
+    };
+    addToCart(design);
+  };
+
+  return (
+    <div className="customizer-container">
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Customize your Metal Panel</h2>
+
+      <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+        {iconOptions.map((icon) => (
+          <div
+            key={icon.id}
+            onClick={() => handleIconClick(icon)}
+            style={{
+              padding: "10px",
+              background: "#e0e0e0",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            {icon.label}
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          width: "500px",
+          background: "#f0f0f0",
+          position: "relative",
+          border: "2px solid #ccc",
+          margin: "10 auto",
+        }}
+      >
+        {Array.from({ length: rows }).map((_, rowIdx) => (
+          <div
+            key={`row-${rowIdx}`}
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: rowIdx === 2 ? "40px" : "0", // <-- add extra space after row 3
+            }}
+          >
+            {Array.from({ length: columns }).map((_, colIdx) => {
+              const index = rowIdx * columns + colIdx;
+              const icon = placedIcons.find((i) => i.position === index);
+              const text = iconTexts[index];
+
+              return (
+                <React.Fragment key={index}>
+                  {colIdx === 3 && <div style={{ width: "20px" }} />}
+                  <GridCell index={index} onClick={handlePlaceIcon}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        position: "relative",
+                        height: "80%",
+                      }}
+                    >
+                      {icon && (
+                        <div style={{ fontSize: "24px" }}>{icon.label}</div>
+                      )}
+                      {text && (
+                        <div style={{ fontSize: "20px", marginTop: "5px" }}>
+                          {text}
+                        </div>
+                      )}
+                      {icon && (
+                        <button
+                          onClick={() => handleDeleteIcon(icon.id)}
+                          style={{
+                            position: "absolute",
+                            top: "-5px",
+                            right: "-5px",
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "50%",
+                            backgroundColor: "red",
+                            color: "white",
+                            fontSize: "14px",
+                            border: "none",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 0,
+                          }}
+                        >
+                          −
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={iconTexts[index] || ""}
+                      onChange={(e) => handleTextChange(e, index)}
+                      placeholder="Add text"
+                      style={{
+                        position: "absolute",
+                        bottom: "5px",
+                        left: "3px",
+                        width: "90%",
+                        fontSize: "12px",
+                        textAlign: "center",
+                      }}
+                    />
+                  </GridCell>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+        <button
+          onClick={handleAddToCart}
+          style={{ marginLeft: 10, cursor: "pointer" }}
+        >
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default Metal2Customizer;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Import necessary libraries and components
+import React, { useContext, useState } from "react";
+import { CartContext } from "../contexts/CartContext"; // Cart state management
+import { useNavigate } from "react-router-dom"; // For page navigation
+import CartButton from "../components/CartButton"; // The cart icon button
+
+// Define the icon options that can be placed on the panel
+const iconOptions = [
+  { id: "ac", label: "❄️ AC" },
+  { id: "fan", label: "🌀 Fan" },
+  { id: "light", label: "💡 Light" },
+  { id: "tv", label: "📺 TV" },
+];
+
+// Component for each grid cell
+const GridCell = ({ index, onClick, children }) => (
+  <div
+    onClick={() => onClick(index)} // Calls parent function when clicked
+    style={{
+      width: "30%", // Each cell is roughly 1/3 of the width
+      height: "100px",
+      display: "inline-block",
+      textAlign: "center",
+      background: "transparent",
+      margin: "5px",
+      position: "relative",
+      boxSizing: "border-box",
+      verticalAlign: "top",
+    }}
+  >
+    {children}
+  </div>
+);
+
+function GlassCustomizer() {
+  // Access the cart context and navigation
+  const { addToCart } = useContext(CartContext);
+  const navigate = useNavigate();
+
+  // State to track selected icon
+  const [selectedIcon, setSelectedIcon] = useState(null);
+
+  // State to track icons placed in the grid
+  const [placedIcons, setPlacedIcons] = useState([]);
+
+  // State for custom text under icons (per cell)
+  const [iconTexts, setIconTexts] = useState({});
+
+  // Handle placing an icon into a grid cell
+  const handlePlaceIcon = (cellIndex) => {
+    const isOccupied = placedIcons.some((icon) => icon.position === cellIndex); // Prevent overwrite
+    if (isOccupied || selectedIcon === null) return;
+
+    const iconPosition = {
+      id: Date.now(), // Unique ID
+      iconId: selectedIcon.id,
+      label: selectedIcon.label,
+      position: cellIndex,
+    };
+
+    setPlacedIcons((prev) => [...prev, iconPosition]);
+    setSelectedIcon(null); // Reset selection
+  };
+
+  // Handle selecting an icon from the options
+  const handleIconClick = (icon) => {
+    setSelectedIcon(icon);
+  };
+
+  // Handle text change input under an icon
+  const handleTextChange = (e, cellIndex) => {
+    const newText = e.target.value;
+    setIconTexts((prev) => ({
+      ...prev,
+      [cellIndex]: newText,
+    }));
+  };
+
+  // Remove an icon from a grid cell
+  const handleDeleteIcon = (id) => {
+    setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
+  };
+
+  // When user clicks "Add to Cart"
+  const handleAddToCart = () => {
+    const design = {
+      type: "glass", // Hardcoded because this is the glass customizer
+      icons: Array.from({ length: 9 }) // Generate array of 9 cells
+        .map((_, index) => {
+          const icon = placedIcons.find((i) => i.position === index);
+          return {
+            iconId: icon?.iconId || null,
+            label: icon?.label || "",
+            position: index,
+            text: iconTexts[index] || "",
+          };
+        })
+        .filter((entry) => entry.iconId || entry.text), // Only keep filled cells
+
+      quantity: 1, // Default quantity
+    };
+
+    addToCart(design); // Save to cart context
+  };
+
+  return (
+    <div style={{ padding: "40px", textAlign: "center" }}>
+      {/* Cart Button in the top right */}
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      {/* Page heading */}
+      <h2>Customize your Glass Panel</h2>
+
+      {/* Icon selection buttons */}
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          marginBottom: "20px",
+          justifyContent: "center",
+        }}
+      >
+        {iconOptions.map((icon) => (
+          <div
+            key={icon.id}
+            onClick={() => handleIconClick(icon)}
+            style={{
+              padding: "10px",
+              background: "#e0e0e0",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            {icon.label}
+          </div>
+        ))}
+      </div>
+
+      {/* Grid container */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          width: "350px",
+          height: "350px",
+          background: "#f0f0f0",
+          position: "relative",
+          border: "2px solid #ccc",
+          margin: "auto",
+        }}
+      >
+        {/* Render 9 grid cells for glass */}
+        {Array.from({ length: 9 }).map((_, index) => (
+          <GridCell key={index} index={index} onClick={handlePlaceIcon}>
+            {(() => {
+              const icon = placedIcons.find((i) => i.position === index);
+              const text = iconTexts[index];
+
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
+                    height: "100%",
+                  }}
+                >
+                  {/* Show icon */}
+                  {icon && <div style={{ fontSize: "24px" }}>{icon.label}</div>}
+                  {/* Show text */}
+                  {text && (
+                    <div style={{ fontSize: "12px", marginTop: "5px" }}>
+                      {text}
+                    </div>
+                  )}
+                  {/* Delete icon button */}
+                  {icon && (
+                    <button
+                      onClick={() => handleDeleteIcon(icon.id)}
+                      style={{
+                        position: "absolute",
+                        top: "-5px",
+                        right: "-5px",
+                        width: "20px",
+                        height: "20px",
+                        borderRadius: "50%",
+                        backgroundColor: "red",
+                        color: "white",
+                        fontSize: "14px",
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                      }}
+                    >
+                      −
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Text input under the icon */}
+            <input
+              type="text"
+              value={iconTexts[index] || ""}
+              onChange={(e) => handleTextChange(e, index)}
+              placeholder="Add text"
+              style={{
+                position: "absolute",
+                bottom: "5px",
+                left: "5px",
+                width: "90%",
+                fontSize: "12px",
+                textAlign: "center",
+              }}
+            />
+          </GridCell>
+        ))}
+      </div>
+
+      {/* Navigation buttons */}
+      <div style={{ marginTop: 20 }}>
+        <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+        <button
+          onClick={handleAddToCart}
+          style={{ marginLeft: 10, cursor: "pointer" }}
+        >
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default GlassCustomizer;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { useContext } from "react";
+import { CartContext } from "../contexts/CartContext";
+import { useNavigate } from "react-router-dom";
+import CartButton from "../components/CartButton";
+
+function Cart() {
+  const { cartItems, updateQuantity, removeFromCart } = useContext(CartContext);
+  const navigate = useNavigate();
+
+  const renderGlassPanel = (item) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: "5px",
+        width: "350px",
+        margin: "20px auto",
+        background: "#f0f0f0",
+        padding: "10px",
+        border: "2px solid #ccc",
+      }}
+    >
+      {Array.from({ length: 9 }).map((_, index) => {
+        const icon = item.icons.find((i) => i.position === index);
+        return (
+          <div
+            key={index}
+            style={{
+              minHeight: "80px",
+              border: "0px solid #ddd",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+            }}
+          >
+            {icon?.label}
+            {icon?.text && (
+              <div style={{ fontSize: "14px", marginTop: "4px" }}>
+                {icon.text}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderMetalPanel = (item) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(6, 1fr)",
+        gap: "5px",
+        width: "90%",
+        maxWidth: "600px",
+        margin: "20px auto",
+        background: "#f0f0f0",
+        padding: "10px",
+        border: "2px solid #ccc",
+      }}
+    >
+      {Array.from({ length: 18 }).map((_, index) => {
+        const icon = item.icons.find((i) => i.position === index);
+        return (
+          <div
+            key={index}
+            style={{
+              minHeight: "80px",
+              border: "0px solid #ddd",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+            }}
+          >
+            {icon?.label}
+            {icon?.text && (
+              <div style={{ fontSize: "14px", marginTop: "4px" }}>
+                {icon.text}
+              </div>
+            )}
+          </div>
+        );
+        // After the 9th element (index 8), insert a spacer
+        if (index === 9) {
+          return [
+            <div
+              key="spacer"
+              style={{
+                gridColumn: "1 / -1", // full width
+                height: "100px",
+              }}
+            />,
+            cell,
+          ];
+        }
+
+        return cell;
+      })}
+    </div>
+  );
+  const renderMetal2Panel = (item) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: "5px",
+        width: "95%",
+        maxWidth: "350px",
+        margin: "20px auto",
+        background: "#f0f0f0",
+        padding: "10px",
+        border: "2px solid #ccc",
+        borderRadius: "8px",
+      }}
+    >
+      {Array.from({ length: 18 }).flatMap((_, index) => {
+        const icon = item.icons.find((i) => i.position === index);
+        const cell = (
+          <div
+            key={index}
+            style={{
+              minHeight: "80px",
+              border: "0px solid #ddd",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              backgroundColor: "#f0f0f0",
+              borderRadius: "4px",
+            }}
+          >
+            {icon?.label}
+            {icon?.text && (
+              <div style={{ fontSize: "14px", marginTop: "5px" }}>
+                {icon.text}
+              </div>
+            )}
+          </div>
+        );
+
+        // After the 9th element (index 8), insert a spacer
+        if (index === 9) {
+          return [
+            <div
+              key="spacer"
+              style={{
+                gridColumn: "1 / -1", // full width
+                height: "40px",
+              }}
+            />,
+            cell,
+          ];
+        }
+
+        return cell;
+      })}
+    </div>
+  );
+
+  const renderPlasticPanel = (item) => (
+    <div style={{ margin: "20px auto", maxWidth: "600px" }}>
+      {/* 3x3 small icon grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "5px",
+          marginBottom: "10px",
+          background: "#f0f0f0",
+          border: "2px solid #ccc",
+          padding: "10px",
+        }}
+      >
+        {Array.from({ length: 9 }).map((_, index) => {
+          const icon = item.icons.find((i) => i.position === index);
+          return (
+            <div
+              key={index}
+              style={{
+                minHeight: "60px",
+                border: "0px solid #ddd",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+              }}
+            >
+              {icon?.label}
+              {icon?.text && (
+                <div style={{ fontSize: "12px", marginTop: "4px" }}>
+                  {icon.text}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 1x2 big icon grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: "5px",
+          background: "#f0f0f0",
+          border: "2px solid #ccc",
+          padding: "10px",
+        }}
+      >
+        {Array.from({ length: 2 }).map((_, index) => {
+          const positionIndex = 9 + index;
+          const icon = item.icons.find((i) => i.position === positionIndex);
+          return (
+            <div
+              key={positionIndex}
+              style={{
+                minHeight: "80px",
+                border: "0px solid #ddd",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "20px",
+              }}
+            >
+              {icon?.label}
+              {icon?.text && (
+                <div style={{ fontSize: "14px", marginTop: "4px" }}>
+                  {icon.text}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderPanelGrid = (item) => {
+    switch (item.type) {
+      case "glass":
+        return renderGlassPanel(item);
+      case "metal":
+        return renderMetalPanel(item);
+      case "metal2":
+        return renderMetal2Panel(item);
+      case "plastic":
+        return renderPlasticPanel(item);
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ padding: "40px", textAlign: "center", position: "relative" }}>
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Your Cart</h2>
+
+      {cartItems.length === 0 ? (
+        <p>No items in cart.</p>
+      ) : (
+        cartItems.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              borderBottom: "1px solid #ccc",
+              margin: "20px auto",
+              maxWidth: "600px",
+              paddingBottom: "20px",
+            }}
+          >
+            <p>
+              <strong>{item.type}</strong>
+              {" - Quantity: "}
+              <button
+                onClick={() => updateQuantity(index, item.quantity - 1)}
+                disabled={item.quantity <= 1}
+              >
+                {" - "}
+              </button>
+              {item.quantity}
+              <button onClick={() => updateQuantity(index, item.quantity + 1)}>
+                {" + "}
+              </button>
+            </p>
+
+            {renderPanelGrid(item)}
+            <button onClick={() => removeFromCart(index)}>Remove</button>
+          </div>
+        ))
+      )}
+
+      <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+    </div>
+  );
+}
+
+export default Cart;
+
+
+

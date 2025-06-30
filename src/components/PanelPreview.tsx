@@ -28,6 +28,7 @@ interface PanelPreviewIcon {
   position: number;
   text: string;
   category?: string;
+  id?: string;
 }
 
 interface PanelPreviewProps {
@@ -245,7 +246,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
       const icon = icons.find((i) => i.position === displayIndex);
       const text = (iconTexts && iconTexts[displayIndex]) || icon?.text;
       const isPIR = icon?.category === "PIR";
-      const isDisplay = icon?.iconId === "DISPLAY";
+      const isDisplay = icon?.id === "DISPLAY";
 
       // Special margin for cells 9 and 11
       let cellMargin;

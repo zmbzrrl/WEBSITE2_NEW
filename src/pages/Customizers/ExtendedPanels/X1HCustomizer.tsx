@@ -618,7 +618,7 @@ const X1HCustomizer: React.FC = () => {
       type: "X1H",
       icons: sortedIcons,
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, isLayoutReversed },
+      panelDesign: { ...panelDesign, backbox, extraComments },
     };
     addToCart(design);
   };

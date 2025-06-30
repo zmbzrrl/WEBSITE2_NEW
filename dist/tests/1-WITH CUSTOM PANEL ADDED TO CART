@@ -1,0 +1,618 @@
+import React, { useContext, useState } from "react";
+import { CartContext } from "../contexts/CartContext";
+import "./Customizer.css";
+import panelData from "../data/panelData";
+import CartButton from "../components/CartButton";
+import { useNavigate } from "react-router-dom";
+
+const iconOptions = [
+  { id: "ac", label: "❄️ AC" },
+  { id: "fan", label: "🌀 Fan" },
+  { id: "light", label: "💡 Light" },
+  { id: "tv", label: "📺 TV" },
+];
+
+const GridCell = ({ index, onClick, children }) => {
+  return (
+    <div
+      onClick={() => onClick(index)}
+      style={{
+        width: "30%",
+        height: "100px",
+        display: "inline-block",
+        textAlign: "center",
+        background: "transparent",
+        margin: "5px",
+        position: "relative",
+        boxSizing: "border-box",
+        verticalAlign: "top",
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+function Customizer() {
+  const { selectedPanelType, addToCart } = useContext(CartContext);
+  const [selectedIcon, setSelectedIcon] = useState(null);
+  const [placedIcons, setPlacedIcons] = useState([]);
+  const [iconTexts, setIconTexts] = useState({});
+  const navigate = useNavigate();
+
+  const panel = panelData.find((p) => p.type === selectedPanelType);
+
+  const handlePlaceIcon = (cellIndex) => {
+    const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
+    if (isOccupied || selectedIcon === null) return;
+
+    const iconPosition = {
+      id: Date.now(),
+      iconId: selectedIcon.id,
+      label: selectedIcon.label,
+      position: cellIndex,
+    };
+
+    setPlacedIcons((prev) => [...prev, iconPosition]);
+    setSelectedIcon(null);
+  };
+
+  const handleIconClick = (icon) => {
+    setSelectedIcon(icon);
+  };
+
+  const handleTextChange = (e, cellIndex) => {
+    const newText = e.target.value;
+    setIconTexts((prev) => ({
+      ...prev,
+      [cellIndex]: newText,
+    }));
+  };
+
+  const handleDeleteIcon = (id) => {
+    setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
+  };
+
+  const handleAddToCart = () => {
+    const design = {
+      panelType: selectedPanelType,
+      icons: placedIcons.map((icon) => ({
+        iconId: icon.iconId,
+        label: icon.label,
+        position: icon.position,
+        text: iconTexts[icon.position] || "",
+      })),
+      quantity: 1,
+    };
+    addToCart(design);
+  };
+
+  return (
+    <div className="customizer-container">
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Customize your {selectedPanelType} panel</h2>
+
+      {/* Icon Selection */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        {iconOptions.map((icon) => (
+          <div
+            key={icon.id}
+            onClick={() => handleIconClick(icon)}
+            style={{
+              padding: "10px",
+              background: "#e0e0e0",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            {icon.label}
+          </div>
+        ))}
+      </div>
+
+      {/* 3x3 Grid Layout */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          width: "350px",
+          height: "350px",
+          background: "#f0f0f0",
+          position: "relative",
+          border: "2px solid #ccc",
+        }}
+      >
+        {Array.from({ length: 9 }).map((_, index) => (
+          <GridCell key={index} index={index} onClick={handlePlaceIcon}>
+            {placedIcons
+              .filter((icon) => icon.position === index)
+              .map((icon) => (
+                <div
+                  key={icon.id}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
+                    height: "100%",
+                  }}
+                >
+                  <div style={{ fontSize: "24px" }}>{icon.label}</div>
+                  {iconTexts[icon.position] && (
+                    <div style={{ fontSize: "12px", marginTop: "5px" }}>
+                      {iconTexts[icon.position]}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => handleDeleteIcon(icon.id)}
+                    style={{
+                      position: "absolute",
+                      top: "-5px",
+                      right: "-5px",
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "50%",
+                      backgroundColor: "red",
+                      color: "white",
+                      fontSize: "14px",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                    }}
+                  >
+                    −
+                  </button>
+                </div>
+              ))}
+
+            <input
+              type="text"
+              value={iconTexts[index] || ""}
+              onChange={(e) => handleTextChange(e, index)}
+              placeholder="Add text"
+              style={{
+                position: "absolute",
+                bottom: "5px",
+                left: "5px",
+                width: "90%",
+                fontSize: "12px",
+                textAlign: "center",
+              }}
+            />
+          </GridCell>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div style={{ marginTop: 20 }}>
+        <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+        <button
+          onClick={handleAddToCart}
+          style={{ marginLeft: 10, cursor: "pointer" }}
+        >
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default Customizer;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Customizer.css */
+
+/* Panel container */
+.customizer-container {
+  text-align: center;
+  padding: 30px;
+  position: relative;
+}
+
+/* Grid for the panel template */
+.panel-template {
+  position: relative;
+  display: inline-block;
+  width: 300px; /* Set the panel width to control the size */
+  height: 300px; /* Set the panel height */
+  margin-bottom: 20px;
+}
+
+/* Image of the panel background */
+.panel-background {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Grid for icons */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 columns */
+  grid-gap: 10px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Prevent grid from interfering with dragging */
+}
+
+/* Icon cell style */
+.grid-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  height: 100%;
+}
+
+/* Wrapper for icon and label */
+.icon-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: all;
+  position: relative;
+}
+
+/* Icon image */
+.icon-image {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 5px;
+}
+
+/* Label input */
+.label-input {
+  width: 60px;
+  text-align: center;
+  font-size: 12px;
+  padding: 5px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  font-family: Arial, sans-serif;
+}
+
+/* Delete button on top of the icon */
+.delete-icon {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: red;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.delete-icon:hover {
+  background-color: darkred;
+}
+
+/* Icon selection options */
+.icon-options {
+  margin-top: 20px;
+}
+
+.icon-list {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.icon-option {
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+.icon-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 14px;
+  position: relative;
+  line-height: 1.2;
+}
+
+.icon-label {
+  font-size: 24px;
+}
+
+.icon-text {
+  font-size: 12px;
+  margin-top: 4px;
+  max-width: 80px;
+  text-align: center;
+  word-wrap: break-word;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { useContext } from "react";
+import { CartContext } from "../contexts/CartContext";
+import { useNavigate } from "react-router-dom";
+import CartButton from "../components/CartButton";
+
+function Cart() {
+  const { cartItems, updateQuantity, removeFromCart } = useContext(CartContext);
+  const navigate = useNavigate();
+
+  //////////////////
+  const renderPanelGrid = (item) => {
+    return (
+      <div
+        style={{
+          width: "350px",
+          height: "350px",
+          background: "#f0f0f0", // same as Customizer panel background
+          position: "relative",
+          margin: "20px auto",
+          border: "2px solid #ccc", // optional: same border used in Customizer
+          display: "flex",
+          flexWrap: "wrap",
+        }}
+      >
+        {Array.from({ length: 9 }).map((_, index) => {
+          const icon = item.icons?.find((i) => i.position === index);
+          return (
+            <div
+              key={index}
+              style={{
+                width: "30%",
+                height: "100px",
+                boxSizing: "border-box",
+                position: "relative",
+                textAlign: "center",
+              }}
+            >
+              {icon && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "100%",
+                  }}
+                >
+                  <div style={{ fontSize: "24px" }}>{icon.label}</div>
+                  {icon.text && (
+                    <div style={{ fontSize: "12px", marginTop: "5px" }}>
+                      {icon.text}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  ////////////////////
+  return (
+    <div style={{ padding: "40px", textAlign: "center", position: "relative" }}>
+      <div style={{ position: "absolute", top: 20, right: 30 }}>
+        <CartButton />
+      </div>
+
+      <h2>Your Cart</h2>
+
+      {cartItems.length === 0 ? (
+        <p>No items in cart.</p>
+      ) : (
+        cartItems.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              borderBottom: "1px solid #ccc",
+              margin: "20px auto",
+              maxWidth: "500px",
+              paddingBottom: "20px",
+            }}
+          >
+            <p>
+              <strong>{item.type}</strong>
+              Quantity:
+              <button
+                onClick={() => updateQuantity(index, item.quantity - 1)}
+                disabled={item.quantity <= 1}
+              >
+                {" "}
+                -{" "}
+              </button>
+              {item.quantity}
+              <button onClick={() => updateQuantity(index, item.quantity + 1)}>
+                {" "}
+                +{" "}
+              </button>
+            </p>
+            {renderPanelGrid(item)}
+            <button onClick={() => removeFromCart(index)}>Remove</button>
+          </div>
+        ))
+      )}
+
+      <button onClick={() => navigate("/")}>Back to Panel Selection</button>
+    </div>
+  );
+}
+
+export default Cart;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { useNavigate } from "react-router-dom";
+import { useCart } from "../contexts/CartContext";
+
+function CartButton({ style = {}, showLabel = true }) {
+  const { cartCount, isCounting } = useCart();
+  const navigate = useNavigate();
+
+  return (
+    <button
+      onClick={() => navigate("/cart")}
+      style={{ position: "relative", ...style }}
+    >
+      {showLabel && "View Cart"}
+      <span
+        style={{
+          position: "absolute",
+          top: -10,
+          right: -10,
+          backgroundColor: "#ff5733",
+          color: "white",
+          borderRadius: "50%",
+          padding: "4px 8px",
+          fontSize: "12px",
+          fontWeight: "bold",
+          transform: isCounting ? "scale(1.3)" : "scale(1)",
+          opacity: isCounting ? 1 : 0.9,
+          transition: "transform 0.2s ease, opacity 0.2s ease",
+        }}
+      >
+        {cartCount}
+      </span>
+    </button>
+  );
+}
+
+export default CartButton;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const panelData = [
+  {
+    type: "single",
+    image: "/panels/single.png",
+  },
+  {
+    type: "double",
+    image: "/panels/double.png",
+  },
+  {
+    type: "triple",
+    image: "/panels/triple.png",
+  },
+];
+
+export default panelData;

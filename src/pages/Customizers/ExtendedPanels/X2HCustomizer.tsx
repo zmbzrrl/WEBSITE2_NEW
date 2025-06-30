@@ -663,7 +663,7 @@ const X2HCustomizer: React.FC = () => {
       type: "X2H",
       icons: sortedIcons,
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, isLayoutReversed },
+      panelDesign: { ...panelDesign, backbox, extraComments },
     };
     
     if (isEditMode && editPanelIndex !== undefined) {
