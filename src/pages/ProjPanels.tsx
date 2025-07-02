@@ -557,7 +557,7 @@ const ProjPanels: React.FC = () => {
                   gap: 32, 
                   alignItems: 'center', 
                   width: '100%',
-                  flexDirection: (item.type === 'X2H' || item.type === 'X1H') ? 'column' : 'row'
+                  flexDirection: (item.type === 'X2H' || item.type === 'X1H' || item.type === 'DPH') ? 'column' : 'row'
                 }}>
                   <PanelPreview
                     icons={item.icons.map(icon => ({

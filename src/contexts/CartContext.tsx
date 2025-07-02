@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from "react";
+import { DEFAULT_PANELS } from '../data/defaultPanels';
 
 interface CartItem {
   type: string;
@@ -59,10 +60,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     // Load panels from localStorage on initialization
     try {
       const stored = localStorage.getItem('currentPanels');
-      return stored ? JSON.parse(stored) : [];
+      return stored ? JSON.parse(stored) : DEFAULT_PANELS;
     } catch (error) {
       console.error('Error loading panels from localStorage:', error);
-      return [];
+      return DEFAULT_PANELS;
     }
   });
   const [isCounting, setIsCounting] = useState<boolean>(false);
