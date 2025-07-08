@@ -7,9 +7,10 @@ import "./App.css";
 import "./styles.css";
 
 import Home from "./pages/Home";
-import PanelTypeSelector from "./pages/PanelType/PanelTypeSelector";
+import BOQ from "./pages/BOQ";
 import DoublePanelSelector from "./pages/PanelType/DoublePanelSelector";
 import ExtendedPanelSelector from "./pages/PanelType/ExtendedPanelSelector";
+import PanelTypeSelector from "./pages/PanelType/PanelTypeSelector";
 import SPCustomizer from "./pages/Customizers/SPCustomizer";
 import TAGCustomizer from "./pages/Customizers/TAGCustomizer";
 import DPHCustomizer from "./pages/Customizers/DoublePanels/DPHCustomizer";
@@ -60,6 +61,7 @@ const AppRoutes = () => {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+        <Route path="/boq" element={<PageTransition><BOQ /></PageTransition>} />
         <Route path="/panel-type" element={<PageTransition><PanelTypeSelector /></PageTransition>} />
         <Route path="/panel/double" element={<PageTransition><DoublePanelSelector /></PageTransition>} />
         <Route path="/panel/extended" element={<PageTransition><ExtendedPanelSelector /></PageTransition>} />

@@ -124,7 +124,7 @@ const ExtendedPanelSelector = () => {
 
   const horizontalPanels = [
     {
-      name: "Extended 1 Horizontal",
+      name: "Extended Panel, Horizontal, 1 Socket",
       image: X1LS,
       path: "/customizer/x1h",
     },

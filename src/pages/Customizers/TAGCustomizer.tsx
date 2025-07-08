@@ -144,7 +144,7 @@ interface Design {
 }
 
 // Component for each grid cell
-const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
+const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
@@ -155,47 +155,43 @@ const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
     onDrop(index, iconId);
   };
 
-  // Detect if fans are on the fourth row (cells 9, 10, 11)
-  // We'll need access to placedIcons here, so we'll use a workaround: window.placedIcons (set in TAGCustomizer)
-  let fansOnFourthRow = false;
-  if (typeof window !== 'undefined' && (window as any).placedIcons) {
-    const placedIcons = (window as any).placedIcons as any[];
-    fansOnFourthRow = [9, 10, 11].some(idx => {
-      const icon = placedIcons.find(i => i.position === idx);
-      return icon && icon.iconId === 'FAN';
-    });
-  }
+  // Define absolute positions for TAG panel (4x3 grid)
+  const getPosition = (index: number) => {
+    const positions = [
+      { top: '15px', left: '15px' },   // Icon 0 (top-left)
+      { top: '15px', left: '115px' },  // Icon 1 (top-center)
+      { top: '15px', left: '215px' },  // Icon 2 (top-right)
+      { top: '115px', left: '15px' },  // Icon 3 (middle-left)
+      { top: '115px', left: '115px' }, // Icon 4 (middle-center)
+      { top: '115px', left: '215px' }, // Icon 5 (middle-right)
+      { top: '215px', left: '15px' },  // Icon 6 (bottom-left)
+      { top: '215px', left: '115px' }, // Icon 7 (bottom-center)
+      { top: '215px', left: '215px' }, // Icon 8 (bottom-right)
+      { top: '315px', left: '15px' },  // Icon 9 (fourth-left)
+      { top: '315px', left: '115px' }, // Icon 10 (fourth-center)
+      { top: '315px', left: '215px' }, // Icon 11 (fourth-right)
+    ];
+    return positions[index] || { top: '0px', left: '0px' };
+  };
 
-  const isFirstRow = index >= 0 && index <= 2;
-  const isSecondRow = index >= 3 && index <= 5;
-  const isThirdRow = index >= 6 && index <= 8;
-  const isFourthRow = index >= 9 && index <= 11;
-  let cellMargin = '5px';
-  if (isFourthRow) {
-    cellMargin = fansOnFourthRow ? '-80px 5px 5px 5px' : '-35px 5px 5px 5px';
-  } else if (isThirdRow) {
-    cellMargin = '0px 5px 5px 5px';
-  } else if (isFirstRow) {
-    cellMargin = '-10px 5px 5px 5px';
-  } else if (isSecondRow) {
-    cellMargin = '-80px 5px 5px 5px';
-  }
+  const position = getPosition(index);
 
   return (
     <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     style={{
-      width: "30%",
-      height: "100px",
-      display: "inline-block",
-      textAlign: "center",
+        position: "absolute",
+        ...position,
+        width: "80px",
+        height: "80px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
       background: "transparent",
-      margin: cellMargin,
-      position: "relative",
-      boxSizing: "border-box",
-      verticalAlign: "top",
         cursor: "copy",
+        zIndex: 2,
     }}
   >
     {children}
@@ -964,7 +960,7 @@ const TAGCustomizer: React.FC = () => {
     const isDisplayCell = displayIndex === 3 && isDisplay;
 
     return (
-      <GridCell key={index} index={index} onDrop={currentStep === 4 || isThirdRow ? () => {} : handleDrop}>
+      <AbsoluteCell key={index} index={index} onDrop={currentStep === 4 || isThirdRow ? () => {} : handleDrop}>
         <div
           style={{
             display: "flex",
@@ -1148,7 +1144,7 @@ const TAGCustomizer: React.FC = () => {
                     zIndex: 3,
                     opacity: isIconHovered ? 1 : 0,
                     transform: isIconHovered ? "scale(1)" : "scale(0.8)",
-                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
                     fontWeight: "bold",
                   }}
@@ -1241,8 +1237,7 @@ const TAGCustomizer: React.FC = () => {
             width: "90%",
             zIndex: 0,
           }}>
-            {/* No text fields for third row */}
-            {!isPIR && !isDisplay && !isThirdRow && (
+            {!isPIR && (
               <>
                 {currentStep === 4 ? (
                   // Step 4: Read-only display, no "Add text" placeholder
@@ -1263,9 +1258,9 @@ const TAGCustomizer: React.FC = () => {
             </div>
                   )
                 ) : (
-                  // Other steps: Editable functionality (only for editable cells)
+                  // Other steps: Editable functionality
                   <>
-                    {isEditing && isEditable ? (
+                    {isEditing ? (
           <input
             type="text"
             value={text || ""}
@@ -1288,7 +1283,7 @@ const TAGCustomizer: React.FC = () => {
                       />
                     ) : (
                       <div 
-                        onClick={isEditable ? () => handleTextClick(displayIndex) : undefined}
+                        onClick={() => handleTextClick(displayIndex)}
                         style={{ 
                           fontSize: panelDesign.fontSize || "12px", 
                           color: text ? panelDesign.textColor || "#000000" : "#999999",
@@ -1313,7 +1308,7 @@ const TAGCustomizer: React.FC = () => {
             {/* Removed temp unit text indicator */}
           </div>
         </div>
-      </GridCell>
+      </AbsoluteCell>
     );
   };
 
@@ -2041,9 +2036,9 @@ const TAGCustomizer: React.FC = () => {
                 
                 {/* Content with higher z-index */}
                 <div style={{ 
-                  display: "flex", 
-                  flexWrap: "wrap",
                   position: "relative",
+                  width: "320px",
+                  height: "420px",
                   zIndex: 2,
                 }}>
               {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
@@ -2131,9 +2126,9 @@ const TAGCustomizer: React.FC = () => {
                   
                   {/* Content with higher z-index */}
                   <div style={{ 
-                    display: "flex", 
-                    flexWrap: "wrap",
                     position: "relative",
+                    width: "320px",
+                    height: "420px",
                     zIndex: 2,
                   }}>
                     {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
@@ -2210,9 +2205,9 @@ const TAGCustomizer: React.FC = () => {
               
               {/* Content with higher z-index */}
               <div style={{ 
-                display: "flex", 
-                flexWrap: "wrap",
                 position: "relative",
+                width: "320px",
+                height: "420px",
                 zIndex: 2,
               }}>
                 {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}

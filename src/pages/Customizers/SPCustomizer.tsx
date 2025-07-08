@@ -22,6 +22,7 @@ import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
 import { getIconColorName } from '../../data/iconColors';
+import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -835,179 +836,129 @@ const SPCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
-  const renderGridCell = (index: number) => {
+  const renderAbsoluteCell = (index: number) => {
     const icon = placedIcons.find((i) => i.position === index);
     const text = iconTexts[index];
     const isPIR = icon?.category === "PIR";
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-
+    const iconSize = iconLayout?.size || '40px';
+    const pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     return (
-      <GridCell key={index} index={index} onDrop={currentStep === 4 ? () => {} : handleDrop}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            position: "relative",
-            height: "100%",
-            paddingTop: "10px",
-          }}
-          onMouseEnter={currentStep !== 4 ? () => setIconHovered(prev => ({ ...prev, [index]: true })) : undefined}
-          onMouseLeave={currentStep !== 4 ? () => setIconHovered(prev => ({ ...prev, [index]: false })) : undefined}
-        >
-          {icon && (
-            <div
+      <div
+        key={index}
+        style={{
+          position: 'absolute',
+          ...pos,
+          width: pos.width || iconSize,
+          height: pos.height || iconSize,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          zIndex: 2,
+        }}
+        onDragOver={e => { e.preventDefault(); }}
+        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
+      >
+        {icon && (
+          <div 
+            style={{ position: 'relative', display: 'inline-block' }}
+            onMouseEnter={() => setIconHovered(prev => ({ ...prev, [index]: true }))}
+            onMouseLeave={() => setIconHovered(prev => ({ ...prev, [index]: false }))}
+          >
+            <img
+              src={icon.src}
+              alt={icon.label}
+              draggable={currentStep !== 4}
+              onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
               style={{
-                position: "relative",
-                display: "inline-block",
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
+                objectFit: 'contain',
+                marginBottom: '5px',
+                position: 'relative',
+                zIndex: 1,
+                marginTop: isPIR ? '20px' : '0',
+                cursor: currentStep !== 4 ? 'move' : 'default',
+                filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                transition: 'filter 0.2s',
               }}
-            >
-              <img
-                src={icon.src}
-                alt={icon.label}
-                draggable={currentStep !== 4}
-                onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
+            />
+            {currentStep !== 4 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDeleteIcon(icon.id); }}
                 style={{
-                  width: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
-                  height: isPIR ? "40px" : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || "40px"),
-                  objectFit: "contain",
-                  marginBottom: "5px",
-                  position: "relative",
-                  zIndex: 1,
-                  marginTop: isPIR ? "20px" : "0",
-                  cursor: currentStep !== 4 ? "move" : "default",
-                  filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
-                  transition: 'filter 0.2s',
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  background: 'rgba(220, 53, 69, 0.9)',
+                  color: 'white',
+                  border: '2px solid rgba(255, 255, 255, 0.8)',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  padding: 0,
+                  lineHeight: 1,
+                  zIndex: 3,
+                  opacity: isIconHovered ? 1 : 0,
+                  transform: isIconHovered ? 'scale(1)' : 'scale(0.8)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                  fontWeight: 'bold',
                 }}
-              />
-              {currentStep !== 4 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteIcon(icon.id);
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: "-8px",
-                    right: "-8px",
-                    background: "rgba(220, 53, 69, 0.9)",
-                    color: "white",
-                    border: "2px solid rgba(255, 255, 255, 0.8)",
-                    borderRadius: "50%",
-                    width: "20px",
-                    height: "20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    padding: 0,
-                    lineHeight: 1,
-                    zIndex: 3,
-                    opacity: isIconHovered ? 1 : 0,
-                    transform: isIconHovered ? "scale(1)" : "scale(0.8)",
-                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-                    fontWeight: "bold",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(220, 53, 69, 1)";
-                    e.currentTarget.style.transform = "scale(1.1)";
-                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(220, 53, 69, 0.4)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(220, 53, 69, 0.9)";
-                    e.currentTarget.style.transform = "scale(1)";
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
-                  }}
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          )}
-          <div style={{ 
-            position: "absolute",
-            bottom: icon ? "5px" : "25px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "90%",
-            zIndex: 0,
-          }}>
-            {!isPIR && (
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220, 53, 69, 1)'; e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.4)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220, 53, 69, 0.9)'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'; }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+        {/* Text field always below the icon */}
+        {!isPIR && (
+          <div style={{ width: '100%', textAlign: 'center', marginTop: icon ? '-11px' : '15px' }}>
+            {currentStep === 4 ? (
+              text && (
+                <div style={{
+                  width: '100%',
+                  textAlign: 'center',
+                  fontSize: panelDesign.fontSize || '12px',
+                  color: panelDesign.textColor || '#000000',
+                  fontFamily: panelDesign.fonts || undefined,
+                  wordBreak: 'break-word',
+                }}>{text}</div>
+              )
+            ) : (
               <>
-                {currentStep === 4 ? (
-                  // Step 4: Read-only display, no "Add text" placeholder
-                  text && (
-                    <div 
-                      style={{ 
-                        fontSize: panelDesign.fontSize || "12px", 
-                        color: panelDesign.textColor || "#000000",
-                        wordBreak: "break-word",
-                        maxWidth: "100%",
-                        textAlign: "center",
-                        padding: "4px",
-                        borderRadius: "4px",
-                        fontFamily: panelDesign.fonts || undefined,
-                      }}
-                    >
-                      {text}
-                    </div>
-                  )
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={text || ''}
+                    onChange={e => handleTextChange(e, index)}
+                    onBlur={handleTextBlur}
+                    autoFocus
+                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px' }}
+                  />
                 ) : (
-                  // Other steps: Editable functionality
-                  <>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={text || ""}
-                        onChange={(e) => handleTextChange(e, index)}
-                        onBlur={handleTextBlur}
-                        autoFocus
-                        style={{
-                          width: "100%",
-                          padding: "4px",
-                          fontSize: panelDesign.fontSize || "12px",
-                          textAlign: "center",
-                          border: "1px solid rgba(255, 255, 255, 0.2)",
-                          borderRadius: "4px",
-                          outline: "none",
-                          background: "rgba(255, 255, 255, 0.1)",
-                          transition: "all 0.2s ease",
-                          fontFamily: panelDesign.fonts || undefined,
-                          color: panelDesign.textColor || '#000000',
-                        }}
-                      />
-                    ) : (
-                      <div 
-                        onClick={() => handleTextClick(index)}
-                        style={{ 
-                          fontSize: panelDesign.fontSize || "12px", 
-                          color: text ? panelDesign.textColor || "#000000" : "#999999",
-                          wordBreak: "break-word",
-                          maxWidth: "100%",
-                          textAlign: "center",
-                          padding: "4px",
-                          cursor: "pointer",
-                          borderRadius: "4px",
-                          backgroundColor: isHovered ? "rgba(255, 255, 255, 0.1)" : "transparent",
-                          transition: "all 0.2s ease",
-                          fontFamily: panelDesign.fonts || undefined,
-                        }}
-                      >
-                        {text || "Add text"}
-                      </div>
-                    )}
-                  </>
+                  <div
+                    onClick={() => handleTextClick(index)}
+                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', maxWidth: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px' }}
+                  >
+                    {text || 'Add text'}
+                  </div>
                 )}
               </>
             )}
           </div>
-        </div>
-      </GridCell>
+        )}
+      </div>
     );
   };
 
@@ -1099,6 +1050,9 @@ const SPCustomizer: React.FC = () => {
       loadGoogleFont(panelDesign.fonts);
     }
   }, [panelDesign.fonts]);
+
+  const config = getPanelLayoutConfig('SP');
+  const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts } = config;
 
   return (
     <Box
@@ -1717,56 +1671,34 @@ const SPCustomizer: React.FC = () => {
             <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
           <div
             style={{
-              width: "350px",
-                  background: `linear-gradient(135deg, 
-                    rgba(255, 255, 255, 0.3) 0%, 
-                    rgba(255, 255, 255, 0.1) 50%, 
-                    rgba(255, 255, 255, 0.05) 100%), 
-                    ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                  padding: "15px",
-                  border: "2px solid rgba(255, 255, 255, 0.2)",
-                  borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                  borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                  boxShadow: `
-                    0 20px 40px rgba(0, 0, 0, 0.3),
-                    0 8px 16px rgba(0, 0, 0, 0.2),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                    0 0 0 1px rgba(255, 255, 255, 0.1)
-                  `,
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  transition: "all 0.3s ease",
-                  position: "relative",
-                  transform: "perspective(1000px) rotateX(5deg)",
-                  transformStyle: "preserve-3d",
-                }}
-              >
-                {/* Inner glow effect */}
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "2px",
-                    left: "2px",
-                    right: "2px",
-                    bottom: "2px",
-                    background: `linear-gradient(135deg, 
-                      rgba(255, 255, 255, 0.1) 0%, 
-                      transparent 50%, 
-                      rgba(0, 0, 0, 0.05) 100%)`,
-                    pointerEvents: "none",
-                    zIndex: 1,
+              position: 'relative',
+              width: '320px', // or your panel width
+              height: '320px', // or your panel height
+              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+              padding: '0',
+              border: '2px solid rgba(255, 255, 255, 0.2)',
+              borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+              borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              transition: 'all 0.3s ease',
+              margin: '0 auto',
+              fontFamily: panelDesign.fonts || undefined,
                   }}
-                />
-                
-                {/* Content with higher z-index */}
+          >
                 <div style={{ 
-                  display: "flex", 
-                  flexWrap: "wrap",
-                  position: "relative",
-                  zIndex: 2,
-                }}>
-              {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
+              position: 'absolute',
+              top: '2px',
+              left: '2px',
+              right: '2px',
+              bottom: '2px',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }} />
+            <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+              {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
             </div>
           </div>
         </div>
@@ -1807,56 +1739,34 @@ const SPCustomizer: React.FC = () => {
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
                   style={{
-                    width: "350px",
-                    background: `linear-gradient(135deg, 
-                      rgba(255, 255, 255, 0.3) 0%, 
-                      rgba(255, 255, 255, 0.1) 50%, 
-                      rgba(255, 255, 255, 0.05) 100%), 
-                      ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    padding: "15px",
-                    border: "2px solid rgba(255, 255, 255, 0.2)",
-                    borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                    borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                    boxShadow: `
-                      0 20px 40px rgba(0, 0, 0, 0.3),
-                      0 8px 16px rgba(0, 0, 0, 0.2),
-                      inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                      inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                      0 0 0 1px rgba(255, 255, 255, 0.1)
-                    `,
-                    backdropFilter: "blur(20px)",
-                    WebkitBackdropFilter: "blur(20px)",
-                    transition: "all 0.3s ease",
-                    position: "relative",
-                    transform: "perspective(1000px) rotateX(5deg)",
-                    transformStyle: "preserve-3d",
-                  }}
-                >
-                  {/* Inner glow effect */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "2px",
-                      left: "2px",
-                      right: "2px",
-                      bottom: "2px",
-                      background: `linear-gradient(135deg, 
-                        rgba(255, 255, 255, 0.1) 0%, 
-                        transparent 50%, 
-                        rgba(0, 0, 0, 0.05) 100%)`,
-                      pointerEvents: "none",
-                      zIndex: 1,
+                    position: 'relative',
+                    width: '320px',
+                    height: '320px',
+                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                    padding: '0',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    transition: 'all 0.3s ease',
+                    margin: '0 auto',
+                    fontFamily: panelDesign.fonts || undefined,
                     }}
-                  />
-                  
-                  {/* Content with higher z-index */}
+                >
                   <div style={{ 
-                    display: "flex", 
-                    flexWrap: "wrap",
-                    position: "relative",
-                    zIndex: 2,
-                  }}>
-                    {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
+                    position: 'absolute',
+                    top: '2px',
+                    left: '2px',
+                    right: '2px',
+                    bottom: '2px',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+                    {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
                 </div>
                 
@@ -1885,56 +1795,34 @@ const SPCustomizer: React.FC = () => {
           <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
             <div
               style={{
-                width: "350px",
-                background: `linear-gradient(135deg, 
-                  rgba(255, 255, 255, 0.3) 0%, 
-                  rgba(255, 255, 255, 0.1) 50%, 
-                  rgba(255, 255, 255, 0.05) 100%), 
-                  ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                padding: "15px",
-                border: "2px solid rgba(255, 255, 255, 0.2)",
-                borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                boxShadow: `
-                  0 20px 40px rgba(0, 0, 0, 0.3),
-                  0 8px 16px rgba(0, 0, 0, 0.2),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                  inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                  0 0 0 1px rgba(255, 255, 255, 0.1)
-                `,
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                transition: "all 0.3s ease",
-                position: "relative",
-                transform: "perspective(1000px) rotateX(5deg)",
-                transformStyle: "preserve-3d",
+                position: 'relative',
+                width: dimensions.width,
+                height: dimensions.height,
+                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                padding: '0',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                transition: 'all 0.3s ease',
+                margin: '0 auto',
+                fontFamily: panelDesign.fonts || undefined,
               }}
             >
-              {/* Inner glow effect */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "2px",
-                  left: "2px",
-                  right: "2px",
-                  bottom: "2px",
-                  background: `linear-gradient(135deg, 
-                    rgba(255, 255, 255, 0.1) 0%, 
-                    transparent 50%, 
-                    rgba(0, 0, 0, 0.05) 100%)`,
-                  pointerEvents: "none",
-                  zIndex: 1,
-                }}
-              />
-              
-              {/* Content with higher z-index */}
-              <div style={{ 
-                display: "flex", 
-                flexWrap: "wrap",
-                position: "relative",
-                zIndex: 2,
-              }}>
-                {Array.from({ length: 9 }).map((_, index) => renderGridCell(index))}
+              <div style={{
+                position: 'absolute',
+                top: '2px',
+                left: '2px',
+                right: '2px',
+                bottom: '2px',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }} />
+              <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+                {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
               </div>
             </div>
           </div>

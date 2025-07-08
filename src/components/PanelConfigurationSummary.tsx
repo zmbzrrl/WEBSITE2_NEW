@@ -112,7 +112,7 @@ const PanelConfigurationSummary: React.FC<PanelConfigurationSummaryProps> = ({
                 fontStyle: 'italic',
                 fontSize: '14px',
               }}>
-                No icons selected
+                No icons selected yet
               </Typography>
             )}
           </Box>
@@ -168,7 +168,7 @@ const PanelConfigurationSummary: React.FC<PanelConfigurationSummaryProps> = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {iconColorName || panelDesign.iconColor}
+                  Icons: {iconColorName}
                 </Typography>
               </Box>
               {/* Text Color */}
@@ -222,37 +222,44 @@ const PanelConfigurationSummary: React.FC<PanelConfigurationSummaryProps> = ({
               </Typography>
             </Box>
           </Box>
-          {/* Backbox and Comments fields (display only) */}
-          {backbox && (
-            <Box sx={{
-              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
-              p: 2,
-              borderRadius: 2,
-              border: '1px solid #e9ecef',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-              mt: 2,
-            }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
-                Backbox Details
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px' }}>{backbox}</Typography>
-            </Box>
-          )}
-          {comments && (
-            <Box sx={{
-              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
-              p: 2,
-              borderRadius: 2,
-              border: '1px solid #e9ecef',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-              mt: 2,
-            }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
-                Additional Comments
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px' }}>{comments}</Typography>
-            </Box>
-          )}
+          {/* Backbox and Comments fields */}
+          <Box sx={{
+            background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+            p: 2,
+            borderRadius: 2,
+            border: '1px solid #e9ecef',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            mt: 2,
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
+              Backbox Details *
+            </Typography>
+            <input
+              type="text"
+              value={backbox || ''}
+              readOnly
+              placeholder="Enter backbox details..."
+              style={{ width: '100%', padding: '8px', marginBottom: '8px', border: '1px solid #ccc', borderRadius: '4px', background: '#f8f9fa' }}
+            />
+          </Box>
+          <Box sx={{
+            background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+            p: 2,
+            borderRadius: 2,
+            border: '1px solid #e9ecef',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            mt: 2,
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
+              Additional Comments (Optional)
+            </Typography>
+            <textarea
+              value={comments || ''}
+              readOnly
+              placeholder="Enter any additional comments..."
+              style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', background: '#f8f9fa' }}
+            />
+          </Box>
         </Box>
       </Box>
     </Box>

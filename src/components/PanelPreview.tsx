@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ralColors } from '../data/ralColors';
 import { getIconColorName } from '../data/iconColors';
 import { allIcons } from '../assets/iconLibrary';
+import { getPanelLayoutConfig, PanelLayoutConfig } from '../data/panelLayoutConfig';
 
 // Copy hexToRgba and ICON_COLOR_FILTERS from SPCustomizer
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -59,14 +60,18 @@ function loadGoogleFont(font: string) {
   }
 }
 
-const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTexts, type }) => {
+const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTexts, type = 'SP' }) => {
   useEffect(() => {
     if (panelDesign.fonts) {
       loadGoogleFont(panelDesign.fonts);
     }
   }, [panelDesign.fonts]);
 
-  // Determine panel types
+  // Get layout configuration for this panel type
+  const config = getPanelLayoutConfig(type);
+  const { dimensions, gridLayout, iconLayout, bigIconLayout, textLayout, specialLayouts, iconPositions } = config;
+
+  // Determine panel types for special handling
   const isDPH = type === 'DPH';
   const isDPV = type === 'DPV';
   const isX2V = type === 'X2V';
@@ -75,16 +80,56 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   const isX2H = type === 'X2H';
   const isTAG = type === 'TAG';
   const isSP = type === 'SP';
+  const isIDPG = type === 'IDPG';
   const isDoublePanel = isDPH || isDPV;
   const isExtendedPanel = isX2V || isX1H || isX1V || isX2H;
+  const isVerticalPanel = isDPV || isX2V || isX1V;
 
-  // Single Panel (SP) - Independent Layout
-  if (isSP) {
+  // Helper function to get icon size based on category
+  const getIconSize = (icon: PanelPreviewIcon | undefined) => {
+    if (!icon) return iconLayout?.size || '40px';
+    
+    const isPIR = icon.category === 'PIR';
+    const isBathroom = icon.category === 'Bathroom';
+    
+    if (isPIR) {
+      return specialLayouts?.PIR?.iconSize || '40px';
+    }
+    if (isBathroom) {
+      return specialLayouts?.Bathroom?.iconSize || `${parseInt(iconLayout?.size || '40px') + 10}px`;
+    }
+    
+    return panelDesign.iconSize || iconLayout?.size || '40px';
+  };
+
+  // Helper function to get grid cell count
+  const getGridCellCount = () => {
+    if (isIDPG) return 16; // 4x4 grid
+    if (isDPH) return 18; // Always 18 for DPH
+    if (isDPV) return 18;
+    return 9; // 3x3 grid for most panels
+  };
+
+  // Helper function to calculate font size based on text length and container width
+  const calculateFontSize = (text: string, containerWidth: number, baseFontSize: string) => {
+    const baseSize = parseInt(baseFontSize);
+    const textLength = text.length;
+    const maxWidth = containerWidth - 8; // Account for padding
+    
+    // Simple heuristic: reduce font size based on text length
+    if (textLength > 15) return `${Math.max(8, baseSize - 4)}px`;
+    if (textLength > 10) return `${Math.max(10, baseSize - 2)}px`;
+    return baseFontSize;
+  };
+
+  // Absolute layout rendering
+  if (iconPositions && iconPositions.length > 0) {
     return (
       <div
         style={{
-          width: '400px',
-          height: '330px',
+          position: 'relative',
+          width: isDPH ? '640px' : dimensions.width,
+          height: dimensions.height,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
           padding: '0',
           border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -94,17 +139,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           transition: 'all 0.3s ease',
-          position: 'relative',
           margin: '0 auto',
           fontFamily: panelDesign.fonts || undefined,
-          display: 'flex',
-          flexDirection: 'row',
-          gap: 0,
         }}
       >
-        {/* Inner glow effect */}
-        <div
-          style={{
+        <div style={{
             position: 'absolute',
             top: '2px',
             left: '2px',
@@ -113,45 +152,750 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
             pointerEvents: 'none',
             zIndex: 1,
-          }}
-        />
-        
-        {/* SP Grid */}
+        }} />
+        {(isDPH ? Array.from({ length: 18 }) : iconPositions).map((_, index) => {
+            const pos = iconPositions[index];
+            const icon = icons.find((i) => i.position === index);
+            const isPIR = icon?.category === 'PIR';
+            const text = (iconTexts && iconTexts[index]) || icon?.text;
+            const hasIcon = icon && icon.src;
+            const iconSize = getIconSize(icon);
+            const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
+            const adjustedFontSize = text ? calculateFontSize(text, parseInt(isDPH ? '640' : dimensions.width) / 6, baseFontSize) : baseFontSize;
+            
+            return (
+              <div
+                key={index}
+                style={{
+                position: 'absolute',
+                ...pos,
+                width: iconSize,
+                height: iconSize,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: hasIcon ? 'flex-start' : 'center',
+                zIndex: 2,
+                }}
+              >
+                {hasIcon && (
+                    <img
+                      src={icon.src}
+                      alt={icon.label}
+                      style={{
+                    width: iconSize,
+                    height: iconSize,
+                        objectFit: 'contain',
+                    marginBottom: iconLayout?.spacing || '5px',
+                    marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                        filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                        transition: 'filter 0.2s',
+                      }}
+                    />
+              )}
+                  {!isPIR && text && (
+                    <div
+                      style={{
+                        fontSize: adjustedFontSize,
+                        color: panelDesign.textColor || '#000000',
+                        wordBreak: 'break-word',
+                        maxWidth: '100%',
+                        textAlign: 'center',
+                        padding: textLayout?.padding || '4px',
+                        borderRadius: '4px',
+                        fontFamily: panelDesign.fonts || undefined,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {text}
+                    </div>
+                  )}
+              </div>
+            );
+          })}
+      </div>
+    );
+  }
+
+  // Helper function to get big icon source
+    const getBigIconSrc = () => {
+    // Different panel types use different positions for big icons
+    let bigIconPosition = 9; // Default for most panels
+    
+    if (isX1H || isX1V) {
+      bigIconPosition = 100; // X1 panels use position 100
+    } else if (isX2H || isX2V) {
+      bigIconPosition = 9; // X2 panels use position 9
+    }
+    
+    const bigIcon = icons.find(icon => icon.position === bigIconPosition);
+    
+    // Debug: Only log for X1H to avoid spam
+    if (isX1H) {
+      console.log('X1H Big Icon Debug:', {
+        bigIconPosition,
+        bigIcon,
+        iconColor: panelDesign.iconColor,
+        filter: ICON_COLOR_FILTERS[panelDesign.iconColor],
+        allIcons: icons.map(i => ({ position: i.position, src: i.src }))
+      });
+    }
+    
+    return bigIcon?.src || '';
+  };
+
+  // Helper function to get second big icon source (for X2 panels)
+    const getBigIcon2Src = () => {
+    const bigIcon2 = icons.find(icon => icon.position === 10);
+    return bigIcon2?.src || '';
+  };
+
+  // Helper function to render big icon container
+  const getBigIconContainer = (isReversed = false) => {
+    if (!bigIconLayout) return null;
+
+    const bigIconSrc = getBigIconSrc();
+    const bigIcon2Src = getBigIcon2Src();
+    const isX2Panel = isX2H || isX2V;
+
+
+
+        return (
+      <div
+        style={{
+          width: bigIconLayout.width,
+          height: bigIconLayout.height,
+            display: 'flex', 
+          flexDirection: isVerticalPanel ? 'column' : 'row',
+            alignItems: 'center', 
+            justifyContent: 'center',
+          gap: '10px',
+            position: 'relative',
+            zIndex: 2,
+        }}
+      >
+                {bigIconSrc && (
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+              <img
+                src={bigIconSrc}
+              alt="Big Icon"
+                style={{ 
+                width: bigIconLayout.size,
+                height: bigIconLayout.size,
+                  objectFit: 'contain', 
+                filter: ICON_COLOR_FILTERS[panelDesign.iconColor],
+                  transition: 'filter 0.2s',
+                }}
+            />
+              </div>
+            )}
+        {isX2Panel && bigIcon2Src && (
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <img
+              src={bigIcon2Src}
+              alt="Big Icon 2"
+                style={{ 
+                width: bigIconLayout.size,
+                height: bigIconLayout.size,
+                  objectFit: 'contain', 
+                filter: ICON_COLOR_FILTERS[panelDesign.iconColor],
+                  transition: 'filter 0.2s',
+                }}
+
+            />
+              </div>
+            )}
+          </div>
+        );
+  };
+
+  // Helper function to render grid
+  const renderGrid = () => {
+    // Special handling for DPH - render two 3x3 grids side by side
+    if (isDPH) {
+      return (
         <div
           style={{
             width: '100%',
             height: '100%',
             display: 'flex',
-            flexWrap: 'wrap',
-            gap: '5px',
+            flexDirection: 'row',
+            gap: 0,
             position: 'relative',
             zIndex: 2,
-            transform: 'translate(15px, 10px)',
-            padding: '10px',
           }}
         >
-          {Array.from({ length: 9 }).map((_, index) => {
-            const icon = icons.find((i) => i.position === index);
+          {/* Left 3x3 grid (positions 0-8) */}
+          <div
+            style={{
+              width: '50%',
+              height: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: gridLayout?.gap || '5px',
+              padding: gridLayout?.padding || '10px',
+            }}
+          >
+            {Array.from({ length: 9 }).map((_, index) => {
+              const icon = icons.find((i) => i.position === index);
+              const isPIR = icon?.category === 'PIR';
+              const text = (iconTexts && iconTexts[index]) || icon?.text;
+              const hasIcon = icon && icon.src;
+              const iconSize = getIconSize(icon);
+              return (
+                <div
+                  key={index}
+                  style={{
+                    width: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    height: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: hasIcon ? 'flex-start' : 'center',
+                    position: 'relative',
+                    paddingTop: hasIcon ? '10px' : 0,
+                  }}
+                >
+                  {hasIcon && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={icon.src}
+                        alt={icon.label}
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          objectFit: 'contain',
+                          marginBottom: iconLayout?.spacing || '5px',
+                          position: 'relative',
+                          zIndex: 1,
+                          marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                          filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          transition: 'filter 0.2s',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{
+                    position: hasIcon ? (textLayout?.position || 'absolute') : 'static',
+                    bottom: hasIcon ? (textLayout?.bottom || '13px') : undefined,
+                    left: hasIcon ? '50%' : undefined,
+                    transform: hasIcon ? 'translateX(-50%)' : undefined,
+                    width: '90%',
+                    zIndex: 0,
+                    display: hasIcon ? undefined : 'flex',
+                    alignItems: hasIcon ? undefined : 'center',
+                    justifyContent: hasIcon ? undefined : 'center',
+                    height: hasIcon ? undefined : '100%',
+                  }}>
+                    {!isPIR && text && (
+                      <div
+                        style={{
+                          fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
+                          color: panelDesign.textColor || '#000000',
+                          wordBreak: 'break-word',
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          padding: textLayout?.padding || '4px',
+                          borderRadius: '4px',
+                          fontFamily: panelDesign.fonts || undefined,
+                        }}
+                      >
+                        {text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Right 3x3 grid (positions 9-17) */}
+          <div
+            style={{
+              width: '50%',
+              height: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: gridLayout?.gap || '5px',
+              padding: gridLayout?.padding || '10px',
+            }}
+          >
+            {Array.from({ length: 9 }).map((_, index) => {
+              const actualIndex = index + 9; // Positions 9-17
+              const icon = icons.find((i) => i.position === actualIndex);
+              const isPIR = icon?.category === 'PIR';
+              const text = (iconTexts && iconTexts[actualIndex]) || icon?.text;
+              const hasIcon = icon && icon.src;
+              const iconSize = getIconSize(icon);
+              return (
+                <div
+                  key={actualIndex}
+                  style={{
+                    width: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    height: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: hasIcon ? 'flex-start' : 'center',
+                    position: 'relative',
+                    paddingTop: hasIcon ? '10px' : 0,
+                  }}
+                >
+                  {hasIcon && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={icon.src}
+                        alt={icon.label}
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          objectFit: 'contain',
+                          marginBottom: iconLayout?.spacing || '5px',
+                          position: 'relative',
+                          zIndex: 1,
+                          marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                          filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          transition: 'filter 0.2s',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{
+                    position: hasIcon ? (textLayout?.position || 'absolute') : 'static',
+                    bottom: hasIcon ? (textLayout?.bottom || '13px') : undefined,
+                    left: hasIcon ? '50%' : undefined,
+                    transform: hasIcon ? 'translateX(-50%)' : undefined,
+                    width: '90%',
+                    zIndex: 0,
+                    display: hasIcon ? undefined : 'flex',
+                    alignItems: hasIcon ? undefined : 'center',
+                    justifyContent: hasIcon ? undefined : 'center',
+                    height: hasIcon ? undefined : '100%',
+                  }}>
+                    {!isPIR && text && (
+                      <div
+                        style={{
+                          fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
+                          color: panelDesign.textColor || '#000000',
+                          wordBreak: 'break-word',
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          padding: textLayout?.padding || '4px',
+                          borderRadius: '4px',
+                          fontFamily: panelDesign.fonts || undefined,
+                        }}
+                      >
+                        {text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    // Special handling for DPV - render two 3x3 grids stacked vertically
+    } else if (isDPV) {
+      return (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0,
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
+          {/* Top 3x3 grid (positions 0-8) */}
+          <div
+            style={{
+              width: '100%',
+              height: '50%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: gridLayout?.gap || '5px',
+              padding: gridLayout?.padding || '10px',
+            }}
+          >
+            {Array.from({ length: 9 }).map((_, index) => {
+              const icon = icons.find((i) => i.position === index);
+              const isPIR = icon?.category === 'PIR';
+              const text = (iconTexts && iconTexts[index]) || icon?.text;
+              const hasIcon = icon && icon.src;
+              const iconSize = getIconSize(icon);
+              return (
+                <div
+                  key={index}
+                  style={{
+                    width: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    height: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: hasIcon ? 'flex-start' : 'center',
+                    position: 'relative',
+                    paddingTop: hasIcon ? '10px' : 0,
+                  }}
+                >
+                  {hasIcon && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={icon.src}
+                        alt={icon.label}
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          objectFit: 'contain',
+                          marginBottom: iconLayout?.spacing || '5px',
+                          position: 'relative',
+                          zIndex: 1,
+                          marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                          filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          transition: 'filter 0.2s',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{
+                    position: hasIcon ? (textLayout?.position || 'absolute') : 'static',
+                    bottom: hasIcon ? (textLayout?.bottom || '13px') : undefined,
+                    left: hasIcon ? '50%' : undefined,
+                    transform: hasIcon ? 'translateX(-50%)' : undefined,
+                    width: '90%',
+                    zIndex: 0,
+                    display: hasIcon ? undefined : 'flex',
+                    alignItems: hasIcon ? undefined : 'center',
+                    justifyContent: hasIcon ? undefined : 'center',
+                    height: hasIcon ? undefined : '100%',
+                  }}>
+                    {!isPIR && text && (
+                      <div
+                        style={{
+                          fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
+                          color: panelDesign.textColor || '#000000',
+                          wordBreak: 'break-word',
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          padding: textLayout?.padding || '4px',
+                          borderRadius: '4px',
+                          fontFamily: panelDesign.fonts || undefined,
+                        }}
+                      >
+                        {text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Bottom 3x3 grid (positions 9-17) */}
+          <div
+            style={{
+              width: '100%',
+              height: '50%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: gridLayout?.gap || '5px',
+              padding: gridLayout?.padding || '10px',
+            }}
+          >
+            {Array.from({ length: 9 }).map((_, index) => {
+              const actualIndex = index + 9; // Positions 9-17
+              const icon = icons.find((i) => i.position === actualIndex);
+              const isPIR = icon?.category === 'PIR';
+              const text = (iconTexts && iconTexts[actualIndex]) || icon?.text;
+              const hasIcon = icon && icon.src;
+              const iconSize = getIconSize(icon);
+              return (
+                <div
+                  key={actualIndex}
+                  style={{
+                    width: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    height: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: hasIcon ? 'flex-start' : 'center',
+                    position: 'relative',
+                    paddingTop: hasIcon ? '10px' : 0,
+                  }}
+                >
+                  {hasIcon && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={icon.src}
+                        alt={icon.label}
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          objectFit: 'contain',
+                          marginBottom: iconLayout?.spacing || '5px',
+                          position: 'relative',
+                          zIndex: 1,
+                          marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                          filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          transition: 'filter 0.2s',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{
+                    position: hasIcon ? (textLayout?.position || 'absolute') : 'static',
+                    bottom: hasIcon ? (textLayout?.bottom || '13px') : undefined,
+                    left: hasIcon ? '50%' : undefined,
+                    transform: hasIcon ? 'translateX(-50%)' : undefined,
+                    width: '90%',
+                    zIndex: 0,
+                    display: hasIcon ? undefined : 'flex',
+                    alignItems: hasIcon ? undefined : 'center',
+                    justifyContent: hasIcon ? undefined : 'center',
+                    height: hasIcon ? undefined : '100%',
+                  }}>
+                    {!isPIR && text && (
+                      <div
+                        style={{
+                          fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
+                          color: panelDesign.textColor || '#000000',
+                          wordBreak: 'break-word',
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          padding: textLayout?.padding || '4px',
+                          borderRadius: '4px',
+                          fontFamily: panelDesign.fonts || undefined,
+                        }}
+                      >
+                        {text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+                 </div>
+       );
+      return (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 0,
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
+          {/* Left 3x3 grid (positions 0-8) */}
+          <div
+            style={{
+              width: '50%',
+              height: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: gridLayout?.gap || '5px',
+              padding: gridLayout?.padding || '10px',
+            }}
+          >
+            {Array.from({ length: 9 }).map((_, index) => {
+              const icon = icons.find((i) => i.position === index);
+              const isPIR = icon?.category === 'PIR';
+              const text = (iconTexts && iconTexts[index]) || icon?.text;
+              const hasIcon = icon && icon.src;
+              const iconSize = getIconSize(icon);
+              return (
+                <div
+                  key={index}
+                  style={{
+                    width: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    height: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: hasIcon ? 'flex-start' : 'center',
+                    position: 'relative',
+                    paddingTop: hasIcon ? '10px' : 0,
+                  }}
+                >
+                  {hasIcon && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={icon.src}
+                        alt={icon.label}
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          objectFit: 'contain',
+                          marginBottom: iconLayout?.spacing || '5px',
+                          position: 'relative',
+                          zIndex: 1,
+                          marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                          filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          transition: 'filter 0.2s',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{
+                    position: hasIcon ? (textLayout?.position || 'absolute') : 'static',
+                    bottom: hasIcon ? (textLayout?.bottom || '13px') : undefined,
+                    left: hasIcon ? '50%' : undefined,
+                    transform: hasIcon ? 'translateX(-50%)' : undefined,
+                    width: '90%',
+                    zIndex: 0,
+                    display: hasIcon ? undefined : 'flex',
+                    alignItems: hasIcon ? undefined : 'center',
+                    justifyContent: hasIcon ? undefined : 'center',
+                    height: hasIcon ? undefined : '100%',
+                  }}>
+                    {!isPIR && text && (
+                      <div
+                        style={{
+                          fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
+                          color: panelDesign.textColor || '#000000',
+                          wordBreak: 'break-word',
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          padding: textLayout?.padding || '4px',
+                          borderRadius: '4px',
+                          fontFamily: panelDesign.fonts || undefined,
+                        }}
+                      >
+                        {text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Right 3x3 grid (positions 9-17) */}
+          <div
+            style={{
+              width: '50%',
+              height: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: gridLayout?.gap || '5px',
+              padding: gridLayout?.padding || '10px',
+            }}
+          >
+            {Array.from({ length: 9 }).map((_, index) => {
+              const actualIndex = index + 9; // Positions 9-17
+              const icon = icons.find((i) => i.position === actualIndex);
+              const isPIR = icon?.category === 'PIR';
+              const text = (iconTexts && iconTexts[actualIndex]) || icon?.text;
+              const hasIcon = icon && icon.src;
+              const iconSize = getIconSize(icon);
+              return (
+                <div
+                  key={actualIndex}
+                  style={{
+                    width: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    height: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: hasIcon ? 'flex-start' : 'center',
+                    position: 'relative',
+                    paddingTop: hasIcon ? '10px' : 0,
+                  }}
+                >
+                  {hasIcon && (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={icon.src}
+                        alt={icon.label}
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          objectFit: 'contain',
+                          marginBottom: iconLayout?.spacing || '5px',
+                          position: 'relative',
+                          zIndex: 1,
+                          marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                          filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          transition: 'filter 0.2s',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{
+                    position: hasIcon ? (textLayout?.position || 'absolute') : 'static',
+                    bottom: hasIcon ? (textLayout?.bottom || '13px') : undefined,
+                    left: hasIcon ? '50%' : undefined,
+                    transform: hasIcon ? 'translateX(-50%)' : undefined,
+                    width: '90%',
+                    zIndex: 0,
+                    display: hasIcon ? undefined : 'flex',
+                    alignItems: hasIcon ? undefined : 'center',
+                    justifyContent: hasIcon ? undefined : 'center',
+                    height: hasIcon ? undefined : '100%',
+                  }}>
+                    {!isPIR && text && (
+                      <div
+                        style={{
+                          fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
+                          color: panelDesign.textColor || '#000000',
+                          wordBreak: 'break-word',
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          padding: textLayout?.padding || '4px',
+                          borderRadius: '4px',
+                          fontFamily: panelDesign.fonts || undefined,
+                        }}
+                      >
+                        {text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // Default grid rendering for other panels
+    return (
+      <div
+        style={{
+          width: bigIconLayout ? (isVerticalPanel ? '100%' : '60%') : '100%',
+          height: bigIconLayout ? (isVerticalPanel ? '50%' : '100%') : '100%',
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: gridLayout?.gap || '5px',
+          position: 'relative', 
+          zIndex: 2,
+          transform: gridLayout?.transform || undefined,
+          padding: gridLayout?.padding || '10px',
+        }}
+      >
+        {Array.from({ length: getGridCellCount() }).map((_, index) => {
+          const icon = icons.find((i) => i.position === index);
             const isPIR = icon?.category === 'PIR';
-            const text = (iconTexts && iconTexts[index]) || icon?.text;
+          const text = (iconTexts && iconTexts[index]) || icon?.text;
             const hasIcon = icon && icon.src;
+          const iconSize = getIconSize(icon);
             return (
               <div
-                key={index}
+              key={index}
                 style={{
-                  width: 'calc(30% - 3.33px)',
-                  height: '33.33%',
-                  minHeight: 0,
-                  minWidth: 0,
+                width: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
+                height: `calc(${100 / 3}% - ${gridLayout?.gap || '5px'})`,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: hasIcon ? 'flex-start' : 'center',
                   position: 'relative',
                   paddingTop: hasIcon ? '10px' : 0,
-                  margin: '0 -5px',
-                  marginTop: (index >= 3 && index <= 5) ? '-11px' : (index >= 6 && index <= 8) ? '-15px' : '0px',
-                  transform: (index % 3 === 2) ? 'translateX(30px)' : (index % 3 === 1) ? 'translateX(19px)' : 'none',
                 }}
               >
                 {hasIcon && (
@@ -160,13 +904,13 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                       src={icon.src}
                       alt={icon.label}
                       style={{
-                        width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                        height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
+                      width: iconSize,
+                      height: iconSize,
                         objectFit: 'contain',
-                        marginBottom: '5px',
+                      marginBottom: iconLayout?.spacing || '5px',
                         position: 'relative',
                         zIndex: 1,
-                        marginTop: isPIR ? '20px' : '0',
+                      marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
                         filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                         transition: 'filter 0.2s',
                       }}
@@ -174,8 +918,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   </div>
                 )}
                 <div style={{
-                  position: hasIcon ? 'absolute' : 'static',
-                  bottom: hasIcon ? (icon ? '13px' : '33px') : undefined,
+                position: hasIcon ? (textLayout?.position || 'absolute') : 'static',
+                bottom: hasIcon ? (textLayout?.bottom || '13px') : undefined,
                   left: hasIcon ? '50%' : undefined,
                   transform: hasIcon ? 'translateX(-50%)' : undefined,
                   width: '90%',
@@ -188,12 +932,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   {!isPIR && text && (
                     <div
                       style={{
-                        fontSize: panelDesign.fontSize || '12px',
+                      fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
                         color: panelDesign.textColor || '#000000',
                         wordBreak: 'break-word',
                         maxWidth: '100%',
                         textAlign: 'center',
-                        padding: '4px',
+                      padding: textLayout?.padding || '4px',
                         borderRadius: '4px',
                         fontFamily: panelDesign.fonts || undefined,
                       }}
@@ -206,569 +950,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             );
           })}
         </div>
-      </div>
-    );
-  }
-
-  // Handle TAG (Thermostat) panel
-  if (isTAG) {
-    // Get the FAN and DISPLAY icons from the icon library
-    const fanIcon = (allIcons as any).FAN || { src: '', label: 'FAN', category: 'TAG' };
-    const displayIcon = (allIcons as any).DISPLAY || { src: '', label: 'DISPLAY', category: 'TAG' };
-
-    const renderTAGGridCell = (index: number) => {
-      const displayIndex = index;
-      const isThirdRow = displayIndex >= 6 && displayIndex <= 8;
-      const isFourthRow = displayIndex >= 9 && displayIndex <= 11;
-      const isFirstRow = displayIndex >= 0 && displayIndex <= 2;
-      const isSecondRow = displayIndex >= 3 && displayIndex <= 5;
-      
-      const icon = icons.find((i) => i.position === displayIndex);
-      const text = (iconTexts && iconTexts[displayIndex]) || icon?.text;
-      const isPIR = icon?.category === "PIR";
-      const isDisplay = icon?.id === "DISPLAY";
-
-      // Special margin for cells 9 and 11
-      let cellMargin;
-      if (displayIndex === 9 || displayIndex === 11) {
-        cellMargin = '-60px 5px 5px 5px';
-      } else if (isFourthRow) {
-        cellMargin = '-30px 5px 5px 5px';
-      } else if (isThirdRow) {
-        cellMargin = '-30px 5px 5px 5px';
-      } else if (isFirstRow) {
-        cellMargin = '0px 5px 5px 5px';
-      } else if (isSecondRow) {
-        cellMargin = '-35px 5px 5px 5px';
-      } else {
-        cellMargin = '5px 5px 5px 5px';
-      }
-
-      return (
-        <div
-          key={index}
-          style={{
-            width: "calc(30% - 3.33px)",
-            height: "100px",
-            display: "inline-block",
-            textAlign: "center",
-            background: "transparent",
-            margin: cellMargin,
-            position: "relative",
-            boxSizing: "border-box",
-            verticalAlign: "top",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              position: "relative",
-              height: "100%",
-              paddingTop: "10px",
-            }}
-          >
-            {/* Permanent DISPLAY icon in cell 4 */}
-            {displayIndex === 4 && (
-              <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <img
-                  src={displayIcon.src}
-                  alt="DISPLAY"
-                  style={{
-                    width: "240px",
-                    height: "80px",
-                    objectFit: "contain",
-                    position: "absolute",
-                    left: "-60px",
-                    zIndex: 2,
-                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
-                    transition: 'filter 0.2s',
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Always show FAN icon in third row */}
-            {isThirdRow && fanIcon.src && (
-              <div style={{ position: "relative", display: "inline-block" }}>
-                <img
-                  src={fanIcon.src}
-                  alt="FAN"
-                  style={{
-                    width: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
-                    height: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
-                    objectFit: "contain",
-                    marginBottom: "5px",
-                    position: "relative",
-                    zIndex: 1,
-                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
-                    transition: 'filter 0.2s',
-                    top: displayIndex === 6 ? "10px" : displayIndex === 7 ? "6px" : undefined,
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Render other icons */}
-            {!isThirdRow && icon && displayIndex !== 4 && icon.src && (
-              <div style={{ position: "relative", display: "inline-block" }}>
-                <img
-                  src={icon.src}
-                  alt={icon.label}
-                  style={{
-                    width: isPIR ? "40px" : isDisplay ? "180px" : "40px",
-                    height: isPIR ? "40px" : isDisplay ? "60px" : "40px",
-                    objectFit: "contain",
-                    marginBottom: "5px",
-                    position: "relative",
-                    zIndex: 1,
-                    marginTop: isPIR ? "20px" : "0",
-                    filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
-                    transition: 'filter 0.2s',
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Text display */}
-            <div style={{
-              position: icon ? 'absolute' : 'static',
-              bottom: icon ? '8px' : '28px',
-              left: icon ? '50%' : undefined,
-              transform: icon ? 'translateX(-50%)' : undefined,
-              width: '90%',
-              zIndex: 0,
-              display: icon ? undefined : 'flex',
-              alignItems: icon ? undefined : 'center',
-              justifyContent: icon ? undefined : 'center',
-              height: icon ? undefined : '100%',
-            }}>
-              {!isPIR && text && (
-                <div
-                  style={{
-                    fontSize: panelDesign.fontSize || '12px',
-                    color: panelDesign.textColor || '#000000',
-                    wordBreak: 'break-word',
-                    maxWidth: '100%',
-                    textAlign: 'center',
-                    padding: '4px',
-                    borderRadius: '4px',
-                    fontFamily: panelDesign.fonts || undefined,
-                  }}
-                >
-                  {text}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       );
-    };
+  };
 
-    return (
-      <div
-        style={{
-          width: '400px',
-          height: '330px',
-          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-          padding: '0',
-          border: '2px solid rgba(255, 255, 255, 0.2)',
-          borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-          borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-          boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          transition: 'all 0.3s ease',
-          position: 'relative',
-          margin: '0 auto',
-          fontFamily: panelDesign.fonts || undefined,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 0,
-          overflow: 'hidden',
-        }}
-      >
-        {/* Inner glow effect */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '2px',
-            left: '2px',
-            right: '2px',
-            bottom: '2px',
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-            pointerEvents: 'none',
-            zIndex: 1,
-          }}
-        />
-        
-        {/* TAG Grid */}
-        <div style={{ 
-          width: '100%',
-          height: '100%',
-          position: "relative",
-          zIndex: 2,
-        }}>
-          {Array.from({ length: 12 }).map((_, index) => renderTAGGridCell(index))}
-        </div>
-      </div>
-    );
-  }
-
-  // Handle extended panels (X1H, X1V, X2H, X2V) except X2V which is handled above
-  if (isExtendedPanel && !isX2V) {
-    const bigIcon = icons.find(i => i.position === 100);
-    const bigIcon2 = icons.find(i => i.position === 101); // For X2H
-    const isReversed = !!panelDesign.isLayoutReversed;
-    const isVerticalPanel = isX1V; // Only X1V is vertical among extended panels
-
-    // Debug logging
-    console.log('Extended Panel Debug:', {
-      type,
-      bigIcon,
-      bigIcon2,
-      allIcons: icons,
-      bigIconSrc: bigIcon?.src,
-      bigIcon2Src: bigIcon2?.src,
-      bigIconLabel: bigIcon?.label,
-      bigIcon2Label: bigIcon2?.label,
-      panelDesignIconColor: panelDesign.iconColor,
-      isReversed,
-      isVerticalPanel,
-      fullPanelDesign: panelDesign,
-      filterValue: panelDesign.iconColor && 
-                   panelDesign.iconColor !== '#000000' && 
-                   panelDesign.iconColor !== '#FFFFFF'
-        ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
-        : 'none'
-    });
-
-    const getBigIconSrc = () => {
-      if (!bigIcon || !bigIcon.src) return null;
-      try {
-        return new URL(bigIcon.src, import.meta.url).href;
-      } catch (error) {
-        console.error('Error creating URL for big icon:', error);
-        return bigIcon.src;
-      }
-    };
-
-    const getBigIcon2Src = () => {
-      if (!bigIcon2 || !bigIcon2.src) return null;
-      try {
-        return new URL(bigIcon2.src, import.meta.url).href;
-      } catch (error) {
-        console.error('Error creating URL for big icon 2:', error);
-        return bigIcon2.src;
-      }
-    };
-
-    const bigIconSrc = getBigIconSrc();
-    const bigIcon2Src = getBigIcon2Src();
-
-    // Special BigIconContainer for X2H with two icons side by side
-    const BigIconContainer = () => {
-      if (isX2H) {
-        // X2H has two big icons side by side
-        return (
-          <div style={{ 
-            width: '50%', 
-            height: '100%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            position: 'relative',
-            zIndex: 2,
-            gap: '40px',
-            transform: isReversed ? 'translateX(-30px)' : 'translateX(100px)'
-          }}>
-            {/* First big icon */}
-            {bigIcon && bigIconSrc && (
-              <img
-                src={bigIconSrc}
-                alt={bigIcon.label || 'Big Icon 1'}
-                style={{ 
-                  maxWidth: '67.5%', 
-                  maxHeight: '375px', 
-                  objectFit: 'contain', 
-                  display: 'block',
-                  filter: panelDesign.iconColor && 
-                         panelDesign.iconColor !== '#000000' && 
-                         panelDesign.iconColor !== '#FFFFFF'
-                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
-                    : 'none',
-                  transition: 'filter 0.2s',
-                }}
-                onError={(e) => {
-                  console.error('Failed to load big icon 1:', bigIconSrc, 'Original src:', bigIcon.src);
-                  e.currentTarget.style.display = 'none';
-                }}
-                onLoad={() => {
-                  console.log('Big icon 1 loaded successfully:', bigIconSrc);
-                }}
-              />
-            )}
-            {/* Second big icon */}
-            {bigIcon2 && bigIcon2Src && (
-              <img
-                src={bigIcon2Src}
-                alt={bigIcon2.label || 'Big Icon 2'}
-                style={{ 
-                  maxWidth: '67.5%', 
-                  maxHeight: '375px', 
-                  objectFit: 'contain', 
-                  display: 'block',
-                  filter: panelDesign.iconColor && 
-                         panelDesign.iconColor !== '#000000' && 
-                         panelDesign.iconColor !== '#FFFFFF'
-                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
-                    : 'none',
-                  transition: 'filter 0.2s',
-                }}
-                onError={(e) => {
-                  console.error('Failed to load big icon 2:', bigIcon2Src, 'Original src:', bigIcon2.src);
-                  e.currentTarget.style.display = 'none';
-                }}
-                onLoad={() => {
-                  console.log('Big icon 2 loaded successfully:', bigIcon2Src);
-                }}
-              />
-            )}
-            {(!bigIcon || !bigIconSrc) && (!bigIcon2 || !bigIcon2Src) && (
-              <div style={{
-                color: '#999',
-                fontSize: '14px',
-                textAlign: 'center',
-                fontStyle: 'italic'
-              }}>
-                No big icons
-              </div>
-            )}
-          </div>
-        );
-      } else if (isVerticalPanel) {
-        // X1V - Single big icon for vertical layout
-        return (
-          <div style={{ 
-            width: '100%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            position: 'relative',
-            zIndex: 2
-          }}>
-            {bigIcon && bigIconSrc && (
-              <img
-                src={bigIconSrc}
-                alt={bigIcon.label || 'Big Icon'}
-                style={{ 
-                  maxWidth: '120%', 
-                  maxHeight: '225px', 
-                  objectFit: 'contain', 
-                  display: 'block',
-                  filter: panelDesign.iconColor && 
-                         panelDesign.iconColor !== '#000000' && 
-                         panelDesign.iconColor !== '#FFFFFF'
-                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
-                    : 'none',
-                  transition: 'filter 0.2s',
-                }}
-                onError={(e) => {
-                  console.error('Failed to load big icon:', bigIconSrc, 'Original src:', bigIcon.src);
-                  e.currentTarget.style.display = 'none';
-                }}
-                onLoad={() => {
-                  console.log('Big icon loaded successfully:', bigIconSrc);
-                }}
-              />
-            )}
-            {(!bigIcon || !bigIconSrc) && (
-              <div style={{
-                color: '#999',
-                fontSize: '14px',
-                textAlign: 'center',
-                fontStyle: 'italic'
-              }}>
-                No big icon
-              </div>
-            )}
-          </div>
-        );
-      } else {
-        // X1H - Single big icon for horizontal layout
-        return (
-          <div style={{ 
-            width: '50%', 
-            height: '100%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            position: 'relative',
-            zIndex: 2,
-            transform: 'translateX(40px)'
-          }}>
-            {bigIcon && bigIconSrc && (
-              <img
-                src={bigIconSrc}
-                alt={bigIcon.label || 'Big Icon'}
-                style={{ 
-                  maxWidth: '80%', 
-                  maxHeight: '200px', 
-                  objectFit: 'contain', 
-                  display: 'block',
-                  filter: panelDesign.iconColor && 
-                         panelDesign.iconColor !== '#000000' && 
-                         panelDesign.iconColor !== '#FFFFFF'
-                    ? ICON_COLOR_FILTERS[panelDesign.iconColor] 
-                    : 'none',
-                  transition: 'filter 0.2s',
-                }}
-                onError={(e) => {
-                  console.error('Failed to load big icon:', bigIconSrc, 'Original src:', bigIcon.src);
-                  e.currentTarget.style.display = 'none';
-                }}
-                onLoad={() => {
-                  console.log('Big icon loaded successfully:', bigIconSrc);
-                }}
-              />
-            )}
-            {(!bigIcon || !bigIconSrc) && (
-              <div style={{
-                color: '#999',
-                fontSize: '14px',
-                textAlign: 'center',
-                fontStyle: 'italic'
-              }}>
-                No big icon
-              </div>
-            )}
-          </div>
-        );
-      }
-    };
-
-    const Grid = () => (
-      <div style={{ 
-        width: '100%', 
-        height: '100%', 
-        display: 'flex', 
-        flexWrap: 'wrap', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        background: 'none', 
-        position: 'relative', 
-        zIndex: 2,
-        // Move grid down by 20px for X2H panels, 30px to the right when on the right side, and 30px to the left when on the left side
-        transform: isX2H ? (isReversed ? 'translate(-30px, 20px)' : 'translate(30px, 20px)') : 'none'
-      }}>
-        {Array.from({ length: 9 }).map((_, index) => {
-          const cellIndex = index;
-          const icon = icons.find((i) => i.position === cellIndex);
-          const isPIR = icon?.category === 'PIR';
-          const text = (iconTexts && iconTexts[cellIndex]) || icon?.text;
-          const hasIcon = icon && icon.src;
-          return (
-            <div
-              key={cellIndex}
-              style={{
-                width: 'calc(30% - 3.33px)',
-                height: type === 'X1V' ? '2%' : '33.33%',
-                minHeight: 0,
-                minWidth: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: hasIcon ? 'flex-start' : 'center',
-                position: 'relative',
-                paddingTop: hasIcon ? '10px' : 0,
-                margin: type === 'X1V' ? '0 -2.5px' : '0 -5px',
-                transform:
-                  isX2H
-                    ? (cellIndex % 3 === 0
-                        ? 'translateX(30px)'
-                        : cellIndex % 3 === 1
-                        ? 'translateX(20px)'
-                        : 'none')
-                    : (cellIndex % 3 === 2
-                        ? 'translateX(30px)'
-                        : cellIndex % 3 === 1
-                        ? 'translateX(19px)'
-                        : 'none'),
-              }}
-            >
-              {hasIcon && (
-                <div style={{ position: 'relative', display: 'inline-block' }}>
-                  <img
-                    src={icon.src}
-                    alt={icon.label}
-                    style={{
-                      width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                      height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                      objectFit: 'contain',
-                      marginBottom: '5px',
-                      position: 'relative',
-                      zIndex: 1,
-                      marginTop: isPIR ? '20px' : '0',
-                      filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
-                      transition: 'filter 0.2s',
-                    }}
-                  />
-                </div>
-              )}
-              <div style={{
-                position: hasIcon ? 'absolute' : 'static',
-                bottom: hasIcon ? (icon ? '8px' : '28px') : undefined,
-                left: hasIcon ? '50%' : undefined,
-                transform: hasIcon ? 'translateX(-50%)' : undefined,
-                width: '90%',
-                zIndex: 0,
-                display: hasIcon ? undefined : 'flex',
-                alignItems: hasIcon ? undefined : 'center',
-                justifyContent: hasIcon ? undefined : 'center',
-                height: hasIcon ? undefined : '100%',
-              }}>
-                {!isPIR && text && (
-                  <div
-                    style={{
-                      fontSize: panelDesign.fontSize || '12px',
-                      color: panelDesign.textColor || '#000000',
-                      wordBreak: 'break-word',
-                      maxWidth: '100%',
-                      textAlign: 'center',
-                      padding: '4px',
-                      borderRadius: '4px',
-                      fontFamily: panelDesign.fonts || undefined,
-                    }}
-                  >
-                    {text}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-
-    // Special handling for X1V - use proper vertical layout like X2V
-    if (isVerticalPanel) {
-      return (
-        <div
-          style={{
-            width: '400px',
-            height: '700px',
+  // Base panel container style
+  const basePanelStyle = {
             background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
             padding: '0',
             border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -781,16 +967,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             position: 'relative',
             margin: '0 auto',
             fontFamily: panelDesign.fonts || undefined,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 0,
-            overflow: 'hidden',
-          }}
-        >
-          {/* Inner glow effect */}
-          <div
-            style={{
+  };
+
+  // Inner glow effect
+  const innerGlowStyle = {
               position: 'absolute',
               top: '2px',
               left: '2px',
@@ -799,31 +979,58 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
               pointerEvents: 'none',
               zIndex: 1,
-            }}
-          />
-          {/* Render big icon and grid in correct order */}
-          {isReversed ? (
-            <>
-              <div style={{ flex: '0 0 60%', height: '60%', width: '100%', marginTop: type === 'X1V' ? '-30px' : '0px' }}><Grid /></div>
-              <div style={{ flex: '0 0 40%', height: '40%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: type === 'X1V' ? '-10px' : '0px' }}><BigIconContainer /></div>
-            </>
-          ) : (
-            <>
-              <div style={{ flex: '0 0 40%', height: '40%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: type === 'X1V' ? '20px' : '0px' }}><BigIconContainer /></div>
-              <div style={{ flex: '0 0 60%', height: '60%', width: '100%', marginTop: type === 'X1V' ? '-50px' : '0px' }}><Grid /></div>
-            </>
-          )}
-        </div>
-      );
-    }
+  };
 
+  // Render different panel layouts based on type
+  if (isSP) {
+    // Single Panel - Horizontal layout
     return (
       <div
         style={{
-          width: isX2H ? '850px' : '750px',
-          height: '350px',
+          ...basePanelStyle,
+          width: dimensions.width,
+          height: dimensions.height,
+          display: 'flex',
+          flexDirection: 'row',
+          gap: 0,
+        }}
+      >
+        <div style={innerGlowStyle} />
+        {renderGrid()}
+      </div>
+    );
+  }
+
+  if (isTAG) {
+    // Robust lookup for DISPLAY and FAN icons
+    const getIconSrc = (key: string) => {
+      return (
+        (allIcons as any)[key]?.src ||
+        (allIcons as any)[key.toUpperCase()]?.src ||
+        (allIcons as any)[key.toLowerCase()]?.src ||
+        ''
+      );
+    };
+    const displayIcon = {
+      src: getIconSrc('DISPLAY'),
+      label: 'DISPLAY',
+      iconId: 'DISPLAY',
+      category: 'TAG',
+    };
+    const fanIcon = {
+      src: getIconSrc('FAN'),
+      label: 'FAN',
+      iconId: 'FAN',
+      category: 'TAG',
+    };
+    return (
+      <div
+        style={{
+          position: 'relative',
+          width: dimensions.width,
+          height: dimensions.height,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-          padding: '15px',
+          padding: '0',
           border: '2px solid rgba(255, 255, 255, 0.2)',
           borderTop: '3px solid rgba(255, 255, 255, 0.4)',
           borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
@@ -831,19 +1038,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           transition: 'all 0.3s ease',
-          position: 'relative',
-          transform: 'perspective(1000px) rotateX(2deg)',
-          transformStyle: 'preserve-3d',
           margin: '0 auto',
           fontFamily: panelDesign.fonts || undefined,
-          display: 'flex',
-          flexDirection: 'row',
-          gap: 0,
         }}
       >
-        {/* Inner glow effect */}
-        <div
-          style={{
+        <div style={{
             position: 'absolute',
             top: '2px',
             left: '2px',
@@ -852,377 +1051,156 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
             pointerEvents: 'none',
             zIndex: 1,
-          }}
-        />
+        }} />
+        {iconPositions.map((pos, index) => {
+          let icon = icons.find((i) => i.position === index);
+          let forceIcon = null;
+          // Cell 4: always DISPLAY
+          if (index === 4) forceIcon = displayIcon;
+          // Cells 6,7,8: always FAN
+          if (index === 6 || index === 7 || index === 8) forceIcon = fanIcon;
+            const isPIR = icon?.category === 'PIR';
+            const text = (iconTexts && iconTexts[index]) || icon?.text;
+          const hasIcon = (icon && icon.src) || forceIcon;
+          const iconSize = getIconSize(icon);
+          const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
+          const adjustedFontSize = text ? calculateFontSize(text, parseInt(dimensions.width) / 3, baseFontSize) : baseFontSize;
+            return (
+              <div
+                key={index}
+                style={{
+                position: 'absolute',
+                ...pos,
+                width: pos.width || iconSize,
+                height: pos.height || iconSize,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: hasIcon ? 'flex-start' : 'center',
+                zIndex: 2,
+                }}
+              >
+              {forceIcon ? (
+                    <img
+                  src={forceIcon.src || '/src/assets/icons/DISPLAY.png'}
+                  alt={forceIcon.label}
+                      style={{
+                    width: iconLayout?.size || '35px',
+                    height: iconLayout?.size || '35px',
+                        objectFit: 'contain',
+                    marginBottom: iconLayout?.spacing || '5px',
+                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                        transition: 'filter 0.2s',
+                      }}
+                    />
+              ) : hasIcon && (
+                    <img
+                      src={icon.src}
+                      alt={icon.label}
+                      style={{
+                    width: iconSize,
+                    height: iconSize,
+                        objectFit: 'contain',
+                    marginBottom: iconLayout?.spacing || '5px',
+                    marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                        filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                        transition: 'filter 0.2s',
+                      }}
+                    />
+              )}
+                  {!isPIR && text && (
+                    <div
+                      style={{
+                    fontSize: adjustedFontSize,
+                        color: panelDesign.textColor || '#000000',
+                        wordBreak: 'break-word',
+                        maxWidth: '100%',
+                        textAlign: 'center',
+                    padding: textLayout?.padding || '4px',
+                        borderRadius: '4px',
+                        fontFamily: panelDesign.fonts || undefined,
+                    whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {text}
+                    </div>
+                  )}
+              </div>
+            );
+          })}
+      </div>
+    );
+  }
+
+  if (isIDPG) {
+    // Corridor Panel - 4x4 grid
+  return (
+    <div
+      style={{
+          ...basePanelStyle,
+          width: dimensions.width,
+          height: dimensions.height,
+        display: 'flex',
+                  alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div style={innerGlowStyle} />
+        {renderGrid()}
+              </div>
+            );
+  }
+
+  if (isDoublePanel || isExtendedPanel) {
+    // Double and Extended Panels - Grid + Big Icon layout
+    const isReversed = panelDesign.isLayoutReversed;
+    
+            return (
+      <div
+        style={{
+          ...basePanelStyle,
+          width: dimensions.width,
+          height: dimensions.height,
+            display: 'flex',
+          flexDirection: isVerticalPanel ? 'column' : 'row',
+                  alignItems: 'center',
+          justifyContent: 'center',
+          gap: 0,
+        }}
+      >
+        <div style={innerGlowStyle} />
         
-        {/* Horizontal panel layout (X1H, X2H) - left/right */}
         {isReversed ? (
+          // Reversed layout: Big icon first, then grid
           <>
-            <Grid />
-            <BigIconContainer />
+            {getBigIconContainer(true)}
+            {renderGrid()}
           </>
         ) : (
+          // Default layout: Grid first, then big icon
           <>
-            <BigIconContainer />
-            <Grid />
+            {renderGrid()}
+            {getBigIconContainer(false)}
           </>
         )}
       </div>
     );
   }
 
-  // Double Panel - H (DPH) - Independent Layout
-  if (isDPH) {
-    return (
-      <div
-        style={{
-          width: '750px',
-          height: '350px',
-          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-          padding: '15px',
-          border: '2px solid rgba(255, 255, 255, 0.2)',
-          borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-          borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-          boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          transition: 'all 0.3s ease',
-          position: 'relative',
-          transform: 'perspective(1000px) rotateX(2deg)',
-          transformStyle: 'preserve-3d',
-          margin: '0 auto',
-          fontFamily: panelDesign.fonts || undefined,
-          display: 'flex',
-          flexDirection: 'row',
-          gap: '10px',
-        }}
-      >
-        {/* Inner glow effect */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '2px',
-            left: '2px',
-            right: '2px',
-            bottom: '2px',
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-            pointerEvents: 'none',
-            zIndex: 1,
-          }}
-        />
-        
-        {/* DPH Left Grid */}
-        <div
-          style={{
-            width: 'calc(50% - 5px)',
-            height: '100%',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '5px',
-            position: 'relative',
-            zIndex: 2,
-            transform: 'translate(10px, 20px)',
-          }}
-        >
-          {Array.from({ length: 9 }).map((_, index) => {
-            const icon = icons.find((i) => i.position === index);
-            const isPIR = icon?.category === 'PIR';
-            const text = (iconTexts && iconTexts[index]) || icon?.text;
-            const hasIcon = icon && icon.src;
+  // Default fallback for unknown panel types
             return (
               <div
-                key={index}
                 style={{
-                  width: 'calc(30% - 3.33px)',
-                  height: '33.33%',
-                  minHeight: 0,
-                  minWidth: 0,
+        ...basePanelStyle,
+        width: dimensions.width,
+        height: dimensions.height,
                   display: 'flex',
-                  flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: hasIcon ? 'flex-start' : 'center',
-                  position: 'relative',
-                  paddingTop: hasIcon ? '10px' : 0,
-                  margin: '0 -5px',
-                  transform: (index % 3 === 2) ? 'translateX(25px)' : (index % 3 === 1) ? 'translateX(15px)' : 'none',
-                }}
-              >
-                {hasIcon && (
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <img
-                      src={icon.src}
-                      alt={icon.label}
-                      style={{
-                        width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                        height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                        objectFit: 'contain',
-                        marginBottom: '5px',
-                        position: 'relative',
-                        zIndex: 1,
-                        marginTop: isPIR ? '20px' : '0',
-                        filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
-                        transition: 'filter 0.2s',
-                      }}
-                    />
-                  </div>
-                )}
-                <div style={{
-                  position: hasIcon ? 'absolute' : 'static',
-                  bottom: hasIcon ? (icon ? '8px' : '28px') : undefined,
-                  left: hasIcon ? '50%' : undefined,
-                  transform: hasIcon ? 'translateX(-50%)' : undefined,
-                  width: '90%',
-                  zIndex: 0,
-                  display: hasIcon ? undefined : 'flex',
-                  alignItems: hasIcon ? undefined : 'center',
-                  justifyContent: hasIcon ? undefined : 'center',
-                  height: hasIcon ? undefined : '100%',
-                }}>
-                  {!isPIR && text && (
-                    <div
-                      style={{
-                        fontSize: panelDesign.fontSize || '12px',
-                        color: panelDesign.textColor || '#000000',
-                        wordBreak: 'break-word',
-                        maxWidth: '100%',
-                        textAlign: 'center',
-                        padding: '4px',
-                        borderRadius: '4px',
-                        fontFamily: panelDesign.fonts || undefined,
-                      }}
-                    >
-                      {text}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* DPH Right Grid */}
-        <div
-          style={{
-            width: 'calc(50% - 5px)',
-            height: '100%',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '5px',
-            position: 'relative',
-            zIndex: 2,
-            transform: 'translate(10px, 20px)',
-          }}
-        >
-          {Array.from({ length: 9 }).map((_, index) => {
-            const icon = icons.find((i) => i.position === index + 9);
-            const isPIR = icon?.category === 'PIR';
-            const text = (iconTexts && iconTexts[index + 9]) || icon?.text;
-            const hasIcon = icon && icon.src;
-            return (
-              <div
-                key={index + 9}
-                style={{
-                  width: 'calc(30% - 3.33px)',
-                  height: '33.33%',
-                  minHeight: 0,
-                  minWidth: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: hasIcon ? 'flex-start' : 'center',
-                  position: 'relative',
-                  paddingTop: hasIcon ? '10px' : 0,
-                  margin: '0 -5px',
-                  transform: (index % 3 === 2) ? 'translateX(25px)' : (index % 3 === 1) ? 'translateX(15px)' : 'none',
-                }}
-              >
-                {hasIcon && (
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <img
-                      src={icon.src}
-                      alt={icon.label}
-                      style={{
-                        width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                        height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                        objectFit: 'contain',
-                        marginBottom: '5px',
-                        position: 'relative',
-                        zIndex: 1,
-                        marginTop: isPIR ? '20px' : '0',
-                        filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
-                        transition: 'filter 0.2s',
-                      }}
-                    />
-                  </div>
-                )}
-                <div style={{
-                  position: hasIcon ? 'absolute' : 'static',
-                  bottom: hasIcon ? (icon ? '8px' : '28px') : undefined,
-                  left: hasIcon ? '50%' : undefined,
-                  transform: hasIcon ? 'translateX(-50%)' : undefined,
-                  width: '90%',
-                  zIndex: 0,
-                  display: hasIcon ? undefined : 'flex',
-                  alignItems: hasIcon ? undefined : 'center',
-                  justifyContent: hasIcon ? undefined : 'center',
-                  height: hasIcon ? undefined : '100%',
-                }}>
-                  {!isPIR && text && (
-                    <div
-                      style={{
-                        fontSize: panelDesign.fontSize || '12px',
-                        color: panelDesign.textColor || '#000000',
-                        wordBreak: 'break-word',
-                        maxWidth: '100%',
-                        textAlign: 'center',
-                        padding: '4px',
-                        borderRadius: '4px',
-                        fontFamily: panelDesign.fonts || undefined,
-                      }}
-                    >
-                      {text}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        width: isDPV ? '400px' : isDPH ? '750px' : '400px',
-        height: isDPV ? '700px' : isDPH ? '350px' : '330px',
-        background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-        padding: isDPV ? '15px' : isDPH ? '15px' : '0',
-        border: '2px solid rgba(255, 255, 255, 0.2)',
-        borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-        borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-        boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        transition: 'all 0.3s ease',
-        position: 'relative',
-        transform: !isDoublePanel ? 'translate(30px, 15px)' : isDPH ? 'translate(40px, 20px)' : isDPV ? 'translateX(15px)' : 'none',
-        transformStyle: isDPV ? 'preserve-3d' : isDPH ? 'preserve-3d' : 'flat',
-        margin: '0 auto',
-        fontFamily: panelDesign.fonts || undefined,
-        display: 'flex',
-        flexDirection: isDPH ? 'row' : isDPV ? 'column' : 'row',
-        gap: isDPH ? '10px' : isDPV ? '20px' : 0,
+        justifyContent: 'center',
       }}
     >
-      {/* Inner glow effect */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '2px',
-          left: '2px',
-          right: '2px',
-          bottom: '2px',
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      />
-      {/* Content with higher z-index */}
-      {(isDoublePanel ? [0, 9] : [0]).map((offset, idx) => (
-        <div
-          key={offset}
-          style={{
-            width: isDPV ? '100%' : isDPH ? 'calc(50% - 5px)' : '400px',
-            height: isDPV ? 'calc(50% - 10px)' : undefined,
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '5px',
-            position: 'relative',
-            zIndex: 2,
-            marginBottom: 0,
-            // Move grid 30px to the right and 15px to the bottom for Single Panel (SP) type
-            transform: !isDoublePanel ? 'translate(30px, 15px)' : isDPH ? 'translate(40px, 20px)' : isDPV ? 'translateX(15px)' : 'none',
-          }}
-        >
-          {Array.from({ length: 9 }).map((_, index) => {
-            const cellIndex = index + offset;
-            const icon = icons.find((i) => i.position === cellIndex);
-            const isPIR = icon?.category === 'PIR';
-            const text = (iconTexts && iconTexts[cellIndex]) || icon?.text;
-            const hasIcon = icon && icon.src;
-            return (
-              <div
-                key={cellIndex}
-                style={{
-                  width: 'calc(30% - 3.33px)',
-                  height: type === 'X1V' ? '2%' : '33.33%',
-                  minHeight: 0,
-                  minWidth: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: hasIcon ? 'flex-start' : 'center',
-                  position: 'relative',
-                  paddingTop: hasIcon ? '10px' : 0,
-                  margin: type === 'X1V' ? '0 -2.5px' : '0 -5px',
-                  transform: (cellIndex % 3 === 2) ? 'translateX(30px)' : (cellIndex % 3 === 1) ? 'translateX(19px)' : 'none',
-                }}
-              >
-                {hasIcon && (
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <img
-                      src={icon.src}
-                      alt={icon.label}
-                      style={{
-                        width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                        height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                        objectFit: 'contain',
-                        marginBottom: '5px',
-                        position: 'relative',
-                        zIndex: 1,
-                        marginTop: isPIR ? '20px' : '0',
-                        filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
-                        transition: 'filter 0.2s',
-                      }}
-                    />
-                  </div>
-                )}
-                <div style={{
-                  position: hasIcon ? 'absolute' : 'static',
-                  bottom: hasIcon ? (icon ? '13px' : '33px') : undefined,
-                  left: hasIcon ? '50%' : undefined,
-                  transform: hasIcon ? 'translateX(-50%)' : undefined,
-                  width: '90%',
-                  zIndex: 0,
-                  display: hasIcon ? undefined : 'flex',
-                  alignItems: hasIcon ? undefined : 'center',
-                  justifyContent: hasIcon ? undefined : 'center',
-                  height: hasIcon ? undefined : '100%',
-                }}>
-                  {!isPIR && text && (
-                    <div
-                      style={{
-                        fontSize: panelDesign.fontSize || '12px',
-                        color: panelDesign.textColor || '#000000',
-                        wordBreak: 'break-word',
-                        maxWidth: '100%',
-                        textAlign: 'center',
-                        padding: '4px',
-                        borderRadius: '4px',
-                        fontFamily: panelDesign.fonts || undefined,
-                      }}
-                    >
-                      {text}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+      <div style={innerGlowStyle} />
+      {renderGrid()}
     </div>
   );
 };

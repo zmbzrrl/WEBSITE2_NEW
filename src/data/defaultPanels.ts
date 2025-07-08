@@ -2,9 +2,9 @@ export const DEFAULT_PANELS = [
   {
     type: 'SP',
     icons: [
-      { iconId: 'light', label: 'Light', position: 0, text: 'Light', src: '/src/assets/icons/light.png', category: 'Light' },
-      { iconId: 'fan', label: 'Fan', position: 1, text: 'Fan', src: '/src/assets/icons/fan.png', category: 'Fan' },
-      { iconId: 'socket', label: 'Socket', position: 2, text: 'Socket', src: '/src/assets/icons/socket.png', category: 'Socket' },
+      { iconId: 'B-1', label: 'B-1', position: 0, text: 'Light', src: '/src/assets/icons/B-Roomlights/B-1.png', category: 'Room Lights' },
+      { iconId: 'FAN', label: 'FAN', position: 1, text: 'Fan', src: '/src/assets/icons/FAN.png', category: 'TAG' },
+      { iconId: '20209', label: '20209', position: 2, text: 'Socket', src: '/src/assets/sockets/20209.png', category: 'Sockets' },
     ],
     quantity: 1,
     displayNumber: 1,
@@ -20,7 +20,7 @@ export const DEFAULT_PANELS = [
   {
     type: 'TAG',
     icons: [
-      { iconId: 'thermostat', label: 'Thermostat', position: 0, text: 'Thermostat', src: '/src/assets/icons/thermostat.png', category: 'Thermostat' },
+      { iconId: 'DISPLAY', label: 'DISPLAY', position: 0, text: 'Thermostat', src: '/src/assets/icons/DISPLAY.png', category: 'TAG' },
     ],
     quantity: 1,
     displayNumber: 2,
@@ -36,8 +36,8 @@ export const DEFAULT_PANELS = [
   {
     type: 'DPH',
     icons: [
-      { iconId: 'light', label: 'Light', position: 0, text: 'Light', src: '/src/assets/icons/light.png', category: 'Light' },
-      { iconId: 'fan', label: 'Fan', position: 1, text: 'Fan', src: '/src/assets/icons/fan.png', category: 'Fan' },
+      { iconId: 'B-2', label: 'B-2', position: 0, text: 'Light', src: '/src/assets/icons/B-Roomlights/B-2.png', category: 'Room Lights' },
+      { iconId: 'FAN', label: 'FAN', position: 1, text: 'Fan', src: '/src/assets/icons/FAN.png', category: 'TAG' },
     ],
     quantity: 1,
     displayNumber: 3,
@@ -53,8 +53,8 @@ export const DEFAULT_PANELS = [
   {
     type: 'DPV',
     icons: [
-      { iconId: 'light', label: 'Light', position: 0, text: 'Light', src: '/src/assets/icons/light.png', category: 'Light' },
-      { iconId: 'fan', label: 'Fan', position: 1, text: 'Fan', src: '/src/assets/icons/fan.png', category: 'Fan' },
+      { iconId: 'B-3', label: 'B-3', position: 0, text: 'Light', src: '/src/assets/icons/B-Roomlights/B-3.png', category: 'Room Lights' },
+      { iconId: 'FAN', label: 'FAN', position: 1, text: 'Fan', src: '/src/assets/icons/FAN.png', category: 'TAG' },
     ],
     quantity: 1,
     displayNumber: 4,
@@ -70,8 +70,9 @@ export const DEFAULT_PANELS = [
   {
     type: 'X1H',
     icons: [
-      { iconId: 'light', label: 'Light', position: 0, text: 'Light', src: '/src/assets/icons/light.png', category: 'Light' },
-      { iconId: 'fan', label: 'Fan', position: 1, text: 'Fan', src: '/src/assets/icons/fan.png', category: 'Fan' },
+      { iconId: 'B-4', label: 'B-4', position: 0, text: 'Light', src: '/src/assets/icons/B-Roomlights/B-4.png', category: 'Room Lights' },
+      { iconId: 'FAN', label: 'FAN', position: 1, text: 'Fan', src: '/src/assets/icons/FAN.png', category: 'TAG' },
+      { iconId: '20209', label: '20209', position: 100, text: 'Socket', src: '/src/assets/sockets/20209.png', category: 'Sockets' },
     ],
     quantity: 1,
     displayNumber: 5,

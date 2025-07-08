@@ -27,12 +27,12 @@ const getPanelTypeLabel = (type: string) => {
   switch (type) {
     case "SP": return "Single Panel";
     case "TAG": return "Thermostat";
-    case "DPH": return "Double Panel - H";
-    case "DPV": return "Double Panel - V";
-    case "X2V": return "Extended Panel - V2";
-    case "X2H": return "Extended Panel - H2";
-    case "X1H": return "Extended Panel - H1";
-    case "X1V": return "Extended Panel - V1";
+    case "DPH": return "Horizontal Double Panel";
+    case "DPV": return "Vertical Double Panel";
+    case "X2V": return "Extended Panel, Vertical, 2 Sockets";
+    case "X2H": return "Extended Panel, Horizontal, 2 Sockets";
+    case "X1H": return "Extended Panel, Horizontal, 1 Socket";
+    case "X1V": return "Extended Panel, Vertical, 1 Socket";
     case "IDPG": return "Corridor Panel";
     default: return "Panel";
   }
@@ -568,6 +568,7 @@ const ProjPanels: React.FC = () => {
                     panelDesign={item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }}
                     type={item.type}
                   />
+
                   <PanelConfigurationSummary
                     panelDesign={item.panelDesign}
                     icons={item.icons}
