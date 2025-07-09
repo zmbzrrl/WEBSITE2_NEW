@@ -114,6 +114,21 @@ const PanelTypeSelector = () => {
   const theme = useTheme();
   const [showPanels] = useState(true);
   const { projectName, projectCode } = useContext(ProjectContext);
+  
+  // Get BOQ data if it exists
+  const boqData = localStorage.getItem('boqData');
+  const boqInfo = boqData ? JSON.parse(boqData) : null;
+  
+  // Get customized panels data
+  const customizedData = localStorage.getItem('customizedPanels');
+  const customizedPanels = customizedData ? JSON.parse(customizedData) : {};
+  
+  // If no BOQ data, redirect to home
+  React.useEffect(() => {
+    if (!boqInfo) {
+      navigate('/');
+    }
+  }, [boqInfo, navigate]);
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
@@ -169,33 +184,93 @@ const PanelTypeSelector = () => {
     </Box>
   );
 
-  const panelTypes = [
-    {
+  // Panel type mapping from BOQ IDs to display info
+  const panelTypeMapping = {
+    'sp': {
       name: "Single Panel",
       image: SP,
       path: "/customizer/sp",
+      category: "Basic Panels"
     },
-    {
-      name: "Thermostat",
+    'tag': {
+      name: "Thermostat Panel",
       image: TAG,
       path: "/customizer/tag",
+      category: "Basic Panels"
     },
-    {
+    'idpg': {
       name: "Corridor Panel",
       image: IDPG,
-      path: "/panel/idpg",
+      path: "/customizer/idpg",
+      category: "Basic Panels"
     },
-    {
-      name: "Double Panel",
+    'dph': {
+      name: "Double Panel - Horizontal",
       image: DP,
-      path: "/panel/double",
+      path: "/customizer/dph",
+      category: "Double Panels"
     },
-    {
-      name: "Extended Panel",
+    'dpv': {
+      name: "Double Panel - Vertical",
+      image: DP,
+      path: "/customizer/dpv",
+      category: "Double Panels"
+    },
+    'x1h': {
+      name: "Extended Panel - H1",
       image: X2H,
-      path: "/panel/extended",
+      path: "/customizer/x1h",
+      category: "Extended Panels"
     },
-  ];
+    'x2h': {
+      name: "Extended Panel - H2",
+      image: X2H,
+      path: "/customizer/x2h",
+      category: "Extended Panels"
+    },
+    'x1v': {
+      name: "Extended Panel - V1",
+      image: X2H,
+      path: "/customizer/x1v",
+      category: "Extended Panels"
+    },
+    'x2v': {
+      name: "Extended Panel - V2",
+      image: X2H,
+      path: "/customizer/x2v",
+      category: "Extended Panels"
+    }
+  };
+
+  // Filter panels based on BOQ selection and customization status
+  const getAvailablePanels = () => {
+    if (!boqInfo) return [];
+    
+    const availablePanels = [];
+    
+    boqInfo.selectedPanels.forEach((boqPanel: any) => {
+      const panelId = boqPanel.id;
+      const panelInfo = panelTypeMapping[panelId as keyof typeof panelTypeMapping];
+      
+      if (panelInfo) {
+        const customizedCount = customizedPanels[panelId] || 0;
+        const remainingQuantity = boqPanel.quantity - customizedCount;
+        
+        if (remainingQuantity > 0) {
+          availablePanels.push({
+            ...panelInfo,
+            id: panelId,
+            remainingQuantity,
+            totalQuantity: boqPanel.quantity
+          });
+        }
+      }
+    });
+    
+    return availablePanels;
+  };
+
+  const availablePanels = getAvailablePanels();
 
   return (
     <Box
@@ -267,6 +342,35 @@ const PanelTypeSelector = () => {
         <ProgressContainer>
           <ProgressBar />
         </ProgressContainer>
+        
+        {boqInfo && (
+          <Box sx={{ 
+            backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+            borderRadius: '12px', 
+            padding: 2, 
+            mb: 4,
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            <Typography sx={{ 
+              color: 'white', 
+              fontWeight: 600, 
+              mb: 1,
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            }}>
+              BOQ Summary: {boqInfo.totalQuantity} panels selected
+            </Typography>
+            <Typography sx={{ 
+              color: 'rgba(255, 255, 255, 0.8)', 
+              fontSize: '0.9rem',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            }}>
+              {boqInfo.selectedPanels.map((panel: any) => 
+                `${panel.name}: ${panel.quantity}`
+              ).join(', ')}
+            </Typography>
+          </Box>
+        )}
 
         {showPanels && (
           <motion.div
@@ -276,61 +380,72 @@ const PanelTypeSelector = () => {
             style={{ width: '100%' }}
           >
             <Grid container spacing={4} justifyContent="center">
-              {panelTypes.map((panel) => (
-                <Grid 
-                  key={panel.name}
-                  item 
-                  xs={12} 
-                  sm={6} 
-                  md={4}
-                  component="div"
-                >
-                  <StyledPanel variants={itemVariants}>
-                    <PanelContainer
-                      onClick={() => navigate(panel.path)}
-                      sx={{
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        p: 3,
-                        marginLeft: 
-                          panel.name === 'Double Panel' 
-                            ? '-158px'
-                            : panel.name === 'Extended Panel'
-                            ? '142px'
-                            : undefined,
-                      }}
-                    >
+              {availablePanels.length === 0 ? (
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    color: 'white', 
+                    py: 8,
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  }}>
+                    <Typography variant="h5" sx={{ mb: 2 }}>
+                      All panels have been customized!
+                    </Typography>
+                    <Typography variant="body1" sx={{ opacity: 0.8 }}>
+                      You can review your customized panels in the cart.
+                    </Typography>
+                  </Box>
+                </Grid>
+              ) : (
+                availablePanels.map((panel) => (
+                  <Grid 
+                    key={panel.id}
+                    item 
+                    xs={12} 
+                    sm={6} 
+                    md={4}
+                    component="div"
+                  >
+                    <StyledPanel variants={itemVariants}>
+                      <PanelContainer
+                        onClick={() => navigate(panel.path)}
+                        sx={{
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          p: 3,
+                          position: 'relative',
+                        }}
+                      >
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}
                         className="panel-image"
                         style={{
-                          maxHeight:
-                            panel.name === 'Single Panel' || panel.name === 'Thermostat'
-                              ? 262
-                              : panel.name === 'Corridor Panel'
-                              ? 346
-                              : panel.name === 'Double Panel'
-                              ? 250
-                              : panel.name === 'Extended Panel'
-                              ? 768
-                              : 288,
-                          width:
-                            panel.name === 'Single Panel' || panel.name === 'Thermostat'
-                              ? '107%'
-                              : panel.name === 'Corridor Panel'
-                              ? '144%'
-                              : panel.name === 'Double Panel'
-                              ? '87%'
-                              : panel.name === 'Extended Panel'
-                              ? '264%'
-                              : '120%',
+                          maxHeight: 280,
+                          width: '100%',
                           marginBottom: 16,
-                          marginTop: panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 0 : undefined,
                         }}
                       />
+                      
+                      {/* Quantity Badge */}
+                      <Box sx={{
+                        position: 'absolute',
+                        top: 16,
+                        right: 16,
+                        backgroundColor: 'rgba(25, 118, 210, 0.9)',
+                        color: 'white',
+                        borderRadius: '12px',
+                        px: 1.5,
+                        py: 0.5,
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      }}>
+                        {panel.remainingQuantity} of {panel.totalQuantity}
+                      </Box>
+                      
                       <PanelTitle 
                         variant="h5" 
                         className="panel-title"
@@ -361,13 +476,14 @@ const PanelTypeSelector = () => {
                             backgroundColor: 'transparent',
                           },
                         }}
-                      >
-                        Select Panel
-                      </Button>
-                    </PanelContainer>
-                  </StyledPanel>
-                </Grid>
-              ))}
+                                              >
+                          Select Panel
+                        </Button>
+                      </PanelContainer>
+                    </StyledPanel>
+                  </Grid>
+                ))
+              )}
             </Grid>
           </motion.div>
         )}
