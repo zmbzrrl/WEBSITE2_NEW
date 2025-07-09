@@ -511,6 +511,7 @@ const ProjPanels: React.FC = () => {
                         'X2H': '/customizer/x2h',
                         'X1H': '/customizer/x1h',
                         'X1V': '/customizer/x1v',
+                        'IDPG': '/customizer/idpg',
                       };
                       const route = customizerRoutes[item.type] || '/panel-type';
                       navigate(route, { 
@@ -563,7 +564,8 @@ const ProjPanels: React.FC = () => {
                     icons={item.icons.map(icon => ({
                       ...icon,
                       src: icon.src || '',
-                      category: icon.category || ''
+                      category: icon.category || '',
+                      iconId: icon.iconId || undefined,
                     }))}
                     panelDesign={item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }}
                     type={item.type}

@@ -843,7 +843,7 @@ const SPCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = iconLayout?.size || '40px';
+    const iconSize = panelDesign.iconSize || '40px';
     const pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     return (
       <div
@@ -874,8 +874,8 @@ const SPCustomizer: React.FC = () => {
               draggable={currentStep !== 4}
               onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
               style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -944,12 +944,12 @@ const SPCustomizer: React.FC = () => {
                     onChange={e => handleTextChange(e, index)}
                     onBlur={handleTextBlur}
                     autoFocus
-                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px' }}
+                    style={{ width: '120px', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
                   />
                 ) : (
                   <div
                     onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', maxWidth: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px' }}
+                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px', marginLeft: '-40px' }}
                   >
                     {text || 'Add text'}
                   </div>

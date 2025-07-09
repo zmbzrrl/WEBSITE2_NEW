@@ -23,6 +23,8 @@ import logo from '../../../assets/logo.png';
 import { getIconColorName } from '../../../data/iconColors';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import FlipIcon from '@mui/icons-material/Flip';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -956,23 +958,23 @@ const DPHCustomizer: React.FC = () => {
                   )
                 ) : (
                   <>
-                    {isEditing ? (
-            <input
-              type="text"
+                                    {isEditing ? (
+                  <input
+                    type="text"
                     value={text || ''}
                     onChange={e => handleTextChange(e, index)}
-                        onBlur={handleTextBlur}
-                        autoFocus
-                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px' }}
-                      />
-                    ) : (
-                      <div 
-                        onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', maxWidth: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px' }}
+                    onBlur={handleTextBlur}
+                    autoFocus
+                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                  />
+                ) : (
+                  <div
+                    onClick={() => handleTextClick(index)}
+                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px', marginLeft: '-40px' }}
                   >
                     {text || 'Add text'}
-                      </div>
-          )}
+                  </div>
+                )}
                   </>
                 )}
           </div>
@@ -1076,6 +1078,105 @@ const DPHCustomizer: React.FC = () => {
   // Override iconPositions for double panel
   const iconPositions = doublePanelIconPositions;
 
+  // Add this helper function inside DPHCustomizer
+  const swapLeftRight = () => {
+    // Left: 0-8, Right: 9-17
+    // Swap placedIcons
+    setPlacedIcons(prev => {
+      // Create a map from position to icon
+      const iconMap = new Map(prev.map(icon => [icon.position, icon]));
+      const newIcons: PlacedIcon[] = [];
+      for (let i = 0; i < 9; i++) {
+        // Right to left
+        const rightIcon = iconMap.get(i + 9);
+        if (rightIcon) {
+          newIcons.push({ ...rightIcon, position: i });
+        }
+        // Left to right
+        const leftIcon = iconMap.get(i);
+        if (leftIcon) {
+          newIcons.push({ ...leftIcon, position: i + 9 });
+        }
+      }
+      // Keep icons not in left/right (shouldn't happen, but just in case)
+      prev.forEach(icon => {
+        if (icon.position < 0 || icon.position > 17) newIcons.push(icon);
+      });
+      return newIcons;
+    });
+    // Swap iconTexts
+    setIconTexts(prev => {
+      const newTexts: IconTexts = { ...prev };
+      for (let i = 0; i < 9; i++) {
+        const leftText = prev[i];
+        const rightText = prev[i + 9];
+        if (rightText !== undefined) {
+          newTexts[i] = rightText;
+        } else {
+          delete newTexts[i];
+        }
+        if (leftText !== undefined) {
+          newTexts[i + 9] = leftText;
+        } else {
+          delete newTexts[i + 9];
+        }
+      }
+      return newTexts;
+    });
+  };
+
+  // Add this helper function to mirror icons horizontally within each side
+  const mirrorIcons = () => {
+    // Mirror mapping for a 3x3 grid: 0<->2, 3<->5, 6<->8 (and same for right side)
+    const mirrorMap = [2,1,0,5,4,3,8,7,6];
+    setPlacedIcons(prev => {
+      // Split into left and right
+      const left = prev.filter(icon => icon.position >= 0 && icon.position <= 8);
+      const right = prev.filter(icon => icon.position >= 9 && icon.position <= 17);
+      // Map by position for quick lookup
+      const leftMap = new Map(left.map(icon => [icon.position, icon]));
+      const rightMap = new Map(right.map(icon => [icon.position, icon]));
+      // Mirror left
+      const mirroredLeft = mirrorMap.flatMap((mirroredPos, i) => {
+        const icon = leftMap.get(i);
+        return icon ? [{ ...icon, position: mirroredPos }] : [];
+      });
+      // Mirror right
+      const mirroredRight = mirrorMap.flatMap((mirroredPos, i) => {
+        const icon = rightMap.get(i + 9);
+        return icon ? [{ ...icon, position: mirroredPos + 9 }] : [];
+      });
+      // Keep any icons not in left/right (shouldn't happen)
+      const others = prev.filter(icon => icon.position < 0 || icon.position > 17);
+      return [...mirroredLeft, ...mirroredRight, ...others];
+    });
+    // Mirror texts
+    setIconTexts(prev => {
+      const newTexts: IconTexts = { ...prev };
+      // Left
+      for (let i = 0; i < 9; i++) {
+        const mirroredPos = mirrorMap[i];
+        const text = prev[i];
+        if (text !== undefined) {
+          newTexts[mirroredPos] = text;
+        } else {
+          delete newTexts[mirroredPos];
+        }
+      }
+      // Right
+      for (let i = 0; i < 9; i++) {
+        const mirroredPos = mirrorMap[i] + 9;
+        const text = prev[i + 9];
+        if (text !== undefined) {
+          newTexts[mirroredPos] = text;
+        } else {
+          delete newTexts[mirroredPos];
+        }
+      }
+      return newTexts;
+    });
+  };
+
   return (
     <Box
       sx={{
@@ -1152,7 +1253,7 @@ const DPHCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel-type');
+                navigate('/panel/double');
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }
@@ -1691,6 +1792,56 @@ const DPHCustomizer: React.FC = () => {
 
             {/* Right side - Panel Template */}
             <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
+              <Box sx={{ display: 'flex', gap: 1, marginBottom: '16px', justifyContent: 'center' }}>
+                <StyledButton
+                  onClick={swapLeftRight}
+                  variant="contained"
+                  title="Swap left and right sides"
+                  sx={{
+                    minWidth: '40px',
+                    width: '40px',
+                    height: '40px',
+                    padding: 0,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1.5px 6px rgba(26, 31, 44, 0.07)',
+                    backgroundColor: '#1976d2',
+                    fontWeight: 300,
+                    '&:hover': {
+                      backgroundColor: '#1565c0',
+                      transform: 'translateY(-1.5px) scale(1.04)',
+                    },
+                  }}
+                >
+                  <SwapHorizIcon fontSize="medium" sx={{ color: 'white' }} />
+                </StyledButton>
+                <StyledButton
+                  onClick={mirrorIcons}
+                  variant="contained"
+                  title="Mirror icons horizontally"
+                  sx={{
+                    minWidth: '40px',
+                    width: '40px',
+                    height: '40px',
+                    padding: 0,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1.5px 6px rgba(26, 31, 44, 0.07)',
+                    backgroundColor: '#1976d2',
+                    fontWeight: 300,
+                    '&:hover': {
+                      backgroundColor: '#1565c0',
+                      transform: 'translateY(-1.5px) scale(1.04)',
+                    },
+                  }}
+                >
+                  <FlipIcon fontSize="medium" sx={{ color: 'white' }} />
+                </StyledButton>
+              </Box>
               <div
                 style={{
               position: 'relative',
@@ -1814,7 +1965,57 @@ const DPHCustomizer: React.FC = () => {
         )}
         {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
         {currentStep === 2 && (
-          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
+          <div style={{ marginBottom: "20px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ display: 'flex', gap: 1, marginBottom: '16px', justifyContent: 'center' }}>
+              <StyledButton
+                onClick={swapLeftRight}
+                variant="contained"
+                title="Swap left and right sides"
+                sx={{
+                  minWidth: '40px',
+                  width: '40px',
+                  height: '40px',
+                  padding: 0,
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 1.5px 6px rgba(26, 31, 44, 0.07)',
+                  backgroundColor: '#1976d2',
+                  fontWeight: 300,
+                  '&:hover': {
+                    backgroundColor: '#1565c0',
+                    transform: 'translateY(-1.5px) scale(1.04)',
+                  },
+                }}
+              >
+                <SwapHorizIcon fontSize="medium" sx={{ color: 'white' }} />
+              </StyledButton>
+              <StyledButton
+                onClick={mirrorIcons}
+                variant="contained"
+                title="Mirror icons horizontally"
+                sx={{
+                  minWidth: '40px',
+                  width: '40px',
+                  height: '40px',
+                  padding: 0,
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 1.5px 6px rgba(26, 31, 44, 0.07)',
+                  backgroundColor: '#1976d2',
+                  fontWeight: 300,
+                  '&:hover': {
+                    backgroundColor: '#1565c0',
+                    transform: 'translateY(-1.5px) scale(1.04)',
+                  },
+                }}
+              >
+                <FlipIcon fontSize="medium" sx={{ color: 'white' }} />
+              </StyledButton>
+            </Box>
             <div
               style={{
                     position: 'relative',

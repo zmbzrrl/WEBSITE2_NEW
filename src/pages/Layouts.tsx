@@ -44,6 +44,7 @@ interface PlacedPanel {
       iconColor: string;
       textColor: string;
       fontSize: string;
+      iconSize?: string;
       fonts?: string;
       backbox?: string;
       extraComments?: string;
@@ -1088,7 +1089,8 @@ const Layouts: React.FC = () => {
                           icons={panel.icons.map(icon => ({
                             ...icon,
                             src: icon.src || '',
-                            category: icon.category || ''
+                            category: icon.category || '',
+                            iconId: icon.iconId || undefined,
                           }))}
                           panelDesign={panel.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }}
                           type={panel.type}

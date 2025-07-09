@@ -914,7 +914,7 @@ const X1HCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = iconLayout?.size || '40px';
+    const iconSize = panelDesign.iconSize || '40px';
     // Default position
     let pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     // If swapSides is true, adjust positions
@@ -946,7 +946,7 @@ const X1HCustomizer: React.FC = () => {
     }
     
     // Calculate container size to match icon size
-    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : (index === 9 ? '240px' : iconLayout?.size || '40px'));
+    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px'));
     
     return (
         <div
@@ -977,8 +977,8 @@ const X1HCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : (index === 9 ? '240px' : iconLayout?.size || '40px')),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : (index === 9 ? '240px' : iconLayout?.size || '40px')),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',

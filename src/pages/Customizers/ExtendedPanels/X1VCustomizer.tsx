@@ -22,6 +22,9 @@ import logo from '../../../assets/logo.png';
 import { getIconColorName } from '../../../data/iconColors';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import FlipIcon from '@mui/icons-material/Flip';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -529,6 +532,9 @@ const X1VCustomizer: React.FC = () => {
   const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
+  // Add swap and mirror state
+  const [swapUpDown, setSwapUpDown] = useState(false); // NEW: swap state
+  const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -540,7 +546,7 @@ const X1VCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG'));
     });
   }, []);
 
@@ -552,6 +558,10 @@ const X1VCustomizer: React.FC = () => {
         setPanelDesign(editPanelData.panelDesign);
         setBackbox(editPanelData.panelDesign.backbox || '');
         setExtraComments(editPanelData.panelDesign.extraComments || '');
+        
+        // Load swap states
+        setSwapUpDown(editPanelData.panelDesign.swapUpDown || false);
+        setMirrorVertical(editPanelData.panelDesign.mirrorVertical || false);
       }
       
       // Load placed icons
@@ -620,6 +630,15 @@ const X1VCustomizer: React.FC = () => {
       if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
     }
 
+    // Check if trying to place a Socket icon
+    if (selectedIcon.category === "Sockets") {
+      // Only allow placement in the single slot (index 9)
+      if (cellIndex !== 9) return;
+      // Prevent more than one socket in the single slot
+      const hasSocket = placedIcons.some((icon) => icon.category === "Sockets" && icon.position === 9);
+      if (hasSocket) return;
+    }
+
     const iconPosition: PlacedIcon = {
       id: Date.now(),
       iconId: selectedIcon.id,
@@ -656,7 +675,7 @@ const X1VCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign } = {
+    const design: Design & { panelDesign: typeof panelDesign & { swapUpDown?: boolean; mirrorVertical?: boolean } } = {
       type: "X1V",
       icons: Array.from({ length: 18 })
         .map((_, index) => {
@@ -672,7 +691,7 @@ const X1VCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { ...panelDesign, backbox, extraComments, swapUpDown, mirrorVertical },
     };
 
     if (isEditMode && editPanelIndex !== undefined) {
@@ -721,6 +740,8 @@ const X1VCustomizer: React.FC = () => {
         // Handle new icon placement
         const icon = categoryIcons.find(i => i.id === dragData.id);
         if (!icon) return;
+        // Prevent any non-socket icon from being placed in the single icon slot (index 9)
+        if (cellIndex === 9 && icon.category !== "Sockets") return;
 
         // Check if trying to place PIR icon
         if (icon.category === "PIR") {
@@ -739,6 +760,13 @@ const X1VCustomizer: React.FC = () => {
         if (icon.id === "G3") {
           // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8) - not in left column (cells 0,3,6)
           if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
+        }
+
+        // Check if trying to place a Socket icon
+        if (icon.category === "Sockets") {
+          if (cellIndex !== 9) return;
+          const hasSocket = placedIcons.some((icon) => icon.category === "Sockets" && icon.position === 9);
+          if (hasSocket) return;
         }
 
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -760,6 +788,9 @@ const X1VCustomizer: React.FC = () => {
         const targetIcon = placedIcons.find(i => i.position === cellIndex);
         
         if (!sourceIcon) return;
+        // Prevent swapping a non-socket icon into the single icon slot (index 9)
+        if (cellIndex === 9 && sourceIcon.category !== "Sockets") return;
+        if (dragData.position === 9 && targetIcon && targetIcon.category !== "Sockets") return;
 
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
@@ -787,6 +818,14 @@ const X1VCustomizer: React.FC = () => {
         if (targetIcon?.iconId === "G3") {
           // G3 cannot be moved from column 1 (cells 0, 3, 6)
           if (dragData.position === 0 || dragData.position === 3 || dragData.position === 6) return;
+        }
+
+        // Check Socket restrictions for swapping
+        if (sourceIcon.category === "Sockets") {
+          if (cellIndex !== 9) return;
+        }
+        if (targetIcon?.category === "Sockets") {
+          if (dragData.position !== 9) return;
         }
 
         // Swap icon positions
@@ -834,6 +873,16 @@ const X1VCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
+  // Swap up/down logic - just toggle the state
+  const handleSwapUpDown = () => {
+    setSwapUpDown(s => !s);
+  };
+
+  // Mirror vertically logic - just toggle the state
+  const handleMirrorVertical = () => {
+    setMirrorVertical(m => !m);
+  };
+
   const renderAbsoluteCell = (index: number) => {
     const icon = placedIcons.find((i) => i.position === index);
     const text = iconTexts[index];
@@ -841,16 +890,52 @@ const X1VCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = iconLayout?.size || '40px';
-    const pos = iconPositions?.[index] || { top: '0px', left: '0px' };
+    const iconSize = panelDesign.iconSize || '40px';
+    // Default position
+    let pos = iconPositions?.[index] || { top: '0px', left: '0px' };
+    
+    // If swapUpDown is true, swap top 3x3 grid with bottom single slot
+    if (swapUpDown) {
+      if (index >= 0 && index <= 8) {
+        // Move the 3x3 grid to the bottom half
+        // Panel is 640px tall, so move grid to bottom half (320px offset)
+        const swappedGridOffset = 320;
+        pos = { ...pos, top: (parseInt(pos.top) + swappedGridOffset) + 'px' };
+      } else if (index === 9) {
+        // Move the single slot to the top half, positioned more centrally
+        // Original position is 328px top, 36px left
+        // Move it to center of top half (around 55px from top)
+        pos = { ...pos, top: '55px' };
+      }
+    }
+    
+    // If mirrorVertical is true, mirror the 3x3 grid horizontally (column 0<->2)
+    if (mirrorVertical && index >= 0 && index <= 8) {
+      const row = Math.floor(index / 3);
+      const col = index % 3;
+      if (col === 0) {
+        // Column 0 moves to column 2 position
+        const col2Pos = iconPositions?.[row * 3 + 2] || pos;
+        pos = { ...col2Pos };
+      } else if (col === 2) {
+        // Column 2 moves to column 0 position
+        const col0Pos = iconPositions?.[row * 3] || pos;
+        pos = { ...col0Pos };
+      }
+      // Column 1 stays in place
+    }
+    
+    // Calculate container size to match icon size
+    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px'));
+    
     return (
         <div
         key={index}
           style={{
           position: 'absolute',
           ...pos,
-          width: iconSize,
-          height: iconSize,
+          width: containerSize,
+          height: containerSize,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -872,15 +957,15 @@ const X1VCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
                   zIndex: 1,
                 marginTop: isPIR ? '20px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
-                  filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                  filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',
                 }}
               />
@@ -920,41 +1005,45 @@ const X1VCustomizer: React.FC = () => {
             </div>
           )}
         {/* Text field always below the icon */}
-            {!isPIR && (
-          <div style={{ width: '100%', textAlign: 'center', marginTop: icon ? '-11px' : '15px' }}>
-                {currentStep === 4 ? (
+            {!isPIR && icon?.category !== 'Sockets' && (
+              <div style={{ width: '100%', textAlign: 'center', marginTop: icon ? '-11px' : '15px' }}>
+                {index === 9 && !icon ? (
+                  <div style={{ fontSize: '18px', color: '#bbb', fontWeight: 600, padding: '16px 0' }}>
+                    drop socket
+                  </div>
+                ) : currentStep === 4 ? (
                   text && (
-                <div style={{
-                  width: '100%',
-                  textAlign: 'center',
-                  fontSize: panelDesign.fontSize || '12px',
-                  color: panelDesign.textColor || '#000000',
-                        fontFamily: panelDesign.fonts || undefined,
-                  wordBreak: 'break-word',
-                }}>{text}</div>
+                    <div style={{
+                      width: '100%',
+                      textAlign: 'center',
+                      fontSize: panelDesign.fontSize || '12px',
+                      color: panelDesign.textColor || '#000000',
+                      fontFamily: panelDesign.fonts || undefined,
+                      wordBreak: 'break-word',
+                    }}>{text}</div>
                   )
                 ) : (
                   <>
                     {isEditing ? (
-            <input
-              type="text"
-                    value={text || ''}
-                    onChange={e => handleTextChange(e, index)}
+                      <input
+                        type="text"
+                        value={text || ''}
+                        onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
-                      <div 
+                      <div
                         onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', maxWidth: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px' }}
-                  >
-                    {text || 'Add text'}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                      >
+                        {text || 'Add text'}
                       </div>
-          )}
+                    )}
                   </>
                 )}
-          </div>
+              </div>
             )}
           </div>
     );
@@ -1129,7 +1218,7 @@ const X1VCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel-type');
+                navigate('/panel/extended');
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }
@@ -1150,74 +1239,98 @@ const X1VCustomizer: React.FC = () => {
 
         {/* Icon List: Only visible on step 2 */}
         {currentStep === 2 && (
-      <div style={{ marginBottom: "20px" }}>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
+      <div style={{ display: 'flex', flexDirection: 'row', gap: '40px', justifyContent: 'center', alignItems: 'flex-start', marginBottom: '20px' }}>
+        {/* Categories column */}
+        <div style={{ minWidth: 140, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
           {iconCategories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
               style={{
-                    padding: "12px 24px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
+                padding: "12px 24px",
+                background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
+                color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
+                border: "1px solid #1a1f2c",
                 borderRadius: "4px",
                 cursor: "pointer",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                    minWidth: "120px",
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                fontSize: "14px",
+                letterSpacing: "0.5px",
+                transition: "all 0.3s ease",
+                minWidth: "120px",
+                textAlign: 'right',
               }}
             >
               {category}
             </button>
           ))}
         </div>
-            <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
-              maxWidth: "800px",
-              margin: "0 auto"
-            }}>
+        {/* Icons grid column */}
+        <div style={{ 
+          display: "flex", 
+          gap: "16px", 
+          flexWrap: "wrap", 
+          justifyContent: "flex-start",
+          maxWidth: "400px",
+          margin: "0",
+          minHeight: '320px',
+          alignItems: 'flex-start',
+        }}>
           {categoryIcons.map((icon) => (
             <div
               key={icon.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, icon)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, icon)}
               style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
+                padding: "12px",
+                background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
+                borderRadius: "6px",
+                cursor: "grab",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
+                width: "60px",
+                border: "1px solid #e0e0e0",
+                transition: "all 0.3s ease",
               }}
             >
               <img
                 src={icon.src}
                 alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                style={{ width: "32px", height: "32px", objectFit: "contain" }}
               />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
-                  }}>
-                    {icon.label}
-                  </span>
+              <span style={{ 
+                fontSize: "14px", 
+                color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                letterSpacing: "0.5px"
+              }}>
+                {icon.label}
+              </span>
             </div>
           ))}
+          {/* Swap/Mirror Buttons under the icons list */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 16, margin: '24px 0 0 0' }}>
+            <Button
+              variant="outlined"
+              onClick={handleSwapUpDown}
+              sx={{ minWidth: 160, display: 'flex', alignItems: 'center', gap: 1 }}
+              startIcon={!swapUpDown ? <ArrowUpwardIcon /> : <ArrowDownwardIcon />}
+            >
+              {!swapUpDown ? 'Up' : 'Down'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleMirrorVertical}
+              sx={{ minWidth: 160 }}
+              startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} />}
+            >
+              {mirrorVertical ? 'Unmirror' : 'Mirror'}
+            </Button>
+          </div>
         </div>
         {/* Panel Preview for Step 2 (only this one should render) */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40 }}>
+        <div style={{ flex: '0 0 340px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: 0 }}>
           <div
             style={{
               position: 'relative',
@@ -1247,7 +1360,7 @@ const X1VCustomizer: React.FC = () => {
               zIndex: 1,
             }} />
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-              {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
+              {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
             </div>
           </div>
         </div>
@@ -1732,7 +1845,7 @@ const X1VCustomizer: React.FC = () => {
                     zIndex: 1,
             }} />
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-              {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
+              {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
                 </div>
               </div>
         </div>
@@ -1800,7 +1913,7 @@ const X1VCustomizer: React.FC = () => {
                       zIndex: 1,
                   }} />
                   <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-                    {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
+                    {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
                     </div>
                   </div>
                 

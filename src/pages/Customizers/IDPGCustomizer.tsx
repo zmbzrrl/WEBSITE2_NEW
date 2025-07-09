@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../../components/CartButton";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import g18Icon from "../../assets/icons/G-GuestServices/G18.png";
 import g1Icon from "../../assets/icons/G-GuestServices/G1.png";
@@ -285,6 +285,7 @@ const getIconFilter = (color: string): string => {
 
 const IDPGCustomizer = () => {
   const theme = useTheme();
+  const location = useLocation();
   const [showPanels, setShowPanels] = useState(false);
   const [cardReader, setCardReader] = useState(false);
   const [roomNumber, setRoomNumber] = useState(false);
@@ -305,7 +306,7 @@ const IDPGCustomizer = () => {
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addToCart, updatePanel } = useCart();
   const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
@@ -317,6 +318,11 @@ const IDPGCustomizer = () => {
     fonts: '',
     iconSize: '40px',
   });
+
+  // Edit mode state
+  const isEditMode = location.state?.editMode || false;
+  const editPanelIndex = location.state?.panelIndex;
+  const editPanelData = location.state?.panelData;
 
   // Guest Services icons mapping
   const guestServicesIcons = {
@@ -358,6 +364,28 @@ const IDPGCustomizer = () => {
       }
     });
   }, []);
+
+  // Load existing panel data if in edit mode
+  useEffect(() => {
+    if (isEditMode && editPanelData) {
+      // Load panel design
+      if (editPanelData.panelDesign) {
+        setPanelDesign(editPanelData.panelDesign);
+        setBackbox(editPanelData.panelDesign.backbox || '');
+        setExtraComments(editPanelData.panelDesign.extraComments || '');
+        
+        // Load IDPG-specific configuration
+        if (editPanelData.panelDesign.idpgConfig) {
+          const config = editPanelData.panelDesign.idpgConfig;
+          setCardReader(config.cardReader || false);
+          setRoomNumber(config.roomNumber || false);
+          setStatusMode(config.statusMode || 'bar');
+          setSelectedIcon1(config.selectedIcon1 || 'G1');
+          setRoomNumberText(config.roomNumberText || '');
+        }
+      }
+    }
+  }, [isEditMode, editPanelData]);
 
   // Function to get panel name based on checkbox states
   const getPanelName = () => {
@@ -979,14 +1007,39 @@ const IDPGCustomizer = () => {
 
   // Add Panel to Project handler
   const handleAddToCart = (): void => {
-    // You can add validation here if needed
+    // Check if backbox details are provided
+    if (!backbox.trim()) {
+      setBackboxError('Please provide backbox details before adding the panel to your project.');
+      return;
+    }
+
     const design = {
       type: 'IDPG',
       icons: [], // Add icon logic if needed
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { 
+        ...panelDesign, 
+        backbox, 
+        extraComments,
+        // Save IDPG-specific configuration
+        idpgConfig: {
+          cardReader,
+          roomNumber,
+          statusMode,
+          selectedIcon1,
+          roomNumberText,
+        }
+      },
     };
-    addToCart(design);
+
+    if (isEditMode && editPanelIndex !== undefined) {
+      // Update existing panel
+      updatePanel(editPanelIndex, design);
+      navigate('/cart'); // Go back to cart after updating
+    } else {
+      // Add new panel
+      addToCart(design);
+    }
   };
 
   return (

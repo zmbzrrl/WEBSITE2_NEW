@@ -159,7 +159,7 @@ const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
   const getPosition = (index: number) => {
     const positions = [
       { top: '15px', left: '15px' },   // Icon 0 (top-left)
-      { top: '15px', left: '115px' },  // Icon 1 (top-center)
+      { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
       { top: '15px', left: '215px' },  // Icon 2 (top-right)
       { top: '115px', left: '15px' },  // Icon 3 (middle-left)
       { top: '115px', left: '115px' }, // Icon 4 (middle-center)
@@ -167,9 +167,9 @@ const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
       { top: '215px', left: '15px' },  // Icon 6 (bottom-left)
       { top: '215px', left: '115px' }, // Icon 7 (bottom-center)
       { top: '215px', left: '215px' }, // Icon 8 (bottom-right)
-      { top: '315px', left: '15px' },  // Icon 9 (fourth-left)
-      { top: '315px', left: '115px' }, // Icon 10 (fourth-center)
-      { top: '315px', left: '215px' }, // Icon 11 (fourth-right)
+      { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
+      { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
+      { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total
     ];
     return positions[index] || { top: '0px', left: '0px' };
   };
@@ -582,8 +582,7 @@ const TAGCustomizer: React.FC = () => {
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   console.log('RENDER', { backbox, extraComments });
 
-  // State to track if rows 3 and 4 are swapped
-  const [swapRows, setSwapRows] = useState(false);
+
 
   const { projectName, projectCode } = useContext(ProjectContext);
 
@@ -928,17 +927,8 @@ const TAGCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
-  // Helper to get the correct cell index based on swapRows
-  const getDisplayIndex = (index: number) => {
-    if (!swapRows) return index;
-    // Swap 3rd (6,7,8) and 4th (9,10,11) rows
-    if (index >= 6 && index <= 8) return index + 3;
-    if (index >= 9 && index <= 11) return index - 3;
-    return index;
-  };
-
   const renderGridCell = (index: number) => {
-    const displayIndex = getDisplayIndex(index);
+    const displayIndex = index;
     const isThirdRow = displayIndex >= 6 && displayIndex <= 8;
     const isFourthRow = displayIndex >= 9 && displayIndex <= 11;
     const isFirstRow = displayIndex >= 0 && displayIndex <= 2;
@@ -994,7 +984,8 @@ const TAGCustomizer: React.FC = () => {
                   height: "80px", // Bigger height
                   objectFit: "contain",
                   position: "absolute",
-                  left: "-60px", // Moved to the right (was -90px)
+                  left: "-115px", // Moved 55px to the left
+                  top: "-70px", // Move up by 70px total
                   zIndex: 2,
                   filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'], // Use selected icon color
                   transition: 'filter 0.2s',
@@ -1005,7 +996,7 @@ const TAGCustomizer: React.FC = () => {
 
           {/* Always show FAN icon in third row */}
           {isThirdRow ? (
-            <div style={{ position: "relative", display: "inline-block" }}>
+            <div style={{ position: "relative", display: "inline-block", top: "-75px" }}>
               <img
                 src={fanIcon.src}
                 alt="FAN"
@@ -1234,7 +1225,7 @@ const TAGCustomizer: React.FC = () => {
             bottom: icon ? "5px" : "25px",
             left: "50%",
             transform: "translateX(-50%)",
-            width: "90%",
+            width: "120px", // Fixed width instead of 90%
             zIndex: 0,
           }}>
             {!isPIR && (
@@ -1247,7 +1238,7 @@ const TAGCustomizer: React.FC = () => {
                         fontSize: panelDesign.fontSize || "12px", 
                         color: panelDesign.textColor || "#000000",
                         wordBreak: "break-word",
-                        maxWidth: "100%",
+                        width: "120px", // Fixed width
                         textAlign: "center",
                         padding: "4px",
                         borderRadius: "4px",
@@ -1268,7 +1259,7 @@ const TAGCustomizer: React.FC = () => {
                         onBlur={handleTextBlur}
                         autoFocus
             style={{
-                          width: "100%",
+                          width: "120px", // Fixed width instead of 100%
               padding: "4px",
                           fontSize: panelDesign.fontSize || "12px",
               textAlign: "center",
@@ -1288,7 +1279,7 @@ const TAGCustomizer: React.FC = () => {
                           fontSize: panelDesign.fontSize || "12px", 
                           color: text ? panelDesign.textColor || "#000000" : "#999999",
                           wordBreak: "break-word",
-                          maxWidth: "100%",
+                          width: "120px", // Fixed width instead of maxWidth 100%
                           textAlign: "center",
                           padding: "4px",
                           cursor: isEditable ? "pointer" : "default",
@@ -2038,7 +2029,7 @@ const TAGCustomizer: React.FC = () => {
                 <div style={{ 
                   position: "relative",
                   width: "320px",
-                  height: "420px",
+                  height: "320px", // Use square aspect ratio
                   zIndex: 2,
                 }}>
               {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
@@ -2082,13 +2073,13 @@ const TAGCustomizer: React.FC = () => {
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
                   style={{
-                    width: "350px",
+                    width: "320px",
+                    height: "320px",
                     background: `linear-gradient(135deg, 
                       rgba(255, 255, 255, 0.3) 0%, 
                       rgba(255, 255, 255, 0.1) 50%, 
                       rgba(255, 255, 255, 0.05) 100%), 
                       ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    padding: "15px",
                     border: "2px solid rgba(255, 255, 255, 0.2)",
                     borderTop: "3px solid rgba(255, 255, 255, 0.4)",
                     borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
@@ -2105,6 +2096,11 @@ const TAGCustomizer: React.FC = () => {
                     position: "relative",
                     transform: "perspective(1000px) rotateX(5deg)",
                     transformStyle: "preserve-3d",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    margin: "0 auto"
                   }}
                 >
                   {/* Inner glow effect */}
@@ -2123,13 +2119,13 @@ const TAGCustomizer: React.FC = () => {
                       zIndex: 1,
                     }}
                   />
-                  
                   {/* Content with higher z-index */}
                   <div style={{ 
                     position: "relative",
                     width: "320px",
-                    height: "420px",
+                    height: "320px",
                     zIndex: 2,
+                    overflow: "hidden"
                   }}>
                     {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
                   </div>
@@ -2207,34 +2203,13 @@ const TAGCustomizer: React.FC = () => {
               <div style={{ 
                 position: "relative",
                 width: "320px",
-                height: "420px",
+                height: "320px", // Use square aspect ratio
                 zIndex: 2,
               }}>
                 {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
               </div>
             </div>
-            {/* Arrow Icon Button */}
-            <button
-              onClick={() => setSwapRows((prev) => !prev)}
-              style={{
-                background: '#1976d2',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '50%',
-                width: 40,
-                height: 40,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px #1976d233',
-                marginLeft: 16
-              }}
-              title="Switch Rows 3 and 4"
-            >
-              ⇅
-            </button>
+
           </div>
         )}
       </Container>

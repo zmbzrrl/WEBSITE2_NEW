@@ -3,6 +3,11 @@ import { ralColors } from '../data/ralColors';
 import { getIconColorName } from '../data/iconColors';
 import { allIcons } from '../assets/iconLibrary';
 import { getPanelLayoutConfig, PanelLayoutConfig } from '../data/panelLayoutConfig';
+import g18Icon from '../assets/icons/G-GuestServices/G18.png';
+import g1Icon from '../assets/icons/G-GuestServices/G1.png';
+import g2Icon from '../assets/icons/G-GuestServices/G2.png';
+import g3Icon from '../assets/icons/G-GuestServices/G3.png';
+import crIcon from '../assets/icons/CR.png';
 
 // Copy hexToRgba and ICON_COLOR_FILTERS from SPCustomizer
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -23,6 +28,14 @@ const ICON_COLOR_FILTERS: { [key: string]: string } = {
   '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
 };
 
+// Guest Services icons mapping for IDPG
+const guestServicesIcons = {
+  G1: g1Icon,
+  G2: g2Icon,
+  G3: g3Icon,
+  G18: g18Icon,
+};
+
 interface PanelPreviewIcon {
   src: string;
   label: string;
@@ -30,6 +43,7 @@ interface PanelPreviewIcon {
   text: string;
   category?: string;
   id?: string;
+  iconId?: string;
 }
 
 interface PanelPreviewProps {
@@ -44,6 +58,15 @@ interface PanelPreviewProps {
     isLayoutReversed?: boolean;
     swapSides?: boolean;
     mirrorGrid?: boolean;
+    swapUpDown?: boolean;
+    mirrorVertical?: boolean;
+    idpgConfig?: {
+      cardReader: boolean;
+      roomNumber: boolean;
+      statusMode: 'bar' | 'icons';
+      selectedIcon1: string;
+      roomNumberText: string;
+    };
   };
   iconTexts?: { [key: number]: string };
   type?: string;
@@ -69,10 +92,6 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     }
   }, [panelDesign.fonts]);
 
-  // Get layout configuration for this panel type
-  const config = getPanelLayoutConfig(type);
-  const { dimensions, gridLayout, iconLayout, bigIconLayout, textLayout, specialLayouts, iconPositions } = config;
-
   // Determine panel types for special handling
   const isDPH = type === 'DPH';
   const isDPV = type === 'DPV';
@@ -83,6 +102,28 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   const isTAG = type === 'TAG';
   const isSP = type === 'SP';
   const isIDPG = type === 'IDPG';
+
+  // Get layout configuration for this panel type
+  const config = getPanelLayoutConfig(type);
+  const { gridLayout, iconLayout, bigIconLayout, textLayout, specialLayouts, iconPositions } = config;
+  
+  // For IDPG panels, calculate dimensions based on configuration
+  let dimensions = config.dimensions;
+  let scale = 1;
+  if (isIDPG && panelDesign.idpgConfig) {
+    const { cardReader, roomNumber } = panelDesign.idpgConfig;
+    
+    // Square template (400x400) - when no card reader and no room number
+    if (!cardReader && !roomNumber) {
+      dimensions = { width: '300px', height: '300px' };
+      scale = 0.75;
+    }
+    // Rectangle vertical template (400x600) - when room number or card reader is present
+    else {
+      dimensions = { width: '300px', height: '450px' };
+      scale = 0.75;
+    }
+  }
   const isDoublePanel = isDPH || isDPV;
   const isExtendedPanel = isX2V || isX1H || isX1V || isX2H;
   const isVerticalPanel = isDPV || isX2V || isX1V;
@@ -97,6 +138,19 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     // Check if this is a single icon slot for extended panels
     const isSingleIconSlot = (isX1H || isX1V) && icon.position === 9;
     const isX2SingleIconSlot = (isX2H || isX2V) && (icon.position === 9 || icon.position === 10);
+    
+    // Special handling for TAG panel
+    if (isTAG) {
+      if (icon?.iconId === 'DISPLAY') {
+        return '240px'; // Large display icon
+      }
+      if (icon?.iconId === 'FAN') {
+        // Different sizes for different fan positions
+        if (icon.position === 6) return '45px';
+        if (icon.position === 7) return '58px';
+        if (icon.position === 8) return '65px';
+      }
+    }
     
     if (isPIR) {
       return specialLayouts?.PIR?.iconSize || '40px';
@@ -143,7 +197,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         style={{
           position: 'relative',
           width: isDPH ? '640px' : dimensions.width,
-          height: dimensions.height,
+          height: isTAG ? (parseInt(dimensions.height) - 5) + 'px' : dimensions.height,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
           padding: '0',
           border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -204,6 +258,93 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               }
             }
             
+            // Apply swap and mirror logic for X1V panels
+            if (isX1V && panelDesign.mirrorVertical && index >= 0 && index <= 8) {
+              // Mirror the grid horizontally: column 0<->2, column 1 stays
+              const row = Math.floor(index / 3);
+              const col = index % 3;
+              if (col === 0) {
+                // Column 0 moves to column 2 position
+                const col2Pos = iconPositions[row * 3 + 2];
+                if (col2Pos) {
+                  adjustedPos = { ...col2Pos };
+                }
+              } else if (col === 2) {
+                // Column 2 moves to column 0 position
+                const col0Pos = iconPositions[row * 3];
+                if (col0Pos) {
+                  adjustedPos = { ...col0Pos };
+                }
+              }
+              // Column 1 stays in place
+            }
+            
+            // Apply swap logic for X1V (if enabled)
+            if (isX1V && panelDesign.swapUpDown) {
+              if (index >= 0 && index <= 8) {
+                // Move the 3x3 grid to the bottom half
+                // Panel is 640px tall, so move grid to bottom half (320px offset)
+                const swappedGridOffset = 320;
+                adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) + swappedGridOffset) + 'px' };
+              } else if (index === 9) {
+                // Move the single slot to the top half, positioned more centrally
+                // Original position is 328px top, 36px left
+                // Move it to center of top half (around 55px from top)
+                adjustedPos = { ...adjustedPos, top: '55px' };
+              }
+            }
+            
+            // Special handling for TAG panel
+            if (isTAG) {
+              // Adjust position for DISPLAY icon (position 4)
+              if (index === 4 && icon?.iconId === 'DISPLAY') {
+                adjustedPos = { 
+                  ...adjustedPos, 
+                  left: '-115px', // Move left to center the large display
+                  top: '-70px'    // Move up to center the large display
+                };
+              }
+              
+              // Adjust positions for FAN icons in third row (positions 6, 7, 8)
+              if (index >= 6 && index <= 8 && icon?.iconId === 'FAN') {
+                adjustedPos = { 
+                  ...adjustedPos, 
+                  top: (parseInt(adjustedPos.top) - 75) + 'px' // Move up by 75px
+                };
+              }
+            }
+            
+            // Special handling for TAG panel: shift all icons 30px to the right
+            if (isTAG && adjustedPos && adjustedPos.left) {
+              const leftValue = parseInt(adjustedPos.left);
+              adjustedPos = { ...adjustedPos, left: (leftValue + 30) + 'px' };
+            }
+            // For TAG, bring first three rows (indices 0-8) 5px down
+            if (isTAG && adjustedPos && adjustedPos.top && index >= 0 && index <= 8) {
+              const topValue = parseInt(adjustedPos.top);
+              adjustedPos = { ...adjustedPos, top: (topValue + 5) + 'px' };
+            }
+            // For TAG, move row 3 (indices 6, 7, 8) up by 3px
+            if (isTAG && adjustedPos && adjustedPos.top && index >= 6 && index <= 8) {
+              const topValue = parseInt(adjustedPos.top);
+              adjustedPos = { ...adjustedPos, top: (topValue - 3) + 'px' };
+            }
+            // For TAG, shift row 3 (indices 6, 7, 8) 8px to the left
+            if (isTAG && adjustedPos && adjustedPos.left && index >= 6 && index <= 8) {
+              const leftValue = parseInt(adjustedPos.left);
+              adjustedPos = { ...adjustedPos, left: (leftValue - 8 - 3) + 'px' };
+            }
+            // For TAG, bring row 4 (indices 9, 10, 11) 8px up
+            if (isTAG && adjustedPos && adjustedPos.top && index >= 9 && index <= 11) {
+              const topValue = parseInt(adjustedPos.top);
+              adjustedPos = { ...adjustedPos, top: (topValue - 8) + 'px' };
+            }
+            // For TAG, move cell 10 (index 10) 6px to the left
+            if (isTAG && adjustedPos && adjustedPos.left && index === 10) {
+              const leftValue = parseInt(adjustedPos.left);
+              adjustedPos = { ...adjustedPos, left: (leftValue - 6) + 'px' };
+            }
+            
             return (
               <div
                 key={index}
@@ -233,6 +374,43 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                         transition: 'filter 0.2s',
                       }}
                     />
+              )}
+              
+              {/* Special rendering for TAG panel permanent icons */}
+              {isTAG && index === 4 && (
+                <img
+                  src="/src/assets/icons/DISPLAY.png"
+                  alt="DISPLAY"
+                  style={{
+                    width: '240px',
+                    height: '80px',
+                    objectFit: 'contain',
+                    position: 'absolute',
+                    left: '-115px',
+                    top: '-70px',
+                    zIndex: 3,
+                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
+                    transition: 'filter 0.2s',
+                  }}
+                />
+              )}
+              
+              {/* Always show FAN icons in third row for TAG */}
+              {isTAG && index >= 6 && index <= 8 && (
+                <img
+                  src="/src/assets/icons/FAN.png"
+                  alt="FAN"
+                  style={{
+                    width: index === 6 ? '45px' : index === 7 ? '58px' : '65px',
+                    height: index === 6 ? '45px' : index === 7 ? '58px' : '65px',
+                    objectFit: 'contain',
+                    position: 'absolute',
+                    top: index === 6 ? '-65px' : index === 7 ? '-69px' : '-75px',
+                    zIndex: 3,
+                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
+                    transition: 'filter 0.2s',
+                  }}
+                />
               )}
                   {!isPIR && text && (
                     <div
@@ -324,7 +502,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: bigIconLayout.size,
                 height: bigIconLayout.size,
                   objectFit: 'contain', 
-                filter: bigIcon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                filter: getBigIconSrc() && icons.find(icon => icon.position === ((isX1H || isX1V) ? 100 : 9))?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',
                 }}
             />
@@ -339,7 +517,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: bigIconLayout.size,
                 height: bigIconLayout.size,
                   objectFit: 'contain', 
-                filter: bigIcon2?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                filter: getBigIcon2Src() && icons.find(icon => icon.position === 10)?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',
                 }}
 
@@ -995,7 +1173,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   };
 
   // Base panel container style
-  const basePanelStyle = {
+  const basePanelStyle: React.CSSProperties = {
             background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
             padding: '0',
             border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -1011,7 +1189,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   };
 
   // Inner glow effect
-  const innerGlowStyle = {
+  const innerGlowStyle: React.CSSProperties = {
               position: 'absolute',
               top: '2px',
               left: '2px',
@@ -1093,7 +1271,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             pointerEvents: 'none',
             zIndex: 1,
         }} />
-        {iconPositions.map((pos, index) => {
+        {iconPositions?.map((pos, index) => {
           let icon = icons.find((i) => i.position === index);
           let forceIcon = null;
           // Cell 4: always DISPLAY
@@ -1136,8 +1314,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     />
               ) : hasIcon && (
                     <img
-                      src={icon.src}
-                      alt={icon.label}
+                      src={icon?.src || ''}
+                      alt={icon?.label || ''}
                       style={{
                     width: iconSize,
                     height: iconSize,
@@ -1174,22 +1352,557 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   }
 
   if (isIDPG) {
-    // Corridor Panel - 4x4 grid
-  return (
-    <div
-      style={{
+    // IDPG Corridor Panel - Complex layout with 8 possible combinations
+    const idpgConfig = panelDesign.idpgConfig;
+    
+    if (!idpgConfig) {
+      // Fallback if no config - show basic panel
+      return (
+        <div
+          style={{
+            ...basePanelStyle,
+            width: dimensions.width,
+            height: dimensions.height,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={innerGlowStyle} />
+          <div style={{
+            color: panelDesign.textColor,
+            fontSize: panelDesign.fontSize,
+            fontFamily: panelDesign.fonts || undefined,
+            fontWeight: "500",
+          }}>
+            IDPG Panel
+          </div>
+        </div>
+      );
+    }
+
+    const { cardReader, roomNumber, statusMode, selectedIcon1, roomNumberText } = idpgConfig;
+    const rightIcon = 'G3'; // Always use G3 for right icon
+
+    // Render the appropriate layout based on configuration
+    const renderIDPGLayout = () => {
+      // No card reader and no room number - Square template with status
+      if (!cardReader && !roomNumber) {
+        if (statusMode === 'icons') {
+          return (
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              width: "100%",
+              height: "100%",
+              padding: `${15 * scale}px`,
+            }}>
+              {/* Two icon fields */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                height: `${60 * scale}px`,
+                margin: `${10 * scale}px 0`,
+                gap: `${20 * scale}px`,
+              }}>
+                {/* Left icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                    alt="Icon 1" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+                {/* Right icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[rightIcon]} 
+                    alt="Icon 2" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* G18 icon in bottom center */}
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginTop: "auto",
+                paddingBottom: `${10 * scale}px`,
+              }}>
+                <img 
+                  src={g18Icon} 
+                  alt="G18 Icon" 
+                  style={{
+                    width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                    height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        } else {
+          // Status bar mode
+          return (
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              width: "100%",
+              height: "100%",
+              padding: `${15 * scale}px`,
+            }}>
+              {/* Middle bar */}
+              <div style={{
+                width: "100%",
+                height: `${8 * scale}px`,
+                background: "transparent",
+                border: `2px solid ${panelDesign.iconColor}`,
+                borderRadius: `${4 * scale}px`,
+                margin: `auto 0`,
+              }} />
+              {/* G18 icon in bottom center */}
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginTop: "auto",
+                paddingBottom: `${10 * scale}px`,
+              }}>
+                <img 
+                  src={g18Icon} 
+                  alt="G18 Icon" 
+                  style={{
+                    width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                    height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        }
+      }
+
+      // Room number only - Rectangle vertical template
+      if (!cardReader && roomNumber) {
+        return (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            height: "100%",
+            padding: `${15 * scale}px`,
+          }}>
+            {/* Room number at top */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: `${10 * scale}px`,
+              marginBottom: `${10 * scale}px`,
+            }}>
+              <div style={{
+                color: panelDesign.textColor,
+                fontSize: `${48 * scale}px`,
+                fontWeight: 'bold',
+                fontFamily: panelDesign.fonts || undefined,
+                textAlign: 'center',
+              }}>
+                {roomNumberText || "0000"}
+              </div>
+            </div>
+            
+            {statusMode === 'icons' ? (
+              /* Two icon fields replacing the bar */
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                height: `${60 * scale}px`,
+                margin: `${10 * scale}px 0`,
+                gap: `${20 * scale}px`,
+              }}>
+                {/* Left icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                    alt="Icon 1" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+                {/* Right icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[rightIcon]} 
+                    alt="Icon 2" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Status bar */
+              <div style={{
+                width: "100%",
+                height: `${8 * scale}px`,
+                background: "transparent",
+                border: `2px solid ${panelDesign.iconColor}`,
+                borderRadius: `${4 * scale}px`,
+                margin: `${10 * scale}px 0`,
+              }} />
+            )}
+            
+            {/* G18 icon in bottom center */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: "auto",
+              paddingBottom: `${10 * scale}px`,
+            }}>
+              <img 
+                src={g18Icon} 
+                alt="G18 Icon" 
+                style={{
+                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+
+      // Card Reader only - Rectangle vertical template
+      if (cardReader && !roomNumber) {
+        return (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            height: "100%",
+            padding: `${15 * scale}px`,
+          }}>
+            {statusMode === 'icons' ? (
+              /* Two icon fields at top */
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                height: `${60 * scale}px`,
+                margin: `${10 * scale}px 0`,
+                gap: `${20 * scale}px`,
+              }}>
+                {/* Left icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                    alt="Icon 1" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+                {/* Right icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[rightIcon]} 
+                    alt="Icon 2" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Status bar at top */
+              <div style={{
+                width: "100%",
+                height: `${8 * scale}px`,
+                background: "transparent",
+                border: `2px solid ${panelDesign.iconColor}`,
+                borderRadius: `${4 * scale}px`,
+                marginBottom: `${20 * scale}px`,
+              }} />
+            )}
+            
+            {/* G18 icon in center */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              flex: "1",
+            }}>
+              <img 
+                src={g18Icon} 
+                alt="G18 Icon" 
+                style={{
+                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                }}
+              />
+            </div>
+            {/* CR icon in bottom center */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              paddingBottom: `${10 * scale}px`,
+            }}>
+              <img 
+                src={crIcon} 
+                alt="CR Icon" 
+                style={{
+                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+
+      // Card Reader & Room Number - Rectangle vertical template
+      if (cardReader && roomNumber) {
+        return (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            height: "100%",
+            padding: `${15 * scale}px`,
+          }}>
+            {/* Room number at top */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: `${10 * scale}px`,
+              marginBottom: `${10 * scale}px`,
+            }}>
+              <div style={{
+                color: panelDesign.textColor,
+                fontSize: `${48 * scale}px`,
+                fontWeight: 'bold',
+                fontFamily: panelDesign.fonts || undefined,
+                textAlign: 'center',
+              }}>
+                {roomNumberText || "0000"}
+              </div>
+            </div>
+            
+            {statusMode === 'icons' ? (
+              /* Two icon fields replacing the bar */
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                height: `${60 * scale}px`,
+                margin: `${10 * scale}px 0`,
+                gap: `${20 * scale}px`,
+              }}>
+                {/* Left icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                    alt="Icon 1" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+                {/* Right icon */}
+                <div style={{
+                  flex: "1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: `${8 * scale}px`,
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  height: "100%",
+                }}>
+                  <img 
+                    src={guestServicesIcons[rightIcon]} 
+                    alt="Icon 2" 
+                    style={{
+                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Status bar right below the number */
+              <div style={{
+                width: "100%",
+                height: `${8 * scale}px`,
+                background: "transparent",
+                border: `2px solid ${panelDesign.iconColor}`,
+                borderRadius: `${4 * scale}px`,
+                marginBottom: `${20 * scale}px`,
+              }} />
+            )}
+            
+            {/* G18 icon in center */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              flex: "1",
+            }}>
+              <img 
+                src={g18Icon} 
+                alt="G18 Icon" 
+                style={{
+                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                }}
+              />
+            </div>
+            {/* CR icon in bottom center */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              paddingBottom: `${10 * scale}px`,
+            }}>
+              <img 
+                src={crIcon} 
+                alt="CR Icon" 
+                style={{
+                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+
+      // Default fallback
+      return (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: "100%",
+          color: panelDesign.textColor,
+          fontSize: `calc(${panelDesign.fontSize} * ${scale})`,
+          fontFamily: panelDesign.fonts || undefined,
+          fontWeight: "500",
+        }}>
+          IDPG Panel
+        </div>
+      );
+    };
+
+    return (
+      <div
+        style={{
           ...basePanelStyle,
           width: dimensions.width,
           height: dimensions.height,
-        display: 'flex',
-                  alignItems: 'center',
-          justifyContent: 'center',
         }}
       >
         <div style={innerGlowStyle} />
-        {renderGrid()}
-              </div>
-            );
+        {renderIDPGLayout()}
+      </div>
+    );
   }
 
   if (isDoublePanel || isExtendedPanel) {

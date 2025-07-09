@@ -81,19 +81,22 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
   // Thermostat (TAG)
   TAG: {
     dimensions: {
-      width: '300px',
-      height: '300px'
+      width: '320px',
+      height: '320px'
     },
     iconPositions: [
-      { top: '15px', left: '15px' },   // Icon 0
-      { top: '15px', left: '115px' },  // Icon 1
-      { top: '15px', left: '215px' },  // Icon 2
-      { top: '115px', left: '15px' },  // Icon 3
-      { top: '115px', left: '115px' }, // Icon 4
-      { top: '115px', left: '215px' }, // Icon 5
-      { top: '215px', left: '15px' },  // Icon 6
-      { top: '215px', left: '115px' }, // Icon 7
-      { top: '215px', left: '215px' }, // Icon 8
+      { top: '15px', left: '15px' },   // Icon 0 (top-left)
+      { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
+      { top: '15px', left: '215px' },  // Icon 2 (top-right)
+      { top: '115px', left: '15px' },  // Icon 3 (middle-left)
+      { top: '115px', left: '115px' }, // Icon 4 (middle-center)
+      { top: '115px', left: '215px' }, // Icon 5 (middle-right)
+      { top: '215px', left: '15px' },  // Icon 6 (bottom-left)
+      { top: '215px', left: '115px' }, // Icon 7 (bottom-center)
+      { top: '215px', left: '215px' }, // Icon 8 (bottom-right)
+      { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
+      { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
+      { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total
     ],
     iconLayout: {
       size: '35px',
@@ -207,9 +210,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       { top: '218px', left: '136px' }, // 7
       { top: '218px', left: '233px' }, // 8
       // Right SP (single slot, centered)
-      { top: '123px', left: '456px' }, // 9 (center of right half)
+      { top: '43px', left: '356px' }, // 9 (moved 25px right)
       // New slot in added width, centered
-      { top: '123px', left: '700px' }, // 10
+      { top: '43px', left: '635px' }, // 10 (moved 20px right)
     ],
     gridLayout: {
       rows: 3,
@@ -301,7 +304,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       { top: '218px', left: '136px' }, // 7
       { top: '218px', left: '233px' }, // 8
       // Right SP (single slot, centered)
-      { top: '123px', left: '456px' }, // 9 (center of right half)
+      { top: '33px', left: '341px', width: '120px', height: '120px' }, // 9 (center of right half, moved left by 20px)
     ],
     iconLayout: {
       size: '40px',
@@ -334,7 +337,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       { top: '218px', left: '136px' }, // 7
       { top: '218px', left: '233px' }, // 8
       // Bottom SP (single slot, centered)
-      { top: '443px', left: '136px' }, // 9 (center of bottom half)
+      { top: '328px', left: '36px' }, // 9 (center of bottom half, moved 100px left and 115px up)
     ],
     iconLayout: {
       size: '40px',

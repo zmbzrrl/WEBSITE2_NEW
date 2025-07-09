@@ -19,6 +19,7 @@ interface CartItem {
     iconColor: string;
     textColor: string;
     fontSize: string;
+    iconSize?: string;
     fonts?: string;
     backbox?: string;
     extraComments?: string;

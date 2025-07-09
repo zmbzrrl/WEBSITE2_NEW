@@ -559,7 +559,7 @@ const X2HCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG'));
     });
   }, []);
 
@@ -637,6 +637,15 @@ const X2HCustomizer: React.FC = () => {
     if (selectedIcon.id === "G3") {
       // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8) - not in left column (cells 0,3,6)
       if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
+    }
+
+    // Check if trying to place a Socket icon
+    if (selectedIcon.category === "Sockets") {
+      // Only allow placement in the single slots (indices 9 and 10)
+      if (cellIndex !== 9 && cellIndex !== 10) return;
+      // Prevent more than one socket in the same slot
+      const hasSocketInThisSlot = placedIcons.some((icon) => icon.category === "Sockets" && icon.position === cellIndex);
+      if (hasSocketInThisSlot) return;
     }
 
     const iconPosition: PlacedIcon = {
@@ -740,6 +749,8 @@ const X2HCustomizer: React.FC = () => {
         // Handle new icon placement
         const icon = categoryIcons.find(i => i.id === dragData.id);
         if (!icon) return;
+        // Prevent any non-socket icon from being placed in the single icon slots (indices 9 and 10)
+        if ((cellIndex === 9 || cellIndex === 10) && icon.category !== "Sockets") return;
 
         // Check if trying to place PIR icon
         if (icon.category === "PIR") {
@@ -758,6 +769,14 @@ const X2HCustomizer: React.FC = () => {
         if (icon.id === "G3") {
           // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8) - not in left column (cells 0,3,6)
           if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
+        }
+
+        // Check if trying to place a Socket icon
+        if (icon.category === "Sockets") {
+          if (cellIndex !== 9 && cellIndex !== 10) return;
+          // Prevent more than one socket in the same slot
+          const hasSocketInThisSlot = placedIcons.some((icon) => icon.category === "Sockets" && icon.position === cellIndex);
+          if (hasSocketInThisSlot) return;
         }
 
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -779,6 +798,9 @@ const X2HCustomizer: React.FC = () => {
         const targetIcon = placedIcons.find(i => i.position === cellIndex);
         
         if (!sourceIcon) return;
+        // Prevent swapping a non-socket icon into the single icon slots (indices 9 and 10)
+        if ((cellIndex === 9 || cellIndex === 10) && sourceIcon.category !== "Sockets") return;
+        if ((dragData.position === 9 || dragData.position === 10) && targetIcon && targetIcon.category !== "Sockets") return;
 
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
@@ -806,6 +828,14 @@ const X2HCustomizer: React.FC = () => {
         if (targetIcon?.iconId === "G3") {
           // G3 cannot be moved from column 1 (cells 0, 3, 6)
           if (dragData.position === 0 || dragData.position === 3 || dragData.position === 6) return;
+        }
+
+        // Check Socket restrictions for swapping
+        if (sourceIcon.category === "Sockets") {
+          if (cellIndex !== 9 && cellIndex !== 10) return;
+        }
+        if (targetIcon?.category === "Sockets") {
+          if (dragData.position !== 9 && dragData.position !== 10) return;
         }
 
         // Swap icon positions
@@ -860,16 +890,20 @@ const X2HCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = iconLayout?.size || '40px';
+    const iconSize = panelDesign.iconSize || '40px';
     const pos = iconPositions[index] || { top: '0px', left: '0px' };
+    
+    // Calculate container size to match icon size
+    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : ((index === 9 || index === 10) ? '204px' : panelDesign.iconSize || '40px'));
+    
     return (
         <div
         key={index}
           style={{
           position: 'absolute',
           ...pos,
-          width: iconSize,
-          height: iconSize,
+          width: containerSize,
+          height: containerSize,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -891,15 +925,15 @@ const X2HCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
+                width: containerSize,
+                height: containerSize,
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
                   zIndex: 1,
                 marginTop: isPIR ? '20px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
-                  filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                  filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',
                 }}
               />
@@ -939,41 +973,45 @@ const X2HCustomizer: React.FC = () => {
             </div>
           )}
         {/* Text field always below the icon */}
-            {!isPIR && (
-          <div style={{ width: '100%', textAlign: 'center', marginTop: icon ? '-11px' : '15px' }}>
-                {currentStep === 4 ? (
+            {!isPIR && icon?.category !== 'Sockets' && (
+              <div style={{ width: '100%', textAlign: 'center', marginTop: icon ? '-11px' : '15px' }}>
+                {((index === 9 || index === 10) && !icon) ? (
+                  <div style={{ fontSize: '18px', color: '#bbb', fontWeight: 600, padding: '16px 0' }}>
+                    drop socket
+                  </div>
+                ) : currentStep === 4 ? (
                   text && (
-                <div style={{
-                  width: '100%',
-                  textAlign: 'center',
-                  fontSize: panelDesign.fontSize || '12px',
-                  color: panelDesign.textColor || '#000000',
-                        fontFamily: panelDesign.fonts || undefined,
-                  wordBreak: 'break-word',
-                }}>{text}</div>
+                    <div style={{
+                      width: '100%',
+                      textAlign: 'center',
+                      fontSize: panelDesign.fontSize || '12px',
+                      color: panelDesign.textColor || '#000000',
+                      fontFamily: panelDesign.fonts || undefined,
+                      wordBreak: 'break-word',
+                    }}>{text}</div>
                   )
                 ) : (
                   <>
                     {isEditing ? (
-            <input
-              type="text"
-                    value={text || ''}
-                    onChange={e => handleTextChange(e, index)}
+                      <input
+                        type="text"
+                        value={text || ''}
+                        onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
-                      <div 
+                      <div
                         onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', maxWidth: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px' }}
-                  >
-                    {text || 'Add text'}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                      >
+                        {text || 'Add text'}
                       </div>
-          )}
+                    )}
                   </>
                 )}
-          </div>
+              </div>
             )}
           </div>
     );
@@ -1149,7 +1187,7 @@ const X2HCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel-type');
+                navigate('/panel/extended');
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }

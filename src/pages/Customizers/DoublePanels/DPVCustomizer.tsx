@@ -942,12 +942,12 @@ const DPVCustomizer: React.FC = () => {
                     onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px' }}
+                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div 
                         onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', maxWidth: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px' }}
+                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                   >
                     {text || 'Add text'}
                       </div>
@@ -1129,7 +1129,7 @@ const DPVCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel-type');
+                navigate('/panel/double');
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }
@@ -1150,74 +1150,79 @@ const DPVCustomizer: React.FC = () => {
 
         {/* Icon List: Only visible on step 2 */}
         {currentStep === 2 && (
-      <div style={{ marginBottom: "20px" }}>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
+      <div style={{ display: 'flex', flexDirection: 'row', gap: '40px', justifyContent: 'center', alignItems: 'flex-start', marginBottom: '20px' }}>
+        {/* Categories column */}
+        <div style={{ minWidth: 140, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
           {iconCategories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
               style={{
-                    padding: "12px 24px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
+                padding: "12px 24px",
+                background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
+                color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
+                border: "1px solid #1a1f2c",
                 borderRadius: "4px",
                 cursor: "pointer",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                    minWidth: "120px",
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                fontSize: "14px",
+                letterSpacing: "0.5px",
+                transition: "all 0.3s ease",
+                minWidth: "120px",
+                textAlign: 'right',
               }}
             >
               {category}
             </button>
           ))}
         </div>
-            <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
-              maxWidth: "800px",
-              margin: "0 auto"
-            }}>
+        {/* Icons grid column */}
+        <div style={{ 
+          display: "flex", 
+          gap: "16px", 
+          flexWrap: "wrap", 
+          justifyContent: "flex-start",
+          maxWidth: "400px",
+          margin: "0",
+          minHeight: '320px',
+          alignItems: 'flex-start',
+        }}>
           {categoryIcons.map((icon) => (
             <div
               key={icon.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, icon)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, icon)}
               style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
+                padding: "12px",
+                background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
+                borderRadius: "6px",
+                cursor: "grab",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
+                width: "60px",
+                border: "1px solid #e0e0e0",
+                transition: "all 0.3s ease",
               }}
             >
               <img
                 src={icon.src}
                 alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                style={{ width: "32px", height: "32px", objectFit: "contain" }}
               />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
-                  }}>
-                    {icon.label}
-                  </span>
+              <span style={{ 
+                fontSize: "14px", 
+                color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                letterSpacing: "0.5px"
+              }}>
+                {icon.label}
+              </span>
             </div>
           ))}
         </div>
         {/* Panel Preview for Step 2 (only this one should render) */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40 }}>
+        <div style={{ flex: '0 0 340px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: 0 }}>
           <div
             style={{
               position: 'relative',
@@ -1247,7 +1252,7 @@ const DPVCustomizer: React.FC = () => {
               zIndex: 1,
             }} />
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-              {Array.from({ length: 18 }).map((_, index) => renderAbsoluteCell(index))}
+              {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
             </div>
           </div>
         </div>
