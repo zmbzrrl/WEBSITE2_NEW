@@ -357,7 +357,7 @@ const Home = () => {
     }
     setProjectName(projectDetails.projectName);
     setProjectCode(projectDetails.projectCode);
-    navigate('/boq', { state: { projectDetails } });
+    navigate('/panel-type', { state: { projectDetails } });
   };
 
   const handleHelpClick = () => {

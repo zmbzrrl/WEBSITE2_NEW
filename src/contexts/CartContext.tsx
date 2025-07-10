@@ -114,8 +114,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const clearProject = useCallback(() => {
     setCurrentProjectCode(null);
     setProjPanels([]);
-    // Clear customized panels tracking
-    localStorage.removeItem('customizedPanels');
   }, []);
 
   // Save current panels to localStorage whenever they change
@@ -137,46 +135,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const addToCart = useCallback((item: CartItem): void => {
     setProjPanels((prev) => [...prev, item]);
     setIsCounting(true);
-    
-    // Track customized panel for BOQ management
-    const panelType = item.type.toLowerCase();
-    const customizedData = localStorage.getItem('customizedPanels');
-    const customizedPanels = customizedData ? JSON.parse(customizedData) : {};
-    
-    customizedPanels[panelType] = (customizedPanels[panelType] || 0) + item.quantity;
-    localStorage.setItem('customizedPanels', JSON.stringify(customizedPanels));
   }, []);
 
   const updateQuantity = useCallback((index: number, newQty: number): void => {
     setProjPanels((prev) => {
       const updated = [...prev];
-      const oldItem = updated[index];
-      
       if (newQty <= 0) {
         updated.splice(index, 1);
-        
-        // Update customized panel tracking when removing
-        if (oldItem) {
-          const panelType = oldItem.type.toLowerCase();
-          const customizedData = localStorage.getItem('customizedPanels');
-          const customizedPanels = customizedData ? JSON.parse(customizedData) : {};
-          
-          customizedPanels[panelType] = Math.max(0, (customizedPanels[panelType] || 0) - oldItem.quantity);
-          localStorage.setItem('customizedPanels', JSON.stringify(customizedPanels));
-        }
       } else {
-        const quantityDiff = newQty - oldItem.quantity;
         updated[index].quantity = newQty;
-        
-        // Update customized panel tracking for quantity changes
-        if (quantityDiff !== 0) {
-          const panelType = oldItem.type.toLowerCase();
-          const customizedData = localStorage.getItem('customizedPanels');
-          const customizedPanels = customizedData ? JSON.parse(customizedData) : {};
-          
-          customizedPanels[panelType] = Math.max(0, (customizedPanels[panelType] || 0) + quantityDiff);
-          localStorage.setItem('customizedPanels', JSON.stringify(customizedPanels));
-        }
       }
       return updated;
     });
@@ -185,19 +152,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const removeFromCart = useCallback((index: number): void => {
     setProjPanels((prev) => {
       const updated = [...prev];
-      const removedItem = updated[index];
       updated.splice(index, 1);
-      
-      // Update customized panel tracking when removing from cart
-      if (removedItem) {
-        const panelType = removedItem.type.toLowerCase();
-        const customizedData = localStorage.getItem('customizedPanels');
-        const customizedPanels = customizedData ? JSON.parse(customizedData) : {};
-        
-        customizedPanels[panelType] = Math.max(0, (customizedPanels[panelType] || 0) - removedItem.quantity);
-        localStorage.setItem('customizedPanels', JSON.stringify(customizedPanels));
-      }
-      
       return updated;
     });
   }, []);
