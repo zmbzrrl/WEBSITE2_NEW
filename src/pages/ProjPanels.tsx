@@ -1,12 +1,13 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useCart } from "../contexts/CartContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import CartButton from "../components/CartButton";
 import PanelPreview from "../components/PanelPreview";
 import { Delete, Edit } from '@mui/icons-material';
 import PanelConfigurationSummary from "../components/PanelConfigurationSummary";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from "../App";
+import { saveDesign, getDesigns, updateDesign } from "../utils/database";
 
 const THEME = {
   primary: '#1b92d1',
@@ -48,9 +49,10 @@ const ICON_COLOR_FILTERS: { [key: string]: string } = {
 };
 
 const ProjPanels: React.FC = () => {
-  const { projPanels, updateQuantity, removeFromCart, reorderPanels, updatePanel, currentProjectCode } = useCart();
+  const { projPanels, updateQuantity, removeFromCart, reorderPanels, updatePanel, currentProjectCode, loadProjectPanels } = useCart();
   const navigate = useNavigate();
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const location = useLocation();
+  const { projectName, setProjectName, projectCode, setProjectCode } = useContext(ProjectContext);
   
   // State for panel number editing
   const [editingPanelIndex, setEditingPanelIndex] = useState<number | null>(null);
@@ -59,6 +61,195 @@ const ProjPanels: React.FC = () => {
   // State for panel name editing
   const [editingNameIndex, setEditingNameIndex] = useState<number | null>(null);
   const [editingNameValue, setEditingNameValue] = useState<string>('');
+  
+  // Save design state
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [isCreateNewRevision, setIsCreateNewRevision] = useState(false);
+  const [editingDesignId, setEditingDesignId]  = useState<string | null>(null);
+  const [originalProjectName, setOriginalProjectName] = useState('');
+  const [revisionNumber, setRevisionNumber] = useState<number>(1);
+  const [projectJustSaved, setProjectJustSaved] = useState(false);
+  
+  // Handle edit mode when component loads
+  useEffect(() => {
+    console.log('🔍 ProjPanels useEffect - location.state:', location.state);
+    
+    if (location.state?.editMode && location.state?.projectData) {
+      console.log('✅ Setting EDIT MODE');
+      setIsEditMode(true);
+      setEditingDesignId(location.state.designId);
+      
+      // Extract base project name without revision suffix
+      const fullProjectName = location.state.projectData.projectName;
+      const baseProjectName = fullProjectName.replace(/\s*\(rev\d+\)$/, '');
+      setOriginalProjectName(fullProjectName); // Use full name with revision
+      
+      // Load the project data into the cart
+      const projectData = location.state.projectData;
+      
+      // Clear existing panels and load the project panels with deep copies
+      if (projectData.panels && Array.isArray(projectData.panels)) {
+        console.log('Loading project panels for editing:', projectData.panels);
+        // Create deep copies to prevent shared references
+        const deepCopiedPanels = projectData.panels.map((panel: any) => JSON.parse(JSON.stringify(panel)));
+        console.log('🔍 Clearing cart and loading new panels for editing');
+        loadProjectPanels(deepCopiedPanels);
+      }
+      
+      // Calculate revision number based on existing designs
+      calculateRevisionNumber(baseProjectName);
+    } else if (location.state?.viewMode && location.state?.projectData) {
+      console.log('✅ Setting VIEW MODE');
+      // View mode - read-only
+      setIsViewMode(true);
+      setEditingDesignId(location.state.designId);
+      
+      const projectData = location.state.projectData;
+      
+      if (projectData.panels && Array.isArray(projectData.panels)) {
+        console.log('Loading project panels for viewing:', projectData.panels);
+        // Create deep copies to prevent shared references
+        const deepCopiedPanels = projectData.panels.map((panel: any) => JSON.parse(JSON.stringify(panel)));
+        loadProjectPanels(deepCopiedPanels);
+      }
+    } else if (location.state?.createNewRevision && location.state?.projectData) {
+      console.log('✅ Setting NEW REVISION MODE');
+      // Create new revision mode
+      setIsCreateNewRevision(true);
+      setEditingDesignId(location.state.originalDesignId);
+      setOriginalProjectName(location.state.originalProjectName);
+      // Ensure the context has the correct project name and persist it
+      if (location.state.originalProjectName) {
+        setProjectName(location.state.originalProjectName);
+        try {
+          sessionStorage.setItem('ppProjectName', location.state.originalProjectName);
+          if (location.state.originalDesignId) {
+            sessionStorage.setItem('ppEditingDesignId', location.state.originalDesignId);
+          }
+          sessionStorage.setItem('ppIsCreateNewRevision', 'true');
+        } catch {}
+      }
+      
+      const projectData = location.state.projectData;
+      
+      if (projectData.panels && Array.isArray(projectData.panels)) {
+        console.log('Loading project panels for new revision:', projectData.panels);
+        // Create deep copies to prevent shared references
+        const deepCopiedPanels = projectData.panels.map((panel: any) => JSON.parse(JSON.stringify(panel)));
+        loadProjectPanels(deepCopiedPanels);
+      }
+      
+      // Calculate revision number for new revision
+      calculateRevisionNumber(location.state.originalProjectName);
+    } else if (location.state?.projectEditMode !== undefined) {
+      console.log('✅ Restoring project edit state from customizer');
+      console.log('  projectEditMode:', location.state.projectEditMode);
+      console.log('  projectDesignId:', location.state.projectDesignId);
+      console.log('  projectOriginalName:', location.state.projectOriginalName);
+      console.log('  projectCreateNewRevision:', location.state.projectCreateNewRevision);
+      // Restore edit state when returning from customizer
+      setIsEditMode(location.state.projectEditMode);
+      setEditingDesignId(location.state.projectDesignId);
+      setOriginalProjectName(location.state.projectOriginalName);
+      setIsCreateNewRevision(location.state.projectCreateNewRevision);
+      
+      // Reload the panels from the database to ensure we have the latest data
+      const reloadPanelsFromDatabase = async () => {
+        try {
+          const userEmail = localStorage.getItem('userEmail');
+          if (!userEmail || !location.state.projectDesignId) {
+            console.log('❌ Cannot reload panels - missing userEmail or projectDesignId');
+            return;
+          }
+          
+          console.log('🔍 Attempting to reload panels from database');
+          console.log('  projectDesignId:', location.state.projectDesignId);
+          
+          const result = await getDesigns(userEmail);
+          if (result.success && 'designs' in result) {
+            console.log('  Found designs:', result.designs.length);
+            const design = result.designs.find((d: any) => d.id === location.state.projectDesignId);
+            console.log('  Found design:', design ? 'yes' : 'no');
+            
+            if (design && design.designData?.designData?.panels) {
+              console.log('🔍 Reloading panels from database after customizer return');
+              console.log('  Panels found:', design.designData.designData.panels.length);
+              const deepCopiedPanels = design.designData.designData.panels.map((panel: any) => 
+                JSON.parse(JSON.stringify(panel))
+              );
+              loadProjectPanels(deepCopiedPanels);
+            } else {
+              console.log('❌ No panels found in design data');
+              console.log('  design.designData:', design?.designData);
+              console.log('  design.designData?.designData:', design?.designData?.designData);
+            }
+          } else {
+            console.log('❌ Failed to get designs from database');
+          }
+        } catch (error) {
+          console.error('Error reloading panels:', error);
+        }
+      };
+      
+      reloadPanelsFromDatabase();
+    } else {
+      // No navigation state available; try restoring persisted context
+      try {
+        const sName = sessionStorage.getItem('ppProjectName') || '';
+        const sEditId = sessionStorage.getItem('ppEditingDesignId') || '';
+        const sIsNewRev = sessionStorage.getItem('ppIsCreateNewRevision') === 'true';
+        if (sName) {
+          setOriginalProjectName(sName);
+          if (!projectName) setProjectName(sName);
+        }
+        if (sEditId) setEditingDesignId(sEditId);
+        if (sIsNewRev) setIsCreateNewRevision(true);
+      } catch {}
+    }
+  }, [location.state, loadProjectPanels]);
+  
+  // Calculate revision number for the project
+  const calculateRevisionNumber = async (baseProjectName: string) => {
+    try {
+      const userEmail = localStorage.getItem('userEmail');
+      if (!userEmail) return;
+      
+      console.log('🔍 calculateRevisionNumber called with:', baseProjectName);
+      
+      const result = await getDesigns(userEmail);
+      if (result.success && result.designs) {
+        // Find all designs that start with the base project name
+        const existingRevisions = result.designs.filter((design: any) => 
+          design.design_name && design.design_name.startsWith(baseProjectName)
+        );
+        
+        console.log('🔍 Found existing revisions for calculation:', existingRevisions.map(d => d.design_name));
+        
+        // Count how many revisions already exist
+        let maxRevision = -1; // Start at -1 so first revision is rev0
+        existingRevisions.forEach((design: any) => {
+          const match = design.design_name.match(/\(rev(\d+)\)$/);
+          if (match) {
+            const revision = parseInt(match[1]);
+            if (revision > maxRevision) {
+              maxRevision = revision;
+            }
+          }
+        });
+        
+        console.log('🔍 Max revision found in calculation:', maxRevision);
+        setRevisionNumber(maxRevision + 1);
+      }
+    } catch (error) {
+      console.error('Error calculating revision number:', error);
+      setRevisionNumber(1);
+    }
+  };
 
   // Handle panel number editing
   const handlePanelNumberEdit = (index: number) => {
@@ -158,6 +349,276 @@ const ProjPanels: React.FC = () => {
     return panel.displayNumber || (index + 1);
   };
 
+  // 💾 Save entire project to database
+  const handleSaveProject = async (): Promise<void> => {
+    // Check if user is logged in (has email)
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveMessage('Please log in first to save projects.');
+      return;
+    }
+
+    // Check if there are panels to save
+    if (projPanels.length === 0) {
+      setSaveMessage('No panels to save. Add some panels first!');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('');
+
+    try {
+      // Read any persisted state to avoid losing name across navigations
+      const persistedName = (() => { try { return sessionStorage.getItem('ppProjectName') || ''; } catch { return ''; } })();
+      const persistedIsNewRev = (() => { try { return sessionStorage.getItem('ppIsCreateNewRevision') === 'true'; } catch { return false; } })();
+      const persistedEditIdRaw = (() => { try { return sessionStorage.getItem('ppEditingDesignId') || ''; } catch { return ''; } })();
+      const persistedEditId = persistedEditIdRaw || null;
+
+      const effectiveOriginalName = originalProjectName || persistedName;
+      // Use persisted "new revision" intent if we have a name but local flag got lost
+      const effectiveIsCreateNewRevision = isCreateNewRevision || (Boolean(persistedName) && persistedIsNewRev && !editingDesignId);
+      const effectiveEditingDesignId = editingDesignId || persistedEditId;
+
+      let finalProjectName = effectiveOriginalName || projectName || 'Untitled Project';
+      
+      console.log('🔍 SAVE FUNCTION - Current state:');
+      console.log('  isEditMode:', isEditMode);
+      console.log('  editingDesignId:', effectiveEditingDesignId);
+      console.log('  isCreateNewRevision:', effectiveIsCreateNewRevision);
+      console.log('  originalProjectName:', effectiveOriginalName);
+      
+      if (isEditMode && effectiveEditingDesignId) {
+        console.log('✅ Taking EDIT MODE path - updating existing design');
+        // EDIT MODE: Update existing design (same revision number)
+        // We need to get the original design to preserve its name and revision number
+        const designsResult = await getDesigns(userEmail);
+        if (designsResult.success && 'designs' in designsResult) {
+          const originalDesign = designsResult.designs.find((design: any) => design.id === effectiveEditingDesignId);
+          if (originalDesign) {
+            // Keep the original project name (including revision number)
+            const originalProjectName = originalDesign.design_name;
+            console.log('📝 Updating design with original name:', originalProjectName);
+            
+            const projectData = {
+              projectName: originalProjectName, // Preserve original name with revision
+              panelType: 'Project',
+              designData: {
+                projectName: originalProjectName,
+                projectCode: projectCode || '',
+                panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+                  ...panel,
+                  displayNumber: getDisplayNumber(index),
+                })))
+              }
+            };
+
+            // Update existing design
+            const result = await updateDesign(userEmail, effectiveEditingDesignId, projectData);
+            
+            if (result.success) {
+              setSaveMessage('✅ Project updated successfully! (Mock)');
+              setProjectJustSaved(true);
+            } else {
+              setSaveMessage('❌ Failed to update project: ' + result.message);
+            }
+          } else {
+            setSaveMessage('❌ Original design not found');
+          }
+        } else {
+          setSaveMessage('❌ Failed to load designs');
+        }
+      } else if (effectiveIsCreateNewRevision && effectiveOriginalName) {
+        console.log('✅ Taking NEW REVISION path - creating new revision');
+        // CREATE NEW REVISION MODE: Create a new revision with incremented number
+        
+        // Extract base project name (remove revision suffix)
+        const baseProjectName = effectiveOriginalName.replace(/\s*\(rev\d+\)$/, '');
+        console.log('🔍 Base project name:', baseProjectName);
+        
+        const designsResult = await getDesigns(userEmail);
+        if (designsResult.success && 'designs' in designsResult) {
+          // Find all designs that start with the base project name
+          const existingRevisions = designsResult.designs.filter((design: any) => 
+            design.design_name && design.design_name.startsWith(baseProjectName)
+          );
+          
+          console.log('🔍 Found existing revisions:', existingRevisions.map(d => d.design_name));
+          
+          // Count how many revisions already exist
+          let maxRevision = -1; // Start at -1 so first revision is rev0
+          existingRevisions.forEach((design: any) => {
+            const match = design.design_name.match(/\(rev(\d+)\)$/);
+            if (match) {
+              const revision = parseInt(match[1]);
+              if (revision > maxRevision) {
+                maxRevision = revision;
+              }
+            }
+          });
+          
+          console.log('🔍 Max revision found:', maxRevision);
+          const nextRevision = maxRevision + 1;
+          finalProjectName = `${baseProjectName} (rev${nextRevision})`;
+          console.log('🔍 Final project name:', finalProjectName);
+        } else {
+          finalProjectName = `${baseProjectName} (rev0)`;
+        }
+
+        const projectData = {
+          projectName: finalProjectName,
+          panelType: 'Project',
+          designData: {
+            projectName: finalProjectName,
+            projectCode: projectCode || '',
+            panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+              ...panel,
+              displayNumber: getDisplayNumber(index),
+            })))
+          }
+        };
+
+        // Save new revision
+        console.log('🔍 About to save new revision with data:', projectData);
+        const saveResult = await saveDesign(userEmail, projectData);
+        console.log('🔍 Save result:', saveResult);
+        
+        if (saveResult.success) {
+          setSaveMessage('✅ New revision created successfully!');
+          setProjectJustSaved(true);
+            // Update the original project name to the new revision name
+          setOriginalProjectName(finalProjectName);
+          // Update the global project name in the context
+          setProjectName(finalProjectName);
+          // Update the editing design ID to the new revision's ID
+          setEditingDesignId(saveResult.designId);
+          // Reset the new revision flag so future saves just update this revision
+          setIsCreateNewRevision(false);
+            // Persist the new state to survive navigation/state loss
+            try {
+              sessionStorage.setItem('ppProjectName', finalProjectName);
+              sessionStorage.setItem('ppEditingDesignId', saveResult.designId || '');
+              sessionStorage.setItem('ppIsCreateNewRevision', 'false');
+            } catch {}
+          console.log('🔍 Updated project name to:', finalProjectName);
+          console.log('🔍 Updated editing design ID to:', saveResult.designId);
+        } else {
+          setSaveMessage('❌ Failed to create new revision: ' + saveResult.message);
+        }
+      } else if (effectiveEditingDesignId && !effectiveIsCreateNewRevision) {
+        console.log('✅ Taking UPDATE EXISTING REVISION path - updating current revision');
+        // UPDATE EXISTING REVISION: We're working on an existing revision, just update it
+        
+        const designsResult = await getDesigns(userEmail);
+        if (designsResult.success && 'designs' in designsResult) {
+          const existingDesign = designsResult.designs.find((design: any) => design.id === effectiveEditingDesignId);
+          if (existingDesign) {
+            // Keep the existing project name (including revision number)
+            const existingProjectName = existingDesign.design_name;
+            console.log('📝 Updating existing revision with name:', existingProjectName);
+            
+            const projectData = {
+              projectName: existingProjectName, // Keep existing name with revision
+              panelType: 'Project',
+              designData: {
+                projectName: existingProjectName,
+                projectCode: projectCode || '',
+                panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+                  ...panel,
+                  displayNumber: getDisplayNumber(index),
+                })))
+              }
+            };
+
+            // Update existing design
+            const result = await updateDesign(userEmail, effectiveEditingDesignId, projectData);
+            
+            if (result.success) {
+              setSaveMessage('✅ Revision updated successfully!');
+              setProjectJustSaved(true);
+              // Update the global project name to match the existing revision name
+              setProjectName(existingProjectName);
+              // Persist for consistency across navigations
+              try {
+                sessionStorage.setItem('ppProjectName', existingProjectName);
+                sessionStorage.setItem('ppEditingDesignId', effectiveEditingDesignId || '');
+                sessionStorage.setItem('ppIsCreateNewRevision', 'false');
+              } catch {}
+              console.log('🔍 Updated global project name to:', existingProjectName);
+            } else {
+              setSaveMessage('❌ Failed to update revision: ' + result.message);
+            }
+          } else {
+            setSaveMessage('❌ Existing design not found');
+          }
+        } else {
+          setSaveMessage('❌ Failed to load designs');
+        }
+      } else {
+        console.log('❌ Taking NEW PROJECT path - this should not happen for Edit/New Rev');
+        // NEW PROJECT: Create rev0 for the first time
+        const designsResult = await getDesigns(userEmail);
+        if (designsResult.success && 'designs' in designsResult) {
+          // Check if there are any existing designs with this project name
+          const existingDesigns = designsResult.designs.filter((design: any) => 
+            design.design_name === finalProjectName || 
+            (design.design_name && design.design_name.startsWith(finalProjectName + ' (rev'))
+          );
+          
+          if (existingDesigns.length > 0) {
+            // There are existing designs, so this should be a new revision
+            let maxRevision = -1; // Start at -1 so first revision is rev0
+            existingDesigns.forEach((design: any) => {
+              const match = design.design_name.match(/\(rev(\d+)\)$/);
+              if (match) {
+                const revision = parseInt(match[1]);
+                if (revision > maxRevision) {
+                  maxRevision = revision;
+                }
+              }
+            });
+            
+            const nextRevision = maxRevision + 1;
+            finalProjectName = `${finalProjectName} (rev${nextRevision})`;
+          } else {
+            // This is the first design, add rev0
+            finalProjectName = `${finalProjectName} (rev0)`;
+          }
+        } else {
+          // If we can't get designs, default to rev0 for first design
+          finalProjectName = `${finalProjectName} (rev0)`;
+        }
+
+        const projectData = {
+          projectName: finalProjectName,
+          panelType: 'Project',
+          designData: {
+            projectName: finalProjectName,
+            projectCode: projectCode || '',
+            panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+              ...panel,
+              displayNumber: getDisplayNumber(index),
+            })))
+          }
+        };
+
+        // Save new project
+        const saveResult = await saveDesign(userEmail, projectData);
+        
+        if (saveResult.success) {
+          setSaveMessage('✅ Project saved successfully! (Mock)');
+          setProjectJustSaved(true);
+        } else {
+          setSaveMessage('❌ Failed to save project: ' + saveResult.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving project:', error);
+      setSaveMessage('❌ Error saving project. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -194,6 +655,8 @@ const ProjPanels: React.FC = () => {
             </span>
           </div>
         )}
+        
+
 
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <h1 style={{
@@ -203,7 +666,22 @@ const ProjPanels: React.FC = () => {
             letterSpacing: '1px',
             marginBottom: 8,
             textShadow: '0 1px 2px rgba(0,0,0,0.08)'
-          }}>Project Panels</h1>
+          }}>
+            {isEditMode ? `Editing: ${originalProjectName}` : 'Project Panels'}
+          </h1>
+          {isEditMode && (
+            <div style={{
+              background: '#fff3cd',
+              color: '#856404',
+              padding: '8px 16px',
+              borderRadius: 6,
+              marginBottom: 16,
+              fontSize: 14,
+              fontWeight: 500,
+            }}>
+              ✏️ Edit Mode - Saving will create Rev{revisionNumber}
+            </div>
+          )}
           <div style={{
             width: 120,
             height: 5,
@@ -315,19 +793,20 @@ const ProjPanels: React.FC = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
-                        cursor: 'pointer',
+                        cursor: isViewMode ? 'default' : 'pointer',
                         transition: 'all 0.2s ease',
+                        pointerEvents: isViewMode ? 'none' : 'auto',
                       }}
-                      onClick={() => handlePanelNumberEdit(index)}
-                      onMouseEnter={(e) => {
+                      onClick={!isViewMode ? () => handlePanelNumberEdit(index) : undefined}
+                      onMouseEnter={!isViewMode ? (e) => {
                         e.currentTarget.style.background = THEME.primaryHover;
                         e.currentTarget.style.transform = 'scale(1.05)';
-                      }}
-                      onMouseLeave={(e) => {
+                      } : undefined}
+                      onMouseLeave={!isViewMode ? (e) => {
                         e.currentTarget.style.background = THEME.primary;
                         e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                      title="Click to edit panel number"
+                      } : undefined}
+                      title={!isViewMode ? "Click to edit panel number" : undefined}
                     >
                       {getDisplayNumber(index)}
                     </div>
@@ -402,156 +881,177 @@ const ProjPanels: React.FC = () => {
                         fontSize: 15,
                         padding: '8px 12px',
                         border: '1px solid #e9ecef',
-                        cursor: 'pointer',
+                        cursor: isViewMode ? 'default' : 'pointer',
                         transition: 'all 0.2s ease',
                         minWidth: 200,
                         maxWidth: 300,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
+                        pointerEvents: isViewMode ? 'none' : 'auto',
                       }}
-                      onClick={() => handlePanelNameEdit(index)}
-                      onMouseEnter={(e) => {
+                      onClick={!isViewMode ? () => handlePanelNameEdit(index) : undefined}
+                      onMouseEnter={!isViewMode ? (e) => {
                         e.currentTarget.style.background = '#e9ecef';
                         e.currentTarget.style.borderColor = THEME.primary;
-                      }}
-                      onMouseLeave={(e) => {
+                      } : undefined}
+                      onMouseLeave={!isViewMode ? (e) => {
                         e.currentTarget.style.background = '#f8f9fa';
                         e.currentTarget.style.borderColor = '#e9ecef';
-                      }}
-                      title={item.panelName ? `Click to edit: ${item.panelName}` : "Click to add panel name"}
+                      } : undefined}
+                      title={!isViewMode ? (item.panelName ? `Click to edit: ${item.panelName}` : "Click to add panel name") : undefined}
                     >
                       {item.panelName || "Click to add panel name"}
                     </div>
                   )}
                 </div>
-                {/* Quantity controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
-                  <span style={{ color: THEME.textSecondary, fontSize: 15 }}>Quantity:</span>
+                {/* Quantity controls - Hidden in view mode */}
+                {!isViewMode && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
+                    <span style={{ color: THEME.textSecondary, fontSize: 15 }}>Quantity:</span>
+                    <button
+                      onClick={() => updateQuantity(index, item.quantity - 1)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        border: 'none',
+                        background: THEME.background,
+                        color: THEME.primary,
+                        fontSize: 22,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: THEME.shadow,
+                        transition: 'background 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                      disabled={item.quantity <= 1}
+                    >-</button>
+                    <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center' }}>{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(index, item.quantity + 1)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        border: 'none',
+                        background: THEME.background,
+                        color: THEME.primary,
+                        fontSize: 22,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: THEME.shadow,
+                        transition: 'background 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >+</button>
+                  </div>
+                )}
+                
+                {/* Quantity display - Only shown in view mode */}
+                {isViewMode && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
+                    <span style={{ color: THEME.textSecondary, fontSize: 15 }}>Quantity:</span>
+                    <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center' }}>{item.quantity}</span>
+                  </div>
+                )}
+                {/* Remove button - Hidden in view mode */}
+                {!isViewMode && (
                   <button
-                    onClick={() => updateQuantity(index, item.quantity - 1)}
+                    onClick={() => removeFromCart(index)}
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: 18,
+                      right: 18,
+                      background: 'none',
                       border: 'none',
-                      background: THEME.background,
-                      color: THEME.primary,
-                      fontSize: 22,
-                      fontWeight: 700,
+                      color: THEME.secondary,
                       cursor: 'pointer',
-                      boxShadow: THEME.shadow,
-                      transition: 'background 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      lineHeight: 1,
-                      padding: 0,
-                    }}
-                    disabled={item.quantity <= 1}
-                  >-</button>
-                  <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center' }}>{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(index, item.quantity + 1)}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      border: 'none',
-                      background: THEME.background,
-                      color: THEME.primary,
                       fontSize: 22,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      boxShadow: THEME.shadow,
-                      transition: 'background 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      lineHeight: 1,
                       padding: 0,
+                      zIndex: 2,
                     }}
-                  >+</button>
-                </div>
-                {/* Remove button */}
-                <button
-                  onClick={() => removeFromCart(index)}
-                  style={{
+                    title="Remove panel"
+                  >
+                    <Delete fontSize="inherit" />
+                  </button>
+                )}
+                
+                {/* Edit Panel button - Hidden in view mode */}
+                {!isViewMode && (
+                  <div style={{
                     position: 'absolute',
                     top: 18,
-                    right: 18,
-                    background: 'none',
-                    border: 'none',
-                    color: THEME.secondary,
-                    cursor: 'pointer',
-                    fontSize: 22,
-                    padding: 0,
+                    right: 60,
                     zIndex: 2,
-                  }}
-                  title="Remove panel"
-                >
-                  <Delete fontSize="inherit" />
-                </button>
-                {/* Edit Panel button */}
-                <div style={{
-                  position: 'absolute',
-                  top: 18,
-                  right: 60,
-                  zIndex: 2,
-                }}>
-                  <button
-                    onClick={() => {
-                      // Navigate to the appropriate customizer based on panel type
-                      const customizerRoutes: { [key: string]: string } = {
-                        'SP': '/customizer/sp',
-                        'TAG': '/customizer/tag',
-                        'DPH': '/customizer/dph',
-                        'DPV': '/customizer/dpv',
-                        'X2V': '/customizer/x2v',
-                        'X2H': '/customizer/x2h',
-                        'X1H': '/customizer/x1h',
-                        'X1V': '/customizer/x1v',
-                        'IDPG': '/customizer/idpg',
-                      };
-                      const route = customizerRoutes[item.type] || '/panel-type';
-                      navigate(route, { 
-                        state: { 
-                          editMode: true, 
-                          panelIndex: index,
-                          panelData: item 
-                        } 
-                      });
-                    }}
-                    style={{
-                      background: THEME.primary,
-                      border: 'none',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      padding: '6px 12px',
-                      borderRadius: 6,
-                      boxShadow: '0 1px 3px rgba(27,146,209,0.20)',
-                      transition: 'all 0.2s ease',
-                      letterSpacing: '0.3px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = THEME.primaryHover;
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = THEME.primary;
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                    title="Edit panel configuration"
-                  >
-                    <Edit sx={{ fontSize: 14 }} />
-                    Edit Panel
-                  </button>
-                </div>
+                  }}>
+                    <button
+                      onClick={() => {
+                        // Navigate to the appropriate customizer based on panel type
+                        const customizerRoutes: { [key: string]: string } = {
+                          'SP': '/customizer/sp',
+                          'TAG': '/customizer/tag',
+                          'DPH': '/customizer/dph',
+                          'DPV': '/customizer/dpv',
+                          'X2V': '/customizer/x2v',
+                          'X2H': '/customizer/x2h',
+                          'X1H': '/customizer/x1h',
+                          'X1V': '/customizer/x1v',
+                          'IDPG': '/customizer/idpg',
+                        };
+                        const route = customizerRoutes[item.type] || '/panel-type';
+                        navigate(route, { 
+                          state: { 
+                            editMode: true, 
+                            panelIndex: index,
+                            panelData: item,
+                            // Preserve the project-level edit state
+                            projectEditMode: isEditMode,
+                            projectDesignId: editingDesignId,
+                            projectOriginalName: originalProjectName,
+                            projectCreateNewRevision: isCreateNewRevision
+                          } 
+                        });
+                      }}
+                      style={{
+                        background: THEME.primary,
+                        border: 'none',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        boxShadow: '0 1px 3px rgba(27,146,209,0.20)',
+                        transition: 'all 0.2s ease',
+                        letterSpacing: '0.3px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = THEME.primaryHover;
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = THEME.primary;
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                      title="Edit panel configuration"
+                    >
+                      <Edit sx={{ fontSize: 14 }} />
+                      Edit Panel
+                    </button>
+                  </div>
+                )}
                 {/* Panel Preview and Info Summary - stacked for horizontal panels */}
                 <div style={{ 
                   display: 'flex', 
@@ -586,9 +1086,116 @@ const ProjPanels: React.FC = () => {
         )}
         {/* Action Buttons */}
         {projPanels.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 32 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 32 }}>
+            {/* Save Project Button - Hidden in view mode */}
+            {!isViewMode && (
+              <button
+                onClick={handleSaveProject}
+                disabled={isSaving}
+                style={{
+                  padding: '12px 28px',
+                  background: '#27ae60',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: THEME.buttonRadius,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  boxShadow: THEME.shadow,
+                  letterSpacing: '0.5px',
+                  transition: 'background 0.2s, transform 0.2s',
+                  opacity: isSaving ? 0.7 : 1,
+                }}
+              >
+                {isSaving ? '💾 Saving...' : 
+                 isViewMode ? '👁️ View Only' :
+                 isEditMode ? '💾 Update Revision' : 
+                 isCreateNewRevision ? '💾 Save as New Rev' :
+                 '💾 Save Project'}
+              </button>
+            )}
+            
+            {/* Save Message */}
+            {saveMessage && (
+              <div style={{ 
+                color: saveMessage.includes('✅') ? '#27ae60' : '#e74c3c',
+                textAlign: 'center',
+                fontSize: 14,
+                fontWeight: 500,
+              }}>
+                {saveMessage}
+              </div>
+            )}
+            
+            {/* View My Designs Button - appears after successful save */}
+            {projectJustSaved && (
+              <button
+                onClick={() => navigate("/my-designs")}
+                style={{
+                  padding: '12px 24px',
+                  background: '#3498db',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: THEME.buttonRadius,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: THEME.shadow,
+                  letterSpacing: '0.5px',
+                  transition: 'background 0.2s, transform 0.2s',
+                  marginTop: 8,
+                }}
+              >
+                📚 View My Designs
+              </button>
+            )}
+            
+            {/* Go Back to My Designs Button - Always visible in view mode */}
+            {isViewMode && (
+              <button
+                onClick={() => navigate("/my-designs")}
+                style={{
+                  padding: '14px 36px',
+                  background: '#3498db',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: THEME.buttonRadius,
+                  fontSize: 18,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: THEME.shadow,
+                  letterSpacing: '0.5px',
+                  transition: 'background 0.2s, transform 0.2s',
+                }}
+              >
+                ← Go Back to My Designs
+              </button>
+            )}
+            
+            {/* Navigation Buttons - Hidden in view mode */}
+            {!isViewMode && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 24 }}>
             <button
-              onClick={() => navigate("/panel-type")}
+                  onClick={() => {
+                    setProjectJustSaved(false); // Reset the saved state
+                    if (isEditMode) {
+                      // If in edit mode, preserve the edit context
+                      navigate("/panel-type", { 
+                        state: { 
+                          editMode: true,
+                          projectData: {
+                            projectName: originalProjectName,
+                            projectCode: projectCode,
+                            panels: projPanels
+                          },
+                          designId: editingDesignId
+                        }
+                      });
+                    } else {
+                      // Normal navigation for new projects
+                      navigate("/panel-type");
+                    }
+                  }}
               style={{
                 padding: '14px 36px',
                 background: THEME.primary,
@@ -602,9 +1209,14 @@ const ProjPanels: React.FC = () => {
                 letterSpacing: '0.5px',
                 transition: 'background 0.2s, transform 0.2s',
               }}
-            >Continue Designing !</button>
+                >
+                  {isEditMode ? 'Continue Editing' : 'Continue Designing'} !
+                </button>
             <button
-              onClick={() => navigate("/layouts")}
+                  onClick={() => {
+                    setProjectJustSaved(false); // Reset the saved state
+                    navigate("/layouts");
+                  }}
               style={{
                 padding: '14px 36px',
                 background: THEME.secondary,
@@ -618,7 +1230,11 @@ const ProjPanels: React.FC = () => {
                 letterSpacing: '0.5px',
                 transition: 'background 0.2s, transform 0.2s',
               }}
-            >Proceed to Layouts</button>
+                >
+                  Proceed to Layouts
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

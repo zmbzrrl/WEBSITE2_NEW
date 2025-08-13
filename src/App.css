@@ -1,25 +1,44 @@
+/* ===== CART ICON STYLING ===== */
+/* This section styles the shopping cart icon that appears throughout the app */
+
+/* Main cart icon styling - makes it look interactive and professional */
 .cart-icon {
-  display: inline-block;
-  font-weight: bold;
-  cursor: pointer;
-  transition: transform 0.3s ease;
+  display: inline-block;        /* Shows the icon as a block element (like a button) */
+  font-weight: bold;           /* Makes the icon text bold for better visibility */
+  cursor: pointer;             /* Shows a hand cursor when hovering over the icon */
+  transition: transform 0.3s ease;  /* Adds smooth animation when the icon changes size */
 }
 
+/* ===== CART ICON ANIMATION ===== */
+/* This section handles the "pop" animation when items are added to cart */
+
+/* Animation class that gets added to cart icon when items are added */
 .cart-icon.animate {
-  animation: pop 0.4s ease;
+  animation: pop 0.4s ease;    /* Runs the "pop" animation for 0.4 seconds with smooth easing */
 }
 
+/* ===== POP ANIMATION KEYFRAMES ===== */
+/* Defines the actual animation sequence - how the icon grows and shrinks */
+
+/* The "pop" animation makes the cart icon grow and shrink to give visual feedback */
 @keyframes pop {
+  /* Start of animation - normal size */
   0% {
-    transform: scale(1);
+    transform: scale(1);       /* Icon is at normal size (100%) */
   }
+  
+  /* 30% through animation - icon grows */
   30% {
-    transform: scale(1.2);
+    transform: scale(1.2);     /* Icon grows to 120% of normal size */
   }
+  
+  /* 60% through animation - icon shrinks slightly */
   60% {
-    transform: scale(0.95);
+    transform: scale(0.95);    /* Icon shrinks to 95% of normal size (creates bounce effect) */
   }
+  
+  /* End of animation - back to normal */
   100% {
-    transform: scale(1);
+    transform: scale(1);       /* Icon returns to normal size (100%) */
   }
 }

@@ -1,71 +1,187 @@
-import React, { useEffect, useState, createContext, useContext } from "react";
+// This is the MAIN APP CONTROLLER. 
+
+//                               ===== LIBRARIES/TOOLS IMPORTS SECTION =====                             //
+
+
+
+// These are like "bringing in tools and materials" from other files/libraries
+
+// React core functionality - the main framework that powers everything
+import React, { //tools box is REACT. Stuff inside are tools chosen to use in this project.
+  useEffect,    // Run code after render (do this after that)
+  useState,     // Store and update data inside a component (box with numbers/words. stores counter e.g.)
+  createContext, // Set up a global/shared storage box to share data across components
+  useContext,    // Access the shared global values inside any component
+} from "react";
+
+
+
+
+
+//                                           ===== PAGE IMPORTS =====                               //
+
+
+
+
+
+// Importing all the different pages/screens/files of the Project. Getting all lego/puzzle pieces together cuz this file is where the whole project is.
+
+// Main pages
+import Home from "./pages/Home";  // Welcome page - first thing users see
+import BOQ from "./pages/BOQ";    // Bill of Quantities page - project summary
+import ProjPanels from "./pages/ProjPanels";  // Cart/Project panels page
+import Layouts from "./pages/Layouts";        // Layout planning page
+
+// Panel selection pages
+import DoublePanelSelector from "./pages/PanelType/DoublePanelSelector";      // Choose double panels
+import ExtendedPanelSelector from "./pages/PanelType/ExtendedPanelSelector";  // Choose extended panels
+import PanelTypeSelector from "./pages/PanelType/PanelTypeSelector";          // Main panel type selection
+
+// Customizer pages - where users customize different panel types
+import SPCustomizer from "./pages/Customizers/SPCustomizer";           // SP panel customizer
+import TAGCustomizer from "./pages/Customizers/TAGCustomizer";         // TAG panel customizer
+import DPHCustomizer from "./pages/Customizers/DoublePanels/DPHCustomizer";   // Double panel horizontal customizer
+import DPVCustomizer from "./pages/Customizers/DoublePanels/DPVCustomizer";   // Double panel vertical customizer
+import X1HCustomizer from "./pages/Customizers/ExtendedPanels/X1HCustomizer"; // Extended panel X1 horizontal
+import X2HCustomizer from "./pages/Customizers/ExtendedPanels/X2HCustomizer"; // Extended panel X2 horizontal
+import X2VCustomizer from "./pages/Customizers/ExtendedPanels/X2VCustomizer"; // Extended panel X2 vertical
+import X1VCustomizer from "./pages/Customizers/ExtendedPanels/X1VCustomizer"; // Extended panel X1 vertical
+import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";       // IDPG panel customizer
+import MyDesigns from "./pages/MyDesigns";                             // My Designs page
+
+// Component imports
+import { CartProvider, useCart } from "./contexts/CartContext";  // Cart functionality - manages shopping cart
+import PageTransition from "./components/PageTransition";        // Smooth page transition animations
+
+
+
+
+
+
+//                                         ===== REACT ROUTER =====                               //
+
+
+
+
+
+// react-router-dom : TV remote. Switch between channels without restarting TV -> apply for URL.
+// React Router - handles navigation between different pages/URLs
+// BrowserRouter as Router :  tracks browser’s URL bar. controls what shows.
+//Routes : list/container of all possible pages the app can show.
+//Route : defines one single page's URL.
+//Navigate : REDIRECTS ON RENDER. automatically sends user to a different page.
+//useNavigate : "REACT hook" REDIRECTS ON EVENTS. sends user to a different page in response to a user action. 
+//useLocation : "REACT hook " helper -> gets current URL.
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+
+// Material-UI components - provides pre-built UI components
+// ThemeProvider = applies design theme across the app
+// CssBaseline = resets default browser styles
 import { ThemeProvider, CssBaseline } from '@mui/material';
+
+// Framer Motion - adds smooth animations and transitions to Project.
+// AnimatePresence : smooth animation when things added/removed (e.g. page transition, panel appearing)
 import { AnimatePresence } from 'framer-motion';
+
+// Custom theme file - defines colors, fonts, spacing for the entire app
 import theme from './theme';
-import "./App.css";
-import "./styles.css";
 
-import Home from "./pages/Home";
-import BOQ from "./pages/BOQ";
-import DoublePanelSelector from "./pages/PanelType/DoublePanelSelector";
-import ExtendedPanelSelector from "./pages/PanelType/ExtendedPanelSelector";
-import PanelTypeSelector from "./pages/PanelType/PanelTypeSelector";
-import SPCustomizer from "./pages/Customizers/SPCustomizer";
-import TAGCustomizer from "./pages/Customizers/TAGCustomizer";
-import DPHCustomizer from "./pages/Customizers/DoublePanels/DPHCustomizer";
-import DPVCustomizer from "./pages/Customizers/DoublePanels/DPVCustomizer";
-import X1HCustomizer from "./pages/Customizers/ExtendedPanels/X1HCustomizer";
-import X2HCustomizer from "./pages/Customizers/ExtendedPanels/X2HCustomizer";
-import X2VCustomizer from "./pages/Customizers/ExtendedPanels/X2VCustomizer";
-import X1VCustomizer from "./pages/Customizers/ExtendedPanels/X1VCustomizer";
-import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";
-import ProjPanels from "./pages/ProjPanels";
-import Layouts from "./pages/Layouts";
-import { CartProvider, useCart } from "./contexts/CartContext";
-import PageTransition from "./components/PageTransition";
+// CSS files - custom styling for the app
+import "./App.css";  // Specific styles for cart icon animations
+import "./styles.css"; // General app styles
 
-// Project context to provide project name and code globally
+
+
+
+//                                     ===== PROJECT CONTEXT SETUP =====                       //
+
+
+
+
+// This creates a "shared storage room" (Context) for project information
+// Any component in the app can access this data without passing it through every level
+
+// ProjectContext stores project name and code that's shared across multiple pages
 export const ProjectContext = createContext<{ 
-  projectName: string, 
-  setProjectName: (name: string) => void,
-  projectCode: string,
-  setProjectCode: (code: string) => void
+  projectName: string,           // Current project name
+  setProjectName: (name: string) => void,  // Function to update project name 
+  projectCode: string,           // The code/ID of the current project
+  setProjectCode: (code: string) => void   // Function to update project code
 }>({ 
-  projectName: '', 
-  setProjectName: () => {},
-  projectCode: '',
-  setProjectCode: () => {}
+  // Default values - what the context starts with if nothing is set
+  projectName: '', // Shows empty string if nothing is set
+  setProjectName: () => {}, // Function to update project name
+  projectCode: '', // Shows empty string if nothing is set
+  setProjectCode: () => {} // Function to update project code
 });
 
-// Component to sync project code between contexts
+
+
+//                                         ===== PROJECT SYNC COMPONENT =====                      //
+
+
+
+
+// This component keeps the project code synchronized between different contexts
+// It's like a "messenger" that makes sure all parts of the app know about project changes
+
 const ProjectSync: React.FC = () => {
+  // Get project code from the main ProjectContext
   const { projectCode } = useContext(ProjectContext);
+  
+  // Get the function to update project code in the cart context
   const { setProjectCode } = useCart();
 
+  // useEffect runs this code whenever projectCode changes
   useEffect(() => {
-    // Only set project code if it's not empty
+    // Only update if project code is not empty
     if (projectCode && projectCode.trim() !== '') {
-      setProjectCode(projectCode);
+      setProjectCode(projectCode);  // Update cart context with new project code
     }
-  }, [projectCode, setProjectCode]);
+  }, [projectCode, setProjectCode]);  // Dependencies - re-run when these change
 
-  return null;
+  return null;  // This component doesn't show anything, it just syncs data
 };
 
-const AppRoutes = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
 
-  return (
+
+
+
+//                                         ===== APP ROUTES COMPONENT =====                      //
+
+
+
+
+
+// This component defines all the different pages/URLs in your app
+// It's like a "map" that tells the app "when someone visits this URL, show this page"
+
+const AppRoutes = () => { // defines all the different pages/URLs
+  const location = useLocation();  // Gets current URL location
+  const navigate = useNavigate();  // Function to navigate to different pages
+
+  return ( 
+    // AnimatePresence adds smooth animations when switching between pages
     <AnimatePresence mode="wait">
+      {/* Routes defines all the different pages in your app */}
       <Routes location={location} key={location.pathname}>
+        {/* Each Route defines one page */}
+        {/* path="/" = URL path, element = which component to show */}
+        
+        {/* Home page - the main landing page */}
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+        
+        {/* BOQ page - Bill of Quantities */}
         <Route path="/boq" element={<PageTransition><BOQ /></PageTransition>} />
+        
+        {/* Panel type selection pages */}
         <Route path="/panel-type" element={<PageTransition><PanelTypeSelector /></PageTransition>} />
         <Route path="/panel/double" element={<PageTransition><DoublePanelSelector /></PageTransition>} />
         <Route path="/panel/extended" element={<PageTransition><ExtendedPanelSelector /></PageTransition>} />
         <Route path="/panel/idpg" element={<PageTransition><IDPGCustomizer /></PageTransition>} />
+        
+        {/* Customizer pages - where users customize panels */}
         <Route path="/customizer/sp" element={<PageTransition><SPCustomizer /></PageTransition>} />
         <Route path="/customizer/dph" element={<PageTransition><DPHCustomizer /></PageTransition>} />
         <Route path="/customizer/dpv" element={<PageTransition><DPVCustomizer /></PageTransition>} />
@@ -75,24 +191,55 @@ const AppRoutes = () => {
         <Route path="/customizer/x1v" element={<PageTransition><X1VCustomizer /></PageTransition>} />
         <Route path="/customizer/tag" element={<PageTransition><TAGCustomizer /></PageTransition>} />
         <Route path="/customizer/idpg" element={<PageTransition><IDPGCustomizer /></PageTransition>} />
+        
+        {/* Cart/Project panels page */}
         <Route path="/cart" element={<PageTransition><ProjPanels /></PageTransition>} />
+        
+        {/* Layouts page */}
         <Route path="/layouts" element={<PageTransition><Layouts /></PageTransition>} />
+        
+        {/* My Designs page */}
+        <Route path="/my-designs" element={<PageTransition><MyDesigns /></PageTransition>} />
+        
+        {/* Catch-all route - if someone visits an unknown URL, redirect to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </AnimatePresence>
+    </AnimatePresence> // adds smooth animations when switching between pages
   );
 };
 
+
+
+//                                         ===== MAIN APP COMPONENT =====                      //
+
+
+
+
+
+
+// This is the main component that wraps everything together. It's like the "foundation" of the entire app
+
 const App: React.FC = () => {
-  const [projectName, setProjectName] = useState('');
-  const [projectCode, setProjectCode] = useState('');
+  // State for project information - these values can change and will update the UI
+  const [projectName, setProjectName] = useState('');  // Current project name
+  const [projectCode, setProjectCode] = useState('');  // Current project code
+
   return (
+    // ThemeProvider applies the Material-UI theme (colors, fonts, spacing) to the entire app
     <ThemeProvider theme={theme}>
+      {/* CssBaseline resets default browser styles for consistent appearance */}
       <CssBaseline />
+      
+      {/* CartProvider provides cart functionality to all child components */}
       <CartProvider>
+        {/* ProjectContext.Provider makes project data available to all child components */}
         <ProjectContext.Provider value={{ projectName, setProjectName, projectCode, setProjectCode }}>
+          {/* ProjectSync keeps project data synchronized between contexts */}
           <ProjectSync />
+          
+          {/* Router enables navigation between different pages */}
           <Router>
+            {/* AppRoutes defines all the pages and their URLs */}
             <AppRoutes />
           </Router>
         </ProjectContext.Provider>
@@ -101,4 +248,5 @@ const App: React.FC = () => {
   );
 };
 
+// Export the App component so it can be used in index.tsx
 export default App; 

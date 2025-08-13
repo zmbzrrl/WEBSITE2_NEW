@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../contexts/CartContext";
+import { getDesigns } from "../utils/database";
 
 interface CartButtonProps {
   style?: React.CSSProperties;
@@ -8,12 +9,31 @@ interface CartButtonProps {
 }
 
 const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true }) => {
-  const { projCount, isCounting } = useCart();
+  const { projCount, isCounting, loadProjectPanels } = useCart();
   const navigate = useNavigate();
+
+  const handleViewPanels = async () => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      navigate("/cart");
+      return;
+    }
+    const result = await getDesigns(userEmail);
+    if (result.success && 'designs' in result && Array.isArray(result.designs) && result.designs.length > 0) {
+      // Use the most recently modified project
+      const latest = result.designs.reduce((a, b) => (a.lastModified > b.lastModified ? a : b));
+      if (latest.designData && Array.isArray(latest.designData.panels)) {
+        // Create deep copies to prevent shared references
+        const deepCopiedPanels = latest.designData.panels.map((panel: any) => JSON.parse(JSON.stringify(panel)));
+        loadProjectPanels(deepCopiedPanels);
+      }
+    }
+    navigate("/cart");
+  };
 
   return (
     <button
-      onClick={() => navigate("/cart")}
+      onClick={handleViewPanels}
       style={{ position: "relative", ...style }}
     >
       {showLabel && "View Project Panels"}

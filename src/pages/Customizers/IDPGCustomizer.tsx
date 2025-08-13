@@ -368,15 +368,17 @@ const IDPGCustomizer = () => {
   // Load existing panel data if in edit mode
   useEffect(() => {
     if (isEditMode && editPanelData) {
-      // Load panel design
-      if (editPanelData.panelDesign) {
-        setPanelDesign(editPanelData.panelDesign);
-        setBackbox(editPanelData.panelDesign.backbox || '');
-        setExtraComments(editPanelData.panelDesign.extraComments || '');
+      // Deep copy the edit data to prevent shared references
+      const deepCopiedData = JSON.parse(JSON.stringify(editPanelData));
+      
+      if (deepCopiedData.panelDesign) {
+        setPanelDesign(deepCopiedData.panelDesign);
+        setBackbox(deepCopiedData.panelDesign.backbox || '');
+        setExtraComments(deepCopiedData.panelDesign.extraComments || '');
         
         // Load IDPG-specific configuration
-        if (editPanelData.panelDesign.idpgConfig) {
-          const config = editPanelData.panelDesign.idpgConfig;
+        if (deepCopiedData.panelDesign.idpgConfig) {
+          const config = deepCopiedData.panelDesign.idpgConfig;
           setCardReader(config.cardReader || false);
           setRoomNumber(config.roomNumber || false);
           setStatusMode(config.statusMode || 'bar');

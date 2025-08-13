@@ -533,8 +533,13 @@ const SPCustomizer: React.FC = () => {
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
+  const isViewMode = location.state?.viewMode || false;
+  const isCreateNewRevision = location.state?.createNewRevision || false;
   const editPanelIndex = location.state?.panelIndex;
   const editPanelData = location.state?.panelData;
+  const isAddingToExistingProject = location.state?.isAddingToExistingProject || false;
+  
+
   
   console.log('RENDER', { backbox, extraComments });
 
@@ -548,16 +553,67 @@ const SPCustomizer: React.FC = () => {
   // Load existing panel data if in edit mode
   useEffect(() => {
     if (isEditMode && editPanelData) {
+      console.log('🔍 EDIT MODE DEBUG:');
+      console.log('isEditMode:', isEditMode);
+      console.log('editPanelData:', editPanelData);
+      console.log('editPanelData type:', typeof editPanelData);
+      console.log('editPanelData keys:', Object.keys(editPanelData));
+      
+      // Deep copy the edit data to prevent shared references
+      const deepCopiedData = JSON.parse(JSON.stringify(editPanelData));
+      
+      // Handle different data structures
+      let panelDesignData = null;
+      let iconsData = null;
+      
+      // Check if this is a project panel (from project structure)
+      if (deepCopiedData.panelDesign) {
+        console.log('📋 Found project panel structure');
+        panelDesignData = deepCopiedData.panelDesign;
+        iconsData = deepCopiedData.icons;
+      } 
+      // Check if this is an individual panel (from database structure)
+      else if (deepCopiedData.designData) {
+        console.log('📋 Found individual panel structure');
+        // For individual panels saved in database, the structure is different
+        const designData = deepCopiedData.designData;
+        console.log('designData:', designData);
+        console.log('designData keys:', Object.keys(designData));
+        
+        if (designData.panelDesign) {
+          panelDesignData = designData.panelDesign;
+        }
+        if (designData.icons) {
+          iconsData = designData.icons;
+        }
+      }
+      // Check if this is a saved individual panel (new structure)
+      else if (deepCopiedData.type === 'SP' && deepCopiedData.icons) {
+        console.log('📋 Found saved individual panel structure');
+        if (deepCopiedData.panelDesign) {
+          panelDesignData = deepCopiedData.panelDesign;
+        }
+        iconsData = deepCopiedData.icons;
+      }
+      
+      console.log('📋 Final extracted data:');
+      console.log('panelDesignData:', panelDesignData);
+      console.log('iconsData:', iconsData);
+      
       // Load panel design
-      if (editPanelData.panelDesign) {
-        setPanelDesign(editPanelData.panelDesign);
-        setBackbox(editPanelData.panelDesign.backbox || '');
-        setExtraComments(editPanelData.panelDesign.extraComments || '');
+      if (panelDesignData) {
+        console.log('🎨 Loading panel design:', panelDesignData);
+        setPanelDesign(panelDesignData);
+        setBackbox(panelDesignData.backbox || '');
+        setExtraComments(panelDesignData.extraComments || '');
+      } else {
+        console.log('⚠️ No panel design data found');
       }
       
       // Load placed icons
-      if (editPanelData.icons) {
-        const loadedIcons: PlacedIcon[] = editPanelData.icons
+      if (iconsData) {
+        console.log('🎯 Loading icons data:', iconsData);
+        const loadedIcons: PlacedIcon[] = iconsData
           .filter((icon: any) => icon.iconId)
           .map((icon: any) => ({
             id: Date.now() + Math.random(), // Generate new IDs
@@ -567,16 +623,20 @@ const SPCustomizer: React.FC = () => {
             position: icon.position,
             category: icon.category || ''
           }));
+        console.log('🎯 Loaded icons:', loadedIcons);
         setPlacedIcons(loadedIcons);
         
         // Load icon texts
         const loadedTexts: IconTexts = {};
-        editPanelData.icons.forEach((icon: any) => {
+        iconsData.forEach((icon: any) => {
           if (icon.text) {
             loadedTexts[icon.position] = icon.text;
           }
         });
+        console.log('📝 Loaded texts:', loadedTexts);
         setIconTexts(loadedTexts);
+      } else {
+        console.log('⚠️ No icons data found');
       }
       
       // Set current step to design step (step 3) for editing
@@ -680,12 +740,22 @@ const SPCustomizer: React.FC = () => {
     if (isEditMode && editPanelIndex !== undefined) {
       // Update existing panel
       updatePanel(editPanelIndex, design);
-      navigate('/cart'); // Go back to cart after updating
+      // Preserve the project-level edit state when navigating back
+      const preservedState = location.state?.projectEditMode !== undefined ? {
+        projectEditMode: location.state.projectEditMode,
+        projectDesignId: location.state.projectDesignId,
+        projectOriginalName: location.state.projectOriginalName,
+        projectCreateNewRevision: location.state.projectCreateNewRevision
+      } : {};
+      
+      navigate('/cart', { state: preservedState }); // Go back to cart after updating
     } else {
       // Add new panel
       addToCart(design);
     }
   };
+
+
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
@@ -1772,6 +1842,23 @@ const SPCustomizer: React.FC = () => {
                 
                 {/* Add to Project Button positioned under the panel template */}
                 <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
+                  {isViewMode ? (
+                    /* Go Back to My Designs Button - Only visible in view mode */
+                    <StyledButton
+                      variant="contained"
+                      onClick={() => navigate('/my-designs')}
+                      sx={{
+                        backgroundColor: '#3498db',
+                        color: '#ffffff',
+                        '&:hover': {
+                          backgroundColor: '#2980b9',
+                        }
+                      }}
+                    >
+                      ← Go Back to My Designs
+                    </StyledButton>
+                  ) : (
+                    /* Normal action button - Hidden in view mode */
             <StyledButton
               variant="contained"
               onClick={handleAddToCart}
@@ -1780,11 +1867,14 @@ const SPCustomizer: React.FC = () => {
                 color: '#ffffff',
                 '&:hover': {
                   backgroundColor: '#2c3e50',
-                },
+                        }
               }}
             >
-                    {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+                      {isEditMode ? 'Update Panel' : 
+                       isCreateNewRevision ? 'Create New Revision' :
+                       'Add Panel to Project'}
             </StyledButton>
+                  )}
         </Box>
               </div>
             </div>

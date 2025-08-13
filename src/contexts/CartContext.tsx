@@ -1,5 +1,4 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from "react";
-import { DEFAULT_PANELS } from '../data/defaultPanels';
 
 interface CartItem {
   type: string;
@@ -39,6 +38,8 @@ export interface CartContextType {
   updatePanel: (index: number, updatedPanel: CartItem) => void;
   setProjectCode: (projectCode: string | null) => void;
   clearProject: () => void;
+  clearSession: () => void;
+  loadProjectPanels: (panels: CartItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -56,84 +57,68 @@ interface CartProviderProps {
 }
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
-  const [currentProjectCode, setCurrentProjectCode] = useState<string | null>(null);
-  const [projPanels, setProjPanels] = useState<CartItem[]>(() => {
-    // Load panels from localStorage on initialization
-    try {
-      const stored = localStorage.getItem('currentPanels');
-      return stored ? JSON.parse(stored) : DEFAULT_PANELS;
-    } catch (error) {
-      console.error('Error loading panels from localStorage:', error);
-      return DEFAULT_PANELS;
-    }
+  // Load initial state from sessionStorage (temporary session data)
+  const [currentProjectCode, setCurrentProjectCode] = useState<string | null>(() => {
+    const saved = sessionStorage.getItem('currentProjectCode');
+    return saved ? JSON.parse(saved) : null;
   });
+  
+  const [projPanels, setProjPanels] = useState<CartItem[]>(() => {
+    const saved = sessionStorage.getItem('projPanels');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
   const [isCounting, setIsCounting] = useState<boolean>(false);
 
   // Calculate projCount from projPanels
   const projCount = projPanels.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Load panels for a specific project code
-  const loadProjectPanels = useCallback((projectCode: string | null): CartItem[] => {
-    if (!projectCode) return [];
-    
-    try {
-      const stored = localStorage.getItem(`panels_${projectCode}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error(`Error loading panels for project ${projectCode}:`, error);
-      return [];
-    }
-  }, []);
+  // Save to sessionStorage whenever projPanels changes (automatic saving)
+  useEffect(() => {
+    sessionStorage.setItem('projPanels', JSON.stringify(projPanels));
+  }, [projPanels]);
 
-  // Save panels for a specific project code
-  const saveProjectPanels = useCallback((projectCode: string | null, panels: CartItem[]) => {
-    if (!projectCode) return;
-    
-    try {
-      localStorage.setItem(`panels_${projectCode}`, JSON.stringify(panels));
-    } catch (error) {
-      console.error(`Error saving panels for project ${projectCode}:`, error);
+  // Save to sessionStorage whenever currentProjectCode changes
+  useEffect(() => {
+    if (currentProjectCode) {
+      sessionStorage.setItem('currentProjectCode', JSON.stringify(currentProjectCode));
+    } else {
+      sessionStorage.removeItem('currentProjectCode');
     }
-  }, []);
+  }, [currentProjectCode]);
 
   // Set project code and load corresponding panels
   const setProjectCode = useCallback((projectCode: string | null) => {
     setCurrentProjectCode(projectCode);
     
     if (projectCode) {
-      // Load panels for the new project code
-      const projectPanels = loadProjectPanels(projectCode);
-      setProjPanels(projectPanels);
+      // For now, just set empty panels for new project code
+      setProjPanels([]);
     } else {
       // Clear panels when no project code
       setProjPanels([]);
     }
-  }, [loadProjectPanels]);
+  }, []);
 
   // Clear current project
   const clearProject = useCallback(() => {
     setCurrentProjectCode(null);
     setProjPanels([]);
+    // Clear sessionStorage
+    sessionStorage.removeItem('currentProjectCode');
+    sessionStorage.removeItem('projPanels');
   }, []);
 
-  // Save current panels to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('currentPanels', JSON.stringify(projPanels));
-    } catch (error) {
-      console.error('Error saving panels to localStorage:', error);
-    }
-  }, [projPanels]);
-
-  // Save to localStorage whenever projPanels changes (for project-specific storage)
-  useEffect(() => {
-    if (currentProjectCode && projPanels.length > 0) {
-      saveProjectPanels(currentProjectCode, projPanels);
-    }
-  }, [projPanels, currentProjectCode, saveProjectPanels]);
+  // Clear session storage (useful for starting fresh)
+  const clearSession = useCallback(() => {
+    sessionStorage.removeItem('currentProjectCode');
+    sessionStorage.removeItem('projPanels');
+    setCurrentProjectCode(null);
+    setProjPanels([]);
+  }, []);
 
   const addToCart = useCallback((item: CartItem): void => {
-    setProjPanels((prev) => [...prev, item]);
+    setProjPanels((prev) => [...prev, { ...item }]);
     setIsCounting(true);
   }, []);
 
@@ -143,7 +128,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       if (newQty <= 0) {
         updated.splice(index, 1);
       } else {
-        updated[index].quantity = newQty;
+        updated[index] = { ...updated[index], quantity: newQty };
       }
       return updated;
     });
@@ -159,7 +144,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const reorderPanels = useCallback((newOrder: number[]): void => {
     setProjPanels((prev) => {
-      const reordered = newOrder.map(index => prev[index]);
+      const reordered = newOrder.map(index => ({ ...prev[index] }));
       return reordered;
     });
   }, []);
@@ -167,9 +152,28 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const updatePanel = useCallback((index: number, updatedPanel: CartItem): void => {
     setProjPanels((prev) => {
       const updated = [...prev];
-      updated[index] = updatedPanel;
+      updated[index] = { ...updatedPanel };
       return updated;
     });
+  }, []);
+
+  const loadProjectPanels = useCallback((panels: CartItem[]): void => {
+    // Clear existing panels and load new ones with deep copies
+    console.log('🔍 loadProjectPanels called - clearing cart and loading new panels');
+    console.log('  Input panels:', panels);
+    
+    // First clear the cart completely
+    setProjPanels([]);
+    
+    // Then load new panels with deep copies
+    const copiedPanels = panels.map(panel => JSON.parse(JSON.stringify(panel)));
+    console.log('  Deep copied panels:', copiedPanels);
+    console.log('  Are they the same objects?', panels === copiedPanels);
+    
+    // Use setTimeout to ensure the clear happens before the load
+    setTimeout(() => {
+      setProjPanels(copiedPanels);
+    }, 0);
   }, []);
 
   useEffect(() => {
@@ -193,6 +197,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         updatePanel,
         setProjectCode,
         clearProject,
+        clearSession,
+        loadProjectPanels,
       }}
     >
       {children}

@@ -1,5 +1,10 @@
+//                                        ===== IMPORTS SECTION =====
+
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// Box = flexible container, Typography = text styling, Button = clickable buttons
+// styled = creates custom styled components, TextField = input forms, Paper = card-like containers
 import {
   Box,
   Typography,
@@ -8,582 +13,953 @@ import {
   TextField,
   Paper,
 } from '@mui/material';
+
+
+// Material-UI icons - provides ready-to-use icons
+// RocketLaunchIcon = rocket ship icon, ArrowDownwardIcon = down arrow icon
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+
+//                                    ===== IMAGE IMPORTS =====
+// Importing images that will be displayed on the home page
+
 import logo from '../assets/logo.png';
-import tagPir from '../assets/panels/TAG_PIR.png';
-import idpgRn from '../assets/panels/IDPG_RN.png';
-import idpg from '../assets/panels/IDPG.png';
-import sp from '../assets/panels/SP.png';
-import x2rs from '../assets/panels/X2RS.png';
-import dpRt from '../assets/panels/DP_RT.jpg';
+import tagPir from '../assets/panels/TAG_PIR.png';    
+import idpgRn from '../assets/panels/IDPG_RN.png';   
+import idpg from '../assets/panels/IDPG.png';         
+import sp from '../assets/panels/SP.png';          
+import x2rs from '../assets/panels/X2RS.png';        
+import dpRt from '../assets/panels/DP_RT.jpg';        
+
+//                                   ===== CONTEXT IMPORT =====
+// ProjectContext = shared storage that any component can access
+// This stores project information (name, code) that's used across the app
 import { ProjectContext } from '../App';
+import { mockSendEmail } from '../utils/mockBackend';
+import { testConnection, testBasicConnection } from "../utils/database";
 
+//                              ===== STYLED COMPONENTS SECTION =====
+// These are custom-styled components that look exactly how you want them
+// Think of them as "custom furniture" for your website
+
+//                              ===== MAIN CONTAINER STYLING =====
+// HomeContainer = the main background and layout for the entire home page
 const HomeContainer = styled(Box)(({ theme }) => ({
-  minHeight: '100vh',
-  width: '100%',
-  background: 'linear-gradient(135deg, #2c3e50 0%, #4a5568 100%)',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  position: 'relative',
-  padding: theme.spacing(2),
-  overflow: 'visible',
-  fontFamily: 'sans-serif'
+  minHeight: '100vh',           // Makes the container full screen height (100% of viewport height)
+  width: '100%',                // Makes the container full screen width
+  background: 'linear-gradient(135deg, #2c3e50 0%, #4a5568 100%)',  // Beautiful gradient background (dark blue to gray)
+  display: 'flex',              // Uses flexbox layout (modern way to arrange elements)
+  flexDirection: 'column',      // Arranges children vertically (top to bottom)
+  alignItems: 'center',         // Centers children horizontally (left to right)
+  justifyContent: 'center',     // Centers children vertically (top to bottom)
+  position: 'relative',         // Allows positioning of child elements
+  padding: theme.spacing(2),    // Adds space around the edges (using Material-UI spacing)
+  overflow: 'visible',          // Shows content that goes outside the container
+  fontFamily: 'sans-serif'      // Sets the font to a clean, modern sans-serif font
 }));
 
+// ===== CONTENT WRAPPER STYLING =====
+// ContentWrapper = contains all the main content (logo, text, buttons)
 const ContentWrapper = styled(Box)({
-  position: 'relative',
-  zIndex: 2,
-  textAlign: 'center',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '2rem',
-  fontFamily: 'sans-serif',
-  width: '100%',
-  maxWidth: '720px'
+  position: 'relative',         // Allows positioning relative to this container
+  zIndex: 2,                    // Makes this appear above other elements (higher number = on top)
+  textAlign: 'center',          // Centers all text inside
+  display: 'flex',              // Uses flexbox layout
+  flexDirection: 'column',      // Arranges children vertically
+  alignItems: 'center',         // Centers children horizontally
+  gap: '2rem',                  // Adds space between children (2rem = 32px)
+  fontFamily: 'sans-serif',     // Sets the font
+  width: '100%',                // Takes full width of parent
+  maxWidth: '720px'             // Maximum width (prevents it from getting too wide on large screens)
 });
 
+// ===== LOGO STYLING =====
+// Logo = the main company logo that appears at the top
+// $showPrompt = a prop that controls whether the form is showing
 const Logo = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
-  width: '400px',
-  marginBottom: '2rem',
-  marginTop: '-1rem',
-  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out',
-  position: 'relative',
-  zIndex: 2,
-  filter: 'brightness(0) invert(1)',
+  width: '400px',               // Sets logo width to 400 pixels
+  marginBottom: '2rem',         // Adds space below the logo
+  marginTop: '-1rem',           // Moves logo up slightly (negative margin)
+  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out',  // Animation based on form state
+  position: 'relative',         // Allows positioning
+  zIndex: 2,                    // Makes logo appear above other elements
+  filter: 'brightness(0) invert(1)',  // Makes logo white (inverts colors)
+  
+  // ===== FADE IN ANIMATION =====
+  // This animation makes the logo appear smoothly when the page loads
   '@keyframes fadeIn': {
-    '0%': {
-      opacity: 0,
-      transform: 'translateY(-20px)'
+    '0%': {                     // Start of animation (0% complete)
+      opacity: 0,               // Completely transparent
+      transform: 'translateY(-20px)'  // Moved up 20 pixels
     },
-    '100%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+    '100%': {                   // End of animation (100% complete)
+      opacity: 1,               // Fully visible
+      transform: 'translateY(0)'      // Normal position
     }
   },
+  
+  // ===== FADE OUT ANIMATION =====
+  // This animation makes the logo disappear when the form appears
   '@keyframes fadeOut': {
-    '0%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+    '0%': {                     // Start of animation
+      opacity: 1,               // Fully visible
+      transform: 'translateY(0)'      // Normal position
     },
-    '100%': {
-      opacity: 0,
-      transform: 'translateY(-20px)'
+    '100%': {                   // End of animation
+      opacity: 0,               // Completely transparent
+      transform: 'translateY(-20px)'  // Moved up 20 pixels
     }
   }
 }));
 
+// ===== ANIMATED BOX STYLING =====
+// AnimatedBox = contains the main heading text
 const AnimatedBox = styled(Box)<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
-  color: 'white',
-  marginBottom: theme.spacing(3),
-  marginTop: '-2rem',
-  textAlign: 'center',
-  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.2s both',
-  position: 'relative',
-  zIndex: 2,
-  fontFamily: 'sans-serif',
+  color: 'white',               // Makes text white
+  marginBottom: theme.spacing(3),  // Adds space below
+  marginTop: '-2rem',           // Moves up slightly
+  textAlign: 'center',          // Centers text
+  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.2s both',  // Animation with delay
+  position: 'relative',         // Allows positioning
+  zIndex: 2,                    // Appears above other elements
+  fontFamily: 'sans-serif',     // Sets font
+  
+  // ===== FADE IN ANIMATION =====
   '@keyframes fadeIn': {
     '0%': {
-      opacity: 0,
-      transform: 'translateY(-20px)'
+      opacity: 0,               // Start invisible
+      transform: 'translateY(-20px)'  // Start moved up
     },
     '100%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+      opacity: 1,               // End fully visible
+      transform: 'translateY(0)'      // End in normal position
     }
   },
+  
+  // ===== FADE OUT ANIMATION =====
   '@keyframes fadeOut': {
     '0%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+      opacity: 1,               // Start fully visible
+      transform: 'translateY(0)'      // Start in normal position
     },
     '100%': {
-      opacity: 0,
-      transform: 'translateY(-20px)'
+      opacity: 0,               // End invisible
+      transform: 'translateY(-20px)'  // End moved up
     }
   }
 }));
 
+// ===== BUTTON CONTAINER STYLING =====
+// ButtonContainer = holds the main "Get Started" button
 const ButtonContainer = styled(Box)<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '1rem',
-  width: '100%',
-  maxWidth: '300px',
-  marginTop: '-0.5rem',
-  position: 'relative',
-  zIndex: 2,
-  fontFamily: 'sans-serif',
-  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.4s both',
+  display: 'flex',              // Uses flexbox layout
+  flexDirection: 'column',      // Arranges children vertically
+  gap: '1rem',                  // Space between children
+  width: '100%',                // Full width
+  maxWidth: '300px',            // Maximum width
+  marginTop: '-0.5rem',         // Moves up slightly
+  position: 'relative',         // Allows positioning
+  zIndex: 2,                    // Appears above other elements
+  fontFamily: 'sans-serif',     // Sets font
+  animation: $showPrompt ? 'fadeOut 0.3s ease-out 0.3s forwards' : 'fadeIn 1.2s ease-out 0.4s both',  // Animation with longer delay
+  
+  // ===== FADE IN ANIMATION =====
   '@keyframes fadeIn': {
     '0%': {
-      opacity: 0,
-      transform: 'translateY(20px)'
+      opacity: 0,               // Start invisible
+      transform: 'translateY(20px)'   // Start moved down
     },
     '100%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+      opacity: 1,               // End fully visible
+      transform: 'translateY(0)'      // End in normal position
     }
   },
+  
+  // ===== FADE OUT ANIMATION =====
   '@keyframes fadeOut': {
     '0%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+      opacity: 1,               // Start fully visible
+      transform: 'translateY(0)'      // Start in normal position
     },
     '100%': {
-      opacity: 0,
-      transform: 'translateY(20px)'
+      opacity: 0,               // End invisible
+      transform: 'translateY(20px)'   // End moved down
     }
   }
 }));
 
+// ===== STYLED BUTTON =====
+// StyledButton = the main "Get Started" button with custom styling
 const StyledButton = styled(Button)(({ theme }) => ({
-  width: '100%',
-  padding: theme.spacing(1.5),
-  fontSize: '1.1rem',
-  animation: 'fadeIn 1.2s ease-out 0.4s both',
-  fontFamily: 'sans-serif',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.5rem',
+  width: '100%',                // Full width of container
+  padding: theme.spacing(1.5),  // Adds space inside the button
+  fontSize: '1.1rem',           // Sets text size
+  animation: 'fadeIn 1.2s ease-out 0.4s both',  // Animation with delay
+  fontFamily: 'sans-serif',     // Sets font
+  display: 'flex',              // Uses flexbox layout
+  alignItems: 'center',         // Centers content vertically
+  gap: '0.5rem',                // Space between text and icon
+  
+  // ===== FADE IN ANIMATION =====
   '@keyframes fadeIn': {
     '0%': {
-      opacity: 0,
-      transform: 'translateY(20px)'
+      opacity: 0,               // Start invisible
+      transform: 'translateY(20px)'   // Start moved down
     },
     '100%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+      opacity: 1,               // End fully visible
+      transform: 'translateY(0)'      // End in normal position
     }
   }
 }));
 
+// ===== DOWN ARROW STYLING =====
+// DownArrow = animated down arrow icon
 const DownArrow = styled(ArrowDownwardIcon)({
-  animation: 'bounce 2s infinite',
+  animation: 'bounce 2s infinite',  // Continuous bouncing animation
+  
+  // ===== BOUNCE ANIMATION =====
   '@keyframes bounce': {
-    '0%, 20%, 50%, 80%, 100%': {
-      transform: 'translateY(0)',
+    '0%, 20%, 50%, 80%, 100%': {    // Multiple keyframes for smooth bounce
+      transform: 'translateY(0)',   // Normal position
     },
-    '40%': {
-      transform: 'translateY(-10px)',
+    '40%': {                        // Middle of bounce (40% through)
+      transform: 'translateY(-10px)',  // Moves up 10 pixels
     },
-    '60%': {
-      transform: 'translateY(-5px)',
+    '60%': {                        // End of bounce (60% through)
+      transform: 'translateY(-5px)',   // Moves up 5 pixels
     }
   }
 });
 
+// ===== FLOATING IMAGE STYLING =====
+// FloatingImage = panel images that float around the background
 const FloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
-  position: 'absolute',
-  width: $showPrompt ? '300px' : '200px',
-  opacity: $showPrompt ? 0.3 : 1,
-  filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',
-  animation: 'float 8s ease-in-out infinite',
-  transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  position: 'absolute',         // Positions absolutely (can be placed anywhere)
+  width: $showPrompt ? '300px' : '200px',  // Changes size based on form state
+  opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
+  filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',  // Adds shadow effect
+  animation: 'float 8s ease-in-out infinite',  // Continuous floating animation
+  transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',  // Smooth transitions
+  
+  // ===== SHADOW EFFECT =====
+  // Creates a shadow under the floating images
   '&::before': {
-    content: '""',
-    position: 'absolute',
-    bottom: '-30px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '160px',
-    height: '30px',
-    background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%)',
-    borderRadius: '50%',
-    animation: 'shadowFloat 8s ease-in-out infinite',
-    zIndex: -1
+    content: '""',              // Creates a pseudo-element
+    position: 'absolute',       // Positions absolutely
+    bottom: '-30px',            // Places below the image
+    left: '50%',                // Centers horizontally
+    transform: 'translateX(-50%)',  // Centers perfectly
+    width: '160px',             // Shadow width
+    height: '30px',             // Shadow height
+    background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%)',  // Gradient shadow
+    borderRadius: '50%',        // Makes shadow circular
+    animation: 'shadowFloat 8s ease-in-out infinite',  // Shadow animation
+    zIndex: -1                  // Places shadow behind the image
   },
+  
+  // ===== FLOAT ANIMATION =====
+  // Makes images gently float up and down
   '@keyframes float': {
     '0%': {
-      transform: 'translateY(0px) rotate(0deg)',
+      transform: 'translateY(0px) rotate(0deg)',  // Start position
     },
     '50%': {
-      transform: 'translateY(-15px) rotate(3deg)',
+      transform: 'translateY(-15px) rotate(3deg)',  // Middle position (up and slightly rotated)
     },
     '100%': {
-      transform: 'translateY(0px) rotate(0deg)',
+      transform: 'translateY(0px) rotate(0deg)',  // End position (back to start)
     }
   },
+  
+  // ===== SHADOW FLOAT ANIMATION =====
+  // Makes shadow move with the floating image
   '@keyframes shadowFloat': {
     '0%': {
-      transform: 'translateX(-50%) scale(1)',
-      opacity: 0.4,
+      transform: 'translateX(-50%) scale(1)',  // Start position
+      opacity: 0.4,             // Start opacity
     },
     '50%': {
-      transform: 'translateX(-50%) scale(0.8)',
-      opacity: 0.2,
+      transform: 'translateX(-50%) scale(0.8)',  // Middle position (smaller shadow)
+      opacity: 0.2,             // Middle opacity (lighter)
     },
     '100%': {
-      transform: 'translateX(-50%) scale(1)',
-      opacity: 0.4,
+      transform: 'translateX(-50%) scale(1)',  // End position
+      opacity: 0.4,             // End opacity
     }
   }
 }));
 
+// ===== FORM STYLING COMPONENTS =====
+// These components style the project details form that appears when user clicks "Get Started"
+
+// ===== PROJECT PROMPT CONTAINER =====
+// ProjectPrompt = the main container for the form
 const ProjectPrompt = styled(Paper)<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
-  padding: theme.spacing(5),
-  backgroundColor: 'rgba(255, 255, 255, 0.98)',
-  borderRadius: '20px',
-  maxWidth: '700px',
-  width: '90%',
-  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
-  animation: $showPrompt ? 'slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both' : 'none',
-  '@keyframes slideUp': {
+  position: 'relative',         // Allows positioning
+  zIndex: 3,                    // Appears above everything else
+  padding: theme.spacing(4),    // Adds space inside the form
+  maxWidth: '600px',            // Maximum width
+  width: '100%',                // Full width
+  background: 'rgba(255, 255, 255, 0.95)',  // Semi-transparent white background
+  backdropFilter: 'blur(10px)', // Blurs the background behind the form
+  border: '1px solid rgba(255, 255, 255, 0.2)',  // Subtle border
+  borderRadius: '16px',         // Rounded corners
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',  // Soft shadow
+  animation: $showPrompt ? 'slideIn 0.5s ease-out' : 'slideOut 0.3s ease-in forwards',  // Slide animation
+  
+  // ===== SLIDE IN ANIMATION =====
+  '@keyframes slideIn': {
     '0%': {
-      opacity: 0,
-      transform: 'translateY(20px)'
+      opacity: 0,               // Start invisible
+      transform: 'translateY(30px) scale(0.95)',  // Start moved down and smaller
     },
     '100%': {
-      opacity: 1,
-      transform: 'translateY(0)'
+      opacity: 1,               // End fully visible
+      transform: 'translateY(0) scale(1)',        // End in normal position and size
     }
-  }
-}));
-
-const PromptForm = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '1.75rem',
-  marginTop: '1.5rem'
-});
-
-const FormRow = styled(Box)({
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, 1fr)',
-  gap: '1.5rem',
-  width: '100%'
-});
-
-const StyledTextField = styled(TextField)(({ theme }) => ({
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '12px',
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  
+  // ===== SLIDE OUT ANIMATION =====
+  '@keyframes slideOut': {
+    '0%': {
+      opacity: 1,               // Start fully visible
+      transform: 'translateY(0) scale(1)',        // Start in normal position
     },
-    '&.Mui-focused': {
-      backgroundColor: 'white',
-      boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)',
+    '100%': {
+      opacity: 0,               // End invisible
+      transform: 'translateY(30px) scale(0.95)',  // End moved down and smaller
     }
-  },
-  '& .MuiInputLabel-root': {
-    transform: 'translate(14px, -9px) scale(0.75)',
-    backgroundColor: 'white',
-    padding: '0 4px',
-    color: theme.palette.text.secondary,
-    fontSize: '1.1rem',
-    fontWeight: 500
-  },
-  '& .MuiOutlinedInput-notchedOutline': {
-    borderColor: 'rgba(0, 0, 0, 0.1)',
   }
 }));
 
+// ===== FORM TITLE =====
+// FormTitle = the "Project Details" heading
 const FormTitle = styled(Typography)(({ theme }) => ({
-  color: theme.palette.text.primary,
-  fontWeight: 600,
-  fontSize: '1.75rem',
-  textAlign: 'center',
-  marginBottom: theme.spacing(4),
-  position: 'relative',
-  '&::after': {
-    content: '""',
-    position: 'absolute',
-    bottom: '-12px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '40px',
-    height: '3px',
-    backgroundColor: theme.palette.primary.main,
-    borderRadius: '2px'
+  fontSize: '1.8rem',           // Large text size
+  fontWeight: 600,              // Bold text
+  color: '#2c3e50',             // Dark blue color
+  marginBottom: theme.spacing(3),  // Space below the title
+  textAlign: 'center',          // Centers the text
+  fontFamily: 'sans-serif'      // Sets font
+}));
+
+// ===== PROMPT FORM =====
+// PromptForm = contains all the form fields
+const PromptForm = styled(Box)({
+  display: 'flex',              // Uses flexbox layout
+  flexDirection: 'column',      // Arranges children vertically
+  gap: '1.5rem'                 // Space between form fields
+});
+
+// ===== FORM ROW =====
+// FormRow = groups form fields horizontally (side by side)
+const FormRow = styled(Box)({
+  display: 'flex',              // Uses flexbox layout
+  gap: '1rem',                  // Space between fields in the row
+  flexWrap: 'wrap'              // Allows fields to wrap to next line on small screens
+});
+
+// ===== STYLED TEXT FIELD =====
+// StyledTextField = custom-styled input fields
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  flex: 1,                      // Takes available space
+  minWidth: '250px',            // Minimum width
+  '& .MuiOutlinedInput-root': {  // Styles the input border
+    '& fieldset': {
+      borderColor: 'rgba(44, 62, 80, 0.3)',  // Border color
+    },
+    '&:hover fieldset': {
+      borderColor: 'rgba(44, 62, 80, 0.5)',  // Border color on hover
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#3498db',   // Border color when focused
+    },
+  },
+  '& .MuiInputLabel-root': {    // Styles the label
+    color: '#2c3e50',           // Label color
+    '&.Mui-focused': {
+      color: '#3498db',         // Label color when focused
+    },
+  },
+  '& .MuiInputBase-input': {    // Styles the input text
+    color: '#2c3e50',           // Text color
+    fontFamily: 'sans-serif'    // Font
   }
 }));
 
-const HelpText = styled('span')(({ theme }) => ({
-  color: theme.palette.primary.main,
-  fontSize: '0.95rem',
-  cursor: 'pointer',
-  padding: '4px 8px',
-  fontFamily: 'sans-serif',
-  letterSpacing: '-0.02em',
-  fontWeight: 600,
-  transition: 'all 0.2s ease',
+// ===== HELP TEXT =====
+// HelpText = clickable text that shows help information
+const HelpText = styled(Typography)(({ theme }) => ({
+  fontSize: '0.9rem',           // Small text size
+  color: '#3498db',             // Blue color
+  cursor: 'pointer',            // Shows hand cursor on hover
+  textDecoration: 'underline',  // Underlined text
+  textAlign: 'center',          // Centers text
+  marginTop: '0.5rem',          // Space above
   '&:hover': {
-    opacity: 0.8,
-    transform: 'translateY(-1px)'
+    color: '#2980b9',           // Darker blue on hover
   }
 }));
 
+// ===== ERROR MESSAGE =====
+// ErrorMessage = displays error messages
+const ErrorMessage = styled(Typography)(({ theme }) => ({
+  color: '#e74c3c',             // Red color for errors
+  fontSize: '0.9rem',           // Small text size
+  textAlign: 'center',          // Centers text
+  marginTop: '0.5rem',          // Space above
+  fontFamily: 'sans-serif'      // Sets font
+}));
+
+// ===== SUBMIT BUTTON =====
+// SubmitButton = the button that submits the form
+const SubmitButton = styled(Button)(({ theme }) => ({
+  marginTop: theme.spacing(2),  // Space above the button
+  padding: theme.spacing(1.5),  // Space inside the button
+  fontSize: '1.1rem',           // Text size
+  fontWeight: 600,              // Bold text
+  fontFamily: 'sans-serif',     // Sets font
+  background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',  // Gradient background
+  '&:hover': {
+    background: 'linear-gradient(135deg, #2980b9 0%, #1f5f8b 100%)',  // Darker gradient on hover
+  }
+}));
+
+// ===== MAIN HOME COMPONENT =====
+// This is the main function that creates the Home page
 const Home = () => {
+  // ===== HOOKS AND CONTEXT =====
+  // These are like "tools" that give your component special abilities
+  
+  // Navigation tool - allows moving between pages
   const navigate = useNavigate();
+  
+  // Gets functions from ProjectContext (shared storage)
+  // These functions can update project data that other components can see
   const { setProjectName, setProjectCode } = useContext(ProjectContext);
+  
+  // ===== STATE MANAGEMENT =====
+  // These are like "memory boxes" that store data that can change
+  
+  // Controls whether the project form is showing
+  // false = show welcome screen, true = show form
   const [showPrompt, setShowPrompt] = useState(false);
+  
+  // Controls whether to show success page after form submission
+  // false = show form, true = show success page
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Controls whether the sales manager help is showing
+  // false = show project code field, true = show sales manager field
   const [showSalesManager, setShowSalesManager] = useState(false);
+  
+  // Controls whether to show error message
+  // false = no error, true = show error message
   const [showError, setShowError] = useState(false);
+  
+  // Stores all the form data (project details)
+  // This is an object that holds multiple pieces of information
   const [projectDetails, setProjectDetails] = useState({
-    projectName: '',
-    location: '',
-    projectCode: '',
-    salesManager: '',
-    operator: '',
-    servicePartner: '',
-    email: ''
+    projectName: '',        // Name of the project
+    location: '',           // Location of the project
+    projectCode: '',        // Code/ID of the project
+    salesManager: '',       // Sales manager name
+    operator: '',           // Operator name
+    servicePartner: '',     // Service partner name
+    email: ''              // Email address
   });
 
+  // ===== EVENT HANDLERS =====
+  // These are functions that run when users interact with the page
+  
+  // ===== TEST SUPABASE CONNECTION =====
+  // Temporary function to test Supabase connection
+  const handleTestConnection = async () => {
+    console.log('🧪 Testing Supabase connection...');
+    
+    // Test basic connection first
+    console.log('🔌 Testing basic connection...');
+    const basicResult = await testBasicConnection();
+    console.log('Basic test result:', basicResult);
+    
+    // Then test detailed connection
+    console.log('🧪 Testing detailed connection...');
+    const detailedResult = await testConnection();
+    console.log('Detailed test result:', detailedResult);
+    
+    // Show results
+    const message = `
+Basic Connection: ${basicResult.success ? '✅' : '❌'} ${basicResult.success ? 'Success' : basicResult.error}
+Detailed Connection: ${detailedResult.success ? '✅' : '❌'} ${detailedResult.success ? 'Success' : detailedResult.error}
+    `.trim();
+    
+    alert(message);
+  };
+  
+  // ===== HANDLE CLICK =====
+  // Runs when user clicks the "Get Started" button
   const handleClick = () => {
-    setShowPrompt(true);
+    setShowPrompt(true);  // Shows the project form
   };
 
+  // ===== HANDLE CHANGE =====
+  // Runs when user types in any form field
+  // field = which field is being changed (e.g., 'projectName', 'location')
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Updates the projectDetails object with the new value
     setProjectDetails(prev => ({
-      ...prev,
-      [field]: e.target.value
+      ...prev,              // Keeps all existing values
+      [field]: e.target.value  // Updates only the specific field
     }));
-    // Clear error when user starts typing in either field
+    
+    // Clears error message when user starts typing in operator or service partner fields
     if (field === 'operator' || field === 'servicePartner') {
       setShowError(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // ===== HANDLE SUBMIT =====
+  // This is like the WAITER taking orders from customers
+  // Runs when user submits the form (clicks "Continue" or presses Enter)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();  // Prevents the page from reloading (like stopping the customer from leaving)
+    
+    // Checks if user provided either operator or service partner
+    // This is like checking if the customer ordered something valid
     if (!projectDetails.operator && !projectDetails.servicePartner) {
-      setShowError(true);
-      return;
+      setShowError(true);  // Shows error message (like telling customer "you need to order something")
+      return;              // Stops the function here (like not taking the order)
     }
-    setProjectName(projectDetails.projectName);
-    setProjectCode(projectDetails.projectCode);
-    navigate('/panel-type', { state: { projectDetails } });
+    
+    try {
+      // 🍽️ RESTAURANT ANALOGY: This is like the waiter taking the order to the kitchen
+      // Use mock backend for development (this is like a pretend kitchen for testing)
+      const result = await mockSendEmail(projectDetails);
+      
+      if (result.success) {
+        // 🎉 SUCCESS: Kitchen cooked the food successfully!
+        console.log('Backend function called successfully:', result.message);
+        
+        // Saves project details to shared storage (ProjectContext)
+        // This is like putting the order in the restaurant's computer system
+        setProjectName(projectDetails.projectName);  // Updates project name globally
+        setProjectCode(projectDetails.projectCode);  // Updates project code globally
+        
+        // 💾 Save user's email to localStorage (like remembering who's logged in)
+        localStorage.setItem('userEmail', projectDetails.email);
+        
+        // Shows the success page instead of immediately navigating
+        // This is like showing the customer their order confirmation
+        setShowSuccess(true);
+        setShowPrompt(false);
+      } else {
+        // ❌ ERROR: Kitchen had a problem cooking the food
+        console.error('Backend function failed:', result.error);
+        // You could show an error message to the user here
+        // Like telling the customer "sorry, we can't make that dish"
+      }
+    } catch (error) {
+      // 💥 DISASTER: Something went completely wrong (like kitchen caught fire)
+      console.error('Error calling backend function:', error);
+      // You could show an error message to the user here
+      
+      // Still show success page even if email fails
+      // This is like still showing order confirmation even if kitchen is having issues
+      setProjectName(projectDetails.projectName);
+      setProjectCode(projectDetails.projectCode);
+      setShowSuccess(true);
+      setShowPrompt(false);
+    }
   };
 
+  // ===== HANDLE HELP CLICK =====
+  // Runs when user clicks the help text
   const handleHelpClick = () => {
-    setShowSalesManager(!showSalesManager);
+    setShowSalesManager(!showSalesManager);  // Toggles between project code and sales manager fields
   };
 
+  // ===== HANDLE GET STARTED =====
+  // Runs when user clicks "Get Started" (alternative function)
   const handleGetStarted = () => {
-    setShowPrompt(true);
+    setShowPrompt(true);  // Shows the form
+    
+    // Hides the form after 800 milliseconds (0.8 seconds)
     setTimeout(() => {
       setShowPrompt(false);
     }, 800);
   };
 
+  // ===== JSX RENDER =====
+  // This is what actually gets displayed on the screen
+  // JSX is like HTML but with JavaScript power
   return (
+    // ===== MAIN CONTAINER =====
     <HomeContainer>
+      {/* ===== FLOATING PANEL IMAGES ===== */}
+      {/* These are the panel images that float around the background */}
+      {/* Each image has different positioning and animation delays */}
+      
+      {/* TAG PIR Panel - top left */}
       <FloatingImage 
-        src={tagPir} 
-        alt="TAG PIR" 
-        $showPrompt={showPrompt}
+        src={tagPir}           // Image source
+        alt="TAG PIR"          // Alternative text for accessibility
+        $showPrompt={showPrompt}  // Controls size and opacity based on form state
         style={{ 
-          top: showPrompt ? '5%' : '15%', 
-          left: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',
-          animationDelay: '0s'
+          top: showPrompt ? '5%' : '15%',   // Position from top (changes when form shows)
+          left: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',  // Position from left
+          animationDelay: '0s'  // No delay for this animation
         }} 
       />
+      
+      {/* IDPG RN Panel - bottom right */}
       <FloatingImage 
         src={idpgRn} 
         alt="IDPG RN" 
         $showPrompt={showPrompt}
         style={{ 
-          bottom: showPrompt ? '0%' : '15%', 
-          right: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',
-          animationDelay: '2s'
+          bottom: showPrompt ? '0%' : '15%',   // Position from bottom
+          right: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',  // Position from right
+          animationDelay: '2s'  // 2 second delay for staggered animation
         }} 
       />
+      
+      {/* IDPG Panel - top right */}
       <FloatingImage 
         src={idpg} 
         alt="IDPG" 
         $showPrompt={showPrompt}
         style={{ 
           top: showPrompt ? '10%' : '25%', 
-          right: showPrompt ? 'calc(15% - 10px)' : 'calc(10% - 10px)',
-          animationDelay: '1s'
+          right: showPrompt ? 'calc(15% - 10px)' : 'calc(10% - 10px)', 
+          animationDelay: '1s'  // 1 second delay
         }} 
       />
+      
+      {/* SP Panel - bottom left */}
       <FloatingImage 
         src={sp} 
         alt="SP" 
         $showPrompt={showPrompt}
         style={{ 
           bottom: showPrompt ? '10%' : '25%', 
-          left: showPrompt ? 'calc(20% - 10px)' : 'calc(10% - 10px)',
-          animationDelay: '3s'
+          left: showPrompt ? 'calc(20% - 10px)' : 'calc(10% - 10px)', 
+          animationDelay: '3s'  // 3 second delay
         }} 
       />
+      
+      {/* X2RS Panel - center left (larger) */}
       <FloatingImage 
         src={x2rs} 
         alt="X2RS" 
         $showPrompt={showPrompt}
         style={{ 
           top: showPrompt ? '35%' : '40%', 
-          left: showPrompt ? 'calc(15% - 20px)' : 'calc(15% - 20px)',
-          animationDelay: '1.5s',
-          width: showPrompt ? '480px' : '320px'
+          left: showPrompt ? 'calc(15% - 20px)' : 'calc(15% - 20px)', 
+          animationDelay: '1.5s',  // 1.5 second delay
+          width: showPrompt ? '480px' : '320px'  // Changes size based on form state
         }} 
       />
+      
+      {/* DP RT Panel - center right (larger) */}
       <FloatingImage 
         src={dpRt} 
         alt="DP RT" 
         $showPrompt={showPrompt}
         style={{ 
           bottom: showPrompt ? '40%' : '40%', 
-          right: showPrompt ? 'calc(15% + 40px)' : 'calc(15% + 40px)',
-          animationDelay: '2.5s',
-          width: showPrompt ? '480px' : '320px'
+          right: showPrompt ? 'calc(15% + 40px)' : 'calc(15% + 40px)', 
+          animationDelay: '2.5s',  // 2.5 second delay
+          width: showPrompt ? '480px' : '320px'  // Changes size based on form state
         }} 
       />
+      
+      {/* ===== MAIN CONTENT AREA ===== */}
       <ContentWrapper>
-        {!showPrompt ? (
+        {/* ===== CONDITIONAL RENDERING ===== */}
+        {/* Shows different content based on whether the form is showing */}
+        
+        {!showPrompt && !showSuccess ? (
+          // ===== WELCOME SCREEN =====
+          // This shows when the form is NOT showing (initial state)
           <>
-            <Logo src={logo} alt="Interel Logo" $showPrompt={showPrompt} onClick={() => navigate('/')} style={{ cursor: 'pointer' }} />
+            {/* ===== LOGO ===== */}
+            <Logo 
+              src={logo} 
+              alt="Interel Logo" 
+              $showPrompt={showPrompt} 
+              onClick={() => navigate('/')}  // Clicking logo goes to home
+              style={{ cursor: 'pointer' }}  // Shows hand cursor on hover
+            />
+            
+            {/* ===== TEMPORARY TEST BUTTON ===== */}
+            <Button 
+              onClick={handleTestConnection}
+              variant="contained"
+              sx={{ 
+                position: 'absolute', 
+                top: '20px', 
+                right: '20px',
+                backgroundColor: '#e74c3c',
+                '&:hover': { backgroundColor: '#c0392b' }
+              }}
+            >
+              Test Supabase
+            </Button>
+            
+            {/* ===== MAIN HEADING ===== */}
             <AnimatedBox $showPrompt={showPrompt}>
               <Typography 
-                variant="h3" 
+                variant="h3"  // Large heading style
                 sx={{ 
-                  fontWeight: 400,
-                  fontFamily: 'sans-serif',
-                  letterSpacing: '-0.04em',
-                  fontSize: '2.5rem',
-                  lineHeight: 1.05,
-                  marginBottom: 0
+                  fontWeight: 400,           // Normal font weight
+                  fontFamily: 'sans-serif',  // Font family
+                  letterSpacing: '-0.04em',  // Tighter letter spacing
+                  fontSize: '2.5rem',        // Large text size
+                  lineHeight: 1.05,          // Line height
+                  marginBottom: 0            // No margin below
                 }}
               >
                 Design Your Panels
               </Typography>
             </AnimatedBox>
+            
+            {/* ===== GET STARTED BUTTON ===== */}
             <ButtonContainer $showPrompt={showPrompt}>
               <StyledButton
-                variant="contained"
-                color="primary"
-                onClick={handleClick}
+                variant="contained"  // Filled button style
+                color="primary"      // Primary color
+                onClick={handleClick}  // Runs handleClick when clicked
                 sx={{
-                  fontFamily: 'sans-serif',
-                  letterSpacing: '-0.02em',
-                  fontWeight: 600,
-                  fontSize: '1.4rem',
-                  padding: '0.6rem 0'
+                  fontFamily: 'sans-serif',  // Font
+                  letterSpacing: '-0.02em',  // Letter spacing
+                  fontWeight: 600,           // Bold text
+                  fontSize: '1.4rem',        // Large text size
+                  padding: '0.6rem 0'        // Vertical padding
                 }}
               >
                 Get Started
+                {/* ===== ROCKET ICON ===== */}
                 <RocketLaunchIcon sx={{ 
-                  fontSize: '1.4rem',
-                  ml: 1
+                  fontSize: '1.4rem',  // Icon size
+                  ml: 1                // Margin left
                 }} />
               </StyledButton>
+              
+
             </ButtonContainer>
           </>
+        ) : showSuccess ? (
+          // ===== SUCCESS PAGE =====
+          // This shows after the form is successfully submitted
+          <ProjectPrompt $showPrompt={true}>
+            {/* ===== SUCCESS TITLE ===== */}
+            <FormTitle>
+              🎉 Project Submitted Successfully!
+            </FormTitle>
+            
+            {/* ===== SUCCESS MESSAGE ===== */}
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                textAlign: 'center', 
+                mb: 3, 
+                color: '#2c3e50',
+                fontSize: '1.1rem'
+              }}
+            >
+              Your project "{projectDetails.projectName}" has been saved. 
+              What would you like to do next?
+            </Typography>
+            
+            {/* ===== ACTION BUTTONS ===== */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Start Designing Button */}
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => navigate('/panel-type', { state: { projectDetails } })}
+                sx={{
+                  fontFamily: 'sans-serif',
+                  fontWeight: 600,
+                  fontSize: '1.1rem',
+                  padding: '0.8rem 0',
+                  background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #2980b9 0%, #1f5f8b 100%)',
+                  }
+                }}
+              >
+                🎨 Start Designing
+              </Button>
+              
+              {/* My Designs Button */}
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/my-designs')}
+                sx={{
+                  fontFamily: 'sans-serif',
+                  fontWeight: 500,
+                  fontSize: '1rem',
+                  padding: '0.6rem 0',
+                  color: '#2c3e50',
+                  borderColor: '#3498db',
+                  '&:hover': {
+                    borderColor: '#2980b9',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)'
+                  }
+                }}
+              >
+                📚 View My Designs
+              </Button>
+              
+              {/* Back to Home Button */}
+              <Button
+                variant="text"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setShowPrompt(false);
+                }}
+                sx={{
+                  fontFamily: 'sans-serif',
+                  fontWeight: 400,
+                  fontSize: '0.9rem',
+                  padding: '0.4rem 0',
+                  color: '#7f8c8d',
+                  '&:hover': {
+                    backgroundColor: 'rgba(127, 140, 141, 0.1)'
+                  }
+                }}
+              >
+                ← Back to Home
+              </Button>
+            </Box>
+          </ProjectPrompt>
         ) : (
+          // ===== PROJECT FORM =====
+          // This shows when the form IS showing
           <ProjectPrompt $showPrompt={showPrompt}>
+            {/* ===== FORM TITLE ===== */}
             <FormTitle>
               Project Details
             </FormTitle>
+            
+            {/* ===== FORM ELEMENT ===== */}
             <form onSubmit={handleSubmit}>
               <PromptForm>
+                {/* ===== FIRST ROW - PROJECT NAME AND LOCATION ===== */}
                 <FormRow>
+                  {/* Project Name Field */}
                   <StyledTextField
-                  label="Project Name"
-                  variant="outlined"
-                  value={projectDetails.projectName}
-                  onChange={handleChange('projectName')}
-                  required
-                />
+                    label="Project Name"           // Field label
+                    variant="outlined"             // Outlined style
+                    value={projectDetails.projectName}  // Current value
+                    onChange={handleChange('projectName')}  // Runs when user types
+                    required                        // Required field
+                  />
+                  
+                  {/* Location Field */}
                   <StyledTextField
-                    label="Location"
-                    variant="outlined"
-                    value={projectDetails.location}
-                    onChange={handleChange('location')}
-                    required
+                    label="Location"               // Field label
+                    variant="outlined"             // Outlined style
+                    value={projectDetails.location}  // Current value
+                    onChange={handleChange('location')}  // Runs when user types
+                    required                        // Required field
                   />
                 </FormRow>
+                
+                {/* ===== SECOND ROW - PROJECT CODE OR SALES MANAGER ===== */}
                 <FormRow>
                   {!showSalesManager ? (
+                    // ===== PROJECT CODE FIELD =====
+                    // Shows when sales manager help is NOT showing
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {/* Project Code Field */}
                       <StyledTextField
-                    label="Project Code"
-                    variant="outlined"
-                    value={projectDetails.projectCode}
-                    onChange={handleChange('projectCode')}
-                    required
+                        label="Project Code"           // Field label
+                        variant="outlined"             // Outlined style
+                        value={projectDetails.projectCode}  // Current value
+                        onChange={handleChange('projectCode')}  // Runs when user types
+                        required                        // Required field
                       />
+                      
+                      {/* Help Text */}
                       <HelpText onClick={handleHelpClick}>
                         Don't know the project code?
                       </HelpText>
                     </Box>
                   ) : (
+                    // ===== SALES MANAGER FIELD =====
+                    // Shows when sales manager help IS showing
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {/* Sales Manager Field */}
                       <StyledTextField
-                    label="INTEREL Sales Manager"
-                    variant="outlined"
-                    value={projectDetails.salesManager}
-                    onChange={handleChange('salesManager')}
-                    required
+                        label="INTEREL Sales Manager"  // Field label
+                        variant="outlined"             // Outlined style
+                        value={projectDetails.salesManager}  // Current value
+                        onChange={handleChange('salesManager')}  // Runs when user types
+                        required                        // Required field
                       />
+                      
+                      {/* Help Text */}
                       <HelpText onClick={handleHelpClick}>
                         I have the project code
                       </HelpText>
                     </Box>
                   )}
-                  <StyledTextField
-                    label="Your Email"
-                    variant="outlined"
-                    type="email"
-                    value={projectDetails.email}
-                    onChange={handleChange('email')}
-                    required
-                  />
                 </FormRow>
+                
+                {/* ===== THIRD ROW - OPERATOR AND SERVICE PARTNER ===== */}
                 <FormRow>
+                  {/* Operator Field */}
                   <StyledTextField
-                    label="Operator/End Client"
-                    variant="outlined"
-                    value={projectDetails.operator}
-                    onChange={handleChange('operator')}
+                    label="Operator"               // Field label
+                    variant="outlined"             // Outlined style
+                    value={projectDetails.operator}  // Current value
+                    onChange={handleChange('operator')}  // Runs when user types
+                    placeholder="Enter operator name"  // Placeholder text
                   />
+                  
+                  {/* Service Partner Field */}
                   <StyledTextField
-                    label="Service Partner"
-                    variant="outlined"
-                    value={projectDetails.servicePartner}
-                    onChange={handleChange('servicePartner')}
+                    label="Service Partner"        // Field label
+                    variant="outlined"             // Outlined style
+                    value={projectDetails.servicePartner}  // Current value
+                    onChange={handleChange('servicePartner')}  // Runs when user types
+                    placeholder="Enter service partner name"  // Placeholder text
                   />
                 </FormRow>
+                
+                {/* ===== FOURTH ROW - EMAIL ===== */}
+                <FormRow>
+                  {/* Email Field */}
+                  <StyledTextField
+                    label="Email"                  // Field label
+                    variant="outlined"             // Outlined style
+                    type="email"                   // Email input type
+                    value={projectDetails.email}   // Current value
+                    onChange={handleChange('email')}  // Runs when user types
+                    placeholder="Enter email address"  // Placeholder text
+                  />
+                </FormRow>
+                
+                {/* ===== ERROR MESSAGE ===== */}
+                {/* Shows error message if user doesn't provide operator or service partner */}
                 {showError && (
-                  <Typography 
-                    color="error" 
-                    sx={{ 
-                      fontSize: '0.875rem',
-                      mt: -1,
-                      mb: 1
-                    }}
-                  >
-                    Please fill in at least one of these fields
-                  </Typography>
+                  <ErrorMessage>
+                    Please provide either an Operator or Service Partner.
+                  </ErrorMessage>
                 )}
-                <StyledButton
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  sx={{
-                    fontFamily: 'sans-serif',
-                    letterSpacing: '-0.02em',
-                    fontWeight: 500,
-                    fontSize: '1.2rem',
-                    padding: '0.8rem 0',
-                    mt: 2,
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-                    '&:hover': {
-                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.12)',
-                      transform: 'translateY(-1px)',
-                    },
-                    transition: 'all 0.2s ease'
-                  }}
+                
+                {/* ===== SUBMIT BUTTON ===== */}
+                <SubmitButton
+                  type="submit"                    // Form submit button
+                  variant="contained"              // Filled button style
+                  color="primary"                  // Primary color
+                  fullWidth                        // Full width
                 >
-                  Start Customizing
-                  <DownArrow sx={{ fontSize: '1.2rem', ml: 1 }} />
-                </StyledButton>
+                  Continue
+                </SubmitButton>
               </PromptForm>
             </form>
           </ProjectPrompt>
@@ -593,4 +969,6 @@ const Home = () => {
   );
 };
 
+// ===== EXPORT =====
+// Makes this component available to be used in other files
 export default Home; 

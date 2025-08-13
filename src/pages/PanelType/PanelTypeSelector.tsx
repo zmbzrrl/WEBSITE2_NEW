@@ -1,5 +1,5 @@
 import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
   Typography,
@@ -111,9 +111,15 @@ const itemVariants = {
 
 const PanelTypeSelector = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const [showPanels] = useState(true);
   const { projectName, projectCode } = useContext(ProjectContext);
+
+  // Check if we're in edit mode
+  const isEditMode = location.state?.editMode || false;
+  const editProjectData = location.state?.projectData;
+  const editDesignId = location.state?.designId;
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
@@ -287,7 +293,23 @@ const PanelTypeSelector = () => {
                 >
                   <StyledPanel variants={itemVariants}>
                     <PanelContainer
-                      onClick={() => navigate(panel.path)}
+                      onClick={() => {
+                        if (isEditMode) {
+                          // If we're in edit mode, we're adding a NEW panel to an existing project
+                          // Don't pass edit mode state since this is a new panel, not editing existing
+                          navigate(panel.path, {
+                            state: {
+                              editMode: false, // This is a new panel, not editing existing
+                              projectData: editProjectData,
+                              designId: editDesignId,
+                              isAddingToExistingProject: true // Flag to indicate we're adding to existing project
+                            }
+                          });
+                        } else {
+                          // Normal navigation for new projects
+                          navigate(panel.path);
+                        }
+                      }}
                       sx={{
                         cursor: 'pointer',
                         display: 'flex',
