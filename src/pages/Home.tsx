@@ -36,7 +36,7 @@ import dpRt from '../assets/panels/DP_RT.jpg';
 // This stores project information (name, code) that's used across the app
 import { ProjectContext } from '../App';
 import { mockSendEmail } from '../utils/mockBackend';
-import { testConnection, testBasicConnection } from "../utils/database";
+
 
 //                              ===== STYLED COMPONENTS SECTION =====
 // These are custom-styled components that look exactly how you want them
@@ -473,29 +473,7 @@ const Home = () => {
   // ===== EVENT HANDLERS =====
   // These are functions that run when users interact with the page
   
-  // ===== TEST SUPABASE CONNECTION =====
-  // Temporary function to test Supabase connection
-  const handleTestConnection = async () => {
-    console.log('🧪 Testing Supabase connection...');
-    
-    // Test basic connection first
-    console.log('🔌 Testing basic connection...');
-    const basicResult = await testBasicConnection();
-    console.log('Basic test result:', basicResult);
-    
-    // Then test detailed connection
-    console.log('🧪 Testing detailed connection...');
-    const detailedResult = await testConnection();
-    console.log('Detailed test result:', detailedResult);
-    
-    // Show results
-    const message = `
-Basic Connection: ${basicResult.success ? '✅' : '❌'} ${basicResult.success ? 'Success' : basicResult.error}
-Detailed Connection: ${detailedResult.success ? '✅' : '❌'} ${detailedResult.success ? 'Success' : detailedResult.error}
-    `.trim();
-    
-    alert(message);
-  };
+
   
   // ===== HANDLE CLICK =====
   // Runs when user clicks the "Get Started" button
@@ -692,20 +670,7 @@ Detailed Connection: ${detailedResult.success ? '✅' : '❌'} ${detailedResult.
               style={{ cursor: 'pointer' }}  // Shows hand cursor on hover
             />
             
-            {/* ===== TEMPORARY TEST BUTTON ===== */}
-            <Button 
-              onClick={handleTestConnection}
-              variant="contained"
-              sx={{ 
-                position: 'absolute', 
-                top: '20px', 
-                right: '20px',
-                backgroundColor: '#e74c3c',
-                '&:hover': { backgroundColor: '#c0392b' }
-              }}
-            >
-              Test Supabase
-            </Button>
+
             
             {/* ===== MAIN HEADING ===== */}
             <AnimatedBox $showPrompt={showPrompt}>

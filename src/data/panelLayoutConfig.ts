@@ -355,8 +355,8 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
   // Corridor Panel (IDPG)
   IDPG: {
     dimensions: {
-      width: '400px',
-      height: '400px'
+      width: '350px',
+      height: '350px' // Default height, will be adjusted dynamically based on config
     },
     gridLayout: {
       rows: 4,
@@ -365,12 +365,12 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       padding: '10px'
     },
     iconLayout: {
-      size: '30px',
+      size: '40px', // Match customizer default icon size
       spacing: '5px',
       position: 'center'
     },
     textLayout: {
-      fontSize: '10px',
+      fontSize: '12px', // Match customizer default font size
       position: 'static',
       padding: '2px'
     }

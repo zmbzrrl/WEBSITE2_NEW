@@ -253,33 +253,24 @@ function loadGoogleFont(font: string) {
   }
 }
 
-// Add ICON_COLOR_FILTERS definition (from SPCustomizer)
-const ICON_COLOR_FILTERS: { [key: string]: string } = {
-  '#000000': 'brightness(0) saturate(100%)',
-  '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-  '#808080': 'brightness(0) saturate(100%) opacity(0.5)',
-  '#FF0000': 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)',
-  '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-  '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
-};
-
-// Helper function to get icon filter
-const getIconFilter = (color: string): string => {
-  switch (color) {
-    case '#000000':
-      return 'brightness(0) saturate(100%)';
-    case '#FFFFFF':
-      return 'brightness(0) saturate(100%) invert(1)';
-    case '#808080':
-      return 'brightness(0) saturate(100%) opacity(0.5)';
-    case '#FF0000':
-      return 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)';
-    case '#0000FF':
-      return 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)';
-    case '#008000':
-      return 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)';
-    default:
-      return 'brightness(0) saturate(100%) invert(1)';
+// Function to determine icon color based on background
+const getIconColorFilter = (backgroundColor: string): string => {
+  // Convert hex to RGB for brightness calculation
+  const hex = backgroundColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate brightness (0-255)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  
+  // Use white for dark backgrounds, dark grey for light backgrounds
+  if (brightness < 128) {
+    // Dark background - use white icons
+    return 'brightness(0) saturate(100%) invert(1)';
+  } else {
+    // Light background - use dark grey icons
+    return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
   }
 };
 
@@ -312,7 +303,6 @@ const IDPGCustomizer = () => {
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   const [panelDesign, setPanelDesign] = useState({
     backgroundColor: '#FFFFFF',
-    iconColor: '#000000',
     textColor: '#000000',
     fontSize: '12px',
     fonts: '',
@@ -341,7 +331,6 @@ const IDPGCustomizer = () => {
   // Default panel design values
   const defaultPanelDesign = {
     backgroundColor: '#FFFFFF',
-    iconColor: '#000000',
     textColor: '#000000',
     fontSize: '12px',
     fonts: undefined,
@@ -441,7 +430,7 @@ const IDPGCustomizer = () => {
                   style={{
                     width: panelDesign.iconSize,
                     height: panelDesign.iconSize,
-                    filter: getIconFilter(panelDesign.iconColor),
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
                   }}
                 />
               </div>
@@ -462,7 +451,7 @@ const IDPGCustomizer = () => {
                   style={{
                     width: panelDesign.iconSize,
                     height: panelDesign.iconSize,
-                    filter: getIconFilter(panelDesign.iconColor),
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
                   }}
                 />
               </div>
@@ -482,7 +471,7 @@ const IDPGCustomizer = () => {
                 style={{
                   width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
-                  filter: getIconFilter(panelDesign.iconColor),
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -503,7 +492,7 @@ const IDPGCustomizer = () => {
             width: "100%",
             height: "8px",
             background: "transparent",
-            border: `2px solid ${panelDesign.iconColor}`,
+            border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
             margin: "auto 0",
           }} />
@@ -521,7 +510,7 @@ const IDPGCustomizer = () => {
               style={{
                 width: panelDesign.iconSize,
                 height: panelDesign.iconSize,
-                filter: getIconFilter(panelDesign.iconColor),
+                filter: getIconColorFilter(panelDesign.backgroundColor),
               }}
             />
           </div>
@@ -629,7 +618,7 @@ const IDPGCustomizer = () => {
                   style={{
                     width: panelDesign.iconSize,
                     height: panelDesign.iconSize,
-                    filter: getIconFilter(panelDesign.iconColor),
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
                   }}
                 />
               </div>
@@ -650,7 +639,7 @@ const IDPGCustomizer = () => {
                   style={{
                     width: panelDesign.iconSize,
                     height: panelDesign.iconSize,
-                    filter: getIconFilter(panelDesign.iconColor),
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
                   }}
                 />
               </div>
@@ -681,7 +670,7 @@ const IDPGCustomizer = () => {
               style={{
                 width: panelDesign.iconSize,
                 height: panelDesign.iconSize,
-                filter: getIconFilter(panelDesign.iconColor),
+                filter: getIconColorFilter(panelDesign.backgroundColor),
               }}
             />
           </div>
@@ -726,7 +715,7 @@ const IDPGCustomizer = () => {
               style={{
                 width: panelDesign.iconSize,
                 height: panelDesign.iconSize,
-                filter: getIconFilter(panelDesign.iconColor),
+                filter: getIconColorFilter(panelDesign.backgroundColor),
               }}
             />
           </div>
@@ -747,7 +736,7 @@ const IDPGCustomizer = () => {
               style={{
                     width: panelDesign.iconSize,
                 height: panelDesign.iconSize,
-                    filter: getIconFilter(panelDesign.iconColor),
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
               }}
             />
           </div>
@@ -777,7 +766,7 @@ const IDPGCustomizer = () => {
                 style={{
                 width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
-                filter: getIconFilter(panelDesign.iconColor),
+                filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -794,7 +783,7 @@ const IDPGCustomizer = () => {
                 style={{
                 width: panelDesign.iconSize,
                 height: panelDesign.iconSize,
-                filter: getIconFilter(panelDesign.iconColor),
+                filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -901,7 +890,7 @@ const IDPGCustomizer = () => {
                 style={{
                   width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
-                  filter: getIconFilter(panelDesign.iconColor),
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -922,7 +911,7 @@ const IDPGCustomizer = () => {
                 style={{
                   width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
-                  filter: getIconFilter(panelDesign.iconColor),
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -952,7 +941,7 @@ const IDPGCustomizer = () => {
                 style={{
                 width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
-                filter: getIconFilter(panelDesign.iconColor),
+                filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -969,7 +958,7 @@ const IDPGCustomizer = () => {
                 style={{
                 width: panelDesign.iconSize,
                 height: panelDesign.iconSize,
-                filter: getIconFilter(panelDesign.iconColor),
+                filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -1288,7 +1277,7 @@ const IDPGCustomizer = () => {
                         style={{
                             width: "24px",
                             height: "24px",
-                            filter: getIconFilter(panelDesign.iconColor),
+                            filter: getIconColorFilter(panelDesign.backgroundColor),
                           }}
                         />
                       </Box>
@@ -1325,7 +1314,7 @@ const IDPGCustomizer = () => {
                       style={{
                         width: "24px",
                         height: "24px",
-                        filter: getIconFilter(panelDesign.iconColor),
+                        filter: getIconColorFilter(panelDesign.backgroundColor),
                       }}
                     />
                   </Box>
@@ -1487,38 +1476,7 @@ const IDPGCustomizer = () => {
                       Colors
                     </div>
                     <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{
-                          fontWeight: '600',
-                          marginBottom: '12px',
-                          color: '#495057',
-                          fontSize: '13px',
-                          letterSpacing: '0.3px',
-                        }}>
-                Icon Color
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-                            <button
-                    key={color}
-                    onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-                              style={{
-                                width: '36px',
-                                height: '36px',
-                                borderRadius: '50%',
-                      background: color,
-                                border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
-                                cursor: 'pointer',
-                                padding: 0,
-                                outline: 'none',
-                                boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
-                                transition: 'all 0.2s ease',
-                      transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
-                    }}
-                  />
-                ))}
-                        </div>
-                      </div>
+
                       <div>
                         <div style={{
                           fontWeight: '600',
@@ -1600,6 +1558,115 @@ const IDPGCustomizer = () => {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  
+                  {/* Backbox Details Section */}
+                  <div style={{
+                    marginBottom: '28px',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                    padding: '20px',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    border: '1px solid #e9ecef',
+                  }}>
+                    <div style={{
+                      fontWeight: '600',
+                      marginBottom: '16px',
+                      color: '#1a1f2c',
+                      fontSize: '15px',
+                      letterSpacing: '0.3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <div style={{
+                        width: '4px',
+                        height: '16px',
+                        background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                        borderRadius: '2px',
+                      }} />
+                      Backbox Details *
+                    </div>
+                    <input
+                      type="text"
+                      value={backbox}
+                      onChange={e => {
+                        setBackbox(e.target.value);
+                        if (backboxError) setBackboxError('');
+                      }}
+                      placeholder="Enter backbox details..."
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: backboxError ? '2px solid #dc3545' : '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transition: 'all 0.2s ease',
+                        outline: 'none',
+                      }}
+                    />
+                    {backboxError && (
+                      <div style={{
+                        color: '#dc3545',
+                        fontSize: '12px',
+                        marginTop: '8px',
+                        fontWeight: '500',
+                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      }}>
+                        {backboxError}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Additional Comments Section */}
+                  <div style={{
+                    marginBottom: '28px',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                    padding: '20px',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    border: '1px solid #e9ecef',
+                  }}>
+                    <div style={{
+                      fontWeight: '600',
+                      marginBottom: '16px',
+                      color: '#1a1f2c',
+                      fontSize: '15px',
+                      letterSpacing: '0.3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <div style={{
+                        width: '4px',
+                        height: '16px',
+                        background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                        borderRadius: '2px',
+                      }} />
+                      Additional Comments (Optional)
+                    </div>
+                    <textarea
+                      value={extraComments}
+                      onChange={e => setExtraComments(e.target.value)}
+                      placeholder="Enter any additional comments..."
+                      style={{
+                        width: '100%',
+                        minHeight: '80px',
+                        padding: '12px 16px',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                        transition: 'all 0.2s ease',
+                        outline: 'none',
+                        resize: 'vertical',
+                      }}
+                    />
                   </div>
                 </div>
             </Grid>

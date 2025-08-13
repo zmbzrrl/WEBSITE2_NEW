@@ -21,7 +21,7 @@ import { ProjectContext } from '../../App';
 import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
-import { getIconColorName } from '../../data/iconColors';
+
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -217,7 +217,7 @@ const InformationBox = ({
   setExtraComments,
   panelDesign,
   placedIcons,
-  ICON_COLOR_FILTERS,
+
   ralColors
 }: {
   backbox: string;
@@ -227,11 +227,11 @@ const InformationBox = ({
   setExtraComments: (v: string) => void;
   panelDesign: any;
   placedIcons: any[];
-  ICON_COLOR_FILTERS: { [key: string]: string };
+
   ralColors: any[];
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
-  const iconColorName = Object.keys(ICON_COLOR_FILTERS).find(color => color === panelDesign.iconColor);
+
   return (
     <Box sx={{ 
       width: 400,
@@ -369,12 +369,12 @@ const InformationBox = ({
                   width: 20, 
                   height: 20, 
                   borderRadius: 1.5, 
-                  background: panelDesign.iconColor,
+                  background: 'auto',
                   border: '2px solid #dee2e6',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {getIconColorName(panelDesign.iconColor)}
+                  Icons: Auto-colored
                 </Typography>
               </Box>
               {/* Text Color */}
@@ -493,7 +493,7 @@ const SPCustomizer: React.FC = () => {
     backgroundColor: string;
     fonts: string;
     backlight: string;
-    iconColor: string;
+  
     plasticColor: string;
     textColor: string;
     fontSize: string;
@@ -504,7 +504,7 @@ const SPCustomizer: React.FC = () => {
     backgroundColor: '',
     fonts: '',
     backlight: '',
-    iconColor: '#000000',
+
     plasticColor: '',
     textColor: '#000000',
     fontSize: '12px',
@@ -518,13 +518,25 @@ const SPCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
-  const ICON_COLOR_FILTERS: { [key: string]: string } = {
-    '#000000': 'brightness(0) saturate(100%)',
-    '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-    '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-    '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-    '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-    '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
+  // Function to determine icon color based on background
+  const getIconColorFilter = (backgroundColor: string): string => {
+    // Convert hex to RGB for brightness calculation
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate brightness (0-255)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // Use white for dark backgrounds, dark grey for light backgrounds
+    if (brightness < 128) {
+      // Dark background - use white icons
+      return 'brightness(0) saturate(100%) invert(1)';
+    } else {
+      // Light background - use dark grey icons
+      return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
+    }
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode } = useContext(ProjectContext);
@@ -952,7 +964,7 @@ const SPCustomizer: React.FC = () => {
                 zIndex: 1,
                 marginTop: isPIR ? '20px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
-                filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                 transition: 'filter 0.2s',
               }}
             />
@@ -1619,38 +1631,7 @@ const SPCustomizer: React.FC = () => {
                   Colors
                 </div>
                 <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Icon Color
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-                    <button
-                      key={color}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-                      style={{
-                            width: '36px',
-                            height: '36px',
-                        borderRadius: '50%',
-                        background: color,
-                            border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
-                        cursor: 'pointer',
-                        padding: 0,
-                        outline: 'none',
-                            boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
-                            transition: 'all 0.2s ease',
-                            transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
+
               <div>
                     <div style={{ 
                       fontWeight: '600', 
@@ -1800,7 +1781,7 @@ const SPCustomizer: React.FC = () => {
                   setExtraComments={setExtraComments}
                   panelDesign={panelDesign}
                   placedIcons={placedIcons}
-                  ICON_COLOR_FILTERS={ICON_COLOR_FILTERS}
+                
                   ralColors={ralColors}
                 />
               </div>

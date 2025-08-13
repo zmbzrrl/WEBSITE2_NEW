@@ -109,19 +109,24 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   
   // For IDPG panels, calculate dimensions based on configuration
   let dimensions = config.dimensions;
-  let scale = 1;
   if (isIDPG && panelDesign.idpgConfig) {
     const { cardReader, roomNumber } = panelDesign.idpgConfig;
     
-    // Square template (400x400) - when no card reader and no room number
+    // Square template (350x350) - when no card reader and no room number
     if (!cardReader && !roomNumber) {
-      dimensions = { width: '300px', height: '300px' };
-      scale = 0.75;
+      dimensions = { width: '350px', height: '350px' };
     }
-    // Rectangle vertical template (400x600) - when room number or card reader is present
-    else {
-      dimensions = { width: '300px', height: '450px' };
-      scale = 0.75;
+    // Rectangle vertical template (350x450) - when room number only
+    else if (!cardReader && roomNumber) {
+      dimensions = { width: '350px', height: '450px' };
+    }
+    // Rectangle vertical template (350x500) - when card reader only
+    else if (cardReader && !roomNumber) {
+      dimensions = { width: '350px', height: '500px' };
+    }
+    // Rectangle vertical template (350x600) - when card reader and room number
+    else if (cardReader && roomNumber) {
+      dimensions = { width: '350px', height: '600px' };
     }
   }
   const isDoublePanel = isDPH || isDPV;
@@ -1395,16 +1400,16 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               flexDirection: "column",
               width: "100%",
               height: "100%",
-              padding: `${15 * scale}px`,
+              padding: "15px",
             }}>
               {/* Two icon fields */}
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                height: `${60 * scale}px`,
-                margin: `${10 * scale}px 0`,
-                gap: `${20 * scale}px`,
+                height: "60px",
+                margin: "10px 0",
+                gap: "20px",
               }}>
                 {/* Left icon */}
                 <div style={{
@@ -1413,7 +1418,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1421,8 +1426,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1434,7 +1439,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1442,8 +1447,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1456,14 +1461,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 justifyContent: "center",
                 alignItems: "center",
                 marginTop: "auto",
-                paddingBottom: `${10 * scale}px`,
+                paddingBottom: "10px",
               }}>
                 <img 
                   src={g18Icon} 
                   alt="G18 Icon" 
                   style={{
-                    width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                    height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                    width: `${panelDesign.iconSize || 40}px`,
+                    height: `${panelDesign.iconSize || 40}px`,
                     filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                   }}
                 />
@@ -1478,16 +1483,16 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               flexDirection: "column",
               width: "100%",
               height: "100%",
-              padding: `${15 * scale}px`,
+              padding: "15px",
             }}>
               {/* Middle bar */}
               <div style={{
                 width: "100%",
-                height: `${8 * scale}px`,
+                height: "8px",
                 background: "transparent",
                 border: `2px solid ${panelDesign.iconColor}`,
-                borderRadius: `${4 * scale}px`,
-                margin: `auto 0`,
+                borderRadius: "4px",
+                margin: "auto 0",
               }} />
               {/* G18 icon in bottom center */}
               <div style={{
@@ -1495,14 +1500,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 justifyContent: "center",
                 alignItems: "center",
                 marginTop: "auto",
-                paddingBottom: `${10 * scale}px`,
+                paddingBottom: "10px",
               }}>
                 <img 
                   src={g18Icon} 
                   alt="G18 Icon" 
                   style={{
-                    width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                    height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                    width: `${panelDesign.iconSize || 40}px`,
+                    height: `${panelDesign.iconSize || 40}px`,
                     filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                   }}
                 />
@@ -1520,19 +1525,19 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             flexDirection: "column",
             width: "100%",
             height: "100%",
-            padding: `${15 * scale}px`,
+            padding: "15px",
           }}>
             {/* Room number at top */}
             <div style={{
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              padding: `${10 * scale}px`,
-              marginBottom: `${10 * scale}px`,
+              padding: "10px",
+              marginBottom: "10px",
             }}>
               <div style={{
                 color: panelDesign.textColor,
-                fontSize: `${48 * scale}px`,
+                fontSize: "48px",
                 fontWeight: 'bold',
                 fontFamily: panelDesign.fonts || undefined,
                 textAlign: 'center',
@@ -1547,9 +1552,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                height: `${60 * scale}px`,
-                margin: `${10 * scale}px 0`,
-                gap: `${20 * scale}px`,
+                height: "60px",
+                margin: "10px 0",
+                gap: "20px",
               }}>
                 {/* Left icon */}
                 <div style={{
@@ -1558,7 +1563,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1566,8 +1571,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1579,7 +1584,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1587,8 +1592,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1598,11 +1603,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               /* Status bar */
               <div style={{
                 width: "100%",
-                height: `${8 * scale}px`,
+                height: "8px",
                 background: "transparent",
                 border: `2px solid ${panelDesign.iconColor}`,
-                borderRadius: `${4 * scale}px`,
-                margin: `${10 * scale}px 0`,
+                borderRadius: "4px",
+                margin: "10px 0",
               }} />
             )}
             
@@ -1612,14 +1617,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               justifyContent: "center",
               alignItems: "center",
               marginTop: "auto",
-              paddingBottom: `${10 * scale}px`,
+              paddingBottom: "10px",
             }}>
               <img 
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  width: `${panelDesign.iconSize || 40}px`,
+                  height: `${panelDesign.iconSize || 40}px`,
                   filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                 }}
               />
@@ -1636,7 +1641,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             flexDirection: "column",
             width: "100%",
             height: "100%",
-            padding: `${15 * scale}px`,
+            padding: "15px",
           }}>
             {statusMode === 'icons' ? (
               /* Two icon fields at top */
@@ -1644,9 +1649,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                height: `${60 * scale}px`,
-                margin: `${10 * scale}px 0`,
-                gap: `${20 * scale}px`,
+                height: "60px",
+                margin: "10px 0",
+                gap: "20px",
               }}>
                 {/* Left icon */}
                 <div style={{
@@ -1655,7 +1660,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1663,8 +1668,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1676,7 +1681,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1684,8 +1689,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1695,11 +1700,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               /* Status bar at top */
               <div style={{
                 width: "100%",
-                height: `${8 * scale}px`,
+                height: "8px",
                 background: "transparent",
                 border: `2px solid ${panelDesign.iconColor}`,
-                borderRadius: `${4 * scale}px`,
-                marginBottom: `${20 * scale}px`,
+                borderRadius: "4px",
+                marginBottom: "20px",
               }} />
             )}
             
@@ -1714,8 +1719,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  width: `${panelDesign.iconSize || 40}px`,
+                  height: `${panelDesign.iconSize || 40}px`,
                   filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                 }}
               />
@@ -1725,14 +1730,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              paddingBottom: `${10 * scale}px`,
+              paddingBottom: "10px",
             }}>
               <img 
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  width: `${panelDesign.iconSize || 40}px`,
+                  height: `${panelDesign.iconSize || 40}px`,
                   filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                 }}
               />
@@ -1749,19 +1754,19 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             flexDirection: "column",
             width: "100%",
             height: "100%",
-            padding: `${15 * scale}px`,
+            padding: "15px",
           }}>
             {/* Room number at top */}
             <div style={{
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              padding: `${10 * scale}px`,
-              marginBottom: `${10 * scale}px`,
+              padding: "10px",
+              marginBottom: "10px",
             }}>
               <div style={{
                 color: panelDesign.textColor,
-                fontSize: `${48 * scale}px`,
+                fontSize: "48px",
                 fontWeight: 'bold',
                 fontFamily: panelDesign.fonts || undefined,
                 textAlign: 'center',
@@ -1776,9 +1781,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                height: `${60 * scale}px`,
-                margin: `${10 * scale}px 0`,
-                gap: `${20 * scale}px`,
+                height: "60px",
+                margin: "10px 0",
+                gap: "20px",
               }}>
                 {/* Left icon */}
                 <div style={{
@@ -1787,7 +1792,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1795,8 +1800,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1808,7 +1813,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   alignItems: "center",
                   justifyContent: "center",
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: `${8 * scale}px`,
+                  borderRadius: "8px",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   height: "100%",
                 }}>
@@ -1816,8 +1821,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                      height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                      width: `${panelDesign.iconSize || 40}px`,
+                      height: `${panelDesign.iconSize || 40}px`,
                       filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                     }}
                   />
@@ -1827,11 +1832,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               /* Status bar right below the number */
               <div style={{
                 width: "100%",
-                height: `${8 * scale}px`,
+                height: "8px",
                 background: "transparent",
                 border: `2px solid ${panelDesign.iconColor}`,
-                borderRadius: `${4 * scale}px`,
-                marginBottom: `${20 * scale}px`,
+                borderRadius: "4px",
+                marginBottom: "20px",
               }} />
             )}
             
@@ -1846,8 +1851,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  width: `${panelDesign.iconSize || 40}px`,
+                  height: `${panelDesign.iconSize || 40}px`,
                   filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                 }}
               />
@@ -1857,14 +1862,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              paddingBottom: `${10 * scale}px`,
+              paddingBottom: "10px",
             }}>
               <img 
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
-                  height: `calc(${panelDesign.iconSize || 40}px * ${scale})`,
+                  width: `${panelDesign.iconSize || 40}px`,
+                  height: `${panelDesign.iconSize || 40}px`,
                   filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
                 }}
               />
@@ -1882,7 +1887,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
           width: "100%",
           height: "100%",
           color: panelDesign.textColor,
-          fontSize: `calc(${panelDesign.fontSize} * ${scale})`,
+          fontSize: panelDesign.fontSize,
           fontFamily: panelDesign.fonts || undefined,
           fontWeight: "500",
         }}>
@@ -1894,13 +1899,62 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     return (
       <div
         style={{
-          ...basePanelStyle,
           width: dimensions.width,
           height: dimensions.height,
+          background: `linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.3) 0%, 
+            rgba(255, 255, 255, 0.1) 50%, 
+            rgba(255, 255, 255, 0.05) 100%), 
+            ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+          padding: "15px",
+          border: "2px solid rgba(255, 255, 255, 0.2)",
+          borderTop: "3px solid rgba(255, 255, 255, 0.4)",
+          borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
+          boxShadow: `
+            0 20px 40px rgba(0, 0, 0, 0.3),
+            0 8px 16px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+            0 0 0 1px rgba(255, 255, 255, 0.1)
+          `,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          transition: "all 0.3s ease",
+          position: "relative",
+          transform: "perspective(1000px) rotateX(5deg)",
+          transformStyle: "preserve-3d",
+          margin: "0 auto",
+          fontFamily: panelDesign.fonts || undefined,
         }}
       >
-        <div style={innerGlowStyle} />
-        {renderIDPGLayout()}
+        {/* Inner glow effect */}
+        <div
+          style={{
+            position: "absolute",
+            top: "2px",
+            left: "2px",
+            right: "2px",
+            bottom: "2px",
+            background: `linear-gradient(135deg, 
+              rgba(255, 255, 255, 0.1) 0%, 
+              transparent 50%, 
+              rgba(0, 0, 0, 0.05) 100%)`,
+            pointerEvents: "none",
+            zIndex: 1,
+          }}
+        />
+        {/* Dynamic Panel Template */}
+        <div style={{ 
+          display: "flex", 
+          flexWrap: "wrap",
+          position: "relative",
+          zIndex: 2,
+          width: "100%",
+          height: "100%",
+          padding: "10px",
+        }}>
+          {renderIDPGLayout()}
+        </div>
       </div>
     );
   }

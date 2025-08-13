@@ -20,7 +20,7 @@ import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
 import SP from '../../../assets/panels/SP.png';
 import logo from '../../../assets/logo.png';
-import { getIconColorName } from '../../../data/iconColors';
+
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -376,7 +376,7 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {getIconColorName(panelDesign.iconColor)}
+                  Icons: Auto-colored
                 </Typography>
               </Box>
               {/* Text Color */}
