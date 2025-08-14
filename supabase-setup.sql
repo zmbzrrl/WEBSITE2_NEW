@@ -17,6 +17,9 @@ CREATE TABLE api.user_projects (
     user_email TEXT NOT NULL,
     project_name TEXT NOT NULL,
     project_description TEXT,
+    location TEXT, -- 🗺️ Location field (Dubai, London, etc.)
+    operator TEXT, -- 🏢 Operator/Service Partner field (Marriott, Hilton, etc.)
+    service_partner TEXT, -- 🏢 Service Partner field (alternative to operator)
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
     is_active BOOLEAN DEFAULT true
@@ -58,6 +61,8 @@ CREATE TABLE api.design_versions (
 
 -- ===== CREATE INDEXES FOR PERFORMANCE =====
 CREATE INDEX idx_user_projects_email ON api.user_projects(user_email);
+CREATE INDEX idx_user_projects_location ON api.user_projects(location);
+CREATE INDEX idx_user_projects_operator ON api.user_projects(operator);
 CREATE INDEX idx_user_designs_project_id ON api.user_designs(project_id);
 CREATE INDEX idx_user_designs_email ON api.user_designs(user_email);
 CREATE INDEX idx_panel_configurations_design_id ON api.panel_configurations(design_id);
@@ -81,9 +86,9 @@ GRANT ALL ON api.design_versions TO anon;
 GRANT ALL ON api.design_versions TO authenticated;
 
 -- ===== INSERT SAMPLE DATA =====
--- Create a sample project
-INSERT INTO api.user_projects (user_email, project_name, project_description)
-VALUES ('test@example.com', 'Sample Hotel Project', 'A sample hotel lighting control project');
+-- Create a sample project with location and operator
+INSERT INTO api.user_projects (user_email, project_name, project_description, location, operator)
+VALUES ('test@example.com', 'Sample Hotel Project', 'A sample hotel lighting control project', 'Dubai', 'Marriott Hotels');
 
 -- Get the project ID for the sample design
 DO $$
@@ -99,20 +104,56 @@ BEGIN
         'test@example.com',
         'Sample SP Panel',
         'SP',
-        '{
-            "panelType": "SP",
-            "icons": [
-                {"iconId": "B-1", "label": "Main Light", "position": 1, "text": "MAIN"},
-                {"iconId": "B-2", "label": "Reading Light", "position": 2, "text": "READ"}
-            ],
-            "design": {
-                "backgroundColor": "#ffffff",
-                "iconColor": "#1b92d1",
-                "textColor": "#333333",
-                "fontSize": "14px"
-            }
-        }'::jsonb
+        '{"panelType": "SP", "backgroundColor": "#FFFFFF", "iconSize": "40px", "iconColor": "#000000"}'
     );
+END $$;
+
+-- ===== CREATE VIEWS FOR EASY QUERYING =====
+-- View to get designs with project information including location and operator
+CREATE OR REPLACE VIEW api.designs_with_projects AS
+SELECT 
+    d.id,
+    d.design_name,
+    d.panel_type,
+    d.design_data,
+    d.created_at,
+    d.last_modified,
+    d.user_email,
+    p.project_name,
+    p.project_description,
+    p.location,
+    p.operator,
+    p.service_partner
+FROM api.user_designs d
+LEFT JOIN api.user_projects p ON d.project_id = p.id
+WHERE d.is_active = true AND p.is_active = true;
+
+-- ===== SAMPLE DATA FOR TESTING =====
+-- Insert more sample projects with different locations and operators
+INSERT INTO api.user_projects (user_email, project_name, project_description, location, operator) VALUES
+('test@example.com', 'Palm Jumeirah Resort', 'Luxury resort lighting project', 'Dubai', 'Marriott Hotels'),
+('test@example.com', 'London Business Hotel', 'Corporate hotel lighting system', 'London', 'Hilton Group'),
+('test@example.com', 'Tokyo Tower Hotel', 'Modern hotel lighting design', 'Tokyo', 'Hyatt Hotels'),
+('test@example.com', 'New York Downtown', 'Urban hotel lighting project', 'New York', 'InterContinental Hotels Group');
+
+-- Get project IDs and create sample designs
+DO $$
+DECLARE
+    project_record RECORD;
+BEGIN
+    FOR project_record IN 
+        SELECT id, project_name, location, operator 
+        FROM api.user_projects 
+        WHERE user_email = 'test@example.com' AND project_name != 'Sample Hotel Project'
+    LOOP
+        -- Create sample designs for each project
+        INSERT INTO api.user_designs (project_id, user_email, design_name, panel_type, design_data)
+        VALUES 
+        (project_record.id, 'test@example.com', project_record.project_name || ' - SP Panel', 'SP', 
+         '{"panelType": "SP", "backgroundColor": "#FFFFFF", "iconSize": "40px", "iconColor": "#000000", "location": "' || project_record.location || '", "operator": "' || project_record.operator || '"}'),
+        (project_record.id, 'test@example.com', project_record.project_name || ' - IDPG Panel', 'IDPG', 
+         '{"panelType": "IDPG", "backgroundColor": "#F5F5F5", "iconSize": "35px", "iconColor": "#333333", "location": "' || project_record.location || '", "operator": "' || project_record.operator || '"}');
+    END LOOP;
 END $$;
 
 -- ===== VERIFY SETUP =====

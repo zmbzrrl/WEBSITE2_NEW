@@ -48,6 +48,7 @@ import X2VCustomizer from "./pages/Customizers/ExtendedPanels/X2VCustomizer"; //
 import X1VCustomizer from "./pages/Customizers/ExtendedPanels/X1VCustomizer"; // Extended panel X1 vertical
 import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";       // IDPG panel customizer
 import MyDesigns from "./pages/MyDesigns";                             // My Designs page
+import DatabaseTest from "./pages/DatabaseTest";                       // Database test page
 
 // Component imports
 import { CartProvider, useCart } from "./contexts/CartContext";  // Cart functionality - manages shopping cart
@@ -105,15 +106,23 @@ import "./styles.css"; // General app styles
 // ProjectContext stores project name and code that's shared across multiple pages
 export const ProjectContext = createContext<{ 
   projectName: string,           // Current project name
-  setProjectName: (name: string) => void,  // Function to update project name 
+  setProjectName: React.Dispatch<React.SetStateAction<string>>,  // Function to update project name 
   projectCode: string,           // The code/ID of the current project
-  setProjectCode: (code: string) => void   // Function to update project code
+  setProjectCode: React.Dispatch<React.SetStateAction<string>>,   // Function to update project code
+  location: string,              // 🗺️ Project location
+  setLocation: React.Dispatch<React.SetStateAction<string>>,  // Function to update location
+  operator: string,              // 🏢 Project operator/service partner
+  setOperator: React.Dispatch<React.SetStateAction<string>>   // Function to update operator
 }>({ 
   // Default values - what the context starts with if nothing is set
   projectName: '', // Shows empty string if nothing is set
   setProjectName: () => {}, // Function to update project name
   projectCode: '', // Shows empty string if nothing is set
-  setProjectCode: () => {} // Function to update project code
+  setProjectCode: () => {}, // Function to update project code
+  location: '', // 🗺️ Default location
+  setLocation: () => {}, // Function to update location
+  operator: '', // 🏢 Default operator
+  setOperator: () => {} // Function to update operator
 });
 
 
@@ -201,6 +210,9 @@ const AppRoutes = () => { // defines all the different pages/URLs
         {/* My Designs page */}
         <Route path="/my-designs" element={<PageTransition><MyDesigns /></PageTransition>} />
         
+        {/* Database test page */}
+        <Route path="/database-test" element={<PageTransition><DatabaseTest /></PageTransition>} />
+        
         {/* Catch-all route - if someone visits an unknown URL, redirect to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -223,6 +235,8 @@ const App: React.FC = () => {
   // State for project information - these values can change and will update the UI
   const [projectName, setProjectName] = useState('');  // Current project name
   const [projectCode, setProjectCode] = useState('');  // Current project code
+  const [location, setLocation] = useState('');        // 🗺️ Project location
+  const [operator, setOperator] = useState('');        // 🏢 Project operator/service partner
 
   return (
     // ThemeProvider applies the Material-UI theme (colors, fonts, spacing) to the entire app
@@ -233,7 +247,16 @@ const App: React.FC = () => {
       {/* CartProvider provides cart functionality to all child components */}
       <CartProvider>
         {/* ProjectContext.Provider makes project data available to all child components */}
-        <ProjectContext.Provider value={{ projectName, setProjectName, projectCode, setProjectCode }}>
+        <ProjectContext.Provider value={{ 
+          projectName, 
+          setProjectName, 
+          projectCode, 
+          setProjectCode,
+          location,
+          setLocation,
+          operator,
+          setOperator
+        }}>
           {/* ProjectSync keeps project data synchronized between contexts */}
           <ProjectSync />
           

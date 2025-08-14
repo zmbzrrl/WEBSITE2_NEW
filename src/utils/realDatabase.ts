@@ -30,26 +30,20 @@ const generateId = () => {
   return 'design_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 };
 
-// 💾 SAVE DESIGN FUNCTION - This is like putting a recipe in the REAL pantry
-// This function takes a user's email and their design data, then saves it to Supabase
-export const saveDesign = async (email: string, designData: any) => {
+// 📋 SAVE DESIGN FUNCTION - This is like saving a recipe to a REAL recipe book
+// This function takes a user's email and design data, then saves it to Supabase
+export const saveDesign = async (email: string, designData: any, location?: string, operator?: string) => {
   try {
-    console.log('💾 Saving design to Supabase:', designData.projectName);
-    console.log('📋 Design data:', designData);
-    
-    // Handle different data structures
-    let projectName = designData.projectName;
-    let panelType = designData.panelType;
-    let actualDesignData = designData.designData;
-    
-    // If the data is nested differently, extract it
-    if (designData.designData && designData.designData.projectName) {
-      projectName = designData.designData.projectName;
-      actualDesignData = designData.designData;
-    }
-    
-    // First, create or get the project
+    console.log('💾 Saving design to Supabase:', designData.projectName)
+
     let projectId = designData.projectId;
+    const projectName = designData.projectName || 'Untitled Project';
+    const panelType = designData.panelType || 'Unknown';
+    const actualDesignData = {
+      ...designData,
+      location: location || designData.location,
+      operator: operator || designData.operator
+    };
     
     if (!projectId) {
       // Try to find existing project with the same base name (without revision)
@@ -77,6 +71,7 @@ export const saveDesign = async (email: string, designData: any) => {
             user_email: email,
             project_name: baseProjectName, // Use base name without revision
             project_description: designData.projectDescription || 'Panel customizer project'
+            // Note: location, operator, service_partner fields will be added later when database is updated
           }])
           .select()
           .single();
@@ -147,7 +142,7 @@ export const getDesigns = async (email: string) => {
   try {
     console.log('📋 Getting designs from Supabase for:', email);
     
-    // Get all designs for this user with project information
+    // Get all designs for this user with project information (using existing schema)
     const { data, error } = await supabase
       .from('user_designs')
       .select(`

@@ -551,6 +551,13 @@ const SPCustomizer: React.FC = () => {
   const editPanelData = location.state?.panelData;
   const isAddingToExistingProject = location.state?.isAddingToExistingProject || false;
   
+  // Debug logging for edit mode
+  console.log('🔍 SPCustomizer Edit Mode Debug:');
+  console.log('  isEditMode:', isEditMode);
+  console.log('  editPanelIndex:', editPanelIndex);
+  console.log('  editPanelData:', editPanelData ? 'present' : 'missing');
+  console.log('  location.state:', location.state);
+  
 
   
   console.log('RENDER', { backbox, extraComments });
@@ -660,7 +667,7 @@ const SPCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, updatePanel } = cartContext;
+  const { addToCart, updatePanel, loadProjectPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -749,9 +756,19 @@ const SPCustomizer: React.FC = () => {
       panelDesign: { ...panelDesign, backbox, extraComments },
     };
 
-    if (isEditMode && editPanelIndex !== undefined) {
-      // Update existing panel
-      updatePanel(editPanelIndex, design);
+    if (isEditMode) {
+      // Handle edit mode - either update existing panel or add new one
+      if (editPanelIndex !== undefined) {
+        // Update existing panel at specific index (for project panels)
+        console.log('🔧 Updating panel at index:', editPanelIndex);
+        updatePanel(editPanelIndex, design);
+      } else {
+        // For individual panels, replace the entire cart with this panel
+        console.log('🔧 Replacing cart with edited individual panel');
+        // Clear existing panels and add the edited one
+        loadProjectPanels([design]);
+      }
+      
       // Preserve the project-level edit state when navigating back
       const preservedState = location.state?.projectEditMode !== undefined ? {
         projectEditMode: location.state.projectEditMode,

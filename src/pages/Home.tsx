@@ -437,14 +437,14 @@ const Home = () => {
   
   // Gets functions from ProjectContext (shared storage)
   // These functions can update project data that other components can see
-  const { setProjectName, setProjectCode } = useContext(ProjectContext);
+  const { setProjectName, setProjectCode, setLocation, setOperator } = useContext(ProjectContext);
   
   // ===== STATE MANAGEMENT =====
   // These are like "memory boxes" that store data that can change
   
-  // Controls whether the project form is showing
-  // false = show welcome screen, true = show form
-  const [showPrompt, setShowPrompt] = useState(false);
+  // Controls the current step in the flow
+  // 'welcome' = initial screen, 'email' = email input, 'options' = view designs/start designing, 'project' = project details
+  const [currentStep, setCurrentStep] = useState<'welcome' | 'email' | 'options' | 'project'>('welcome');
   
   // Controls whether to show success page after form submission
   // false = show form, true = show success page
@@ -478,7 +478,7 @@ const Home = () => {
   // ===== HANDLE CLICK =====
   // Runs when user clicks the "Get Started" button
   const handleClick = () => {
-    setShowPrompt(true);  // Shows the project form
+    setCurrentStep('email');  // Shows the email input step
   };
 
   // ===== HANDLE CHANGE =====
@@ -497,57 +497,75 @@ const Home = () => {
     }
   };
 
-  // ===== HANDLE SUBMIT =====
-  // This is like the WAITER taking orders from customers
-  // Runs when user submits the form (clicks "Continue" or presses Enter)
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();  // Prevents the page from reloading (like stopping the customer from leaving)
+  // ===== HANDLE EMAIL SUBMIT =====
+  // Runs when user submits their email
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!projectDetails.email) {
+      setShowError(true);
+      return;
+    }
+    
+    // Save email to localStorage
+    localStorage.setItem('userEmail', projectDetails.email);
+    
+    // Move to options step
+    setCurrentStep('options');
+    setShowError(false);
+  };
+
+  // ===== HANDLE START DESIGNING =====
+  // Runs when user clicks "Start Designing"
+  const handleStartDesigning = () => {
+    setCurrentStep('project');
+  };
+
+  // ===== HANDLE VIEW DESIGNS =====
+  // Runs when user clicks "View My Designs"
+  const handleViewDesigns = () => {
+    navigate('/my-designs');
+  };
+
+  // ===== HANDLE PROJECT SUBMIT =====
+  // Runs when user submits the project details form
+  const handleProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
     // Checks if user provided either operator or service partner
-    // This is like checking if the customer ordered something valid
     if (!projectDetails.operator && !projectDetails.servicePartner) {
-      setShowError(true);  // Shows error message (like telling customer "you need to order something")
-      return;              // Stops the function here (like not taking the order)
+      setShowError(true);
+      return;
     }
     
     try {
-      // 🍽️ RESTAURANT ANALOGY: This is like the waiter taking the order to the kitchen
-      // Use mock backend for development (this is like a pretend kitchen for testing)
       const result = await mockSendEmail(projectDetails);
       
       if (result.success) {
-        // 🎉 SUCCESS: Kitchen cooked the food successfully!
         console.log('Backend function called successfully:', result.message);
         
         // Saves project details to shared storage (ProjectContext)
-        // This is like putting the order in the restaurant's computer system
-        setProjectName(projectDetails.projectName);  // Updates project name globally
-        setProjectCode(projectDetails.projectCode);  // Updates project code globally
+        setProjectName(projectDetails.projectName);
+        setProjectCode(projectDetails.projectCode);
+        setLocation(projectDetails.location);
+        setOperator(projectDetails.operator);
         
-        // 💾 Save user's email to localStorage (like remembering who's logged in)
-        localStorage.setItem('userEmail', projectDetails.email);
-        
-        // Shows the success page instead of immediately navigating
-        // This is like showing the customer their order confirmation
+        // Shows the success page
         setShowSuccess(true);
-        setShowPrompt(false);
+        setCurrentStep('welcome');
       } else {
-        // ❌ ERROR: Kitchen had a problem cooking the food
         console.error('Backend function failed:', result.error);
-        // You could show an error message to the user here
-        // Like telling the customer "sorry, we can't make that dish"
       }
     } catch (error) {
-      // 💥 DISASTER: Something went completely wrong (like kitchen caught fire)
       console.error('Error calling backend function:', error);
-      // You could show an error message to the user here
       
       // Still show success page even if email fails
-      // This is like still showing order confirmation even if kitchen is having issues
       setProjectName(projectDetails.projectName);
       setProjectCode(projectDetails.projectCode);
+      setLocation(projectDetails.location);
+      setOperator(projectDetails.operator);
       setShowSuccess(true);
-      setShowPrompt(false);
+      setCurrentStep('welcome');
     }
   };
 
@@ -560,11 +578,11 @@ const Home = () => {
   // ===== HANDLE GET STARTED =====
   // Runs when user clicks "Get Started" (alternative function)
   const handleGetStarted = () => {
-    setShowPrompt(true);  // Shows the form
+    setCurrentStep('email');  // Shows the email step
     
     // Hides the form after 800 milliseconds (0.8 seconds)
     setTimeout(() => {
-      setShowPrompt(false);
+      setCurrentStep('welcome');
     }, 800);
   };
 
@@ -582,10 +600,10 @@ const Home = () => {
       <FloatingImage 
         src={tagPir}           // Image source
         alt="TAG PIR"          // Alternative text for accessibility
-        $showPrompt={showPrompt}  // Controls size and opacity based on form state
+        $showPrompt={currentStep !== 'welcome'}  // Controls size and opacity based on form state
         style={{ 
-          top: showPrompt ? '5%' : '15%',   // Position from top (changes when form shows)
-          left: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',  // Position from left
+          top: currentStep !== 'welcome' ? '5%' : '15%',   // Position from top (changes when form shows)
+          left: currentStep !== 'welcome' ? 'calc(20% - 10px)' : 'calc(5% - 10px)',  // Position from left
           animationDelay: '0s'  // No delay for this animation
         }} 
       />
@@ -594,10 +612,10 @@ const Home = () => {
       <FloatingImage 
         src={idpgRn} 
         alt="IDPG RN" 
-        $showPrompt={showPrompt}
+        $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          bottom: showPrompt ? '0%' : '15%',   // Position from bottom
-          right: showPrompt ? 'calc(20% - 10px)' : 'calc(5% - 10px)',  // Position from right
+          bottom: currentStep !== 'welcome' ? '0%' : '15%',   // Position from bottom
+          right: currentStep !== 'welcome' ? 'calc(20% - 10px)' : 'calc(5% - 10px)',  // Position from right
           animationDelay: '2s'  // 2 second delay for staggered animation
         }} 
       />
@@ -606,10 +624,10 @@ const Home = () => {
       <FloatingImage 
         src={idpg} 
         alt="IDPG" 
-        $showPrompt={showPrompt}
+        $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          top: showPrompt ? '10%' : '25%', 
-          right: showPrompt ? 'calc(15% - 10px)' : 'calc(10% - 10px)', 
+          top: currentStep !== 'welcome' ? '10%' : '25%', 
+          right: currentStep !== 'welcome' ? 'calc(15% - 10px)' : 'calc(10% - 10px)', 
           animationDelay: '1s'  // 1 second delay
         }} 
       />
@@ -618,10 +636,10 @@ const Home = () => {
       <FloatingImage 
         src={sp} 
         alt="SP" 
-        $showPrompt={showPrompt}
+        $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          bottom: showPrompt ? '10%' : '25%', 
-          left: showPrompt ? 'calc(20% - 10px)' : 'calc(10% - 10px)', 
+          bottom: currentStep !== 'welcome' ? '10%' : '25%', 
+          left: currentStep !== 'welcome' ? 'calc(20% - 10px)' : 'calc(10% - 10px)', 
           animationDelay: '3s'  // 3 second delay
         }} 
       />
@@ -630,12 +648,12 @@ const Home = () => {
       <FloatingImage 
         src={x2rs} 
         alt="X2RS" 
-        $showPrompt={showPrompt}
+        $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          top: showPrompt ? '35%' : '40%', 
-          left: showPrompt ? 'calc(15% - 20px)' : 'calc(15% - 20px)', 
+          top: currentStep !== 'welcome' ? '35%' : '40%', 
+          left: currentStep !== 'welcome' ? 'calc(15% - 20px)' : 'calc(15% - 20px)', 
           animationDelay: '1.5s',  // 1.5 second delay
-          width: showPrompt ? '480px' : '320px'  // Changes size based on form state
+          width: currentStep !== 'welcome' ? '480px' : '320px'  // Changes size based on form state
         }} 
       />
       
@@ -643,12 +661,12 @@ const Home = () => {
       <FloatingImage 
         src={dpRt} 
         alt="DP RT" 
-        $showPrompt={showPrompt}
+        $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          bottom: showPrompt ? '40%' : '40%', 
-          right: showPrompt ? 'calc(15% + 40px)' : 'calc(15% + 40px)', 
+          bottom: currentStep !== 'welcome' ? '40%' : '40%', 
+          right: currentStep !== 'welcome' ? 'calc(15% + 40px)' : 'calc(15% + 40px)', 
           animationDelay: '2.5s',  // 2.5 second delay
-          width: showPrompt ? '480px' : '320px'  // Changes size based on form state
+          width: currentStep !== 'welcome' ? '480px' : '320px'  // Changes size based on form state
         }} 
       />
       
@@ -657,7 +675,7 @@ const Home = () => {
         {/* ===== CONDITIONAL RENDERING ===== */}
         {/* Shows different content based on whether the form is showing */}
         
-        {!showPrompt && !showSuccess ? (
+        {currentStep === 'welcome' && !showSuccess ? (
           // ===== WELCOME SCREEN =====
           // This shows when the form is NOT showing (initial state)
           <>
@@ -665,7 +683,7 @@ const Home = () => {
             <Logo 
               src={logo} 
               alt="Interel Logo" 
-              $showPrompt={showPrompt} 
+              $showPrompt={false} 
               onClick={() => navigate('/')}  // Clicking logo goes to home
               style={{ cursor: 'pointer' }}  // Shows hand cursor on hover
             />
@@ -673,7 +691,7 @@ const Home = () => {
 
             
             {/* ===== MAIN HEADING ===== */}
-            <AnimatedBox $showPrompt={showPrompt}>
+            <AnimatedBox $showPrompt={false}>
               <Typography 
                 variant="h3"  // Large heading style
                 sx={{ 
@@ -690,7 +708,7 @@ const Home = () => {
             </AnimatedBox>
             
             {/* ===== GET STARTED BUTTON ===== */}
-            <ButtonContainer $showPrompt={showPrompt}>
+            <ButtonContainer $showPrompt={false}>
               <StyledButton
                 variant="contained"  // Filled button style
                 color="primary"      // Primary color
@@ -714,6 +732,118 @@ const Home = () => {
 
             </ButtonContainer>
           </>
+        ) : currentStep === 'email' ? (
+          // ===== EMAIL INPUT STEP =====
+          <ProjectPrompt $showPrompt={true}>
+            <FormTitle>
+              Enter Your Email
+            </FormTitle>
+            
+            <form onSubmit={handleEmailSubmit}>
+              <PromptForm>
+                <StyledTextField
+                  label="Email"
+                  variant="outlined"
+                  type="email"
+                  value={projectDetails.email}
+                  onChange={handleChange('email')}
+                  placeholder="Enter your email address"
+                  required
+                  fullWidth
+                />
+                
+                {showError && (
+                  <ErrorMessage>
+                    Please enter a valid email address.
+                  </ErrorMessage>
+                )}
+                
+                <SubmitButton
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                >
+                  Continue
+                </SubmitButton>
+              </PromptForm>
+            </form>
+          </ProjectPrompt>
+        ) : currentStep === 'options' ? (
+          // ===== OPTIONS STEP =====
+          <ProjectPrompt $showPrompt={true}>
+            <FormTitle>
+              Welcome Back!
+            </FormTitle>
+            
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                textAlign: 'center', 
+                mb: 3, 
+                color: '#2c3e50',
+                fontSize: '1.1rem'
+              }}
+            >
+              What would you like to do today?
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleStartDesigning}
+                sx={{
+                  fontFamily: 'sans-serif',
+                  fontWeight: 600,
+                  fontSize: '1.1rem',
+                  padding: '0.8rem 0',
+                  background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #2980b9 0%, #1f5f8b 100%)',
+                  }
+                }}
+              >
+                🎨 Start Designing
+              </Button>
+              
+              <Button
+                variant="outlined"
+                onClick={handleViewDesigns}
+                sx={{
+                  fontFamily: 'sans-serif',
+                  fontWeight: 500,
+                  fontSize: '1rem',
+                  padding: '0.6rem 0',
+                  color: '#2c3e50',
+                  borderColor: '#3498db',
+                  '&:hover': {
+                    borderColor: '#2980b9',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)'
+                  }
+                }}
+              >
+                📚 View My Designs
+              </Button>
+              
+              <Button
+                variant="text"
+                onClick={() => setCurrentStep('welcome')}
+                sx={{
+                  fontFamily: 'sans-serif',
+                  fontWeight: 400,
+                  fontSize: '0.9rem',
+                  padding: '0.4rem 0',
+                  color: '#7f8c8d',
+                  '&:hover': {
+                    backgroundColor: 'rgba(127, 140, 141, 0.1)'
+                  }
+                }}
+              >
+                ← Back to Home
+              </Button>
+            </Box>
+          </ProjectPrompt>
         ) : showSuccess ? (
           // ===== SUCCESS PAGE =====
           // This shows after the form is successfully submitted
@@ -800,17 +930,17 @@ const Home = () => {
               </Button>
             </Box>
           </ProjectPrompt>
-        ) : (
+        ) : currentStep === 'project' ? (
           // ===== PROJECT FORM =====
-          // This shows when the form IS showing
-          <ProjectPrompt $showPrompt={showPrompt}>
+          // This shows when the project details form is showing
+          <ProjectPrompt $showPrompt={true}>
             {/* ===== FORM TITLE ===== */}
             <FormTitle>
               Project Details
             </FormTitle>
             
             {/* ===== FORM ELEMENT ===== */}
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleProjectSubmit}>
               <PromptForm>
                 {/* ===== FIRST ROW - PROJECT NAME AND LOCATION ===== */}
                 <FormRow>
@@ -895,19 +1025,6 @@ const Home = () => {
                   />
                 </FormRow>
                 
-                {/* ===== FOURTH ROW - EMAIL ===== */}
-                <FormRow>
-                  {/* Email Field */}
-                  <StyledTextField
-                    label="Email"                  // Field label
-                    variant="outlined"             // Outlined style
-                    type="email"                   // Email input type
-                    value={projectDetails.email}   // Current value
-                    onChange={handleChange('email')}  // Runs when user types
-                    placeholder="Enter email address"  // Placeholder text
-                  />
-                </FormRow>
-                
                 {/* ===== ERROR MESSAGE ===== */}
                 {/* Shows error message if user doesn't provide operator or service partner */}
                 {showError && (
@@ -928,7 +1045,7 @@ const Home = () => {
               </PromptForm>
             </form>
           </ProjectPrompt>
-        )}
+        ) : null}
       </ContentWrapper>
     </HomeContainer>
   );

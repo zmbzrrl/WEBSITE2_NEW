@@ -52,7 +52,7 @@ const ProjPanels: React.FC = () => {
   const { projPanels, updateQuantity, removeFromCart, reorderPanels, updatePanel, currentProjectCode, loadProjectPanels } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const { projectName, setProjectName, projectCode, setProjectCode } = useContext(ProjectContext);
+  const { projectName, setProjectName, projectCode, setProjectCode, location: projectLocation, operator } = useContext(ProjectContext);
   
   // State for panel number editing
   const [editingPanelIndex, setEditingPanelIndex] = useState<number | null>(null);
@@ -89,6 +89,13 @@ const ProjPanels: React.FC = () => {
       const baseProjectName = fullProjectName.replace(/\s*\(rev\d+\)$/, '');
       setOriginalProjectName(fullProjectName); // Use full name with revision
       
+      // Persist edit state in sessionStorage
+      try {
+        sessionStorage.setItem('ppIsEditMode', 'true');
+        sessionStorage.setItem('ppEditingDesignId', location.state.designId);
+        sessionStorage.setItem('ppProjectName', fullProjectName);
+      } catch {}
+      
       // Load the project data into the cart
       const projectData = location.state.projectData;
       
@@ -102,7 +109,7 @@ const ProjPanels: React.FC = () => {
       }
       
       // Calculate revision number based on existing designs
-      calculateRevisionNumber(baseProjectName);
+      calculateRevisionNumber(baseProjectName, true, fullProjectName);
     } else if (location.state?.viewMode && location.state?.projectData) {
       console.log('✅ Setting VIEW MODE');
       // View mode - read-only
@@ -145,7 +152,7 @@ const ProjPanels: React.FC = () => {
       }
       
       // Calculate revision number for new revision
-      calculateRevisionNumber(location.state.originalProjectName);
+      calculateRevisionNumber(location.state.originalProjectName, false);
     } else if (location.state?.projectEditMode !== undefined) {
       console.log('✅ Restoring project edit state from customizer');
       console.log('  projectEditMode:', location.state.projectEditMode);
@@ -157,6 +164,13 @@ const ProjPanels: React.FC = () => {
       setEditingDesignId(location.state.projectDesignId);
       setOriginalProjectName(location.state.projectOriginalName);
       setIsCreateNewRevision(location.state.projectCreateNewRevision);
+      
+      // Persist edit state in sessionStorage
+      try {
+        sessionStorage.setItem('ppIsEditMode', 'true');
+        sessionStorage.setItem('ppEditingDesignId', location.state.projectDesignId);
+        sessionStorage.setItem('ppProjectName', location.state.projectOriginalName);
+      } catch {}
       
       // Reload the panels from the database to ensure we have the latest data
       const reloadPanelsFromDatabase = async () => {
@@ -203,23 +217,40 @@ const ProjPanels: React.FC = () => {
         const sName = sessionStorage.getItem('ppProjectName') || '';
         const sEditId = sessionStorage.getItem('ppEditingDesignId') || '';
         const sIsNewRev = sessionStorage.getItem('ppIsCreateNewRevision') === 'true';
+        const sIsEditMode = sessionStorage.getItem('ppIsEditMode') === 'true';
+        
         if (sName) {
           setOriginalProjectName(sName);
           if (!projectName) setProjectName(sName);
         }
         if (sEditId) setEditingDesignId(sEditId);
         if (sIsNewRev) setIsCreateNewRevision(true);
+        if (sIsEditMode) {
+          console.log('✅ Restoring edit mode from sessionStorage');
+          setIsEditMode(true);
+        }
       } catch {}
     }
   }, [location.state, loadProjectPanels]);
   
   // Calculate revision number for the project
-  const calculateRevisionNumber = async (baseProjectName: string) => {
+  const calculateRevisionNumber = async (baseProjectName: string, isEditMode: boolean = false, currentDesignName?: string) => {
     try {
       const userEmail = localStorage.getItem('userEmail');
       if (!userEmail) return;
       
-      console.log('🔍 calculateRevisionNumber called with:', baseProjectName);
+      console.log('🔍 calculateRevisionNumber called with:', baseProjectName, 'isEditMode:', isEditMode);
+      
+      if (isEditMode && currentDesignName) {
+        // In edit mode, extract the current revision number from the design name
+        const match = currentDesignName.match(/\(rev(\d+)\)$/);
+        if (match) {
+          const currentRevision = parseInt(match[1]);
+          console.log('🔍 Edit mode - keeping current revision:', currentRevision);
+          setRevisionNumber(currentRevision);
+          return;
+        }
+      }
       
       const result = await getDesigns(userEmail);
       if (result.success && result.designs) {
@@ -405,6 +436,8 @@ const ProjPanels: React.FC = () => {
               designData: {
                 projectName: originalProjectName,
                 projectCode: projectCode || '',
+                location: projectLocation || '',
+                operator: operator || '',
                 panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
                   ...panel,
                   displayNumber: getDisplayNumber(index),
@@ -416,152 +449,62 @@ const ProjPanels: React.FC = () => {
             const result = await updateDesign(userEmail, effectiveEditingDesignId, projectData);
             
             if (result.success) {
-              setSaveMessage('✅ Project updated successfully! (Mock)');
+              setSaveMessage('✅ Project updated successfully!');
               setProjectJustSaved(true);
+              // Clear edit mode session storage after successful update
+              try {
+                sessionStorage.removeItem('ppIsEditMode');
+                sessionStorage.removeItem('ppEditingDesignId');
+                sessionStorage.removeItem('ppProjectName');
+              } catch {}
             } else {
               setSaveMessage('❌ Failed to update project: ' + result.message);
             }
           } else {
-            setSaveMessage('❌ Original design not found');
-          }
-        } else {
-          setSaveMessage('❌ Failed to load designs');
-        }
-      } else if (effectiveIsCreateNewRevision && effectiveOriginalName) {
-        console.log('✅ Taking NEW REVISION path - creating new revision');
-        // CREATE NEW REVISION MODE: Create a new revision with incremented number
-        
-        // Extract base project name (remove revision suffix)
-        const baseProjectName = effectiveOriginalName.replace(/\s*\(rev\d+\)$/, '');
-        console.log('🔍 Base project name:', baseProjectName);
-        
-        const designsResult = await getDesigns(userEmail);
-        if (designsResult.success && 'designs' in designsResult) {
-          // Find all designs that start with the base project name
-          const existingRevisions = designsResult.designs.filter((design: any) => 
-            design.design_name && design.design_name.startsWith(baseProjectName)
-          );
-          
-          console.log('🔍 Found existing revisions:', existingRevisions.map(d => d.design_name));
-          
-          // Count how many revisions already exist
-          let maxRevision = -1; // Start at -1 so first revision is rev0
-          existingRevisions.forEach((design: any) => {
-            const match = design.design_name.match(/\(rev(\d+)\)$/);
-            if (match) {
-              const revision = parseInt(match[1]);
-              if (revision > maxRevision) {
-                maxRevision = revision;
-              }
-            }
-          });
-          
-          console.log('🔍 Max revision found:', maxRevision);
-          const nextRevision = maxRevision + 1;
-          finalProjectName = `${baseProjectName} (rev${nextRevision})`;
-          console.log('🔍 Final project name:', finalProjectName);
-        } else {
-          finalProjectName = `${baseProjectName} (rev0)`;
-        }
-
-        const projectData = {
-          projectName: finalProjectName,
-          panelType: 'Project',
-          designData: {
-            projectName: finalProjectName,
-            projectCode: projectCode || '',
-            panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
-              ...panel,
-              displayNumber: getDisplayNumber(index),
-            })))
-          }
-        };
-
-        // Save new revision
-        console.log('🔍 About to save new revision with data:', projectData);
-        const saveResult = await saveDesign(userEmail, projectData);
-        console.log('🔍 Save result:', saveResult);
-        
-        if (saveResult.success) {
-          setSaveMessage('✅ New revision created successfully!');
-          setProjectJustSaved(true);
-            // Update the original project name to the new revision name
-          setOriginalProjectName(finalProjectName);
-          // Update the global project name in the context
-          setProjectName(finalProjectName);
-          // Update the editing design ID to the new revision's ID
-          setEditingDesignId(saveResult.designId);
-          // Reset the new revision flag so future saves just update this revision
-          setIsCreateNewRevision(false);
-            // Persist the new state to survive navigation/state loss
+            console.log('⚠️ Original design not found, falling back to create new design');
+            // Fallback: Create new design instead of editing
+            setIsEditMode(false);
+            setEditingDesignId(null);
+            // Clear session storage
             try {
-              sessionStorage.setItem('ppProjectName', finalProjectName);
-              sessionStorage.setItem('ppEditingDesignId', saveResult.designId || '');
-              sessionStorage.setItem('ppIsCreateNewRevision', 'false');
+              sessionStorage.removeItem('ppEditingDesignId');
+              sessionStorage.removeItem('ppProjectName');
             } catch {}
-          console.log('🔍 Updated project name to:', finalProjectName);
-          console.log('🔍 Updated editing design ID to:', saveResult.designId);
-        } else {
-          setSaveMessage('❌ Failed to create new revision: ' + saveResult.message);
-        }
-      } else if (effectiveEditingDesignId && !effectiveIsCreateNewRevision) {
-        console.log('✅ Taking UPDATE EXISTING REVISION path - updating current revision');
-        // UPDATE EXISTING REVISION: We're working on an existing revision, just update it
-        
-        const designsResult = await getDesigns(userEmail);
-        if (designsResult.success && 'designs' in designsResult) {
-          const existingDesign = designsResult.designs.find((design: any) => design.id === effectiveEditingDesignId);
-          if (existingDesign) {
-            // Keep the existing project name (including revision number)
-            const existingProjectName = existingDesign.design_name;
-            console.log('📝 Updating existing revision with name:', existingProjectName);
             
-            const projectData = {
-              projectName: existingProjectName, // Keep existing name with revision
-              panelType: 'Project',
-              designData: {
-                projectName: existingProjectName,
-                projectCode: projectCode || '',
-                panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
-                  ...panel,
-                  displayNumber: getDisplayNumber(index),
-                })))
-              }
-            };
-
-            // Update existing design
-            const result = await updateDesign(userEmail, effectiveEditingDesignId, projectData);
-            
-            if (result.success) {
-              setSaveMessage('✅ Revision updated successfully!');
-              setProjectJustSaved(true);
-              // Update the global project name to match the existing revision name
-              setProjectName(existingProjectName);
-              // Persist for consistency across navigations
-              try {
-                sessionStorage.setItem('ppProjectName', existingProjectName);
-                sessionStorage.setItem('ppEditingDesignId', effectiveEditingDesignId || '');
-                sessionStorage.setItem('ppIsCreateNewRevision', 'false');
-              } catch {}
-              console.log('🔍 Updated global project name to:', existingProjectName);
-            } else {
-              setSaveMessage('❌ Failed to update revision: ' + result.message);
-            }
-          } else {
-            setSaveMessage('❌ Existing design not found');
+            // Continue to the else branch to create new design
+            finalProjectName = projectName || 'Untitled Project';
           }
         } else {
-          setSaveMessage('❌ Failed to load designs');
+          console.log('⚠️ Failed to load designs, falling back to create new design');
+          // Fallback: Create new design instead of editing
+          setIsEditMode(false);
+          setEditingDesignId(null);
+          // Clear session storage
+          try {
+            sessionStorage.removeItem('ppEditingDesignId');
+            sessionStorage.removeItem('ppProjectName');
+          } catch {}
+          
+          // Continue to the else branch to create new design
+          finalProjectName = projectName || 'Untitled Project';
         }
-      } else {
-        console.log('❌ Taking NEW PROJECT path - this should not happen for Edit/New Rev');
+      }
+      
+      // If we're not in edit mode (or fell back from edit mode), create new design
+      if (!isEditMode) {
+        console.log('✅ Taking NEW PROJECT path - creating new design');
+        
+        // Strip any existing revision number from the project name
+        const baseProjectName = finalProjectName.replace(/\s*\(rev\d+\)$/, '');
+        console.log('🔍 Base project name (stripped):', baseProjectName);
+        
         // NEW PROJECT: Create rev0 for the first time
         const designsResult = await getDesigns(userEmail);
         if (designsResult.success && 'designs' in designsResult) {
-          // Check if there are any existing designs with this project name
+          // Check if there are any existing designs with this base project name
           const existingDesigns = designsResult.designs.filter((design: any) => 
-            design.design_name === finalProjectName || 
-            (design.design_name && design.design_name.startsWith(finalProjectName + ' (rev'))
+            design.design_name === baseProjectName || 
+            (design.design_name && design.design_name.startsWith(baseProjectName + ' (rev'))
           );
           
           if (existingDesigns.length > 0) {
@@ -578,14 +521,17 @@ const ProjPanels: React.FC = () => {
             });
             
             const nextRevision = maxRevision + 1;
-            finalProjectName = `${finalProjectName} (rev${nextRevision})`;
+            finalProjectName = `${baseProjectName} (rev${nextRevision})`;
+            console.log('🔍 Next revision number:', nextRevision, 'Final name:', finalProjectName);
           } else {
             // This is the first design, add rev0
-            finalProjectName = `${finalProjectName} (rev0)`;
+            finalProjectName = `${baseProjectName} (rev0)`;
+            console.log('🔍 First design, adding rev0. Final name:', finalProjectName);
           }
         } else {
           // If we can't get designs, default to rev0 for first design
-          finalProjectName = `${finalProjectName} (rev0)`;
+          finalProjectName = `${baseProjectName} (rev0)`;
+          console.log('🔍 Can\'t get designs, defaulting to rev0. Final name:', finalProjectName);
         }
 
         const projectData = {
@@ -594,6 +540,8 @@ const ProjPanels: React.FC = () => {
           designData: {
             projectName: finalProjectName,
             projectCode: projectCode || '',
+            location: projectLocation || '',
+            operator: operator || '',
             panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
               ...panel,
               displayNumber: getDisplayNumber(index),
@@ -602,11 +550,19 @@ const ProjPanels: React.FC = () => {
         };
 
         // Save new project
-        const saveResult = await saveDesign(userEmail, projectData);
+        const saveResult = await saveDesign(userEmail, projectData, projectLocation, operator);
         
         if (saveResult.success) {
-          setSaveMessage('✅ Project saved successfully! (Mock)');
+          setSaveMessage('✅ Project saved successfully!');
           setProjectJustSaved(true);
+          // Update the project name to the saved name
+          setProjectName(finalProjectName);
+          // Clear any edit mode session storage after successful save
+          try {
+            sessionStorage.removeItem('ppIsEditMode');
+            sessionStorage.removeItem('ppEditingDesignId');
+            sessionStorage.removeItem('ppProjectName');
+          } catch {}
         } else {
           setSaveMessage('❌ Failed to save project: ' + saveResult.message);
         }

@@ -49,7 +49,7 @@ const generateId = () => {
 
 // 💾 SAVE DESIGN FUNCTION - This is like putting a recipe in the pantry
 // This function takes a user's email and their design data, then saves it to our mock database
-export const saveDesign = async (email: string, designData: any) => {
+export const saveDesign = async (email: string, designData: any, location?: string, operator?: string) => {
   // ⏰ Simulate network delay (like walking to the pantry takes time)
   // In a real database, this would be the time it takes to send data to a server
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -67,7 +67,11 @@ export const saveDesign = async (email: string, designData: any) => {
     id: designId,                                    // Unique identifier (like recipe #123)
     projectName: designData.projectName || 'Untitled Design',  // Name of the project
     panelType: designData.panelType || 'SP',         // Type of panel (SP, DPH, etc.)
-    designData: JSON.parse(JSON.stringify(designData)),  // Deep copy all the design settings
+    designData: {
+      ...JSON.parse(JSON.stringify(designData)),  // Deep copy all the design settings
+      location: location || designData.location,   // Add location if provided
+      operator: operator || designData.operator    // Add operator if provided
+    },
     createdAt: now,                                  // When this design was first created
     lastModified: now                                // When this design was last modified
   };
@@ -85,6 +89,8 @@ export const saveDesign = async (email: string, designData: any) => {
   console.log('🔍 SAVING NEW DESIGN:');
   console.log('  Design ID:', design.id);
   console.log('  Project Name:', design.projectName);
+  console.log('  Location:', location);
+  console.log('  Operator:', operator);
   console.log('  Design Data:', design.designData);
   console.log('  Design Data panels:', design.designData?.designData?.panels);
   console.log('  First panel name:', design.designData?.designData?.panels?.[0]?.panelName);

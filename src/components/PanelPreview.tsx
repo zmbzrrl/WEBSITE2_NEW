@@ -36,6 +36,27 @@ const guestServicesIcons = {
   G18: g18Icon,
 };
 
+// Function to determine icon color based on background (from IDPGCustomizer)
+const getIconColorFilter = (backgroundColor: string): string => {
+  // Convert hex to RGB for brightness calculation
+  const hex = backgroundColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate brightness (0-255)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  
+  // Use white for dark backgrounds, dark grey for light backgrounds
+  if (brightness < 128) {
+    // Dark background - use white icons
+    return 'brightness(0) saturate(100%) invert(1)';
+  } else {
+    // Light background - use dark grey icons
+    return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
+  }
+};
+
 interface PanelPreviewIcon {
   src: string;
   label: string;
@@ -155,6 +176,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         if (icon.position === 7) return '58px';
         if (icon.position === 8) return '65px';
       }
+    }
+    
+    // Special handling for IDPG panel - use the iconSize from panelDesign
+    if (isIDPG) {
+      return panelDesign.iconSize || '40px';
     }
     
     if (isPIR) {
@@ -1366,8 +1392,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         <div
           style={{
             ...basePanelStyle,
-            width: dimensions.width,
-            height: dimensions.height,
+            width: "350px",
+            height: "350px",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1388,6 +1414,13 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
 
     const { cardReader, roomNumber, statusMode, selectedIcon1, roomNumberText } = idpgConfig;
     const rightIcon = 'G3'; // Always use G3 for right icon
+
+    // Calculate panel height based on configuration (same as customizer)
+    let panelHeight = "350px"; // Default
+    if (!cardReader && !roomNumber) panelHeight = "350px"; // Basic template
+    else if (!cardReader && roomNumber) panelHeight = "450px"; // Room Number only
+    else if (cardReader && !roomNumber) panelHeight = "500px"; // Card Reader only
+    else if (cardReader && roomNumber) panelHeight = "600px"; // Card Reader + Room Number
 
     // Render the appropriate layout based on configuration
     const renderIDPGLayout = () => {
@@ -1426,9 +1459,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1447,9 +1480,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1467,9 +1500,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   src={g18Icon} 
                   alt="G18 Icon" 
                   style={{
-                    width: `${panelDesign.iconSize || 40}px`,
-                    height: `${panelDesign.iconSize || 40}px`,
-                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
                   }}
                 />
               </div>
@@ -1490,7 +1523,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: "100%",
                 height: "8px",
                 background: "transparent",
-                border: `2px solid ${panelDesign.iconColor}`,
+                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
                 margin: "auto 0",
               }} />
@@ -1506,9 +1539,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   src={g18Icon} 
                   alt="G18 Icon" 
                   style={{
-                    width: `${panelDesign.iconSize || 40}px`,
-                    height: `${panelDesign.iconSize || 40}px`,
-                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
                   }}
                 />
               </div>
@@ -1571,9 +1604,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1592,9 +1625,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1605,7 +1638,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: "100%",
                 height: "8px",
                 background: "transparent",
-                border: `2px solid ${panelDesign.iconColor}`,
+                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
                 margin: "10px 0",
               }} />
@@ -1623,9 +1656,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `${panelDesign.iconSize || 40}px`,
-                  height: `${panelDesign.iconSize || 40}px`,
-                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -1668,9 +1701,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1689,9 +1722,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1702,7 +1735,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: "100%",
                 height: "8px",
                 background: "transparent",
-                border: `2px solid ${panelDesign.iconColor}`,
+                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
                 marginBottom: "20px",
               }} />
@@ -1719,9 +1752,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `${panelDesign.iconSize || 40}px`,
-                  height: `${panelDesign.iconSize || 40}px`,
-                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -1736,9 +1769,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: `${panelDesign.iconSize || 40}px`,
-                  height: `${panelDesign.iconSize || 40}px`,
-                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -1800,9 +1833,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
                     alt="Icon 1" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1821,9 +1854,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     src={guestServicesIcons[rightIcon]} 
                     alt="Icon 2" 
                     style={{
-                      width: `${panelDesign.iconSize || 40}px`,
-                      height: `${panelDesign.iconSize || 40}px`,
-                      filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                      width: panelDesign.iconSize,
+                      height: panelDesign.iconSize,
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
                     }}
                   />
                 </div>
@@ -1834,7 +1867,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: "100%",
                 height: "8px",
                 background: "transparent",
-                border: `2px solid ${panelDesign.iconColor}`,
+                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
                 marginBottom: "20px",
               }} />
@@ -1851,9 +1884,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `${panelDesign.iconSize || 40}px`,
-                  height: `${panelDesign.iconSize || 40}px`,
-                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -1868,9 +1901,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: `${panelDesign.iconSize || 40}px`,
-                  height: `${panelDesign.iconSize || 40}px`,
-                  filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -1899,8 +1932,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     return (
       <div
         style={{
-          width: dimensions.width,
-          height: dimensions.height,
+          width: "350px",
+          height: panelHeight,
           background: `linear-gradient(135deg, 
             rgba(255, 255, 255, 0.3) 0%, 
             rgba(255, 255, 255, 0.1) 50%, 
