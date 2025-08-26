@@ -23,6 +23,7 @@ import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
 
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
+import PanelDimensionSelector from '../../components/PanelDimensionSelector';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -946,7 +947,7 @@ const SPCustomizer: React.FC = () => {
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
     const iconSize = panelDesign.iconSize || '40px';
-    const pos = iconPositions?.[index] || { top: '0px', left: '0px' };
+    const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
     return (
       <div
         key={index}
@@ -1154,7 +1155,14 @@ const SPCustomizer: React.FC = () => {
   }, [panelDesign.fonts]);
 
   const config = getPanelLayoutConfig('SP');
-  const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts } = config;
+  const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
+  const [dimensionKey, setDimensionKey] = useState<string>('standard');
+
+  // Derive active dimensions and positions by selected key (fallback to defaults)
+  const activeDimension = (dimensionConfigs && dimensionConfigs[dimensionKey]) ? dimensionConfigs[dimensionKey] : dimensions;
+  const activeIconPositions = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
+    ? dimensionConfigs[dimensionKey].iconPositions
+    : (iconPositions || []);
 
   return (
     <Box
@@ -1251,9 +1259,18 @@ const SPCustomizer: React.FC = () => {
           )}
         </Box>
 
-        {/* Icon List: Only visible on step 2 */}
+        {/* Step 2: Dimension selector + Icon List */}
         {currentStep === 2 && (
           <div style={{ marginBottom: "20px" }}>
+            <PanelDimensionSelector
+              options={[
+                { key: 'standard', label: '95 × 95 mm', sublabel: "3.7 × 3.7''" },
+                { key: 'wide', label: '130 × 95 mm', sublabel: "5.1 × 3.7''" },
+                { key: 'tall', label: '95 × 130 mm', sublabel: "3.7 × 5.1''" },
+              ]}
+              value={dimensionKey}
+              onChange={setDimensionKey}
+            />
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
               {iconCategories.map((category) => (
                 <button
@@ -1799,8 +1816,8 @@ const SPCustomizer: React.FC = () => {
           <div
             style={{
               position: 'relative',
-              width: '320px', // or your panel width
-              height: '320px', // or your panel height
+              width: activeDimension.width || '320px',
+              height: activeDimension.height || '320px',
               background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
               padding: '0',
               border: '2px solid rgba(255, 255, 255, 0.2)',
