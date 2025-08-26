@@ -88,6 +88,9 @@ interface PanelPreviewProps {
       selectedIcon1: string;
       roomNumberText: string;
     };
+    spConfig?: {
+      dimension: 'standard' | 'wide' | 'tall';
+    };
   };
   iconTexts?: { [key: number]: string };
   type?: string;
@@ -113,6 +116,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     }
   }, [panelDesign.fonts]);
 
+  // Compute a robust icon color filter: use explicit iconColor if provided, otherwise derive from background
+  const computedIconFilter = (panelDesign.iconColor && ICON_COLOR_FILTERS[panelDesign.iconColor])
+    ? ICON_COLOR_FILTERS[panelDesign.iconColor]
+    : getIconColorFilter(panelDesign.backgroundColor || '#ffffff');
+
   // Determine panel types for special handling
   const isDPH = type === 'DPH';
   const isDPV = type === 'DPV';
@@ -127,6 +135,15 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   // Get layout configuration for this panel type
   const config = getPanelLayoutConfig(type);
   const { gridLayout, iconLayout, bigIconLayout, textLayout, specialLayouts, iconPositions } = config;
+  
+  // Get dimension-specific icon positions for SP panels
+  let dimensionIconPositions = iconPositions;
+  if (isSP && panelDesign.spConfig && config.dimensionConfigs) {
+    const { dimension } = panelDesign.spConfig;
+    if (config.dimensionConfigs[dimension] && config.dimensionConfigs[dimension].iconPositions) {
+      dimensionIconPositions = config.dimensionConfigs[dimension].iconPositions;
+    }
+  }
   
   // For IDPG panels, calculate dimensions based on configuration
   let dimensions = config.dimensions;
@@ -148,6 +165,17 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     // Rectangle vertical template (350x600) - when card reader and room number
     else if (cardReader && roomNumber) {
       dimensions = { width: '350px', height: '600px' };
+    }
+  }
+  
+  // For SP panels, calculate dimensions based on configuration
+  if (isSP && panelDesign.spConfig) {
+    const { dimension } = panelDesign.spConfig;
+    if (config.dimensionConfigs && config.dimensionConfigs[dimension]) {
+      dimensions = {
+        width: config.dimensionConfigs[dimension].width,
+        height: config.dimensionConfigs[dimension].height
+      };
     }
   }
   const isDoublePanel = isDPH || isDPV;
@@ -252,8 +280,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
             pointerEvents: 'none',
             zIndex: 1,
         }} />
-        {(isDPH ? Array.from({ length: 18 }) : iconPositions).map((_, index) => {
-            const pos = iconPositions[index];
+        {(isDPH ? Array.from({ length: 18 }) : (dimensionIconPositions || iconPositions)).map((_, index) => {
+            const pos = (dimensionIconPositions || iconPositions)[index];
             const icon = icons.find((i) => i.position === index);
             const isPIR = icon?.category === 'PIR';
             const text = (iconTexts && iconTexts[index]) || icon?.text;
@@ -272,7 +300,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               // Mirrored positions: 2,1,0 | 5,4,3 | 8,7,6
               const mirrorMap = [2, 1, 0, 5, 4, 3, 8, 7, 6];
               const mirroredIndex = mirrorMap[index];
-              const mirroredPos = iconPositions[mirroredIndex];
+              const mirroredPos = (dimensionIconPositions || iconPositions)[mirroredIndex];
               if (mirroredPos) {
                 adjustedPos = { ...mirroredPos };
               }
@@ -401,7 +429,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                         objectFit: 'contain',
                     marginBottom: iconLayout?.spacing || '5px',
                     marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                        filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                        filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
                         transition: 'filter 0.2s',
                       }}
                     />
@@ -420,7 +448,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     left: '-115px',
                     top: '-70px',
                     zIndex: 3,
-                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
+                    filter: computedIconFilter,
                     transition: 'filter 0.2s',
                   }}
                 />
@@ -438,7 +466,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     position: 'absolute',
                     top: index === 6 ? '-65px' : index === 7 ? '-69px' : '-75px',
                     zIndex: 3,
-                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || ICON_COLOR_FILTERS['#000000'],
+                    filter: computedIconFilter,
                     transition: 'filter 0.2s',
                   }}
                 />
@@ -533,7 +561,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: bigIconLayout.size,
                 height: bigIconLayout.size,
                   objectFit: 'contain', 
-                filter: getBigIconSrc() && icons.find(icon => icon.position === ((isX1H || isX1V) ? 100 : 9))?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                filter: getBigIconSrc() && icons.find(icon => icon.position === ((isX1H || isX1V) ? 100 : 9))?.category !== 'Sockets' ? computedIconFilter : undefined,
                   transition: 'filter 0.2s',
                 }}
             />
@@ -548,7 +576,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                 width: bigIconLayout.size,
                 height: bigIconLayout.size,
                   objectFit: 'contain', 
-                filter: getBigIcon2Src() && icons.find(icon => icon.position === 10)?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                filter: getBigIcon2Src() && icons.find(icon => icon.position === 10)?.category !== 'Sockets' ? computedIconFilter : undefined,
                   transition: 'filter 0.2s',
                 }}
 
@@ -619,7 +647,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                           position: 'relative',
                           zIndex: 1,
                           marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                          filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
                           transition: 'filter 0.2s',
                         }}
                       />
@@ -704,7 +732,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                           position: 'relative',
                           zIndex: 1,
                           marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                          filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
                           transition: 'filter 0.2s',
                         }}
                       />
@@ -803,7 +831,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                           position: 'relative',
                           zIndex: 1,
                           marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                          filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                          filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
                           transition: 'filter 0.2s',
                         }}
                       />

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
@@ -18,6 +18,7 @@ import TAG from "../../assets/panels/TAG_PIR.png";
 import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 import { ProjectContext } from '../../App';
+import { useCart } from '../../contexts/CartContext';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -114,7 +115,8 @@ const PanelTypeSelector = () => {
   const location = useLocation();
   const theme = useTheme();
   const [showPanels] = useState(true);
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, allowedPanelTypes, boqQuantities } = useContext(ProjectContext);
+  const { projPanels } = useCart();
 
   // Check if we're in edit mode
   const isEditMode = location.state?.editMode || false;
@@ -140,7 +142,7 @@ const PanelTypeSelector = () => {
                 height: 32,
                 borderRadius: '50%',
                 background: idx === activeStep ? 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)' : '#e0e0e0',
-                color: idx === activeStep ? '#fff' : '#999',
+                color: idx === activeStep ? '#fff' : '#8a8a8a',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -156,11 +158,15 @@ const PanelTypeSelector = () => {
             </Box>
             <Typography
               sx={{
-                color: idx === activeStep ? '#1976d2' : '#666',
+                color: idx === activeStep ? '#1976d2' : '#fff',
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 110,
+                maxWidth: 92,
+                minHeight: 36,
+                lineHeight: 1.2,
+                whiteSpace: 'normal',
+                wordBreak: 'break-word',
                 letterSpacing: 0.2,
               }}
             >
@@ -175,33 +181,129 @@ const PanelTypeSelector = () => {
     </Box>
   );
 
-  const panelTypes = [
+  const allPanelTypes = [
     {
       name: "Single Panel",
       image: SP,
       path: "/customizer/sp",
+      key: 'SP',
     },
     {
       name: "Thermostat",
       image: TAG,
       path: "/customizer/tag",
+      key: 'TAG',
     },
     {
       name: "Corridor Panel",
       image: IDPG,
       path: "/panel/idpg",
+      key: 'IDPG',
     },
     {
       name: "Double Panel",
       image: DP,
       path: "/panel/double",
+      key: 'DP',
     },
     {
       name: "Extended Panel",
       image: X2H,
       path: "/panel/extended",
+      key: 'EXT',
     },
   ];
+
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+    if (t === 'SP') return 'SP';
+    if (t === 'TAG') return 'TAG';
+    if (t === 'IDPG') return 'IDPG';
+    if (t === 'DPH' || t === 'DPV') return 'DP';
+    if (t && t.toUpperCase().startsWith('X')) return 'EXT';
+    return 'SP';
+  };
+
+  const usedByCategory = useMemo(() => {
+    const counts: Record<'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT', number> = { SP: 0, TAG: 0, IDPG: 0, DP: 0, EXT: 0 };
+    for (const item of projPanels) {
+      const cat = mapTypeToCategory(item.type);
+      const qty = typeof item.quantity === 'number' && !isNaN(item.quantity) ? item.quantity : 1;
+      counts[cat] += qty;
+    }
+    return counts;
+  }, [projPanels]);
+
+  const remainingByCategory = useMemo(() => {
+    const rem: Record<'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT', number | undefined> = { SP: undefined, TAG: undefined, IDPG: undefined, DP: undefined, EXT: undefined };
+    if (!boqQuantities) return rem;
+
+    // Sum usage across subtypes for Extended and treat cap as sum of X1H/X1V/X2H/X2V
+    const extendedCap = ['X1H','X1V','X2H','X2V']
+      .map(k => (boqQuantities as any)[k] as number | undefined)
+      .filter((v): v is number => typeof v === 'number')
+      .reduce((a, b) => a + b, 0);
+
+    (Object.keys(rem) as Array<keyof typeof rem>).forEach((key) => {
+      if (key === 'EXT') {
+        const cap = extendedCap;
+        if (typeof cap === 'number') {
+          const used = usedByCategory.EXT || 0;
+          rem[key] = Math.max(0, cap - used);
+        }
+        return;
+      }
+      const cap = boqQuantities[key as string] ?? undefined;
+      if (typeof cap === 'number') {
+        const used = usedByCategory[key as keyof typeof usedByCategory] || 0;
+        rem[key] = Math.max(0, cap - used);
+      }
+    });
+    return rem;
+  }, [boqQuantities, usedByCategory]);
+
+  // If BOQ not set, redirect to BOQ first
+  useEffect(() => {
+    if (!allowedPanelTypes || allowedPanelTypes.length === 0) {
+      // Allow bypass if we're adding to an existing project (edit flow)
+      const isAddingToExistingProject = location.state?.isAddingToExistingProject;
+      if (!isAddingToExistingProject) {
+        navigate('/boq', { replace: true });
+      }
+    }
+  }, [allowedPanelTypes, navigate, location.state]);
+
+  // When bypassing BOQ (adding to an existing project or new revision), derive allowed panel types
+  // from existing BOQ quantities so we still gate/filter correctly.
+  const effectiveAllowedPanelTypes = useMemo(() => {
+    if (allowedPanelTypes && allowedPanelTypes.length > 0) return allowedPanelTypes;
+    const isAddingToExistingProject = location.state?.isAddingToExistingProject;
+    if (!isAddingToExistingProject) return allowedPanelTypes;
+    if (!boqQuantities || Object.keys(boqQuantities).length === 0) return allowedPanelTypes;
+    const allow: string[] = [];
+    if (typeof (boqQuantities as any)['SP'] === 'number' && (boqQuantities as any)['SP'] > 0) allow.push('SP');
+    if (typeof (boqQuantities as any)['TAG'] === 'number' && (boqQuantities as any)['TAG'] > 0) allow.push('TAG');
+    if (typeof (boqQuantities as any)['IDPG'] === 'number' && (boqQuantities as any)['IDPG'] > 0) allow.push('IDPG');
+    if (typeof (boqQuantities as any)['DP'] === 'number' && (boqQuantities as any)['DP'] > 0) allow.push('DP');
+    // If any extended subtype has a quantity, enable EXT
+    const extKeys = ['X1H','X1V','X2H','X2V'];
+    if (extKeys.some(k => typeof (boqQuantities as any)[k] === 'number' && (boqQuantities as any)[k] > 0)) {
+      allow.push('EXT');
+    }
+    return allow;
+  }, [allowedPanelTypes, boqQuantities, location.state]);
+
+  const panelTypes = useMemo(() => {
+    // Start with allowed list (or all if none set)
+    const base = (!effectiveAllowedPanelTypes || effectiveAllowedPanelTypes.length === 0)
+      ? allPanelTypes
+      : allPanelTypes.filter(p => effectiveAllowedPanelTypes.includes(p.key as any));
+    // Further filter by remaining BOQ quantities if provided
+    return base.filter(p => {
+      const remaining = remainingByCategory[p.key as 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT'];
+      // If no BOQ quantity specified for this category, keep it. If specified, require remaining > 0
+      return remaining === undefined || remaining > 0;
+    });
+  }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory]);
 
   return (
     <Box
@@ -324,6 +426,27 @@ const PanelTypeSelector = () => {
                             : undefined,
                       }}
                     >
+                      {typeof (boqQuantities as any)?.[panel.key] === 'number' && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: 12,
+                            bottom: 12,
+                            px: 1.25,
+                            py: 0.5,
+                            borderRadius: 12,
+                            backgroundColor: '#ffffff',
+                            color: '#111827',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.3,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                          }}
+                        >
+                          {Math.max(0, (remainingByCategory as any)?.[panel.key] ?? 0)} left
+                        </Box>
+                      )}
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}

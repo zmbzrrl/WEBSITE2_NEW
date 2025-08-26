@@ -7,6 +7,14 @@ export interface PanelLayoutConfig {
     width: string;
     height: string;
   };
+  // Support for different dimension configurations
+  dimensionConfigs?: {
+    [key: string]: {
+      width: string;
+      height: string;
+      iconPositions?: Array<{ top: string; left: string; width?: string; height?: string; }>;
+    };
+  };
   // Absolute positions for each icon slot (optional)
   iconPositions?: Array<{ top: string; left: string; width?: string; height?: string; }>;
   gridLayout?: {
@@ -42,9 +50,62 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
   // Single Panel (SP) with absolute icon positions matching SPCustomizer layout
   SP: {
     dimensions: {
-      width: '320px',
-      height: '320px'
+      width: '95mm',
+      height: '95mm'
     },
+    dimensionConfigs: {
+      standard: {
+        width: '95mm',
+        height: '95mm',
+        iconPositions: [
+          { top: '23px', left: '33px' },   // Icon 0 (top-left)
+          { top: '23px', left: '136px' },  // Icon 1 (top-center)
+          { top: '23px', left: '233px' },  // Icon 2 (top-right)
+          { top: '123px', left: '33px' },  // Icon 3 (middle-left)
+          { top: '123px', left: '136px' }, // Icon 4 (middle-center)
+          { top: '123px', left: '233px' }, // Icon 5 (middle-right)
+          { top: '218px', left: '33px' },  // Icon 6 (bottom-left)
+          { top: '218px', left: '136px' }, // Icon 7 (bottom-center)
+          { top: '218px', left: '233px' }, // Icon 8 (bottom-right)
+        ]
+      },
+      wide: {
+        width: '130mm',
+        height: '95mm',
+        // Force a true 3x3 grid across the wider width
+        // Spread columns to make use of extra width (approx. +147px from standard)
+        iconPositions: [
+          { top: '23px', left: '33px' },    // 0 top-left
+          { top: '23px', left: '180px' },   // 1 top-center (shifted right)
+          { top: '23px', left: '327px' },   // 2 top-right (shifted right)
+          { top: '123px', left: '33px' },   // 3 middle-left
+          { top: '123px', left: '180px' },  // 4 middle-center
+          { top: '123px', left: '327px' },  // 5 middle-right
+          { top: '218px', left: '33px' },   // 6 bottom-left
+          { top: '218px', left: '180px' },  // 7 bottom-center
+          { top: '218px', left: '327px' },  // 8 bottom-right
+        ]
+      },
+      tall: {
+        width: '95mm',
+        height: '130mm',
+        iconPositions: [
+          { top: '23px', left: '33px' },   // Icon 0 (top-left)
+          { top: '23px', left: '136px' },  // Icon 1 (top-center)
+          { top: '23px', left: '233px' },  // Icon 2 (top-right)
+          { top: '123px', left: '33px' },  // Icon 3 (middle-left)
+          { top: '123px', left: '136px' }, // Icon 4 (middle-center)
+          { top: '123px', left: '233px' }, // Icon 5 (middle-right)
+          { top: '218px', left: '33px' },  // Icon 6 (bottom-left)
+          { top: '218px', left: '136px' }, // Icon 7 (bottom-center)
+          { top: '218px', left: '233px' }, // Icon 8 (bottom-right)
+          { top: '313px', left: '33px' },  // Icon 9 (bottom-extra-left)
+          { top: '313px', left: '136px' }, // Icon 10 (bottom-extra-center)
+          { top: '313px', left: '233px' }, // Icon 11 (bottom-extra-right)
+        ]
+      }
+    },
+    // Default icon positions (for backward compatibility)
     iconPositions: [
       { top: '23px', left: '33px' },   // Icon 0 (top-left)
       { top: '23px', left: '136px' },  // Icon 1 (top-center)

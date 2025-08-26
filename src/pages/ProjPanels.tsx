@@ -48,11 +48,20 @@ const ICON_COLOR_FILTERS: { [key: string]: string } = {
   '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
 };
 
+const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+  if (t === 'SP') return 'SP';
+  if (t === 'TAG') return 'TAG';
+  if (t === 'IDPG') return 'IDPG';
+  if (t === 'DPH' || t === 'DPV') return 'DP';
+  if (t.startsWith('X')) return 'EXT';
+  return 'SP';
+};
+
 const ProjPanels: React.FC = () => {
   const { projPanels, updateQuantity, removeFromCart, reorderPanels, updatePanel, currentProjectCode, loadProjectPanels } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const { projectName, setProjectName, projectCode, setProjectCode, location: projectLocation, operator } = useContext(ProjectContext);
+  const { projectName, setProjectName, projectCode, setProjectCode, location: projectLocation, operator, boqQuantities } = useContext(ProjectContext);
   
   // State for panel number editing
   const [editingPanelIndex, setEditingPanelIndex] = useState<number | null>(null);
@@ -498,9 +507,86 @@ const ProjPanels: React.FC = () => {
         const baseProjectName = finalProjectName.replace(/\s*\(rev\d+\)$/, '');
         console.log('🔍 Base project name (stripped):', baseProjectName);
         
-        // NEW PROJECT: Create rev0 for the first time
+        // Check if we're updating a project that was just saved (same session)
         const designsResult = await getDesigns(userEmail);
         if (designsResult.success && 'designs' in designsResult) {
+          // First, check if we have a project name that already exists (indicating we're updating)
+          const existingDesignWithSameName = designsResult.designs.find((design: any) => 
+            design.design_name === projectName
+          );
+          
+          if (existingDesignWithSameName && !effectiveIsCreateNewRevision) {
+            // We're updating an existing design from this session (but NOT creating a new revision)
+            console.log('✅ Updating existing design from current session:', projectName);
+            finalProjectName = projectName; // Keep the same name
+            
+            const projectData = {
+              projectName: finalProjectName,
+              panelType: 'Project',
+              designData: {
+                projectName: finalProjectName,
+                projectCode: projectCode || '',
+                location: projectLocation || '',
+                operator: operator || '',
+                panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+                  ...panel,
+                  displayNumber: getDisplayNumber(index),
+                })))
+              }
+            };
+
+            // Update existing design
+            const result = await updateDesign(userEmail, existingDesignWithSameName.id, projectData);
+            
+            if (result.success) {
+              setSaveMessage('✅ Project updated successfully!');
+              setProjectJustSaved(true);
+            } else {
+              setSaveMessage('❌ Failed to update project: ' + result.message);
+            }
+            return; // Exit early since we've handled the update
+          }
+          
+          // Also check if we have a project name with revision number that matches our current projectName
+          // This handles the case where projectName was updated after first save
+          if (projectName && projectName.includes('(rev') && !effectiveIsCreateNewRevision) {
+            const existingDesignWithRevision = designsResult.designs.find((design: any) => 
+              design.design_name === projectName
+            );
+            
+            if (existingDesignWithRevision) {
+              // We're updating an existing design with revision number
+              console.log('✅ Updating existing design with revision:', projectName);
+              finalProjectName = projectName; // Keep the same name
+              
+              const projectData = {
+                projectName: finalProjectName,
+                panelType: 'Project',
+                designData: {
+                  projectName: finalProjectName,
+                  projectCode: projectCode || '',
+                  location: projectLocation || '',
+                  operator: operator || '',
+                  panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+                    ...panel,
+                    displayNumber: getDisplayNumber(index),
+                  })))
+                }
+              };
+
+              // Update existing design
+              const result = await updateDesign(userEmail, existingDesignWithRevision.id, projectData);
+              
+              if (result.success) {
+                setSaveMessage('✅ Project updated successfully!');
+                setProjectJustSaved(true);
+              } else {
+                setSaveMessage('❌ Failed to update project: ' + result.message);
+              }
+              return; // Exit early since we've handled the update
+            }
+          }
+          
           // Check if there are any existing designs with this base project name
           const existingDesigns = designsResult.designs.filter((design: any) => 
             design.design_name === baseProjectName || 
@@ -557,11 +643,18 @@ const ProjPanels: React.FC = () => {
           setProjectJustSaved(true);
           // Update the project name to the saved name
           setProjectName(finalProjectName);
-          // Clear any edit mode session storage after successful save
+          // After first save, switch to edit mode and persist the saved design ID so subsequent saves update rev0
           try {
-            sessionStorage.removeItem('ppIsEditMode');
-            sessionStorage.removeItem('ppEditingDesignId');
-            sessionStorage.removeItem('ppProjectName');
+            const savedDesignId = (saveResult as any).designId;
+            if (savedDesignId) {
+              setIsEditMode(true);
+              setEditingDesignId(savedDesignId);
+              setOriginalProjectName(finalProjectName);
+              sessionStorage.setItem('ppIsEditMode', 'true');
+              sessionStorage.setItem('ppEditingDesignId', savedDesignId);
+              sessionStorage.setItem('ppProjectName', finalProjectName);
+              sessionStorage.removeItem('ppIsCreateNewRevision');
+            }
           } catch {}
         } else {
           setSaveMessage('❌ Failed to save project: ' + saveResult.message);
@@ -635,7 +728,7 @@ const ProjPanels: React.FC = () => {
               fontSize: 14,
               fontWeight: 500,
             }}>
-              ✏️ Edit Mode - Saving will create Rev{revisionNumber}
+              ✏️ Edit Mode - Saving will update Rev{revisionNumber}
             </div>
           )}
           <div style={{
@@ -655,7 +748,14 @@ const ProjPanels: React.FC = () => {
             <span style={{ fontSize: 64, color: '#e0e0e0', marginBottom: 16 }}>🗂️</span>
             <p style={{ fontSize: 20, color: THEME.textSecondary, marginBottom: 24 }}>Your project panels list is empty</p>
             <button
-              onClick={() => navigate("/panel-type")}
+              onClick={() => {
+                // If creating a new revision, treat as adding to existing project so we don't force BOQ
+                if (isCreateNewRevision) {
+                  navigate("/panel-type", { state: { isAddingToExistingProject: true } });
+                } else {
+                  navigate("/panel-type");
+                }
+              }}
               style={{
                 padding: '14px 36px',
                 background: THEME.primary,
@@ -861,56 +961,30 @@ const ProjPanels: React.FC = () => {
                     </div>
                   )}
                 </div>
-                {/* Quantity controls - Hidden in view mode */}
-                {!isViewMode && (
+                {/* Quantity display - Read-only BOQ quantity */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
                     <span style={{ color: THEME.textSecondary, fontSize: 15 }}>Quantity:</span>
-                    <button
-                      onClick={() => updateQuantity(index, item.quantity - 1)}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: THEME.background,
-                        color: THEME.primary,
-                        fontSize: 22,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        boxShadow: THEME.shadow,
-                        transition: 'background 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        lineHeight: 1,
-                        padding: 0,
-                      }}
-                      disabled={item.quantity <= 1}
-                    >-</button>
-                    <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center' }}>{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(index, item.quantity + 1)}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: THEME.background,
-                        color: THEME.primary,
-                        fontSize: 22,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        boxShadow: THEME.shadow,
-                        transition: 'background 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        lineHeight: 1,
-                        padding: 0,
-                      }}
-                    >+</button>
+                  <span style={{ 
+                    fontSize: 18, 
+                    fontWeight: 600, 
+                    minWidth: 24, 
+                    textAlign: 'center',
+                    color: THEME.textPrimary,
+                    background: '#f8f9fa',
+                    padding: '4px 12px',
+                    borderRadius: 6,
+                    border: '1px solid #e9ecef'
+                  }}>
+                    {item.quantity}
+                  </span>
+                  <span style={{ 
+                    fontSize: 12, 
+                    color: THEME.textSecondary,
+                    fontStyle: 'italic'
+                  }}>
+                    (BOQ: {boqQuantities?.[mapTypeToCategory(item.type)] || 'Unlimited'})
+                  </span>
                   </div>
-                )}
                 
                 {/* Quantity display - Only shown in view mode */}
                 {isViewMode && (
@@ -1064,8 +1138,6 @@ const ProjPanels: React.FC = () => {
                 }}
               >
                 {isSaving ? '💾 Saving...' : 
-                 isViewMode ? '👁️ View Only' :
-                 isEditMode ? '💾 Update Revision' : 
                  isCreateNewRevision ? '💾 Save as New Rev' :
                  '💾 Save Project'}
               </button>
@@ -1109,7 +1181,14 @@ const ProjPanels: React.FC = () => {
             {/* Go Back to My Designs Button - Always visible in view mode */}
             {isViewMode && (
               <button
-                onClick={() => navigate("/my-designs")}
+                onClick={() => {
+                  const cameFromAdmin = (location as any).state?.cameFromAdmin;
+                  if (cameFromAdmin) {
+                    navigate('/admin');
+                  } else {
+                    navigate('/my-designs');
+                  }
+                }}
                 style={{
                   padding: '14px 36px',
                   background: '#3498db',
@@ -1124,7 +1203,7 @@ const ProjPanels: React.FC = () => {
                   transition: 'background 0.2s, transform 0.2s',
                 }}
               >
-                ← Go Back to My Designs
+                ← Go Back
               </button>
             )}
             
@@ -1148,8 +1227,14 @@ const ProjPanels: React.FC = () => {
                         }
                       });
                     } else {
-                      // Normal navigation for new projects
-                      navigate("/panel-type");
+                      // New project vs new revision
+                      if (isCreateNewRevision) {
+                        // Bypass BOQ redirect when adding to an existing project as a new revision
+                        navigate("/panel-type", { state: { isAddingToExistingProject: true } });
+                      } else {
+                        // Normal navigation for new projects → go to panel type selector
+                        navigate("/panel-type");
+                      }
                     }
                   }}
               style={{

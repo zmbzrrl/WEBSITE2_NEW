@@ -142,6 +142,97 @@ export const getDesigns = async (email: string) => {
   };
 };
 
+// 📋 GET ALL DESIGNS (ADMIN) - Mock implementation across all users
+export const getAllDesigns = async (filters?: {
+  location?: string;
+  operator?: string;
+  service_partner?: string;
+  projectName?: string;
+  panelType?: string;
+  userEmail?: string;
+  search?: string;
+  orderBy?: 'last_modified' | 'created_at';
+  ascending?: boolean;
+  limit?: number;
+}) => {
+  await new Promise(resolve => setTimeout(resolve, 200));
+  const {
+    location,
+    operator,
+    projectName,
+    panelType,
+    userEmail,
+    search,
+    orderBy = 'last_modified',
+    ascending = false,
+    limit
+  } = filters || {};
+
+  // Flatten all designs across users
+  let allDesigns: any[] = [];
+  Object.entries(mockDatabase).forEach(([email, data]) => {
+    const userDesigns = (data as any).designs || [];
+    userDesigns.forEach((d: any) => {
+      allDesigns.push({
+        id: d.id,
+        design_name: d.projectName,
+        panel_type: d.panelType,
+        design_data: d.designData,
+        created_at: d.createdAt,
+        last_modified: d.lastModified,
+        user_email: email,
+        project_name: d.projectName,
+        project_description: null,
+        location: d.designData?.location,
+        operator: d.designData?.operator,
+        service_partner: null
+      });
+    });
+  });
+
+  // Filters
+  if (userEmail && userEmail.trim() !== '') {
+    allDesigns = allDesigns.filter(d => (d.user_email || '').toLowerCase().includes(userEmail.toLowerCase()));
+  }
+  if (location && location.trim() !== '') {
+    allDesigns = allDesigns.filter(d => (d.location || '').toLowerCase().includes(location.toLowerCase()));
+  }
+  if (operator && operator.trim() !== '') {
+    allDesigns = allDesigns.filter(d => (d.operator || '').toLowerCase().includes(operator.toLowerCase()));
+  }
+  if (projectName && projectName.trim() !== '') {
+    allDesigns = allDesigns.filter(d => (d.project_name || '').toLowerCase().includes(projectName.toLowerCase()));
+  }
+  if (panelType && panelType.trim() !== '') {
+    allDesigns = allDesigns.filter(d => (d.panel_type || '').toLowerCase().includes(panelType.toLowerCase()));
+  }
+  if (search && search.trim() !== '') {
+    const s = search.toLowerCase();
+    allDesigns = allDesigns.filter(d =>
+      (d.project_name || '').toLowerCase().includes(s) ||
+      (d.design_name || '').toLowerCase().includes(s)
+    );
+  }
+
+  // Sort
+  allDesigns.sort((a, b) => {
+    const key = orderBy === 'created_at' ? 'created_at' : 'last_modified';
+    const av = new Date(a[key] || 0).getTime();
+    const bv = new Date(b[key] || 0).getTime();
+    return ascending ? av - bv : bv - av;
+  });
+
+  if (typeof limit === 'number' && limit > 0) {
+    allDesigns = allDesigns.slice(0, limit);
+  }
+
+  return {
+    success: true,
+    designs: allDesigns,
+    message: `Found ${allDesigns.length} designs (mock)`
+  };
+};
+
 // 🔍 Get a specific design by ID (like finding a specific recipe)
 export const getDesignById = async (email: string, designId: string) => {
   // ⏰ Simulate network delay

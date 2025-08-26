@@ -495,6 +495,7 @@ const SPCustomizer: React.FC = () => {
     backlight: string;
   
     plasticColor: string;
+    iconColor: string;
     textColor: string;
     fontSize: string;
     iconSize: string;
@@ -502,10 +503,11 @@ const SPCustomizer: React.FC = () => {
     extraComments?: string;
   }>({
     backgroundColor: '',
-    fonts: '',
+    fonts: 'Myriad Pro',
     backlight: '',
 
     plasticColor: '',
+    iconColor: 'auto',
     textColor: '#000000',
     fontSize: '12px',
     iconSize: '40px',
@@ -517,6 +519,7 @@ const SPCustomizer: React.FC = () => {
   const [fontSearch, setFontSearch] = useState('');
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
+  const [useCustomFont, setUseCustomFont] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
   // Function to determine icon color based on background
   const getIconColorFilter = (backgroundColor: string): string => {
@@ -1470,6 +1473,62 @@ const SPCustomizer: React.FC = () => {
                   }} />
                   Typography Font
                 </div>
+                
+                {/* Custom Font Checkbox */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  marginBottom: '12px' 
+                }}>
+                  <input
+                    type="checkbox"
+                    id="customFont"
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setPanelDesign(prev => ({ ...prev, fonts: '' }));
+                      } else {
+                        setPanelDesign(prev => ({ ...prev, fonts: 'Myriad Pro' }));
+                      }
+                    }}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <label 
+                    htmlFor="customFont"
+                    style={{
+                      fontSize: '14px',
+                      color: '#495057',
+                      cursor: 'pointer',
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                    }}
+                  >
+                    Custom Font
+                  </label>
+                </div>
+                
+                {/* Default Font Display */}
+                {!useCustomFont && (
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #dee2e6',
+                    fontSize: '14px',
+                    width: '100%',
+                    fontFamily: 'Myriad Pro, sans-serif',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    color: '#495057'
+                  }}>
+                    Myriad Pro
+                  </div>
+                )}
+                
+                {/* Custom Font Input - Only show when checkbox is checked */}
+                {useCustomFont && (
                 <div style={{ position: 'relative' }} ref={fontDropdownRef}>
                 <input
                   type="text"
@@ -1565,7 +1624,7 @@ const SPCustomizer: React.FC = () => {
                   </div>
                 )}
             </div>
-              
+                )}
               {/* Font Size Section */}
               <div style={{ 
                 marginBottom: '28px',

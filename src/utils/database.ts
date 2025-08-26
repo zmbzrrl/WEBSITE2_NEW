@@ -20,6 +20,10 @@ export const getDesigns = USE_REAL_DATABASE
   ? realDatabase.getDesigns 
   : mockDatabase.getDesigns;
 
+export const getAllDesigns = USE_REAL_DATABASE
+  ? (realDatabase as any).getAllDesigns
+  : (mockDatabase as any).getAllDesigns;
+
 export const deleteDesign = USE_REAL_DATABASE 
   ? realDatabase.deleteDesign 
   : mockDatabase.deleteDesign;

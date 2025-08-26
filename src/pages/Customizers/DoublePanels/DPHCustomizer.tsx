@@ -25,6 +25,7 @@ import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import FlipIcon from '@mui/icons-material/Flip';
+import QuantityDialog from '../../../components/QuantityDialog';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -90,6 +91,11 @@ const StepLabel = styled(Typography)<{ completed?: boolean; current?: boolean }>
   textAlign: 'center',
   fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
   letterSpacing: '0.5px',
+  maxWidth: '80px',
+  minHeight: '40px',
+  lineHeight: 1.2,
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
 }));
 
 const StyledButton = styled(Button)(({ theme }) => ({
@@ -540,6 +546,10 @@ const DPHCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
+  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('DP');
   const ICON_COLOR_FILTERS: { [key: string]: string } = {
     '#000000': 'brightness(0) saturate(100%)',
     '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
@@ -549,7 +559,7 @@ const DPHCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   
@@ -610,7 +620,7 @@ const DPHCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, updatePanel } = cartContext;
+  const { addToCart, updatePanel, projPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -698,14 +708,64 @@ const DPHCustomizer: React.FC = () => {
       panelDesign: { ...panelDesign, backbox, extraComments },
     };
 
+    // Enforce BOQ cap for new additions
+    const category = mapTypeToCategory(design.type);
+    const cap = (boqQuantities && (boqQuantities as any)[category]) || Infinity;
+    const existingCount = projPanels.filter(p => mapTypeToCategory(p.type) === category).length;
+    if (!(isEditMode && editPanelIndex !== undefined) && existingCount + 1 > cap) {
+      alert(`You have reached the BOQ limit for ${category}. Max: ${cap}`);
+      return;
+    }
+
     if (isEditMode && editPanelIndex !== undefined) {
       // Update existing panel
       updatePanel(editPanelIndex, design);
       navigate('/cart'); // Go back to cart after updating
     } else {
-      // Add new panel
-    addToCart(design);
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
+
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+        if (!boqQuantities) return undefined;
+        if (cat === 'EXT') {
+          const keys = ['X1H','X1V','X2H','X2V'] as const;
+          const total = keys
+            .map(k => (boqQuantities as any)[k] as number | undefined)
+            .filter((v): v is number => typeof v === 'number')
+            .reduce((a,b)=>a+b,0);
+          return total;
+        }
+        const cap = (boqQuantities as any)[cat];
+        return typeof cap === 'number' ? cap : undefined;
+      };
+
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          alert(`You have reached the BOQ limit for ${category}.`);
+          return;
+        }
+        setPendingDesign(design);
+        setPendingCategory(category);
+        setQtyRemaining(remaining);
+        setQtyOpen(true);
+        return;
+      }
+
+      addToCart(design);
     }
+  };
+
+  const handleQtyConfirm = (qty: number) => {
+    if (!pendingDesign) return;
+    const finalDesign = { ...pendingDesign, quantity: qty };
+    addToCart(finalDesign);
+    setPendingDesign(null);
+    setQtyOpen(false);
   };
 
   // Filter icons by selected category
@@ -881,7 +941,7 @@ const DPHCustomizer: React.FC = () => {
           zIndex: 2,
         }}
         onDragOver={e => { e.preventDefault(); }}
-        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
+        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
         >
           {icon && (
             <div
@@ -985,7 +1045,7 @@ const DPHCustomizer: React.FC = () => {
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
-    { step: 2, label: 'Select your icons' },
+    { step: 2, label: 'Select your\nicons' },
     { step: 3, label: 'Select Panel Design' },
     { step: 4, label: 'Review panel details' },
   ];
@@ -1022,7 +1082,11 @@ const DPHCustomizer: React.FC = () => {
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 110,
+                maxWidth: 80,
+                minHeight: 40,
+                lineHeight: 1.2,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
                 letterSpacing: 0.2,
               }}
             >
@@ -1175,6 +1239,15 @@ const DPHCustomizer: React.FC = () => {
       }
       return newTexts;
     });
+  };
+
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+    if (t === 'SP') return 'SP';
+    if (t === 'TAG') return 'TAG';
+    if (t === 'IDPG') return 'IDPG';
+    if (t === 'DPH' || t === 'DPV') return 'DP';
+    if (t.startsWith('X')) return 'EXT';
+    return 'SP';
   };
 
   return (
@@ -2051,6 +2124,13 @@ const DPHCustomizer: React.FC = () => {
           </div>
         )}
       </Container>
+      <QuantityDialog
+        open={qtyOpen}
+        category={pendingCategory}
+        remaining={qtyRemaining}
+        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
+        onConfirm={handleQtyConfirm}
+      />
     </Box>
   );
 };

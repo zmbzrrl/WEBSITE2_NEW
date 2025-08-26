@@ -49,6 +49,8 @@ import X1VCustomizer from "./pages/Customizers/ExtendedPanels/X1VCustomizer"; //
 import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";       // IDPG panel customizer
 import MyDesigns from "./pages/MyDesigns";                             // My Designs page
 import DatabaseTest from "./pages/DatabaseTest";                       // Database test page
+import AdminDashboard from "./pages/AdminDashboard";                    // Admin dashboard
+import { isAdminEmail } from "./utils/admin";
 
 // Component imports
 import { CartProvider, useCart } from "./contexts/CartContext";  // Cart functionality - manages shopping cart
@@ -112,7 +114,11 @@ export const ProjectContext = createContext<{
   location: string,              // 🗺️ Project location
   setLocation: React.Dispatch<React.SetStateAction<string>>,  // Function to update location
   operator: string,              // 🏢 Project operator/service partner
-  setOperator: React.Dispatch<React.SetStateAction<string>>   // Function to update operator
+  setOperator: React.Dispatch<React.SetStateAction<string>>,   // Function to update operator
+  allowedPanelTypes: string[],   // BOQ-selected allowed panel categories for selector gating
+  setAllowedPanelTypes: React.Dispatch<React.SetStateAction<string[]>>, // Update allowed panel categories
+  boqQuantities: Record<string, number>, // BOQ quantities per category key (SP, TAG, IDPG, DP, EXT)
+  setBoqQuantities: React.Dispatch<React.SetStateAction<Record<string, number>>>
 }>({ 
   // Default values - what the context starts with if nothing is set
   projectName: '', // Shows empty string if nothing is set
@@ -122,7 +128,11 @@ export const ProjectContext = createContext<{
   location: '', // 🗺️ Default location
   setLocation: () => {}, // Function to update location
   operator: '', // 🏢 Default operator
-  setOperator: () => {} // Function to update operator
+  setOperator: () => {}, // Function to update operator
+  allowedPanelTypes: [],
+  setAllowedPanelTypes: () => {},
+  boqQuantities: {},
+  setBoqQuantities: () => {}
 });
 
 
@@ -170,6 +180,14 @@ const AppRoutes = () => { // defines all the different pages/URLs
   const location = useLocation();  // Gets current URL location
   const navigate = useNavigate();  // Function to navigate to different pages
 
+  const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const email = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
+    if (!isAdminEmail(email)) {
+      return <Navigate to="/" replace />;
+    }
+    return <>{children}</>;
+  };
+
   return ( 
     // AnimatePresence adds smooth animations when switching between pages
     <AnimatePresence mode="wait">
@@ -210,6 +228,9 @@ const AppRoutes = () => { // defines all the different pages/URLs
         {/* My Designs page */}
         <Route path="/my-designs" element={<PageTransition><MyDesigns /></PageTransition>} />
         
+        {/* Admin dashboard */}
+        <Route path="/admin" element={<PageTransition><AdminGuard><AdminDashboard /></AdminGuard></PageTransition>} />
+
         {/* Database test page */}
         <Route path="/database-test" element={<PageTransition><DatabaseTest /></PageTransition>} />
         
@@ -237,6 +258,8 @@ const App: React.FC = () => {
   const [projectCode, setProjectCode] = useState('');  // Current project code
   const [location, setLocation] = useState('');        // 🗺️ Project location
   const [operator, setOperator] = useState('');        // 🏢 Project operator/service partner
+  const [allowedPanelTypes, setAllowedPanelTypes] = useState<string[]>([]); // BOQ-selected panel categories
+  const [boqQuantities, setBoqQuantities] = useState<Record<string, number>>({}); // BOQ quantities per category
 
   return (
     // ThemeProvider applies the Material-UI theme (colors, fonts, spacing) to the entire app
@@ -255,7 +278,11 @@ const App: React.FC = () => {
           location,
           setLocation,
           operator,
-          setOperator
+          setOperator,
+          allowedPanelTypes,
+          setAllowedPanelTypes,
+          boqQuantities,
+          setBoqQuantities
         }}>
           {/* ProjectSync keeps project data synchronized between contexts */}
           <ProjectSync />

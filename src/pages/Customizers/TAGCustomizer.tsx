@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../../components/CartButton";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from "../../assets/logo.png";
 import icons, { allIcons } from "../../assets/iconLibrary";
 import {
@@ -21,6 +21,7 @@ import { ralColors, RALColor } from '../../data/ralColors';
 import { ProjectContext } from '../../App';
 import { motion } from 'framer-motion';
 import TAG from "../../assets/panels/TAG_PIR.png";
+import QuantityDialog from '../../components/QuantityDialog';
 
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -87,6 +88,11 @@ const StepLabel = styled(Typography)<{ completed?: boolean; current?: boolean }>
   textAlign: 'center',
   fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
   letterSpacing: '0.5px',
+  maxWidth: '80px',
+  minHeight: '40px',
+  lineHeight: 1.2,
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
 }));
 
 const StyledButton = styled(Button)(({ theme }) => ({
@@ -497,6 +503,14 @@ const InformationBox = ({
 };
 
 const TAGCustomizer: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Edit mode state
+  const isEditMode = location.state?.editMode || false;
+  const editPanelIndex = location.state?.panelIndex;
+  const editPanelData = location.state?.panelData;
+  
   // Add CSS animation for pulse effect
   React.useEffect(() => {
     const style = document.createElement('style');
@@ -524,7 +538,6 @@ const TAGCustomizer: React.FC = () => {
     };
   }, []);
 
-  const navigate = useNavigate();
   const cartContext = useCart();
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
@@ -596,7 +609,11 @@ const TAGCustomizer: React.FC = () => {
 
 
 
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
+  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('TAG');
 
   useEffect(() => {
     import("../../assets/iconLibrary").then((module) => {
@@ -605,11 +622,85 @@ const TAGCustomizer: React.FC = () => {
     });
   }, []);
 
+  // Load existing panel data if in edit mode
+  useEffect(() => {
+    if (isEditMode && editPanelData) {
+      console.log('🔍 TAG EDIT MODE DEBUG:');
+      console.log('isEditMode:', isEditMode);
+      console.log('editPanelData:', editPanelData);
+      console.log('editPanelData type:', typeof editPanelData);
+      console.log('editPanelData keys:', Object.keys(editPanelData));
+      
+      // Deep copy the edit data to prevent shared references
+      const deepCopiedData = JSON.parse(JSON.stringify(editPanelData));
+      
+      // Handle different data structures
+      let panelDesignData = null;
+      let iconsData = null;
+      
+      // Check if this is a project panel (from project structure)
+      if (deepCopiedData.panelDesign) {
+        console.log('📋 Found project panel structure');
+        panelDesignData = deepCopiedData.panelDesign;
+        iconsData = deepCopiedData.icons;
+      } 
+      // Check if this is an individual panel (from database structure)
+      else if (deepCopiedData.designData) {
+        console.log('📋 Found individual panel structure');
+        // For individual panels saved in database, the structure is different
+        const designData = deepCopiedData.designData;
+        console.log('designData:', designData);
+        console.log('designData keys:', Object.keys(designData));
+        
+        if (designData.panelDesign) {
+          panelDesignData = designData.panelDesign;
+        }
+        if (designData.icons) {
+          iconsData = designData.icons;
+        }
+      }
+      
+      // Load panel design
+      if (panelDesignData) {
+        setPanelDesign(panelDesignData);
+        setBackbox(panelDesignData.backbox || '');
+        setExtraComments(panelDesignData.extraComments || '');
+      }
+      
+      // Load placed icons
+      if (iconsData) {
+        const loadedIcons: PlacedIcon[] = iconsData
+          .filter((icon: any) => icon.iconId)
+          .map((icon: any) => ({
+            id: Date.now() + Math.random(), // Generate new IDs
+            iconId: icon.iconId,
+            src: icon.src || '',
+            label: icon.label || '',
+            position: icon.position,
+            category: icon.category || ''
+          }));
+        setPlacedIcons(loadedIcons);
+        
+        // Load icon texts
+        const loadedTexts: IconTexts = {};
+        iconsData.forEach((icon: any) => {
+          if (icon.text) {
+            loadedTexts[icon.position] = icon.text;
+          }
+        });
+        setIconTexts(loadedTexts);
+      }
+      
+      // Set current step to design step (step 3) for editing
+      setCurrentStep(3);
+    }
+  }, [isEditMode, editPanelData]);
+
   if (!cartContext) {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart } = cartContext;
+  const { addToCart, projPanels, updatePanel } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -721,6 +812,15 @@ const TAGCustomizer: React.FC = () => {
     }
   };
 
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+    if (t === 'SP') return 'SP';
+    if (t === 'TAG') return 'TAG';
+    if (t === 'IDPG') return 'IDPG';
+    if (t === 'DPH' || t === 'DPV') return 'DP';
+    if (t.startsWith('X')) return 'EXT';
+    return 'SP';
+  };
+
   const handleAddToCart = (): void => {
     // Check if backbox details are provided
     if (!backbox.trim()) {
@@ -746,7 +846,57 @@ const TAGCustomizer: React.FC = () => {
       quantity: 1,
       panelDesign: { ...panelDesign, backbox, extraComments },
     };
-    addToCart(design);
+    
+    if (isEditMode && editPanelIndex !== undefined) {
+      // Update existing panel in edit mode
+      console.log('✅ Updating existing TAG panel at index:', editPanelIndex);
+      updatePanel(editPanelIndex, design);
+      navigate('/cart');
+    } else {
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
+
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+        if (!boqQuantities) return undefined;
+        if (cat === 'EXT') {
+          const keys = ['X1H','X1V','X2H','X2V'] as const;
+          const total = keys
+            .map(k => (boqQuantities as any)[k] as number | undefined)
+            .filter((v): v is number => typeof v === 'number')
+            .reduce((a,b)=>a+b,0);
+          return total;
+        }
+        const cap = (boqQuantities as any)[cat];
+        return typeof cap === 'number' ? cap : undefined;
+      };
+
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          alert(`You have reached the BOQ limit for ${category}.`);
+          return;
+        }
+        setPendingDesign(design);
+        setPendingCategory(category);
+        setQtyRemaining(remaining);
+        setQtyOpen(true);
+        return;
+      }
+
+      addToCart(design);
+    }
+  };
+
+  const handleQtyConfirm = (qty: number) => {
+    if (!pendingDesign) return;
+    const finalDesign = { ...pendingDesign, quantity: qty };
+    addToCart(finalDesign);
+    setPendingDesign(null);
+    setQtyOpen(false);
   };
 
   // Filter icons by selected category
@@ -1317,7 +1467,7 @@ const TAGCustomizer: React.FC = () => {
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
-    { step: 2, label: 'Select your icons' },
+    { step: 2, label: 'Select your\nicons' },
     { step: 3, label: 'Select Panel Design' },
     { step: 4, label: 'Review panel details' },
   ];
@@ -1354,7 +1504,11 @@ const TAGCustomizer: React.FC = () => {
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 110,
+                maxWidth: 80,
+                minHeight: 40,
+                lineHeight: 1.2,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
                 letterSpacing: 0.2,
               }}
             >
@@ -2125,7 +2279,7 @@ const TAGCustomizer: React.FC = () => {
                 },
               }}
             >
-                    Add Panel to Project
+                    {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
             </StyledButton>
         </Box>
               </div>
@@ -2194,6 +2348,13 @@ const TAGCustomizer: React.FC = () => {
           </div>
         )}
       </Container>
+      <QuantityDialog
+        open={qtyOpen}
+        category={pendingCategory}
+        remaining={qtyRemaining}
+        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
+        onConfirm={handleQtyConfirm}
+      />
     </Box>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -22,6 +22,7 @@ import logo2 from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ProjectContext } from '../../App';
+import { useCart } from '../../contexts/CartContext';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -112,7 +113,8 @@ const ExtendedPanelSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, allowedPanelTypes, boqQuantities } = useContext(ProjectContext);
+  const { projPanels } = useCart();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -122,16 +124,55 @@ const ExtendedPanelSelector = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    // Guard: Only accessible if EXT was allowed in BOQ
+    if (!allowedPanelTypes || !allowedPanelTypes.includes('EXT')) {
+      navigate('/boq', { replace: true });
+    }
+  }, [allowedPanelTypes, navigate]);
+
+  const usedEXT = useMemo(() => {
+    return projPanels.reduce((sum, p) => {
+      if (p.type && p.type.toUpperCase().startsWith('X')) {
+        const qty = typeof p.quantity === 'number' && !isNaN(p.quantity) ? p.quantity : 1;
+        return sum + qty;
+      }
+      return sum;
+    }, 0);
+  }, [projPanels]);
+
+  // Compute overall Extended cap as the sum of selected subtypes
+  const remainingEXT = useMemo(() => {
+    const capSum = ['X1H','X1V','X2H','X2V']
+      .map(k => (boqQuantities as any)?.[k] as number | undefined)
+      .filter((v): v is number => typeof v === 'number')
+      .reduce((a, b) => a + b, 0);
+    if (!capSum || isNaN(capSum)) return Infinity;
+    return Math.max(0, capSum - usedEXT);
+  }, [boqQuantities, usedEXT]);
+
+  useEffect(() => {
+    // If EXT category is exhausted per BOQ, redirect back to main selector
+    const cap = boqQuantities && typeof boqQuantities['EXT'] === 'number' ? boqQuantities['EXT'] : undefined;
+    if (cap !== undefined && remainingEXT <= 0) {
+      navigate('/panel-type', { replace: true });
+    }
+  }, [remainingEXT, boqQuantities, navigate]);
+
+  
+
   const horizontalPanels = [
     {
       name: "Extended Panel, Horizontal, 1 Socket",
       image: X1LS,
       path: "/customizer/x1h",
+      subtype: 'X1H' as const,
     },
     {
       name: "Extended 2 Horizontal",
       image: X2LS,
       path: "/customizer/x2h",
+      subtype: 'X2H' as const,
     },
   ];
   const verticalPanels = [
@@ -139,13 +180,41 @@ const ExtendedPanelSelector = () => {
       name: "Extended 1 Vertical",
       image: X1V,
       path: "/customizer/x1v",
+      subtype: 'X1V' as const,
     },
     {
       name: "Extended 2 Vertical",
       image: X2V,
       path: "/customizer/x2v",
+      subtype: 'X2V' as const,
     },
   ];
+
+  // Determine which extended subtypes are allowed from BOQ selections
+  const allowedEXTSubtypes = useMemo(() => {
+    return ['X1H','X1V','X2H','X2V'].filter(k => {
+      const cap = (boqQuantities as any)?.[k];
+      return typeof cap === 'number' && cap > 0;
+    });
+  }, [boqQuantities]);
+
+  // Filter panels to only show selected subtypes
+  const filteredHorizontal = useMemo(() => horizontalPanels.filter(p => (allowedEXTSubtypes as string[]).includes(p.subtype)), [horizontalPanels, allowedEXTSubtypes]);
+  const filteredVertical = useMemo(() => verticalPanels.filter(p => (allowedEXTSubtypes as string[]).includes(p.subtype)), [verticalPanels, allowedEXTSubtypes]);
+
+  // Per-subtype remaining function
+  const remainingForSubtype = (subtype: 'X1H' | 'X1V' | 'X2H' | 'X2V') => {
+    const cap = (boqQuantities as any)?.[subtype] as number | undefined;
+    if (typeof cap !== 'number') return undefined;
+    const used = projPanels.reduce((sum, p) => {
+      if (String(p.type).toUpperCase() === subtype) {
+        const qty = typeof p.quantity === 'number' && !isNaN(p.quantity) ? p.quantity : 1;
+        return sum + qty;
+      }
+      return sum;
+    }, 0);
+    return Math.max(0, cap - used);
+  };
 
   return (
     <Box
@@ -326,7 +395,7 @@ const ExtendedPanelSelector = () => {
               <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
             </Box>
             <Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
-              {horizontalPanels.map((panel) => (
+              {filteredHorizontal.map((panel) => (
                 <Grid
                   key={panel.name}
                   item
@@ -346,6 +415,27 @@ const ExtendedPanelSelector = () => {
                         p: 3,
                       }}
                     >
+                      {typeof remainingForSubtype(panel.subtype) === 'number' && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: 12,
+                            bottom: 12,
+                            px: 1.25,
+                            py: 0.5,
+                            borderRadius: 12,
+                            backgroundColor: '#ffffff',
+                            color: '#111827',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.3,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                          }}
+                        >
+                          {remainingForSubtype(panel.subtype)} left
+                        </Box>
+                      )}
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}
@@ -403,7 +493,7 @@ const ExtendedPanelSelector = () => {
               <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
             </Box>
             <Grid container spacing={4} justifyContent="center">
-              {verticalPanels.map((panel) => (
+              {filteredVertical.map((panel) => (
                 <Grid
                   key={panel.name}
                   item
@@ -423,6 +513,27 @@ const ExtendedPanelSelector = () => {
                         p: 3,
                       }}
                     >
+                      {typeof remainingForSubtype(panel.subtype) === 'number' && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: 12,
+                            bottom: 12,
+                            px: 1.25,
+                            py: 0.5,
+                            borderRadius: 12,
+                            backgroundColor: '#ffffff',
+                            color: '#111827',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.3,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                          }}
+                        >
+                          {remainingForSubtype(panel.subtype)} left
+                        </Box>
+                      )}
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}

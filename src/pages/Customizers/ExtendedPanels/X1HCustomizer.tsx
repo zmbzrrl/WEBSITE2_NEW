@@ -18,6 +18,7 @@ import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
+import QuantityDialog from '../../../components/QuantityDialog';
 import SP from '../../../assets/panels/SP.png';
 import logo from '../../../assets/logo.png';
 
@@ -89,6 +90,11 @@ const StepLabel = styled(Typography)<{ completed?: boolean; current?: boolean }>
   textAlign: 'center',
   fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
   letterSpacing: '0.5px',
+  maxWidth: '80px',
+  minHeight: '40px',
+  lineHeight: 1.2,
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
 }));
 
 const StyledButton = styled(Button)(({ theme }) => ({
@@ -123,7 +129,7 @@ interface PlacedIcon {
 
 interface GridCellProps {
   index: number;
-  onDrop: (index: number, iconId: string) => void;
+  onDrop: (index: number, data: string) => void;
   children: React.ReactNode;
 }
 
@@ -153,30 +159,30 @@ const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const iconId = e.dataTransfer.getData('text/plain');
-    onDrop(index, iconId);
+    const data = e.dataTransfer.getData('text/plain');
+    onDrop(index, data);
   };
 
   return (
-  <div
+    <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-    style={{
-      width: "30%",
-      height: "100px",
-      display: "inline-block",
-      textAlign: "center",
-      background: "transparent",
-      margin: "5px",
-      position: "relative",
-      boxSizing: "border-box",
-      verticalAlign: "top",
+      style={{
+        width: "30%",
+        height: "100px",
+        display: "inline-block",
+        textAlign: "center",
+        background: "transparent",
+        margin: "5px",
+        position: "relative",
+        boxSizing: "border-box",
+        verticalAlign: "top",
         cursor: "copy",
-    }}
-  >
-    {children}
-  </div>
-);
+      }}
+    >
+      {children}
+    </div>
+  );
 };
 
 // Google Fonts API key (for demo, you should use your own key for production)
@@ -218,7 +224,6 @@ const InformationBox = ({
   setExtraComments,
   panelDesign,
   placedIcons,
-  getIconColorFilter,
   ralColors
 }: {
   backbox: string;
@@ -228,7 +233,6 @@ const InformationBox = ({
   setExtraComments: (v: string) => void;
   panelDesign: any;
   placedIcons: any[];
-  getIconColorFilter: { [key: string]: string };
   ralColors: any[];
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
@@ -562,11 +566,15 @@ const X1HCustomizer: React.FC = () => {
     }
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   const [swapSides, setSwapSides] = useState(false); // NEW: swap state
   const [mirrorGrid, setMirrorGrid] = useState(false); // NEW: mirror state
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
+  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('EXT');
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -629,7 +637,7 @@ const X1HCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, updatePanel } = cartContext;
+  const { addToCart, updatePanel, loadProjectPanels, projPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -726,14 +734,82 @@ const X1HCustomizer: React.FC = () => {
       panelDesign: { ...panelDesign, backbox, extraComments, swapSides, mirrorGrid },
     };
 
-    if (isEditMode && editPanelIndex !== undefined) {
-      // Update existing panel
-      updatePanel(editPanelIndex, design);
-      navigate('/cart'); // Go back to cart after updating
-    } else {
-      // Add new panel
-    addToCart(design);
+    // Enforce BOQ cap for new additions
+    const category = mapTypeToCategory(design.type);
+    const cap = (boqQuantities && (boqQuantities as any)[category]) || Infinity;
+    const existingCount = projPanels.filter(p => mapTypeToCategory(p.type) === category).length;
+    if (!isEditMode && existingCount + 1 > cap) {
+      alert(`You have reached the BOQ limit for ${category}. Max: ${cap}`);
+      return;
     }
+
+    if (isEditMode) {
+      // Handle edit mode - either update existing panel or add new one
+      if (editPanelIndex !== undefined) {
+        // Update existing panel at specific index (for project panels)
+        console.log('🔧 Updating panel at index:', editPanelIndex);
+        updatePanel(editPanelIndex, design);
+      } else {
+        // For individual panels, replace the entire cart with this panel
+        console.log('🔧 Replacing cart with edited individual panel');
+        // Clear existing panels and add the edited one
+        loadProjectPanels([design]);
+      }
+      
+      // Preserve the project-level edit state when navigating back
+      const preservedState = location.state?.projectEditMode !== undefined ? {
+        projectEditMode: location.state.projectEditMode,
+        projectDesignId: location.state.projectDesignId,
+        projectOriginalName: location.state.projectOriginalName,
+        projectCreateNewRevision: location.state.projectCreateNewRevision
+      } : {};
+      
+      navigate('/cart', { state: preservedState }); // Go back to cart after updating
+    } else {
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
+
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+        if (!boqQuantities) return undefined;
+        if (cat === 'EXT') {
+          const keys = ['X1H','X1V','X2H','X2V'] as const;
+          const total = keys
+            .map(k => (boqQuantities as any)[k] as number | undefined)
+            .filter((v): v is number => typeof v === 'number')
+            .reduce((a,b)=>a+b,0);
+          return total;
+        }
+        const cap = (boqQuantities as any)[cat];
+        return typeof cap === 'number' ? cap : undefined;
+      };
+
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          alert(`You have reached the BOQ limit for ${category}.`);
+          return;
+        }
+        setPendingDesign(design);
+        setPendingCategory(category);
+        setQtyRemaining(remaining);
+        setQtyOpen(true);
+        return;
+      }
+
+      addToCart(design);
+    }
+  };
+
+  const handleQtyConfirm = (qty: number) => {
+    if (!pendingDesign) return;
+    const finalDesign = { ...pendingDesign, quantity: qty };
+    addToCart(finalDesign);
+    setPendingDesign(null);
+    setQtyOpen(false);
   };
 
   // Filter icons by selected category
@@ -975,7 +1051,7 @@ const X1HCustomizer: React.FC = () => {
           zIndex: 2,
         }}
         onDragOver={e => { e.preventDefault(); }}
-        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
+        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
         >
           {icon && (
             <div
@@ -1083,7 +1159,7 @@ const X1HCustomizer: React.FC = () => {
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
-    { step: 2, label: 'Select your icons' },
+    { step: 2, label: 'Select your\nicons' },
     { step: 3, label: 'Select Panel Design' },
     { step: 4, label: 'Review panel details' },
   ];
@@ -1120,7 +1196,11 @@ const X1HCustomizer: React.FC = () => {
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 110,
+                maxWidth: 80,
+                minHeight: 40,
+                lineHeight: 1.2,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
                 letterSpacing: 0.2,
               }}
             >
@@ -1174,6 +1254,15 @@ const X1HCustomizer: React.FC = () => {
   const config = getPanelLayoutConfig('X1H');
   console.log('X1H iconPositions length:', config.iconPositions?.length, config.iconPositions);
   const { dimensions, iconLayout, textLayout, specialLayouts, iconPositions = [] } = config;
+
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+    if (t === 'SP') return 'SP';
+    if (t === 'TAG') return 'TAG';
+    if (t === 'IDPG') return 'IDPG';
+    if (t === 'DPH' || t === 'DPV') return 'DP';
+    if (t.startsWith('X')) return 'EXT';
+    return 'SP';
+  };
 
   return (
     <Box
@@ -1938,6 +2027,13 @@ const X1HCustomizer: React.FC = () => {
           </div>
         )}
       </Container>
+      <QuantityDialog
+        open={qtyOpen}
+        category={pendingCategory}
+        remaining={qtyRemaining}
+        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
+        onConfirm={handleQtyConfirm}
+      />
     </Box>
   );
 };

@@ -182,6 +182,179 @@ export const getDesigns = async (email: string) => {
   }
 };
 
+// 📋 GET ALL DESIGNS (ADMIN) - Fetch designs across all users with optional filters
+// This queries the api.designs_with_projects view to include project metadata like location/operator
+export const getAllDesigns = async (filters?: {
+  location?: string;
+  operator?: string;
+  service_partner?: string;
+  projectName?: string;
+  panelType?: string;
+  userEmail?: string;
+  search?: string; // free-text search across project/design names
+  orderBy?: 'last_modified' | 'created_at';
+  ascending?: boolean;
+  limit?: number;
+}) => {
+  try {
+    const {
+      location,
+      operator,
+      service_partner,
+      projectName,
+      panelType,
+      userEmail,
+      search,
+      orderBy = 'last_modified',
+      ascending = false,
+      limit
+    } = filters || {};
+
+    let query = supabase
+      .from('designs_with_projects')
+      .select('*');
+
+    if (location && location.trim() !== '') {
+      query = query.ilike('location', `%${location}%`);
+    }
+    if (operator && operator.trim() !== '') {
+      query = query.ilike('operator', `%${operator}%`);
+    }
+    if (service_partner && service_partner.trim() !== '') {
+      query = query.ilike('service_partner', `%${service_partner}%`);
+    }
+    if (projectName && projectName.trim() !== '') {
+      query = query.ilike('project_name', `%${projectName}%`);
+    }
+    if (panelType && panelType.trim() !== '') {
+      query = query.ilike('panel_type', `%${panelType}%`);
+    }
+    if (userEmail && userEmail.trim() !== '') {
+      query = query.ilike('user_email', `%${userEmail}%`);
+    }
+    if (search && search.trim() !== '') {
+      // Search across project and design names
+      query = query.or(
+        `ilike(project_name,%${search}%),ilike(design_name,%${search}%)`
+      );
+    }
+
+    query = query.order(orderBy, { ascending });
+    if (typeof limit === 'number' && limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
+    if (!error) {
+      return {
+        success: true,
+        designs: data || [],
+        message: 'All designs retrieved successfully from Supabase!'
+      };
+    }
+
+    // Fallback if the view doesn't exist: join user_designs with user_projects and filter client-side
+    console.warn('⚠️ Falling back to joined query because view is missing or not accessible:', error);
+    const { data: joined, error: joinError } = await supabase
+      .from('user_designs')
+      .select(`
+        id,
+        design_name,
+        panel_type,
+        design_data,
+        created_at,
+        last_modified,
+        user_email,
+        user_projects (
+          project_name,
+          project_description
+        )
+      `)
+      .eq('is_active', true)
+      .order('last_modified', { ascending });
+
+    if (joinError) {
+      console.error('❌ Error getting all designs via join fallback:', joinError);
+      return {
+        success: false,
+        error: joinError.message,
+        message: 'Failed to get all designs from Supabase'
+      };
+    }
+
+    // Flatten and apply filters client-side
+    let flattened = (joined || []).map((d: any) => {
+      const dd = d.design_data || {};
+      const ddn = dd.designData || {};
+      return {
+        id: d.id,
+        design_name: d.design_name,
+        panel_type: d.panel_type,
+        design_data: d.design_data,
+        created_at: d.created_at,
+        last_modified: d.last_modified,
+        user_email: d.user_email,
+        project_name: d.user_projects?.project_name,
+        project_description: d.user_projects?.project_description,
+        location: (d.user_projects as any)?.location ?? dd.location ?? ddn.location ?? null,
+        operator: (d.user_projects as any)?.operator ?? dd.operator ?? ddn.operator ?? null,
+        service_partner: (d.user_projects as any)?.service_partner ?? dd.service_partner ?? ddn.service_partner ?? null
+      };
+    });
+
+    const toLower = (s: any) => (s ? String(s).toLowerCase() : '');
+    if (location && location.trim() !== '') {
+      const loc = location.toLowerCase();
+      flattened = flattened.filter(d => toLower(d.location).includes(loc));
+    }
+    if (operator && operator.trim() !== '') {
+      const op = operator.toLowerCase();
+      flattened = flattened.filter(d => toLower(d.operator).includes(op));
+    }
+    if (service_partner && service_partner.trim() !== '') {
+      const sp = service_partner.toLowerCase();
+      flattened = flattened.filter(d => toLower(d.service_partner).includes(sp));
+    }
+    if (projectName && projectName.trim() !== '') {
+      const pn = projectName.toLowerCase();
+      flattened = flattened.filter(d => toLower(d.project_name).includes(pn));
+    }
+    if (panelType && panelType.trim() !== '') {
+      const pt = panelType.toLowerCase();
+      flattened = flattened.filter(d => toLower(d.panel_type).includes(pt));
+    }
+    if (userEmail && userEmail.trim() !== '') {
+      const ue = userEmail.toLowerCase();
+      flattened = flattened.filter(d => toLower(d.user_email).includes(ue));
+    }
+    if (search && search.trim() !== '') {
+      const s = search.toLowerCase();
+      flattened = flattened.filter(d => toLower(d.project_name).includes(s) || toLower(d.design_name).includes(s));
+    }
+
+    flattened.sort((a: any, b: any) => {
+      const key = orderBy === 'created_at' ? 'created_at' : 'last_modified';
+      const av = new Date(a[key] || 0).getTime();
+      const bv = new Date(b[key] || 0).getTime();
+      return ascending ? av - bv : bv - av;
+    });
+
+    const limited = typeof limit === 'number' && limit > 0 ? flattened.slice(0, limit) : flattened;
+    return {
+      success: true,
+      designs: limited,
+      message: 'All designs retrieved successfully from Supabase (join fallback)'
+    };
+  } catch (error) {
+    console.error('❌ Unexpected error getting all designs:', error);
+    return {
+      success: false,
+      error: 'Unexpected error',
+      message: 'Failed to get all designs'
+    };
+  }
+};
+
 // 🗑️ DELETE DESIGN FUNCTION - This is like throwing away a recipe from the REAL pantry
 // This function takes a user's email and a design ID, then removes that design from Supabase
 export const deleteDesign = async (email: string, designId: string) => {

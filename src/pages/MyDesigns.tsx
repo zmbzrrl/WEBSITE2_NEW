@@ -116,7 +116,7 @@ const RevisionCard = styled(Card)(({ theme }) => ({
 const MyDesigns: React.FC = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { setProjectName, setProjectCode, setLocation, setOperator } = useContext(ProjectContext);
+  const { setProjectName, setProjectCode, setLocation, setOperator, setAllowedPanelTypes } = useContext(ProjectContext);
   
   const [designs, setDesigns] = useState<any[]>([]);
   const [organizedDesigns, setOrganizedDesigns] = useState<any>({});
@@ -575,8 +575,9 @@ const MyDesigns: React.FC = () => {
         setLocation(projectDetails.location);
         setOperator(projectDetails.operator);
         
-        // Navigate to panel type selection
-        navigate('/panel-type', { state: { projectDetails } });
+        // Navigate to BOQ first for selecting allowed panel categories
+        setAllowedPanelTypes([]);
+        navigate('/boq');
       } else {
         console.error('Failed to submit project details:', result.error);
         // Still navigate even if email fails
@@ -584,7 +585,8 @@ const MyDesigns: React.FC = () => {
         setProjectCode(projectDetails.projectCode);
         setLocation(projectDetails.location);
         setOperator(projectDetails.operator);
-        navigate('/panel-type', { state: { projectDetails } });
+        setAllowedPanelTypes([]);
+        navigate('/boq');
       }
     } catch (error) {
       console.error('Error submitting project details:', error);
@@ -593,7 +595,8 @@ const MyDesigns: React.FC = () => {
       setProjectCode(projectDetails.projectCode);
       setLocation(projectDetails.location);
       setOperator(projectDetails.operator);
-      navigate('/panel-type', { state: { projectDetails } });
+      setAllowedPanelTypes([]);
+      navigate('/boq');
     }
   };
   

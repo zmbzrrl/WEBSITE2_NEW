@@ -117,8 +117,75 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setProjPanels([]);
   }, []);
 
+  // Create a stable string representation for deep objects with sorted keys
+  const stableStringify = (value: any): string => {
+    const seen = new WeakSet();
+    const stringify = (val: any): any => {
+      if (val === null || typeof val !== 'object') return val;
+      if (seen.has(val)) return undefined;
+      seen.add(val);
+      if (Array.isArray(val)) return val.map(stringify);
+      const keys = Object.keys(val).sort();
+      const obj: Record<string, any> = {};
+      for (const key of keys) {
+        obj[key] = stringify(val[key]);
+      }
+      return obj;
+    };
+    return JSON.stringify(stringify(value));
+  };
+
+  // Generate a design key ignoring quantity/display-only fields
+  const generateDesignKey = (item: CartItem): string => {
+    const normalizedIcons = (item.icons || [])
+      .slice()
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map(icon => ({
+        iconId: icon.iconId ?? null,
+        label: icon.label ?? '',
+        position: icon.position ?? 0,
+        text: icon.text ?? '',
+        category: icon.category ?? '',
+        src: icon.src ?? ''
+      }));
+
+    const panelDesignNormalized = item.panelDesign
+      ? {
+          backgroundColor: item.panelDesign.backgroundColor ?? '',
+          iconColor: item.panelDesign.iconColor ?? '',
+          textColor: item.panelDesign.textColor ?? '',
+          fontSize: item.panelDesign.fontSize ?? '',
+          iconSize: item.panelDesign.iconSize ?? '',
+          fonts: item.panelDesign.fonts ?? '',
+          backbox: item.panelDesign.backbox ?? '',
+          extraComments: item.panelDesign.extraComments ?? '',
+          isLayoutReversed: item.panelDesign.isLayoutReversed ?? false,
+        }
+      : undefined;
+
+    const keyObj = {
+      type: item.type,
+      icons: normalizedIcons,
+      panelDesign: panelDesignNormalized,
+    };
+    return stableStringify(keyObj);
+  };
+
   const addToCart = useCallback((item: CartItem): void => {
-    setProjPanels((prev) => [...prev, { ...item }]);
+    setProjPanels((prev) => {
+      const newItemQuantity = Math.max(1, item.quantity || 1);
+      const newKey = generateDesignKey(item);
+      for (let i = 0; i < prev.length; i++) {
+        const existing = prev[i];
+        if (generateDesignKey(existing) === newKey) {
+          const updated = [...prev];
+          const existingQty = Math.max(0, existing.quantity || 0);
+          updated[i] = { ...existing, quantity: existingQty + newItemQuantity };
+          return updated;
+        }
+      }
+      return [...prev, { ...item, quantity: newItemQuantity }];
+    });
     setIsCounting(true);
   }, []);
 

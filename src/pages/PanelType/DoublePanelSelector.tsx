@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -17,6 +17,7 @@ import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ProjectContext } from '../../App';
+import { useCart } from '../../contexts/CartContext';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -107,7 +108,8 @@ const DoublePanelSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, allowedPanelTypes, boqQuantities } = useContext(ProjectContext);
+  const { projPanels } = useCart();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -116,6 +118,36 @@ const DoublePanelSelector = () => {
 
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    // Guard: Only accessible if DP was allowed in BOQ
+    if (!allowedPanelTypes || !allowedPanelTypes.includes('DP')) {
+      navigate('/boq', { replace: true });
+    }
+  }, [allowedPanelTypes, navigate]);
+
+  useEffect(() => {
+    // If DP category is exhausted per BOQ, redirect back to main selector
+    const cap = boqQuantities && typeof boqQuantities['DP'] === 'number' ? boqQuantities['DP'] : undefined;
+    if (cap !== undefined && remainingDP <= 0) {
+      navigate('/panel-type', { replace: true });
+    }
+  }, [remainingDP, boqQuantities, navigate]);
+
+  const usedDP = useMemo(() => {
+    return projPanels.reduce((sum, p) => {
+      if (p.type === 'DPH' || p.type === 'DPV') {
+        const qty = typeof p.quantity === 'number' && !isNaN(p.quantity) ? p.quantity : 1;
+        return sum + qty;
+      }
+      return sum;
+    }, 0);
+  }, [projPanels]);
+
+  const remainingDP = useMemo(() => {
+    const cap = boqQuantities && typeof boqQuantities['DP'] === 'number' ? boqQuantities['DP'] : undefined;
+    return cap === undefined ? Infinity : Math.max(0, cap - usedDP);
+  }, [boqQuantities, usedDP]);
 
   const panelTypes = [
     {
@@ -297,6 +329,27 @@ const DoublePanelSelector = () => {
                         minHeight: 400,
                       }}
                     >
+                      {typeof (boqQuantities as any)?.['DP'] === 'number' && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: 16,
+                            bottom: 14,
+                            px: 1.25,
+                            py: 0.5,
+                            borderRadius: 12,
+                            backgroundColor: '#ffffff',
+                            color: '#111827',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.3,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                          }}
+                        >
+                          {Math.max(0, remainingDP === Infinity ? 0 : remainingDP)} left
+                        </Box>
+                      )}
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}

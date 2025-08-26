@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
 import CartButton from "../../components/CartButton";
+import QuantityDialog from '../../components/QuantityDialog';
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import g18Icon from "../../assets/icons/G-GuestServices/G18.png";
@@ -297,8 +298,8 @@ const IDPGCustomizer = () => {
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const navigate = useNavigate();
-  const { addToCart, updatePanel } = useCart();
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { addToCart, updatePanel, projPanels } = useCart();
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   const [panelDesign, setPanelDesign] = useState({
@@ -997,6 +998,11 @@ const IDPGCustomizer = () => {
     : [];
 
   // Add Panel to Project handler
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
+  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('IDPG');
+
   const handleAddToCart = (): void => {
     // Check if backbox details are provided
     if (!backbox.trim()) {
@@ -1028,9 +1034,59 @@ const IDPGCustomizer = () => {
       updatePanel(editPanelIndex, design);
       navigate('/cart'); // Go back to cart after updating
     } else {
-      // Add new panel
-      addToCart(design);
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
+
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+        if (!boqQuantities) return undefined;
+        if (cat === 'EXT') {
+          const keys = ['X1H','X1V','X2H','X2V'] as const;
+          const total = keys
+            .map(k => (boqQuantities as any)[k] as number | undefined)
+            .filter((v): v is number => typeof v === 'number')
+            .reduce((a,b)=>a+b,0);
+          return total;
+        }
+        const cap = (boqQuantities as any)[cat];
+        return typeof cap === 'number' ? cap : undefined;
+      };
+
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          alert(`You have reached the BOQ limit for ${category}.`);
+          return;
+        }
+        setPendingDesign(design as any);
+        setPendingCategory(category);
+        setQtyRemaining(remaining);
+        setQtyOpen(true);
+        return;
+      }
+
+      addToCart(design as any);
     }
+  };
+
+  const handleQtyConfirm = (qty: number) => {
+    if (!pendingDesign) return;
+    const finalDesign = { ...(pendingDesign as any), quantity: qty };
+    addToCart(finalDesign);
+    setPendingDesign(null);
+    setQtyOpen(false);
+  };
+
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+    if (t === 'SP') return 'SP';
+    if (t === 'TAG') return 'TAG';
+    if (t === 'IDPG') return 'IDPG';
+    if (t === 'DPH' || t === 'DPV') return 'DP';
+    if (t.startsWith('X')) return 'EXT';
+    return 'SP';
   };
 
   return (
@@ -1796,6 +1852,13 @@ const IDPGCustomizer = () => {
           </motion.div>
         )}
       </Container>
+      <QuantityDialog
+        open={qtyOpen}
+        category={pendingCategory}
+        remaining={qtyRemaining}
+        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
+        onConfirm={handleQtyConfirm}
+      />
       {/* Add Panel to Project and Back Button */}
       <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 2 }}>
         <Button

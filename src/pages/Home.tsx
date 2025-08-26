@@ -24,18 +24,19 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 // Importing images that will be displayed on the home page
 
 import logo from '../assets/logo.png';
-import tagPir from '../assets/panels/TAG_PIR.png';    
-import idpgRn from '../assets/panels/IDPG_RN.png';   
-import idpg from '../assets/panels/IDPG.png';         
-import sp from '../assets/panels/SP.png';          
-import x2rs from '../assets/panels/X2RS.png';        
-import dpRt from '../assets/panels/DP_RT.jpg';        
+import tagPir from '../assets/panels/TAG_FLAT_95x95.png';    
+import idpgRn from '../assets/panels/IDPG flat 130x180_RN_bar.png';   
+import idpg from '../assets/panels/IDPG_95X95_Icons.png';         
+import sp from '../assets/panels/GS09_95x95_Flat.png';          
+import x2rs from '../assets/panels/GS_Extended_Flat.png';        
+import dpRt from '../assets/panels/GS_Double module_224x95.png';        
 
 //                                   ===== CONTEXT IMPORT =====
 // ProjectContext = shared storage that any component can access
 // This stores project information (name, code) that's used across the app
 import { ProjectContext } from '../App';
 import { mockSendEmail } from '../utils/mockBackend';
+import { isAdminEmail } from '../utils/admin';
 
 
 //                              ===== STYLED COMPONENTS SECTION =====
@@ -236,11 +237,12 @@ const DownArrow = styled(ArrowDownwardIcon)({
 // FloatingImage = panel images that float around the background
 const FloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   position: 'absolute',         // Positions absolutely (can be placed anywhere)
-  width: $showPrompt ? '300px' : '200px',  // Changes size based on form state
+  width: $showPrompt ? '345px' : '230px',  // 15% bigger than original (300px -> 345px, 200px -> 230px)
   opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
   filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',  // Adds shadow effect
   animation: 'float 8s ease-in-out infinite',  // Continuous floating animation
   transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',  // Smooth transitions
+  zIndex: 1,                   // Foreground layer for regular/smaller images
   
   // ===== SHADOW EFFECT =====
   // Creates a shadow under the floating images
@@ -250,8 +252,185 @@ const FloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt })
     bottom: '-30px',            // Places below the image
     left: '50%',                // Centers horizontally
     transform: 'translateX(-50%)',  // Centers perfectly
-    width: '160px',             // Shadow width
-    height: '30px',             // Shadow height
+    width: '184px',             // Shadow width (15% bigger than 160px)
+    height: '35px',             // Shadow height (15% bigger than 30px)
+    background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%)',  // Gradient shadow
+    borderRadius: '50%',        // Makes shadow circular
+    animation: 'shadowFloat 8s ease-in-out infinite',  // Shadow animation
+    zIndex: -1                  // Places shadow behind the image
+  },
+  
+  // ===== FLOAT ANIMATION =====
+  // Makes images gently float up and down
+  '@keyframes float': {
+    '0%': {
+      transform: 'translateY(0px) rotate(0deg)',  // Start position
+    },
+    '50%': {
+      transform: 'translateY(-15px) rotate(3deg)',  // Middle position (up and slightly rotated)
+    },
+    '100%': {
+      transform: 'translateY(0px) rotate(0deg)',  // End position (back to start)
+    }
+  },
+  
+  // ===== SHADOW FLOAT ANIMATION =====
+  // Makes shadow move with the floating image
+  '@keyframes shadowFloat': {
+    '0%': {
+      transform: 'translateX(-50%) scale(1)',  // Start position
+      opacity: 0.4,             // Start opacity
+    },
+    '50%': {
+      transform: 'translateX(-50%) scale(0.8)',  // Middle position (smaller shadow)
+      opacity: 0.2,             // Middle opacity (lighter)
+    },
+    '100%': {
+      transform: 'translateX(-50%) scale(1)',  // End position
+      opacity: 0.4,             // End opacity
+    }
+  }
+}));
+
+// ===== SMALLER FLOATING IMAGE STYLING =====
+// SmallerFloatingImage = panel images that are 15% smaller than regular floating images
+const SmallerFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+  position: 'absolute',         // Positions absolutely (can be placed anywhere)
+  width: $showPrompt ? '293px' : '196px',  // 15% bigger than current (255px -> 293px, 170px -> 196px)
+  opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
+  filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',  // Adds shadow effect
+  animation: 'float 8s ease-in-out infinite',  // Continuous floating animation
+  transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',  // Smooth transitions
+  zIndex: 1,                   // Foreground layer for small images
+  
+  // ===== SHADOW EFFECT =====
+  // Creates a shadow under the floating images
+  '&::before': {
+    content: '""',              // Creates a pseudo-element
+    position: 'absolute',       // Positions absolutely
+    bottom: '-30px',            // Places below the image
+    left: '50%',                // Centers horizontally
+    transform: 'translateX(-50%)',  // Centers perfectly
+    width: '156px',             // Shadow width (15% bigger than 136px)
+    height: '30px',             // Shadow height (15% bigger than 26px)
+    background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%)',  // Gradient shadow
+    borderRadius: '50%',        // Makes shadow circular
+    animation: 'shadowFloat 8s ease-in-out infinite',  // Shadow animation
+    zIndex: -1                  // Places shadow behind the image
+  },
+  
+  // ===== FLOAT ANIMATION =====
+  // Makes images gently float up and down
+  '@keyframes float': {
+    '0%': {
+      transform: 'translateY(0px) rotate(0deg)',  // Start position
+    },
+    '50%': {
+      transform: 'translateY(-15px) rotate(3deg)',  // Middle position (up and slightly rotated)
+    },
+    '100%': {
+      transform: 'translateY(0px) rotate(0deg)',  // End position (back to start)
+    }
+  },
+  
+  // ===== SHADOW FLOAT ANIMATION =====
+  // Makes shadow move with the floating image
+  '@keyframes shadowFloat': {
+    '0%': {
+      transform: 'translateX(-50%) scale(1)',  // Start position
+      opacity: 0.4,             // Start opacity
+    },
+    '50%': {
+      transform: 'translateX(-50%) scale(0.8)',  // Middle position (smaller shadow)
+      opacity: 0.2,             // Middle opacity (lighter)
+    },
+    '100%': {
+      transform: 'translateX(-50%) scale(1)',  // End position
+      opacity: 0.4,             // End opacity
+    }
+  }
+}));
+
+// ===== LARGER FLOATING IMAGE STYLING =====
+// LargerFloatingImage = panel images that are 15% bigger than regular floating images
+const LargerFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+  position: 'absolute',         // Positions absolutely (can be placed anywhere)
+  width: $showPrompt ? '635px' : '423px',  // 15% bigger than current (552px -> 635px, 368px -> 423px)
+  opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
+  filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',  // Adds shadow effect
+  animation: 'float 8s ease-in-out infinite',  // Continuous floating animation
+  transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',  // Smooth transitions
+  zIndex: 0,                   // Background layer for larger images
+  
+  // ===== SHADOW EFFECT =====
+  // Creates a shadow under the floating images
+  '&::before': {
+    content: '""',              // Creates a pseudo-element
+    position: 'absolute',       // Positions absolutely
+    bottom: '-30px',            // Places below the image
+    left: '50%',                // Centers horizontally
+    transform: 'translateX(-50%)',  // Centers perfectly
+    width: '212px',             // Shadow width (15% bigger than 184px)
+    height: '40px',             // Shadow height (15% bigger than 35px)
+    background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%)',  // Gradient shadow
+    borderRadius: '50%',        // Makes shadow circular
+    animation: 'shadowFloat 8s ease-in-out infinite',  // Shadow animation
+    zIndex: -1                  // Places shadow behind the image
+  },
+  
+  // ===== FLOAT ANIMATION =====
+  // Makes images gently float up and down
+  '@keyframes float': {
+    '0%': {
+      transform: 'translateY(0px) rotate(0deg)',  // Start position
+    },
+    '50%': {
+      transform: 'translateY(-15px) rotate(3deg)',  // Middle position (up and slightly rotated)
+    },
+    '100%': {
+      transform: 'translateY(0px) rotate(0deg)',  // End position (back to start)
+    }
+  },
+  
+  // ===== SHADOW FLOAT ANIMATION =====
+  // Makes shadow move with the floating image
+  '@keyframes shadowFloat': {
+    '0%': {
+      transform: 'translateX(-50%) scale(1)',  // Start position
+      opacity: 0.4,             // Start opacity
+    },
+    '50%': {
+      transform: 'translateX(-50%) scale(0.8)',  // Middle position (smaller shadow)
+      opacity: 0.2,             // Middle opacity (lighter)
+    },
+    '100%': {
+      transform: 'translateX(-50%) scale(1)',  // End position
+      opacity: 0.4,             // End opacity
+    }
+  }
+}));
+
+// ===== EXTENDED FLOATING IMAGE STYLING =====
+// ExtendedFloatingImage = GS_Extended image that is 10% bigger than LargerFloatingImage
+const ExtendedFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+  position: 'absolute',         // Positions absolutely (can be placed anywhere)
+  width: $showPrompt ? '734px' : '488px',  // Another 5% bigger (699px -> 734px, 465px -> 488px)
+  opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
+  filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3))',  // Adds shadow effect
+  animation: 'float 8s ease-in-out infinite',  // Continuous floating animation
+  transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',  // Smooth transitions
+  zIndex: 0,                   // Background layer for extended image
+  
+  // ===== SHADOW EFFECT =====
+  // Creates a shadow under the floating images
+  '&::before': {
+    content: '""',              // Creates a pseudo-element
+    position: 'absolute',       // Positions absolutely
+    bottom: '-30px',            // Places below the image
+    left: '50%',                // Centers horizontally
+    transform: 'translateX(-50%)',  // Centers perfectly
+    width: '245px',             // Shadow width (5% bigger than 233px)
+    height: '46px',             // Shadow height (5% bigger than 44px)
     background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 70%)',  // Gradient shadow
     borderRadius: '50%',        // Makes shadow circular
     animation: 'shadowFloat 8s ease-in-out infinite',  // Shadow animation
@@ -470,6 +649,8 @@ const Home = () => {
     email: ''              // Email address
   });
 
+  const isAdmin = isAdminEmail(typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null);
+
   // ===== EVENT HANDLERS =====
   // These are functions that run when users interact with the page
   
@@ -597,7 +778,7 @@ const Home = () => {
       {/* Each image has different positioning and animation delays */}
       
       {/* TAG PIR Panel - top left */}
-      <FloatingImage 
+      <SmallerFloatingImage 
         src={tagPir}           // Image source
         alt="TAG PIR"          // Alternative text for accessibility
         $showPrompt={currentStep !== 'welcome'}  // Controls size and opacity based on form state
@@ -609,7 +790,7 @@ const Home = () => {
       />
       
       {/* IDPG RN Panel - bottom right */}
-      <FloatingImage 
+      <SmallerFloatingImage 
         src={idpgRn} 
         alt="IDPG RN" 
         $showPrompt={currentStep !== 'welcome'}
@@ -620,53 +801,51 @@ const Home = () => {
         }} 
       />
       
-      {/* IDPG Panel - top right */}
-      <FloatingImage 
+      {/* IDPG Panel - center right (smaller) */}
+      <SmallerFloatingImage 
         src={idpg} 
         alt="IDPG" 
         $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          top: currentStep !== 'welcome' ? '10%' : '25%', 
-          right: currentStep !== 'welcome' ? 'calc(15% - 10px)' : 'calc(10% - 10px)', 
-          animationDelay: '1s'  // 1 second delay
+          bottom: currentStep !== 'welcome' ? '40%' : '40%', 
+          right: currentStep !== 'welcome' ? 'calc(15% + 40px)' : 'calc(15% + 40px)', 
+          animationDelay: '2.5s'  // 2.5 second delay
         }} 
       />
       
-      {/* SP Panel - bottom left */}
-      <FloatingImage 
+      {/* SP Panel - center left (smaller) */}
+      <SmallerFloatingImage 
         src={sp} 
         alt="SP" 
         $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          bottom: currentStep !== 'welcome' ? '10%' : '25%', 
-          left: currentStep !== 'welcome' ? 'calc(20% - 10px)' : 'calc(10% - 10px)', 
-          animationDelay: '3s'  // 3 second delay
+          top: currentStep !== 'welcome' ? '35%' : '40%', 
+          left: currentStep !== 'welcome' ? 'calc(15% - 20px)' : 'calc(15% - 20px)', 
+          animationDelay: '1.5s'  // 1.5 second delay
         }} 
       />
       
-      {/* X2RS Panel - center left (larger) */}
-      <FloatingImage 
+      {/* X2RS Panel - bottom left (largest) */}
+      <ExtendedFloatingImage 
         src={x2rs} 
         alt="X2RS" 
         $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          top: currentStep !== 'welcome' ? '35%' : '40%', 
-          left: currentStep !== 'welcome' ? 'calc(15% - 20px)' : 'calc(15% - 20px)', 
-          animationDelay: '1.5s',  // 1.5 second delay
-          width: currentStep !== 'welcome' ? '480px' : '320px'  // Changes size based on form state
+          bottom: currentStep !== 'welcome' ? '6%' : '20%', 
+          left: currentStep !== 'welcome' ? 'calc(8% - 10px)' : 'calc(4% - 10px)', 
+          animationDelay: '3s'  // 3 second delay
         }} 
       />
       
-      {/* DP RT Panel - center right (larger) */}
-      <FloatingImage 
+      {/* DP RT Panel - top right (medium) */}
+      <LargerFloatingImage 
         src={dpRt} 
         alt="DP RT" 
         $showPrompt={currentStep !== 'welcome'}
         style={{ 
-          bottom: currentStep !== 'welcome' ? '40%' : '40%', 
-          right: currentStep !== 'welcome' ? 'calc(15% + 40px)' : 'calc(15% + 40px)', 
-          animationDelay: '2.5s',  // 2.5 second delay
-          width: currentStep !== 'welcome' ? '480px' : '320px'  // Changes size based on form state
+          top: currentStep !== 'welcome' ? '4%' : '20%', 
+          right: currentStep !== 'welcome' ? 'calc(15% - 10px)' : 'calc(10% - 10px)', 
+          animationDelay: '1s'  // 1 second delay
         }} 
       />
       
@@ -825,6 +1004,26 @@ const Home = () => {
               >
                 📚 View My Designs
               </Button>
+              {isAdmin && (
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/admin')}
+                  sx={{
+                    fontFamily: 'sans-serif',
+                    fontWeight: 500,
+                    fontSize: '1rem',
+                    padding: '0.6rem 0',
+                    color: '#2c3e50',
+                    borderColor: '#8e44ad',
+                    '&:hover': {
+                      borderColor: '#6c3483',
+                      backgroundColor: 'rgba(142, 68, 173, 0.08)'
+                    }
+                  }}
+                >
+                  🔐 Admin Dashboard
+                </Button>
+              )}
               
               <Button
                 variant="text"
@@ -873,7 +1072,7 @@ const Home = () => {
               <Button
                 variant="contained"
                 color="primary"
-                onClick={() => navigate('/panel-type', { state: { projectDetails } })}
+                onClick={() => navigate('/boq')}
                 sx={{
                   fontFamily: 'sans-serif',
                   fontWeight: 600,
@@ -913,7 +1112,7 @@ const Home = () => {
                 variant="text"
                 onClick={() => {
                   setShowSuccess(false);
-                  setShowPrompt(false);
+                  setCurrentStep('welcome');
                 }}
                 sx={{
                   fontFamily: 'sans-serif',
