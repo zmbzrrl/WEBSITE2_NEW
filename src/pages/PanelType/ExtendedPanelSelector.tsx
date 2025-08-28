@@ -322,7 +322,7 @@ const ExtendedPanelSelector = () => {
             </Button>
             {[
               { step: 1, label: 'Select Panel Type' },
-              { step: 2, label: 'Select your icons' },
+              { step: 2, label: 'Configure Panel\nLayout' },
               { step: 3, label: 'Select Panel Design' },
               { step: 4, label: 'Review panel details' },
             ].map((s, idx) => (

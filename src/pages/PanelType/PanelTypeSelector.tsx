@@ -125,7 +125,7 @@ const PanelTypeSelector = () => {
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
-    { step: 2, label: 'Select your icons' },
+    { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel Design' },
     { step: 4, label: 'Review panel details' },
   ];
@@ -162,11 +162,10 @@ const PanelTypeSelector = () => {
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 92,
+                maxWidth: 150,
                 minHeight: 36,
                 lineHeight: 1.2,
-                whiteSpace: 'normal',
-                wordBreak: 'break-word',
+                whiteSpace: 'pre',
                 letterSpacing: 0.2,
               }}
             >

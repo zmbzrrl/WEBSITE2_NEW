@@ -14,6 +14,11 @@ import {
   useTheme,
   TextField,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../data/ralColors';
@@ -21,9 +26,11 @@ import { ProjectContext } from '../../App';
 import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
+import LED from "../../assets/LED.png";
 
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 import PanelDimensionSelector from '../../components/PanelDimensionSelector';
+import PanelModeSelector, { PanelMode } from '../../components/PanelModeSelector';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -375,21 +382,7 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: Auto-colored
-                </Typography>
-              </Box>
-              {/* Text Color */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  borderRadius: 1.5, 
-                  background: panelDesign.textColor,
-                  border: '2px solid #dee2e6',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }} />
-                <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Text: {panelDesign.textColor}
+                  Icons & Text: Auto-colored
                 </Typography>
               </Box>
             </Box>
@@ -546,6 +539,16 @@ const SPCustomizer: React.FC = () => {
   const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
+  // Drag restriction preview state
+  const [isDraggingIcon, setIsDraggingIcon] = useState<boolean>(false);
+  const [restrictedCells, setRestrictedCells] = useState<number[]>([]);
+  
+  // Popup state for DND/MUR restrictions
+  const [showRestrictionDialog, setShowRestrictionDialog] = useState(false);
+  const [restrictionMessage, setRestrictionMessage] = useState('');
+  
+  // Popup state for selecting custom panel mode
+  const [showCustomModeDialog, setShowCustomModeDialog] = useState(false);
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -569,7 +572,8 @@ const SPCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
+      // Hide PIR from the selectable categories; we control it via a dedicated toggle
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG' && cat !== 'PIR'));
     });
   }, []);
 
@@ -683,6 +687,13 @@ const SPCustomizer: React.FC = () => {
     const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
     if (isOccupied || selectedIcon === null) return;
 
+    // Column helpers and DND/MUR detection
+    const isRightCol = (idx: number) => idx === 2 || idx === 5 || idx === 8;
+    const isLeftCol = (idx: number) => idx === 0 || idx === 3 || idx === 6;
+    const selLabelLower = (selectedIcon.label || '').toLowerCase();
+    const isDNDIcon = selLabelLower.includes('dnd') || selLabelLower.includes('privacy') || selLabelLower.includes('do not disturb');
+    const isMURIcon = selLabelLower.includes('mur') || selLabelLower.includes('service') || selLabelLower.includes('make up');
+
     // Check if trying to place PIR icon
     if (selectedIcon.category === "PIR") {
       // Only allow placement in bottom center cell (7)
@@ -691,6 +702,19 @@ const SPCustomizer: React.FC = () => {
       // Check if PIR icon is already placed
       const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
       if (hasPIR) return;
+    }
+
+    // DND cannot be placed in right column
+    if (isDNDIcon && isRightCol(cellIndex)) {
+      setRestrictionMessage('**DND (Do Not Disturb)** icons are designed to work with the red/white LED indicators on the left side of the panel. The right side uses green/white indicators, which is why **DND** icons can only be placed in the left and center columns.');
+      setShowRestrictionDialog(true);
+      return;
+    }
+    // MUR cannot be placed in left column
+    if (isMURIcon && isLeftCol(cellIndex)) {
+      setRestrictionMessage('**MUR (Make Up Room)** icons are designed to work with the green/white LED indicators on the right side of the panel. The left side uses red/white indicators, which is why **MUR** icons can only be placed in the center and right columns.');
+      setShowRestrictionDialog(true);
+      return;
     }
 
     // Check if trying to place G1 or G2 icon
@@ -801,6 +825,26 @@ const SPCustomizer: React.FC = () => {
     }));
 
   const handleDragStart = (e: React.DragEvent, icon: IconOption | PlacedIcon) => {
+    if (panelMode === 'text_only') {
+      // no icons allowed
+      e.preventDefault();
+      return;
+    }
+    // Determine if the dragged icon is DND or MUR to show restricted cells
+    const label = ('label' in icon ? icon.label : '') || '';
+    const lower = label.toLowerCase();
+    const isDND = lower.includes('dnd') || lower.includes('privacy') || lower.includes('do not disturb');
+    const isMUR = lower.includes('mur') || lower.includes('service') || lower.includes('make up');
+    if (isDND || isMUR) {
+      // SP grid indices: left [0,3,6], center [1,4,7], right [2,5,8]
+      const rightCol = [2,5,8];
+      const leftCol = [0,3,6];
+      setIsDraggingIcon(true);
+      setRestrictedCells(isDND ? rightCol : leftCol);
+    } else {
+      setIsDraggingIcon(false);
+      setRestrictedCells([]);
+    }
     if ('position' in icon) {
       // This is a placed icon
       e.dataTransfer.setData('text/plain', JSON.stringify({
@@ -821,17 +865,41 @@ const SPCustomizer: React.FC = () => {
   const handleDrop = (cellIndex: number, data: string) => {
     try {
       const dragData = JSON.parse(data);
+      if (panelMode === 'text_only') return; // icons not allowed
+      // Clear drag preview on drop
+      setIsDraggingIcon(false);
+      setRestrictedCells([]);
       
       if (dragData.type === 'new') {
+        if (panelMode === 'icons_text' || panelMode === 'custom') {
         // Handle new icon placement
         const icon = categoryIcons.find(i => i.id === dragData.id);
         if (!icon) return;
+
+        const isRightCol = (idx: number) => idx === 2 || idx === 5 || idx === 8;
+        const isLeftCol = (idx: number) => idx === 0 || idx === 3 || idx === 6;
+        const labelLower = (icon.label || '').toLowerCase();
+        const isDNDIcon = labelLower.includes('dnd') || labelLower.includes('privacy') || labelLower.includes('do not disturb');
+        const isMURIcon = labelLower.includes('mur') || labelLower.includes('service') || labelLower.includes('make up');
 
         // Check if trying to place PIR icon
         if (icon.category === "PIR") {
           if (cellIndex !== 7) return;
           const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
           if (hasPIR) return;
+        }
+
+        // DND cannot be placed in right column
+        if (isDNDIcon && isRightCol(cellIndex)) {
+          setRestrictionMessage('**DND (Do Not Disturb)** icons are designed to work with the red/white LED indicators on the left side of the panel. The right side uses green/white indicators, which is why **DND** icons can only be placed in the left and center columns.');
+          setShowRestrictionDialog(true);
+          return;
+        }
+        // MUR cannot be placed in left column
+        if (isMURIcon && isLeftCol(cellIndex)) {
+          setRestrictionMessage('**MUR (Make Up Room)** icons are designed to work with the green/white LED indicators on the right side of the panel. The left side uses red/white indicators, which is why **MUR** icons can only be placed in the center and right columns.');
+          setShowRestrictionDialog(true);
+          return;
         }
 
         // Check if trying to place G1 or G2 icon
@@ -859,6 +927,7 @@ const SPCustomizer: React.FC = () => {
         };
 
         setPlacedIcons((prev) => [...prev, iconPosition]);
+        }
       } else if (dragData.type === 'placed') {
         // Handle swapping placed icons
         const sourceIcon = placedIcons.find(i => i.id === dragData.id);
@@ -866,12 +935,39 @@ const SPCustomizer: React.FC = () => {
         
         if (!sourceIcon) return;
 
+        const isRightCol = (idx: number) => idx === 2 || idx === 5 || idx === 8;
+        const isLeftCol = (idx: number) => idx === 0 || idx === 3 || idx === 6;
+        const srcLabelLower = (sourceIcon.label || '').toLowerCase();
+        const tgtLabelLower = (targetIcon?.label || '').toLowerCase();
+        const srcIsDND = srcLabelLower.includes('dnd') || srcLabelLower.includes('privacy') || srcLabelLower.includes('do not disturb');
+        const srcIsMUR = srcLabelLower.includes('mur') || srcLabelLower.includes('service') || srcLabelLower.includes('make up');
+        const tgtIsDND = tgtLabelLower.includes('dnd') || tgtLabelLower.includes('privacy') || tgtLabelLower.includes('do not disturb');
+        const tgtIsMUR = tgtLabelLower.includes('mur') || tgtLabelLower.includes('service') || tgtLabelLower.includes('make up');
+
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
           if (cellIndex !== 7) return;
         }
         if (targetIcon?.category === "PIR") {
           if (dragData.position !== 7) return;
+        }
+
+        // DND cannot move into right column
+        if (srcIsDND && isRightCol(cellIndex)) {
+          setRestrictionMessage('**DND (Do Not Disturb)** icons are designed to work with the red/white LED indicators on the left side of the panel. The right side uses green/white indicators, which is why **DND** icons can only be placed in the left and center columns.');
+          setShowRestrictionDialog(true);
+          return;
+        }
+        // MUR cannot move into left column
+        if (srcIsMUR && isLeftCol(cellIndex)) {
+          setRestrictionMessage('**MUR (Make Up Room)** icons are designed to work with the green/white LED indicators on the right side of the panel. The left side uses red/white indicators, which is why **MUR** icons can only be placed in the center and right columns.');
+          setShowRestrictionDialog(true);
+          return;
+        }
+        // Also ensure the target icon's new destination is valid
+        if (targetIcon) {
+          if (tgtIsDND && isRightCol(dragData.position)) return;
+          if (tgtIsMUR && isLeftCol(dragData.position)) return;
         }
 
         // Check G1/G2 restrictions
@@ -932,7 +1028,14 @@ const SPCustomizer: React.FC = () => {
   };
 
   const handleTextClick = (index: number) => {
+    // If text-only mode, allow text everywhere; if icons&text, only allow text when an icon exists
+    if (panelMode === 'icons_text') {
+      const hasIcon = placedIcons.some((i) => i.position === index);
+      if (!hasIcon) return;
+    }
+    if (panelMode === 'custom' || panelMode === 'icons_text' || panelMode === 'text_only') {
     setEditingCell(index);
+    }
   };
 
   const handleTextBlur = () => {
@@ -948,14 +1051,20 @@ const SPCustomizer: React.FC = () => {
     const isIconHovered = !!iconHovered[index];
     const iconSize = panelDesign.iconSize || '40px';
     const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
+    const baseTop = parseInt((pos as any).top || '0', 10);
+    const rowIndex = Math.floor(index / 3);
+    // Apply per-row offsets only for tall: row 1 -20px, row 2 +10px, row 3 +40px
+    const perRowOffset = (dimensionKey === 'tall') ? ((rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0)) : 0;
+    const adjustedTop = `${baseTop + perRowOffset}px`;
     return (
       <div
         key={index}
         style={{
           position: 'absolute',
           ...pos,
-          width: pos.width || iconSize,
-          height: pos.height || iconSize,
+          width: (pos as any).width || iconSize,
+          height: (pos as any).height || iconSize,
+          top: adjustedTop,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -965,6 +1074,23 @@ const SPCustomizer: React.FC = () => {
         onDragOver={e => { e.preventDefault(); }}
         onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
       >
+        {/* Restricted overlay during drag of DND/MUR */}
+        {isDraggingIcon && restrictedCells.includes(index) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(220, 53, 69, 0.18)',
+              border: '2px dashed rgba(220, 53, 69, 0.8)',
+              borderRadius: '6px',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+        )}
         {icon && (
           <div 
             style={{ position: 'relative', display: 'inline-block' }}
@@ -976,6 +1102,7 @@ const SPCustomizer: React.FC = () => {
               alt={icon.label}
               draggable={currentStep !== 4}
               onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
+              onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
                 width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
                 height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
@@ -1033,7 +1160,7 @@ const SPCustomizer: React.FC = () => {
                   width: '100%',
                   textAlign: 'center',
                   fontSize: panelDesign.fontSize || '12px',
-                  color: panelDesign.textColor || '#000000',
+                  color: getAutoTextColor(panelDesign.backgroundColor),
                   fontFamily: panelDesign.fonts || undefined,
                   wordBreak: 'break-word',
                 }}>{text}</div>
@@ -1047,15 +1174,77 @@ const SPCustomizer: React.FC = () => {
                     onChange={e => handleTextChange(e, index)}
                     onBlur={handleTextBlur}
                     autoFocus
-                    style={{ width: '120px', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: getAutoTextColor(panelDesign.backgroundColor), marginTop: '0px' }}
                   />
                 ) : (
+                  (() => {
+                    const textAllowed = panelMode === 'custom' || panelMode === 'text_only' || (panelMode === 'icons_text' && !!icon);
+                    if (textAllowed) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                          {(panelMode === 'custom' && !icon) && (
+                            <div
+                              title="Add icon"
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                margin: '0 auto 6px auto',
+                                border: '1px dashed #cbd5e1',
+                                borderRadius: '50%',
+                                color: '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '18px',
+                                lineHeight: 1,
+                                opacity: 0.7,
+                                transition: 'opacity 0.2s ease-in-out'
+                              }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
+                            >
+                              +
+                            </div>
+                          )}
                   <div
                     onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px', marginLeft: '-40px' }}
+                            style={{ fontSize: panelDesign.fontSize || '12px', color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', wordBreak: 'break-word', width: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', marginTop: '0px', whiteSpace: 'nowrap', ...(text ? { overflow: 'hidden', textOverflow: 'ellipsis' } : { overflow: 'visible', textOverflow: 'clip' }) }}
                   >
                     {text || 'Add text'}
                   </div>
+                        </div>
+                      );
+                    }
+                    // Text is not allowed here → show icon indicator instead
+                    return (
+                      <div
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: '#999999', width: '100%', textAlign: 'center', padding: '4px', borderRadius: '4px', backgroundColor: 'transparent', fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', marginTop: '0px', cursor: 'default' }}
+                      >
+                        <div
+                          title="Add icon"
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            margin: '0 auto',
+                            border: '1px dashed #cbd5e1',
+                            borderRadius: '50%',
+                            color: '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '18px',
+                            lineHeight: 1,
+                            opacity: 0.7,
+                            transition: 'opacity 0.2s ease-in-out'
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
+                        >
+                          +
+                        </div>
+                      </div>
+                    );
+                  })()
                 )}
               </>
             )}
@@ -1066,10 +1255,10 @@ const SPCustomizer: React.FC = () => {
   };
 
   const customizerSteps = [
-    { step: 1, label: 'Select Panel Type' },
-    { step: 2, label: 'Select your icons' },
-    { step: 3, label: 'Select Panel Design' },
-    { step: 4, label: 'Review panel details' },
+    { step: 1, label: 'Select Panel\nType' },
+    { step: 2, label: 'Configure Panel\nLayout' },
+    { step: 3, label: 'Select Panel\nDesign' },
+    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1104,7 +1293,10 @@ const SPCustomizer: React.FC = () => {
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 110,
+                maxWidth: 150,
+                minHeight: 36,
+                lineHeight: 1.2,
+                whiteSpace: 'pre',
                 letterSpacing: 0.2,
               }}
             >
@@ -1157,12 +1349,53 @@ const SPCustomizer: React.FC = () => {
   const config = getPanelLayoutConfig('SP');
   const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
   const [dimensionKey, setDimensionKey] = useState<string>('standard');
+  const [panelMode, setPanelMode] = useState<PanelMode>('custom');
+
+  // PIR helpers (toggle-controlled motion sensor)
+  const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+  const getPirIndex = (): number => {
+    const totalSlots = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
+      ? dimensionConfigs[dimensionKey].iconPositions.length
+      : (iconPositions || []).length;
+    if (totalSlots >= 12 || dimensionKey === 'tall') return 10; // tall panels
+    return 7; // standard/wide panels
+  };
+  const addPir = () => {
+    if (hasPIR) return;
+    const pirPos = getPirIndex();
+    if (placedIcons.some(icon => icon.position === pirPos)) return;
+    const pirIcon = (icons as any)['PIR'];
+    const newPir = {
+      id: Date.now(),
+      iconId: 'PIR',
+      src: pirIcon?.src || '',
+      label: 'PIR',
+      position: pirPos,
+      category: 'PIR'
+    } as any;
+    setPlacedIcons(prev => [...prev, newPir]);
+  };
+  const removePir = () => {
+    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+    setIconTexts(prev => ({ ...prev }));
+  };
 
   // Derive active dimensions and positions by selected key (fallback to defaults)
   const activeDimension = (dimensionConfigs && dimensionConfigs[dimensionKey]) ? dimensionConfigs[dimensionKey] : dimensions;
   const activeIconPositions = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
     ? dimensionConfigs[dimensionKey].iconPositions
     : (iconPositions || []);
+  const gridOffsetX = dimensionKey === 'wide' ? 40 : (dimensionKey === 'standard' ? 20 : (dimensionKey === 'tall' ? 25 : 0));
+  const gridOffsetY = dimensionKey === 'tall' ? 58 : 15;
+
+  const getAutoTextColor = (backgroundColor: string): string => {
+    const hex = (backgroundColor || '#ffffff').replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128 ? '#ffffff' : '#2c2c2c';
+  };
 
   return (
     <Box
@@ -1259,48 +1492,80 @@ const SPCustomizer: React.FC = () => {
           )}
         </Box>
 
-        {/* Step 2: Dimension selector + Icon List */}
+        {/* Step 2: Dimension selector + Panel template + Icon list side-by-side */}
         {currentStep === 2 && (
           <div style={{ marginBottom: "20px" }}>
-            <PanelDimensionSelector
-              options={[
-                { key: 'standard', label: '95 × 95 mm', sublabel: "3.7 × 3.7''" },
-                { key: 'wide', label: '130 × 95 mm', sublabel: "5.1 × 3.7''" },
-                { key: 'tall', label: '95 × 130 mm', sublabel: "3.7 × 5.1''" },
-              ]}
-              value={dimensionKey}
-              onChange={setDimensionKey}
-            />
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <PanelDimensionSelector
+                options={[
+                  { key: 'standard', label: '95 × 95 mm', sublabel: "3.7 × 3.7''" },
+                  { key: 'wide', label: '130 × 95 mm', sublabel: "5.1 × 3.7''" },
+                  { key: 'tall', label: '95 × 130 mm', sublabel: "3.7 × 5.1''" },
+                ]}
+                value={dimensionKey}
+                onChange={setDimensionKey}
+                inlineLabel={'Size:'}
+              />
+              <PanelModeSelector value={panelMode} onChange={(mode) => {
+                setPanelMode(mode);
+                if (mode === 'custom') {
+                  setShowCustomModeDialog(true);
+                }
+              }} />
+            </div>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+              {/* Icon categories + list (left) */}
+              <div style={{ flex: '0 0 50%', maxWidth: '50%', marginTop: '30px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               {iconCategories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
                   style={{
-                    padding: "12px 24px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
-                    borderRadius: "4px",
-                    cursor: "pointer",
+                        padding: '10px 18px',
+                        background: selectedCategory === category ? '#1a1f2c' : '#ffffff',
+                        color: selectedCategory === category ? '#ffffff' : '#1a1f2c',
+                        border: '1px solid #1a1f2c',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
                     fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                    minWidth: "120px",
+                        fontSize: '14px',
+                        letterSpacing: '0.5px',
+                        transition: 'all 0.3s ease',
+                        minWidth: '120px',
                   }}
                 >
                   {category}
                 </button>
               ))}
+              {/* PIR toggle next to categories */}
+              <button
+                type="button"
+                onClick={() => (hasPIR ? removePir() : addPir())}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#1976d2',
+                  cursor: 'pointer',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold'
+                }}
+                title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+              >
+                {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+              </button>
             </div>
             <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
-              maxWidth: "800px",
-              margin: "0 auto"
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 72px)',
+                  gap: '10px',
+                  maxHeight: 420,
+                  overflowY: 'auto',
+                  paddingRight: 6
             }}>
               {categoryIcons.map((icon) => (
                 <div
@@ -1308,33 +1573,68 @@ const SPCustomizer: React.FC = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(e, icon)}
                   style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
-                  }}
+                        padding: '10px',
+                        background: 'transparent',
+                        borderRadius: '8px',
+                        cursor: 'grab',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        width: '72px',
+                        minHeight: '72px',
+                        border: '1px solid transparent',
+                        transition: 'border-color 0.2s ease, background 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1a1f2c33'; e.currentTarget.style.background = '#f7f9fc'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
                 >
                   <img
                     src={icon.src}
                     alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain" }}
-                  />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
-                  }}>
-                    {icon.label}
-                  </span>
+                        title={icon.label}
+                        style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+                      />
                 </div>
               ))}
+                </div>
+              </div>
+              {/* Panel template (right) */}
+              <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '60px' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: activeDimension.width || dimensions.width,
+                    height: activeDimension.height || dimensions.height,
+                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                    padding: '0',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    transition: 'all 0.3s ease',
+                    margin: 0,
+                    fontFamily: panelDesign.fonts || undefined,
+                  }}
+                >
+                  <div style={{ 
+                    position: 'absolute',
+                    top: '2px',
+                    left: '2px',
+                    right: '2px',
+                    bottom: '2px',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                    {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1696,64 +1996,7 @@ const SPCustomizer: React.FC = () => {
                 </div>
               </div>
               
-              {/* Colors Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Colors
-                </div>
-                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
 
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Text Color
-                    </div>
-                <input
-                  type="color"
-                  value={panelDesign.textColor}
-                  onChange={e => setPanelDesign(prev => ({ ...prev, textColor: e.target.value }))}
-                  style={{
-                        width: '64px',
-                        height: '40px',
-                        border: '2px solid #dee2e6',
-                        borderRadius: '8px',
-                    cursor: 'pointer',
-                        padding: '2px',
-                        background: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transition: 'all 0.2s ease'
-                  }}
-                />
-              </div>
-            </div>
-          </div>
               
               {/* Icon Size Section */}
               <div style={{ 
@@ -1841,7 +2084,7 @@ const SPCustomizer: React.FC = () => {
               pointerEvents: 'none',
               zIndex: 1,
             }} />
-            <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+            <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
               {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
             </div>
           </div>
@@ -1909,7 +2152,7 @@ const SPCustomizer: React.FC = () => {
                     pointerEvents: 'none',
                     zIndex: 1,
                   }} />
-                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
                     {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
                 </div>
@@ -1954,43 +2197,140 @@ const SPCustomizer: React.FC = () => {
             </div>
           </>
         )}
-        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
-        {currentStep === 2 && (
-          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
-            <div
+        
+        {/* DND/MUR Restriction Dialog */}
+        <Dialog
+          open={showRestrictionDialog}
+          onClose={() => setShowRestrictionDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ 
+            textAlign: 'center',
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            fontWeight: 500,
+            fontSize: '1.1rem'
+          }}>
+            Panel LED Layout
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              gap: 2,
+              py: 1
+            }}>
+              {/* Large centered LED image */}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center',
+                mb: 1
+              }}>
+                <img 
+                  src={LED} 
+                  alt="LED Hardware Layout" 
               style={{
-                position: 'relative',
-                width: dimensions.width,
-                height: dimensions.height,
-                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                padding: '0',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-                borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                transition: 'all 0.3s ease',
-                margin: '0 auto',
-                fontFamily: panelDesign.fonts || undefined,
+                    width: '160px', 
+                    height: '160px',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+              
+              <Typography sx={{ 
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                lineHeight: 1.5,
+                textAlign: 'center',
+                fontSize: '0.95rem'
+              }}>
+                {restrictionMessage.split('**').map((part, index) => 
+                  index % 2 === 1 ? (
+                    <span key={index} style={{ fontWeight: 'bold', color: '#1a1f2c' }}>
+                      {part}
+                    </span>
+                  ) : (
+                    part
+                  )
+                )}
+              </Typography>
+              
+              <Box sx={{ 
+                p: 2, 
+                bgcolor: '#f8f9fa', 
+                borderRadius: 1.5,
+                border: '1px solid #e9ecef',
+                textAlign: 'center',
+                maxWidth: '350px'
+              }}>
+                <Typography variant="body2" sx={{ 
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  color: '#6c757d',
+                  lineHeight: 1.4
+                }}>
+                  <strong>Panel LED Configuration:</strong><br/>
+                  • Left side: <span style={{color: '#dc3545'}}>Red/White indicators</span><br/>
+                  • Right side: <span style={{color: '#28a745'}}>Green/White indicators</span>
+                </Typography>
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowRestrictionDialog(false)}
+              variant="contained"
+              sx={{
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                textTransform: 'none',
+                px: 3,
+                py: 1
               }}
             >
-              <div style={{
-                position: 'absolute',
-                top: '2px',
-                left: '2px',
-                right: '2px',
-                bottom: '2px',
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                pointerEvents: 'none',
-                zIndex: 1,
-              }} />
-              <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-                {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
-              </div>
-            </div>
-          </div>
-        )}
+              Got it!
+            </Button>
+          </DialogActions>
+        </Dialog>
+        
+        {/* Custom Mode Info Dialog */}
+        <Dialog
+          open={showCustomModeDialog}
+          onClose={() => setShowCustomModeDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ 
+            textAlign: 'center',
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            fontWeight: 500,
+            fontSize: '1.1rem'
+          }}>
+            Custom Panel Submission
+          </DialogTitle>
+          <DialogContent>
+            <Typography sx={{ 
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              lineHeight: 1.6,
+              textAlign: 'center',
+              fontSize: '0.95rem'
+            }}>
+              Design proposals for standard panels are available immediately. Custom panels require review and validation by our Interior Design team prior to proposal release. Estimated turnaround: 3–5 business days.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowCustomModeDialog(false)}
+              variant="contained"
+              sx={{
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                textTransform: 'none',
+                px: 3,
+                py: 1
+              }}
+            >
+              Okay
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );

@@ -404,20 +404,7 @@ const InformationBox = ({
                   Icons: Auto-colored
                 </Typography>
               </Box>
-              {/* Text Color */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  borderRadius: 1.5, 
-                  background: panelDesign.textColor,
-                  border: '2px solid #dee2e6',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }} />
-                <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Text: {panelDesign.textColor}
-                </Typography>
-              </Box>
+
             </Box>
           </Box>
           {/* Typography Section */}
@@ -555,6 +542,7 @@ const TAGCustomizer: React.FC = () => {
     backlight: string;
   
     plasticColor: string;
+    iconColor: string;
     textColor: string;
     fontSize: string;
     backbox?: string;
@@ -565,6 +553,7 @@ const TAGCustomizer: React.FC = () => {
     backlight: '',
 
     plasticColor: '',
+    iconColor: 'auto',
     textColor: '#000000',
     fontSize: '12px',
   });
@@ -604,6 +593,16 @@ const TAGCustomizer: React.FC = () => {
       return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
     }
   };
+
+  const getAutoTextColor = (backgroundColor: string): string => {
+    const hex = (backgroundColor || '#ffffff').replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128 ? '#ffffff' : '#2c2c2c';
+  };
+
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   console.log('RENDER', { backbox, extraComments });
 
@@ -1398,7 +1397,7 @@ const TAGCustomizer: React.FC = () => {
                     <div 
                       style={{ 
                         fontSize: panelDesign.fontSize || "12px", 
-                        color: panelDesign.textColor || "#000000",
+                        color: getAutoTextColor(panelDesign.backgroundColor),
                         wordBreak: "break-word",
                         width: "120px", // Fixed width
                         textAlign: "center",
@@ -1431,7 +1430,7 @@ const TAGCustomizer: React.FC = () => {
                           background: "rgba(255, 255, 255, 0.1)",
                           transition: "all 0.2s ease",
                           fontFamily: panelDesign.fonts || undefined,
-                          color: panelDesign.textColor || '#000000',
+                          color: getAutoTextColor(panelDesign.backgroundColor),
                         }}
                       />
                     ) : (
@@ -1439,7 +1438,7 @@ const TAGCustomizer: React.FC = () => {
                         onClick={() => handleTextClick(displayIndex)}
                         style={{ 
                           fontSize: panelDesign.fontSize || "12px", 
-                          color: text ? panelDesign.textColor || "#000000" : "#999999",
+                          color: text ? getAutoTextColor(panelDesign.backgroundColor) : "#999999",
                           wordBreak: "break-word",
                           width: "120px", // Fixed width instead of maxWidth 100%
                           textAlign: "center",
@@ -1467,7 +1466,7 @@ const TAGCustomizer: React.FC = () => {
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel Type' },
-    { step: 2, label: 'Select your\nicons' },
+    { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel Design' },
     { step: 4, label: 'Review panel details' },
   ];
@@ -1504,11 +1503,10 @@ const TAGCustomizer: React.FC = () => {
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 80,
-                minHeight: 40,
+                maxWidth: 150,
+                minHeight: 36,
                 lineHeight: 1.2,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                whiteSpace: 'pre',
                 letterSpacing: 0.2,
               }}
             >
@@ -2054,64 +2052,7 @@ const TAGCustomizer: React.FC = () => {
                 </div>
               </div>
               
-              {/* Colors Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Colors
-                </div>
-                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
 
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Text Color
-                    </div>
-                <input
-                  type="color"
-                  value={panelDesign.textColor}
-                  onChange={e => setPanelDesign(prev => ({ ...prev, textColor: e.target.value }))}
-                  style={{
-                        width: '64px',
-                        height: '40px',
-                        border: '2px solid #dee2e6',
-                        borderRadius: '8px',
-                    cursor: 'pointer',
-                        padding: '2px',
-                        background: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transition: 'all 0.2s ease'
-                  }}
-                />
-              </div>
-            </div>
-          </div>
             </div>
 
             {/* Right side - Panel Template */}

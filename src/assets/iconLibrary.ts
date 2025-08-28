@@ -21,11 +21,11 @@ const processIcons = (icons: Record<string, IconModule>) => {
     let category = "General";
     if (name.toLowerCase().includes("bathroom") || name.toLowerCase().includes("shower") || name.toLowerCase().includes("bathtub")) {
       category = "Bathroom";
-    } else if (name.toLowerCase().includes("light") || name.toLowerCase().includes("lamp") || name.toLowerCase().includes("chandelier")) {
+    } else if (name.toLowerCase().includes("light") || name.toLowerCase().includes("lamp") || name.toLowerCase().includes("chandelier") || name.toLowerCase().includes("master") || name.toLowerCase().includes("bulb") || name.toLowerCase().includes("sconce")) {
       category = "Room Lights";
-    } else if (name.toLowerCase().includes("curtain") || name.toLowerCase().includes("blind")) {
+    } else if (name.toLowerCase().includes("curtain") || name.toLowerCase().includes("curtains") || name.toLowerCase().includes("blind") || name.toLowerCase().includes("sheer")) {
       category = "Curtains & Blinds";
-    } else if (name.toLowerCase().includes("butler") || name.toLowerCase().includes("service") || name.toLowerCase().includes("bell")) {
+    } else if (name.toLowerCase().includes("butler") || name.toLowerCase().includes("service") || name.toLowerCase().includes("bell") || name.toLowerCase().includes("dnd") || name.toLowerCase().includes("mur")) {
       category = "Guest Services";
     } else if (name.toLowerCase().includes("scene") || name.toLowerCase().includes("bedroom") || name.toLowerCase().includes("dining")) {
       category = "Scenes";

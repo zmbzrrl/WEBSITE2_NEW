@@ -382,20 +382,7 @@ const InformationBox = ({
                   Icons: {getIconColorName(panelDesign.iconColor)}
                 </Typography>
               </Box>
-              {/* Text Color */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  borderRadius: 1.5, 
-                  background: panelDesign.textColor,
-                  border: '2px solid #dee2e6',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }} />
-                <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Text: {panelDesign.textColor}
-                </Typography>
-              </Box>
+
             </Box>
           </Box>
           {/* Typography Section */}
@@ -989,7 +976,7 @@ const DPVCustomizer: React.FC = () => {
                   width: '100%',
                   textAlign: 'center',
                   fontSize: panelDesign.fontSize || '12px',
-                  color: panelDesign.textColor || '#000000',
+                  color: panelDesign.iconColor || '#000000',
                         fontFamily: panelDesign.fonts || undefined,
                   wordBreak: 'break-word',
                 }}>{text}</div>
@@ -1003,12 +990,12 @@ const DPVCustomizer: React.FC = () => {
                     onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.textColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                                            style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div 
                         onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.textColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                   >
                     {text || 'Add text'}
                       </div>
@@ -1022,10 +1009,10 @@ const DPVCustomizer: React.FC = () => {
   };
 
   const customizerSteps = [
-    { step: 1, label: 'Select Panel Type' },
-    { step: 2, label: 'Select your\nicons' },
-    { step: 3, label: 'Select Panel Design' },
-    { step: 4, label: 'Review panel details' },
+    { step: 1, label: 'Select Panel\nType' },
+    { step: 2, label: 'Configure Panel\nLayout' },
+    { step: 3, label: 'Select Panel\nDesign' },
+    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1060,11 +1047,10 @@ const DPVCustomizer: React.FC = () => {
                 fontWeight: idx === activeStep ? 600 : 400,
                 fontSize: 14,
                 textAlign: 'center',
-                maxWidth: 80,
-                minHeight: 40,
+                maxWidth: 150,
+                minHeight: 36,
                 lineHeight: 1.2,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                whiteSpace: 'pre',
                 letterSpacing: 0.2,
               }}
             >
@@ -1634,95 +1620,7 @@ const DPVCustomizer: React.FC = () => {
                 </div>
               </div>
               
-              {/* Colors Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Colors
-                </div>
-                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Icon Color
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-      <button
-                      key={color}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-        style={{
-                            width: '36px',
-                            height: '36px',
-                        borderRadius: '50%',
-                        background: color,
-                            border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
-                        cursor: 'pointer',
-                        padding: 0,
-                        outline: 'none',
-                            boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
-                            transition: 'all 0.2s ease',
-                            transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Text Color
-                    </div>
-                <input
-                  type="color"
-                  value={panelDesign.textColor}
-                  onChange={e => setPanelDesign(prev => ({ ...prev, textColor: e.target.value }))}
-                  style={{
-                        width: '64px',
-                        height: '40px',
-                        border: '2px solid #dee2e6',
-                        borderRadius: '8px',
-                    cursor: 'pointer',
-                        padding: '2px',
-                        background: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transition: 'all 0.2s ease'
-                  }}
-                />
-              </div>
-            </div>
-          </div>
+
 
             {/* Icon Size Section */}
             <div style={{ 
