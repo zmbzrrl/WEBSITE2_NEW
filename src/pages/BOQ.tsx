@@ -139,7 +139,7 @@ const BOQ: React.FC = () => {
     const compact: Record<string, number> = {};
     selected.forEach(k => { compact[k] = Math.max(1, quantities[k] || 1); });
     setBoqQuantities(compact);
-    navigate('/panel-type');
+    navigate('/panel-type', { state: { fromBOQ: true } });
   };
 
   return (

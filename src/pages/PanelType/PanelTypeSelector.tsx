@@ -262,10 +262,13 @@ const PanelTypeSelector = () => {
 
   // If BOQ not set, redirect to BOQ first
   useEffect(() => {
+    // Check if we're coming from BOQ page to avoid immediate redirect
+    const isComingFromBOQ = location.state?.fromBOQ;
+    
     if (!allowedPanelTypes || allowedPanelTypes.length === 0) {
       // Allow bypass if we're adding to an existing project (edit flow)
       const isAddingToExistingProject = location.state?.isAddingToExistingProject;
-      if (!isAddingToExistingProject) {
+      if (!isAddingToExistingProject && !isComingFromBOQ) {
         navigate('/boq', { replace: true });
       }
     }
@@ -274,10 +277,24 @@ const PanelTypeSelector = () => {
   // When bypassing BOQ (adding to an existing project or new revision), derive allowed panel types
   // from existing BOQ quantities so we still gate/filter correctly.
   const effectiveAllowedPanelTypes = useMemo(() => {
-    if (allowedPanelTypes && allowedPanelTypes.length > 0) return allowedPanelTypes;
+    // If we have allowedPanelTypes from BOQ, use them
+    if (allowedPanelTypes && allowedPanelTypes.length > 0) {
+      console.log('Using allowedPanelTypes from BOQ:', allowedPanelTypes);
+      return allowedPanelTypes;
+    }
+    
+    // Only use bypass logic for adding to existing projects
     const isAddingToExistingProject = location.state?.isAddingToExistingProject;
-    if (!isAddingToExistingProject) return allowedPanelTypes;
-    if (!boqQuantities || Object.keys(boqQuantities).length === 0) return allowedPanelTypes;
+    if (!isAddingToExistingProject) {
+      console.log('No allowedPanelTypes and not adding to existing project');
+      return allowedPanelTypes;
+    }
+    
+    if (!boqQuantities || Object.keys(boqQuantities).length === 0) {
+      console.log('No boqQuantities available for bypass');
+      return allowedPanelTypes;
+    }
+    
     const allow: string[] = [];
     if (typeof (boqQuantities as any)['SP'] === 'number' && (boqQuantities as any)['SP'] > 0) allow.push('SP');
     if (typeof (boqQuantities as any)['TAG'] === 'number' && (boqQuantities as any)['TAG'] > 0) allow.push('TAG');
@@ -288,20 +305,32 @@ const PanelTypeSelector = () => {
     if (extKeys.some(k => typeof (boqQuantities as any)[k] === 'number' && (boqQuantities as any)[k] > 0)) {
       allow.push('EXT');
     }
+    console.log('Derived allowedPanelTypes from boqQuantities:', allow);
     return allow;
   }, [allowedPanelTypes, boqQuantities, location.state]);
 
   const panelTypes = useMemo(() => {
+    console.log('effectiveAllowedPanelTypes:', effectiveAllowedPanelTypes);
+    console.log('remainingByCategory:', remainingByCategory);
+    
     // Start with allowed list (or all if none set)
     const base = (!effectiveAllowedPanelTypes || effectiveAllowedPanelTypes.length === 0)
       ? allPanelTypes
       : allPanelTypes.filter(p => effectiveAllowedPanelTypes.includes(p.key as any));
+    
+    console.log('Base panelTypes after filtering:', base.map(p => p.name));
+    
     // Further filter by remaining BOQ quantities if provided
-    return base.filter(p => {
+    const final = base.filter(p => {
       const remaining = remainingByCategory[p.key as 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT'];
+      const shouldKeep = remaining === undefined || remaining > 0;
+      console.log(`Panel ${p.name} (${p.key}): remaining=${remaining}, shouldKeep=${shouldKeep}`);
       // If no BOQ quantity specified for this category, keep it. If specified, require remaining > 0
-      return remaining === undefined || remaining > 0;
+      return shouldKeep;
     });
+    
+    console.log('Final panelTypes:', final.map(p => p.name));
+    return final;
   }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory]);
 
   return (

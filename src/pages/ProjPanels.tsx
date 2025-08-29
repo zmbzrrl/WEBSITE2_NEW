@@ -8,6 +8,7 @@ import PanelConfigurationSummary from "../components/PanelConfigurationSummary";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from "../App";
 import { saveDesign, getDesigns, updateDesign } from "../utils/database";
+import PDFExportButton from "../components/PDFExportButton";
 
 const THEME = {
   primary: '#1b92d1',
@@ -1209,7 +1210,7 @@ const ProjPanels: React.FC = () => {
             
             {/* Navigation Buttons - Hidden in view mode */}
             {!isViewMode && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
             <button
                   onClick={() => {
                     setProjectJustSaved(false); // Reset the saved state
@@ -1274,6 +1275,10 @@ const ProjPanels: React.FC = () => {
                 >
                   Proceed to Layouts
                 </button>
+                <PDFExportButton
+                  disabled={projPanels.length === 0}
+                  size="large"
+                />
               </div>
             )}
           </div>

@@ -419,7 +419,7 @@ const InformationBox = ({
                 Font: {panelDesign.fonts || 'Default'}
               </Typography>
               <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                Size: {panelDesign.fontSize || '12px'}
+                Size: {'9px'}
               </Typography>
             </Box>
           </Box>
@@ -522,8 +522,8 @@ const DPHCustomizer: React.FC = () => {
     iconColor: '#000000',
     plasticColor: '',
     textColor: '#000000',
-    fontSize: '12px',
-    iconSize: '40px',
+    fontSize: '9px',
+    iconSize: '14mm',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -911,7 +911,7 @@ const DPHCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = iconLayout?.size || '40px';
+    const iconSize = '14mm';
     const pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     return (
         <div
@@ -942,8 +942,8 @@ const DPHCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(iconLayout?.size || '40px') + 10}px` : iconLayout?.size || '40px'),
+                width: '14mm',
+                height: '14mm',
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -997,7 +997,7 @@ const DPHCustomizer: React.FC = () => {
                 <div style={{
                   width: '100%',
                   textAlign: 'center',
-                  fontSize: panelDesign.fontSize || '12px',
+                  fontSize: '9px',
                   color: panelDesign.iconColor || '#000000',
                         fontFamily: panelDesign.fonts || undefined,
                   wordBreak: 'break-word',
@@ -1012,12 +1012,12 @@ const DPHCustomizer: React.FC = () => {
                     onChange={e => handleTextChange(e, index)}
                     onBlur={handleTextBlur}
                     autoFocus
-                                            style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                                            style={{ width: '100%', padding: '4px', fontSize: '9px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
                   />
                 ) : (
                   <div
                     onClick={() => handleTextClick(index)}
-                    style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px', marginLeft: '-40px' }}
+                    style={{ fontSize: '9px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px', marginLeft: '-40px' }}
                   >
                     {text || 'Add text'}
                   </div>
@@ -1649,115 +1649,11 @@ const DPHCustomizer: React.FC = () => {
                 )}
             </div>
               
-              {/* Font Size Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Font Size
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  {['10px', '12px', '14px', '16px'].map((size) => (
-      <button
-                      key={size}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, fontSize: size }))}
-        style={{
-                        padding: '10px 16px',
-                        borderRadius: '8px',
-                        border: panelDesign.fontSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
-                        background: panelDesign.fontSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                        color: panelDesign.fontSize === size ? '#ffffff' : '#495057',
-                        cursor: 'pointer',
-                        fontSize: size,
-                        fontWeight: panelDesign.fontSize === size ? '700' : '600',
-                        transition: 'all 0.2s ease',
-                        minWidth: '45px',
-                        textAlign: 'center',
-                        boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)',
-        }}
-      >
-                      {size.replace('px', '')}
-      </button>
-                  ))}
-                </div>
-              </div>
+              
               
 
 
-            {/* Icon Size Section */}
-            <div style={{ 
-              marginBottom: '28px',
-              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-              padding: '20px',
-              borderRadius: '10px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-              border: '1px solid #e9ecef'
-            }}>
-              <div style={{ 
-                fontWeight: '600', 
-                marginBottom: '16px', 
-                color: '#1a1f2c',
-                fontSize: '15px',
-                letterSpacing: '0.3px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <div style={{
-                  width: '4px',
-                  height: '16px',
-                  background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                  borderRadius: '2px'
-                }} />
-                Icon Size
-              </div>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {['30px', '40px', '50px'].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
-                    style={{
-                      padding: '10px 16px',
-                      borderRadius: '8px',
-                      border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
-                      background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: panelDesign.iconSize === size ? '700' : '600',
-                      transition: 'all 0.2s ease',
-                      minWidth: '60px',
-                      textAlign: 'center',
-                      boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                      transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
-                    }}
-                  >
-                    {size.replace('px', '')}
-                  </button>
-                ))}
-              </div>
-            </div>
+            
           </div>
             </div>
 

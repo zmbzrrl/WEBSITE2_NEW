@@ -31,13 +31,6 @@ const PanelModeSelector: React.FC<PanelModeSelectorProps> = ({ value, onChange }
       <span style={{ fontSize: 13, color: '#57606a' }}>Mode:</span>
       <button
         type="button"
-        onClick={() => onChange('custom')}
-        style={{ ...pill, ...(value === 'custom' ? active : {}) }}
-      >
-        Custom panel
-      </button>
-      <button
-        type="button"
         onClick={() => onChange('icons_text')}
         style={{ ...pill, ...(value === 'icons_text' ? active : {}) }}
       >
@@ -49,6 +42,13 @@ const PanelModeSelector: React.FC<PanelModeSelectorProps> = ({ value, onChange }
         style={{ ...pill, ...(value === 'text_only' ? active : {}) }}
       >
         Text only
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('custom')}
+        style={{ ...pill, ...(value === 'custom' ? active : {}) }}
+      >
+        Custom panel
       </button>
     </div>
   );

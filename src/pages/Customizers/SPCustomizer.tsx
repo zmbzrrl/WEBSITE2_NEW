@@ -1151,9 +1151,17 @@ const SPCustomizer: React.FC = () => {
             )}
           </div>
         )}
-        {/* Text field always below the icon */}
+        {/* Text field - centered when no icon, below icon when icon exists */}
         {!isPIR && (
-          <div style={{ width: '100%', textAlign: 'center', marginTop: icon ? '-11px' : '15px' }}>
+          <div style={{ 
+            width: '100%', 
+            textAlign: 'center', 
+            marginTop: icon ? '-11px' : '0px',
+            height: icon ? 'auto' : '100%',
+            display: icon ? 'block' : 'flex',
+            alignItems: icon ? 'flex-start' : 'center',
+            justifyContent: icon ? 'flex-start' : 'center'
+          }}>
             {currentStep === 4 ? (
               text && (
                 <div style={{
@@ -1163,6 +1171,10 @@ const SPCustomizer: React.FC = () => {
                   color: getAutoTextColor(panelDesign.backgroundColor),
                   fontFamily: panelDesign.fonts || undefined,
                   wordBreak: 'break-word',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: icon ? 'auto' : '100%',
                 }}>{text}</div>
               )
             ) : (
@@ -1174,7 +1186,24 @@ const SPCustomizer: React.FC = () => {
                     onChange={e => handleTextChange(e, index)}
                     onBlur={handleTextBlur}
                     autoFocus
-                    style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: getAutoTextColor(panelDesign.backgroundColor), marginTop: '0px' }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '4px', 
+                      fontSize: panelDesign.fontSize || '12px', 
+                      textAlign: 'center', 
+                      border: '1px solid rgba(255, 255, 255, 0.2)', 
+                      borderRadius: '4px', 
+                      outline: 'none', 
+                      background: 'rgba(255, 255, 255, 0.1)', 
+                      transition: 'all 0.2s ease', 
+                      fontFamily: panelDesign.fonts || undefined, 
+                      color: getAutoTextColor(panelDesign.backgroundColor), 
+                      marginTop: '0px',
+                      height: icon ? 'auto' : '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
                   />
                 ) : (
                   (() => {
@@ -1208,7 +1237,26 @@ const SPCustomizer: React.FC = () => {
                           )}
                   <div
                     onClick={() => handleTextClick(index)}
-                            style={{ fontSize: panelDesign.fontSize || '12px', color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', wordBreak: 'break-word', width: '100%', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', marginTop: '0px', whiteSpace: 'nowrap', ...(text ? { overflow: 'hidden', textOverflow: 'ellipsis' } : { overflow: 'visible', textOverflow: 'clip' }) }}
+                            style={{ 
+                              fontSize: panelDesign.fontSize || '12px', 
+                              color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', 
+                              wordBreak: 'break-word', 
+                              width: '100%', 
+                              textAlign: 'center', 
+                              padding: '4px', 
+                              cursor: 'pointer', 
+                              borderRadius: '4px', 
+                              backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', 
+                              transition: 'all 0.2s ease', 
+                              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', 
+                              marginTop: '0px', 
+                              whiteSpace: 'nowrap', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: icon ? 'auto' : '100%',
+                              ...(text ? { overflow: 'hidden', textOverflow: 'ellipsis' } : { overflow: 'visible', textOverflow: 'clip' }) 
+                            }}
                   >
                     {text || 'Add text'}
                   </div>
@@ -1485,7 +1533,11 @@ const SPCustomizer: React.FC = () => {
           <Button
             variant="contained"
             disabled={currentStep === 4}
-            onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
+            onClick={() => {
+              const nextStep = Math.min(4, currentStep + 1);
+              console.log('Current step:', currentStep, 'Next step:', nextStep);
+              setCurrentStep(nextStep);
+            }}
           >
             Next
           </Button>
@@ -1640,6 +1692,7 @@ const SPCustomizer: React.FC = () => {
         )}
         {/* Step 3: Panel Design */}
         {currentStep === 3 && (
+          console.log('Rendering Step 3: Panel Design'),
           <div style={{ 
             display: 'flex', 
             gap: '80px',

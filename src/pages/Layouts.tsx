@@ -6,6 +6,7 @@ import { Add, Save, Upload } from '@mui/icons-material';
 import PanelPreview from "../components/PanelPreview";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from '../App';
+import PDFExportButton from "../components/PDFExportButton";
 
 const THEME = {
   primary: '#1b92d1',
@@ -1387,6 +1388,17 @@ const Layouts: React.FC = () => {
             <Save fontSize="small" />
             Save Layout
           </button>
+          <PDFExportButton
+            roomData={getCurrentLayout().placedPanels.map(panel => ({
+              roomType: panel.roomType,
+              panels: [panel],
+              placedPanels: getCurrentLayout().placedPanels,
+              placedDevices: getCurrentLayout().placedDevices || [],
+              layoutImage: getCurrentLayout().imageUrl || undefined
+            }))}
+            layoutElementRef={canvasRef}
+            disabled={!getCurrentLayout().imageUrl}
+          />
         </div>
       </div>
     </div>
