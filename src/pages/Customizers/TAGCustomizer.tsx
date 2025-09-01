@@ -20,8 +20,10 @@ import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../data/ralColors';
 import { ProjectContext } from '../../App';
 import { motion } from 'framer-motion';
-import TAG from "../  ../assets/panels/TAG_PIR.png";
+import TAG from "../../assets/panels/TAG_PIR.png";
 import QuantityDialog from '../../components/QuantityDialog';
+import PanelDimensionSelector from '../../components/PanelDimensionSelector';
+import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -129,6 +131,7 @@ interface GridCellProps {
   index: number;
   onDrop: (index: number, iconId: string) => void;
   children: React.ReactNode;
+  positions: Array<{ top: string; left: string; width?: string; height?: string; }>;
 }
 
 interface IconTexts {
@@ -150,7 +153,7 @@ interface Design {
 }
 
 // Component for each grid cell
-const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
+const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children, positions }) => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
@@ -163,20 +166,6 @@ const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
 
   // Define absolute positions for TAG panel (4x3 grid)
   const getPosition = (index: number) => {
-    const positions = [
-      { top: '15px', left: '15px' },   // Icon 0 (top-left)
-      { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
-      { top: '15px', left: '215px' },  // Icon 2 (top-right)
-      { top: '115px', left: '15px' },  // Icon 3 (middle-left)
-      { top: '115px', left: '115px' }, // Icon 4 (middle-center)
-      { top: '115px', left: '215px' }, // Icon 5 (middle-right)
-      { top: '215px', left: '15px' },  // Icon 6 (bottom-left)
-      { top: '215px', left: '115px' }, // Icon 7 (bottom-center)
-      { top: '215px', left: '215px' }, // Icon 8 (bottom-right)
-      { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
-      { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
-      { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total
-    ];
     return positions[index] || { top: '0px', left: '0px' };
   };
 
@@ -606,6 +595,17 @@ const TAGCustomizer: React.FC = () => {
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   console.log('RENDER', { backbox, extraComments });
 
+  // Dimension configuration
+  const config = getPanelLayoutConfig('TAG');
+  const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
+  const [dimensionKey, setDimensionKey] = useState<string>('standard');
+
+  // Derive active dimensions and positions by selected key (fallback to defaults)
+  const activeDimension = (dimensionConfigs && dimensionConfigs[dimensionKey]) ? dimensionConfigs[dimensionKey] : dimensions;
+  const activeIconPositions = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
+    ? dimensionConfigs[dimensionKey].iconPositions
+    : (iconPositions || []);
+
 
 
   const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
@@ -616,8 +616,16 @@ const TAGCustomizer: React.FC = () => {
 
   useEffect(() => {
     import("../../assets/iconLibrary").then((module) => {
+      console.log('📦 Loading iconLibrary module:', module);
+      console.log('📦 Available categories:', module.iconCategories);
+      console.log('📦 All icons:', module.default);
+      
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat === 'PIR'));
+      setIconCategories(module.iconCategories);
+      
+      // Check if TAG icons are available
+      const tagIcons = Object.values(module.default).filter((icon: any) => icon.category === 'TAG');
+      console.log('📦 TAG icons found:', tagIcons);
     });
   }, []);
 
@@ -664,6 +672,11 @@ const TAGCustomizer: React.FC = () => {
         setPanelDesign(panelDesignData);
         setBackbox(panelDesignData.backbox || '');
         setExtraComments(panelDesignData.extraComments || '');
+         
+         // Load dimension configuration if available
+         if (panelDesignData.tagConfig?.dimension) {
+           setDimensionKey(panelDesignData.tagConfig.dimension);
+         }
       }
       
       // Load placed icons
@@ -779,12 +792,19 @@ const TAGCustomizer: React.FC = () => {
   const handleCell1Click = () => {
     if (currentStep === 4) return;
     
+    console.log('🔄 handleCell1Click called');
+    console.log('Current placedIcons:', placedIcons);
+    console.log('Available icons:', icons);
+    
     // Define the temperature unit icons that should cycle in cell 1
     const temperatureIcons = ["CF", "C", "F"];
     
     // Find the current icon in cell 1
     const currentIcon = placedIcons.find(icon => icon.position === 1);
     const currentIconId = currentIcon?.iconId;
+    
+    console.log('Current icon in cell 1:', currentIcon);
+    console.log('Current icon ID:', currentIconId);
     
     // Find current index in temperature icons array
     const currentIndex = temperatureIcons.indexOf(currentIconId || "CF");
@@ -793,10 +813,15 @@ const TAGCustomizer: React.FC = () => {
     const nextIndex = (currentIndex + 1) % temperatureIcons.length;
     const nextIconId = temperatureIcons[nextIndex];
     
+    console.log('Next icon ID:', nextIconId);
+    
     // Find the icon data from icons
     const nextIcon = (icons as any)[nextIconId];
     
+    console.log('Next icon data:', nextIcon);
+    
     if (nextIcon) {
+      console.log('✅ Setting new icon:', nextIcon);
       setPlacedIcons(prev => [
         ...prev.filter(icon => icon.position !== 1),
         {
@@ -808,6 +833,8 @@ const TAGCustomizer: React.FC = () => {
           category: nextIcon.category
         }
       ]);
+    } else {
+      console.log('❌ Next icon not found in icons object');
     }
   };
 
@@ -843,7 +870,7 @@ const TAGCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+       panelDesign: { ...panelDesign, backbox, extraComments, tagConfig: { dimension: dimensionKey } },
     };
     
     if (isEditMode && editPanelIndex !== undefined) {
@@ -942,17 +969,7 @@ const TAGCustomizer: React.FC = () => {
           if (hasPIR) return;
         }
 
-        // Check if trying to place G1 or G2 icons in restricted cells (2, 5, 8, 11) - right column
-        if ((icon.id === "G1" || icon.id === "G2") && [2, 5, 8, 11].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8, 11)");
-          return;
-        }
 
-        // Check if trying to place G3 icon in restricted cells (0, 3, 6, 9) - left column
-        if (icon.id === "G3" && [0, 3, 6, 9].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
-          return;
-        }
 
         // Special handling for cell 1 - allow any TAG icon
         if (cellIndex === 1) {
@@ -1023,25 +1040,7 @@ const TAGCustomizer: React.FC = () => {
           return;
         }
 
-        // Check G1/G2 restrictions for restricted cells (2, 5, 8, 11) - right column
-        if ((sourceIcon.iconId === "G1" || sourceIcon.iconId === "G2") && [2, 5, 8, 11].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8, 11)");
-          return;
-        }
-        if ((targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") && [2, 5, 8, 11].includes(dragData.position)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8, 11)");
-          return;
-        }
-
-        // Check G3 restrictions for restricted cells (0, 3, 6, 9) - left column
-        if (sourceIcon.iconId === "G3" && [0, 3, 6, 9].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
-          return;
-        }
-        if (targetIcon?.iconId === "G3" && [0, 3, 6, 9].includes(dragData.position)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
-          return;
-        }
+        
 
         // Swap icon positions
         setPlacedIcons(prev => prev.map(icon => {
@@ -1102,16 +1101,32 @@ const TAGCustomizer: React.FC = () => {
     const isHovered = hoveredCell === displayIndex;
     const isIconHovered = !!iconHovered[displayIndex];
 
-    // Define which cells are editable (removed cell 1 and third row)
-    const editableCells = [7, 8, 9, 10, 11].filter(i => i < 6 || i > 8); // Exclude 6,7,8
+         // Define which cells are editable (including row 3 and cells 0, 2)
+     const editableCells = [0, 2, 6, 7, 8, 9, 10, 11];
     const isEditable = editableCells.includes(displayIndex);
 
     // Check if this is a DISPLAY icon
     const isDisplay = icon?.iconId === "DISPLAY";
     const isDisplayCell = displayIndex === 3 && isDisplay;
 
+    // Fallback positions in case activeIconPositions is not available
+    const fallbackPositions = [
+      { top: '15px', left: '15px' },   // Icon 0 (top-left)
+      { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
+      { top: '15px', left: '215px' },  // Icon 2 (top-right)
+      { top: '115px', left: '15px' },  // Icon 3 (middle-left)
+      { top: '115px', left: '115px' }, // Icon 4 (middle-center)
+      { top: '115px', left: '215px' }, // Icon 5 (middle-right)
+      { top: '155px', left: '15px' },  // Icon 6 (bottom-left) - raised by 60px total
+      { top: '155px', left: '115px' }, // Icon 7 (bottom-center) - raised by 60px total
+      { top: '155px', left: '215px' }, // Icon 8 (bottom-right) - raised by 60px total
+      { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
+      { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
+      { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total
+    ];
+
     return (
-      <AbsoluteCell key={index} index={index} onDrop={currentStep === 4 || isThirdRow ? () => {} : handleDrop}>
+      <AbsoluteCell key={index} index={index} onDrop={currentStep === 4 ? () => {} : handleDrop} positions={activeIconPositions || fallbackPositions}>
         <div
           style={{
             display: "flex",
@@ -1122,8 +1137,8 @@ const TAGCustomizer: React.FC = () => {
             height: "100%",
             paddingTop: "10px",
           }}
-          onMouseEnter={currentStep !== 4 && !isThirdRow ? () => setIconHovered(prev => ({ ...prev, [displayIndex]: true })) : undefined}
-          onMouseLeave={currentStep !== 4 && !isThirdRow ? () => setIconHovered(prev => ({ ...prev, [displayIndex]: false })) : undefined}
+                     onMouseEnter={currentStep !== 4 ? () => setIconHovered(prev => ({ ...prev, [displayIndex]: true })) : undefined}
+           onMouseLeave={currentStep !== 4 ? () => setIconHovered(prev => ({ ...prev, [displayIndex]: false })) : undefined}
         >
           {/* Permanent DISPLAY icon in cell 4 */}
           {displayIndex === 4 && (
@@ -1155,26 +1170,8 @@ const TAGCustomizer: React.FC = () => {
             </div>
           )}
 
-          {/* Always show FAN icon in third row */}
-          {isThirdRow ? (
-            <div style={{ position: "relative", display: "inline-block", top: "-75px" }}>
-              <img
-                src={fanIcon.src}
-                alt="FAN"
-                style={{
-                  width: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
-                  height: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
-                  objectFit: "contain",
-                  marginBottom: "5px",
-                  position: "relative",
-                  zIndex: 1,
-                  filter: getIconColorFilter(panelDesign.backgroundColor), // Auto-determine icon color
-                  transition: 'filter 0.2s',
-                  top: displayIndex === 6 ? "10px" : displayIndex === 7 ? "6px" : undefined,
-                }}
-              />
-            </div>
-          ) : icon && (
+                     {/* Row 3 is now empty like row 4 - no default fan icons */}
+           {icon && (
             <div
               style={{
                 position: "relative",
@@ -1218,8 +1215,8 @@ const TAGCustomizer: React.FC = () => {
                     src={icon.src}
                     alt={icon.label}
                     style={{
-                      width: "26px",
-                      height: "26px",
+                       width: "39px",
+                       height: "39px",
                       objectFit: "contain",
                       filter: getIconColorFilter(panelDesign.backgroundColor),
                       transition: 'filter 0.2s',
@@ -1269,8 +1266,8 @@ const TAGCustomizer: React.FC = () => {
                 }}
               />
               )}
-              {/* Only show delete button if not in third row and not cell 1 */}
-              {currentStep !== 4 && !isThirdRow && displayIndex !== 1 && (
+                             {/* Only show delete button if not cell 1 */}
+               {currentStep !== 4 && displayIndex !== 1 && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1679,26 +1676,41 @@ const TAGCustomizer: React.FC = () => {
           </Button>
         </Box>
 
-        {/* Icon List: Only visible on step 2 */}
+        {/* Step 2: Dimension selector + Panel template + Icon list side-by-side */}
         {currentStep === 2 && (
       <div style={{ marginBottom: "20px" }}>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <PanelDimensionSelector
+                options={[
+                  { key: 'standard', label: '95 × 95 mm', sublabel: "3.7 × 3.7''" },
+                  { key: 'wide', label: '130 × 95 mm', sublabel: "5.1 × 3.7''" },
+                  { key: 'tall', label: '95 × 130 mm', sublabel: "3.7 × 5.1''" },
+                ]}
+                value={dimensionKey}
+                onChange={setDimensionKey}
+                inlineLabel={'Size:'}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+              {/* Icon categories + list (left) */}
+              <div style={{ flex: '0 0 50%', maxWidth: '50%', marginTop: '30px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
           {iconCategories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
               style={{
-                    padding: "12px 24px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
-                borderRadius: "4px",
-                cursor: "pointer",
+                        padding: '10px 18px',
+                        background: selectedCategory === category ? '#1a1f2c' : '#ffffff',
+                        color: selectedCategory === category ? '#ffffff' : '#1a1f2c',
+                        border: '1px solid #1a1f2c',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
                     fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                    minWidth: "120px",
+                        fontSize: '14px',
+                        letterSpacing: '0.5px',
+                        transition: 'all 0.3s ease',
+                        minWidth: '120px',
               }}
             >
               {category}
@@ -1706,12 +1718,12 @@ const TAGCustomizer: React.FC = () => {
           ))}
         </div>
             <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
-              maxWidth: "800px",
-              margin: "0 auto"
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 72px)',
+                  gap: '10px',
+                  maxHeight: 420,
+                  overflowY: 'auto',
+                  paddingRight: 6
             }}>
           {categoryIcons.map((icon) => (
             <div
@@ -1719,33 +1731,68 @@ const TAGCustomizer: React.FC = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(e, icon)}
               style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
-              }}
+                        padding: '10px',
+                        background: 'transparent',
+                        borderRadius: '8px',
+                        cursor: 'grab',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        width: '72px',
+                        minHeight: '72px',
+                        border: '1px solid transparent',
+                        transition: 'border-color 0.2s ease, background 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1a1f2c33'; e.currentTarget.style.background = '#f7f9fc'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
             >
               <img
                 src={icon.src}
                 alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain", filter: icon.category === "TAG" ? getIconColorFilter(panelDesign.backgroundColor) : undefined }}
-                  />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
-                  }}>
-                    {icon.label}
-                  </span>
+                        title={icon.label}
+                        style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+                      />
             </div>
           ))}
+                </div>
+              </div>
+              {/* Panel template (right) */}
+              <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '60px' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: activeDimension.width || dimensions.width,
+                    height: activeDimension.height || dimensions.height,
+                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                    padding: '0',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    transition: 'all 0.3s ease',
+                    margin: 0,
+                    fontFamily: panelDesign.fonts || undefined,
+                  }}
+                >
+                  <div style={{ 
+                    position: 'absolute',
+                    top: '2px',
+                    left: '2px',
+                    right: '2px',
+                    bottom: '2px',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+                    {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
+                  </div>
+                </div>
+              </div>
         </div>
       </div>
         )}
@@ -2059,7 +2106,8 @@ const TAGCustomizer: React.FC = () => {
             <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
           <div
             style={{
-              width: "350px",
+               width: activeDimension.width || "320px",
+               height: activeDimension.height || "320px",
                   background: `linear-gradient(135deg, 
                     rgba(255, 255, 255, 0.3) 0%, 
                     rgba(255, 255, 255, 0.1) 50%, 
@@ -2104,8 +2152,8 @@ const TAGCustomizer: React.FC = () => {
                 {/* Content with higher z-index */}
                 <div style={{ 
                   position: "relative",
-                  width: "320px",
-                  height: "320px", // Use square aspect ratio
+                 width: activeDimension.width || "320px",
+                 height: activeDimension.height || "320px", // Use dynamic dimensions
                   zIndex: 2,
                 }}>
               {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
@@ -2149,8 +2197,8 @@ const TAGCustomizer: React.FC = () => {
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
                   style={{
-                    width: "320px",
-                    height: "320px",
+                     width: activeDimension.width || "320px",
+                     height: activeDimension.height || "320px",
                     background: `linear-gradient(135deg, 
                       rgba(255, 255, 255, 0.3) 0%, 
                       rgba(255, 255, 255, 0.1) 50%, 
@@ -2198,8 +2246,8 @@ const TAGCustomizer: React.FC = () => {
                   {/* Content with higher z-index */}
                   <div style={{ 
                     position: "relative",
-                    width: "320px",
-                    height: "320px",
+                     width: activeDimension.width || "320px",
+                     height: activeDimension.height || "320px",
                     zIndex: 2,
                     overflow: "hidden"
                   }}>
@@ -2227,67 +2275,7 @@ const TAGCustomizer: React.FC = () => {
             </div>
           </>
         )}
-        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
-        {currentStep === 2 && (
-          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 16, marginLeft: "50px" }}>
-            {/* Panel Template */}
-            <div
-              style={{
-                width: "350px",
-                background: `linear-gradient(135deg, 
-                  rgba(255, 255, 255, 0.3) 0%, 
-                  rgba(255, 255, 255, 0.1) 50%, 
-                  rgba(255, 255, 255, 0.05) 100%), 
-                  ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                padding: "15px",
-                border: "2px solid rgba(255, 255, 255, 0.2)",
-                borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                boxShadow: `
-                  0 20px 40px rgba(0, 0, 0, 0.3),
-                  0 8px 16px rgba(0, 0, 0, 0.2),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                  inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                  0 0 0 1px rgba(255, 255, 255, 0.1)
-                `,
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                transition: "all 0.3s ease",
-                position: "relative",
-                transform: "perspective(1000px) rotateX(5deg)",
-                transformStyle: "preserve-3d",
-              }}
-            >
-              {/* Inner glow effect */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "2px",
-                  left: "2px",
-                  right: "2px",
-                  bottom: "2px",
-                  background: `linear-gradient(135deg, 
-                    rgba(255, 255, 255, 0.1) 0%, 
-                    transparent 50%, 
-                    rgba(0, 0, 0, 0.05) 100%)`,
-                  pointerEvents: "none",
-                  zIndex: 1,
-                }}
-              />
-              
-              {/* Content with higher z-index */}
-              <div style={{ 
-                position: "relative",
-                width: "320px",
-                height: "320px", // Use square aspect ratio
-                zIndex: 2,
-              }}>
-                {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
-              </div>
-            </div>
 
-          </div>
-        )}
       </Container>
       <QuantityDialog
         open={qtyOpen}

@@ -142,8 +142,64 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
   // Thermostat (TAG)
   TAG: {
     dimensions: {
-      width: '320px',
-      height: '320px'
+      width: '95mm',
+      height: '95mm'
+    },
+    dimensionConfigs: {
+      standard: {
+        width: '95mm',
+        height: '95mm',
+        iconPositions: [
+          { top: '15px', left: '15px' },   // Icon 0 (top-left)
+          { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
+          { top: '15px', left: '215px' },  // Icon 2 (top-right)
+          { top: '115px', left: '15px' },  // Icon 3 (middle-left)
+          { top: '115px', left: '115px' }, // Icon 4 (middle-center)
+          { top: '115px', left: '215px' }, // Icon 5 (middle-right)
+          { top: '155px', left: '15px' },  // Icon 6 (bottom-left) - raised by 60px total
+          { top: '155px', left: '115px' }, // Icon 7 (bottom-center) - raised by 60px total
+          { top: '155px', left: '215px' }, // Icon 8 (bottom-right) - raised by 60px total
+          { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
+          { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
+          { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total
+        ]
+      },
+      wide: {
+        width: '130mm',
+        height: '95mm',
+        iconPositions: [
+          { top: '15px', left: '15px' },   // Icon 0 (top-left)
+          { top: '0px', left: '140px' },   // Icon 1 (top-center) - adjusted for wider panel
+          { top: '15px', left: '265px' },  // Icon 2 (top-right) - adjusted for wider panel
+          { top: '115px', left: '15px' },  // Icon 3 (middle-left)
+          { top: '115px', left: '140px' }, // Icon 4 (middle-center) - adjusted for wider panel
+          { top: '115px', left: '265px' }, // Icon 5 (middle-right) - adjusted for wider panel
+          { top: '155px', left: '15px' },  // Icon 6 (bottom-left) - raised by 60px total
+          { top: '155px', left: '140px' }, // Icon 7 (bottom-center) - raised by 60px total
+          { top: '155px', left: '265px' }, // Icon 8 (bottom-right) - raised by 60px total
+          { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
+          { top: '220px', left: '140px' }, // Icon 10 (fourth-center) - moved up 95px total
+          { top: '220px', left: '265px' }, // Icon 11 (fourth-right) - moved up 95px total
+        ]
+      },
+      tall: {
+        width: '95mm',
+        height: '130mm',
+        iconPositions: [
+          { top: '15px', left: '15px' },   // Icon 0 (top-left)
+          { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
+          { top: '15px', left: '215px' },  // Icon 2 (top-right)
+          { top: '115px', left: '15px' },  // Icon 3 (middle-left)
+          { top: '115px', left: '115px' }, // Icon 4 (middle-center)
+          { top: '115px', left: '215px' }, // Icon 5 (middle-right)
+          { top: '155px', left: '15px' },  // Icon 6 (bottom-left) - raised by 60px total
+          { top: '155px', left: '115px' }, // Icon 7 (bottom-center) - raised by 60px total
+          { top: '155px', left: '215px' }, // Icon 8 (bottom-right) - raised by 60px total
+          { top: '280px', left: '15px' },  // Icon 9 (fourth-left) - adjusted for taller panel
+          { top: '280px', left: '115px' }, // Icon 10 (fourth-center) - adjusted for taller panel
+          { top: '280px', left: '215px' }, // Icon 11 (fourth-right) - adjusted for taller panel
+        ]
+      }
     },
     iconPositions: [
       { top: '15px', left: '15px' },   // Icon 0 (top-left)
@@ -152,9 +208,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       { top: '115px', left: '15px' },  // Icon 3 (middle-left)
       { top: '115px', left: '115px' }, // Icon 4 (middle-center)
       { top: '115px', left: '215px' }, // Icon 5 (middle-right)
-      { top: '215px', left: '15px' },  // Icon 6 (bottom-left)
-      { top: '215px', left: '115px' }, // Icon 7 (bottom-center)
-      { top: '215px', left: '215px' }, // Icon 8 (bottom-right)
+      { top: '155px', left: '15px' },  // Icon 6 (bottom-left) - raised by 60px total
+      { top: '155px', left: '115px' }, // Icon 7 (bottom-center) - raised by 60px total
+      { top: '155px', left: '215px' }, // Icon 8 (bottom-right) - raised by 60px total
       { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
       { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
       { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total

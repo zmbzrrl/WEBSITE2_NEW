@@ -1292,10 +1292,12 @@ const X2HCustomizer: React.FC = () => {
           ))}
         </div>
             <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, 72px)',
+              gap: '10px',
+              maxHeight: 420,
+              overflowY: 'auto',
+              paddingRight: 6,
               maxWidth: "800px",
               margin: "0 auto"
             }}>
@@ -1305,31 +1307,29 @@ const X2HCustomizer: React.FC = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(e, icon)}
               style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
+                padding: '10px',
+                background: 'transparent',
+                borderRadius: '8px',
+                cursor: 'grab',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                width: '72px',
+                minHeight: '72px',
+                border: '1px solid transparent',
+                transition: 'border-color 0.2s ease, background 0.2s ease',
+                boxSizing: 'border-box'
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1a1f2c33'; e.currentTarget.style.background = '#f7f9fc'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
             >
               <img
                 src={icon.src}
                 alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                title={icon.label}
+                style={{ width: '32px', height: '32px', objectFit: 'contain' }}
               />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
-                  }}>
-                    {icon.label}
-                  </span>
             </div>
           ))}
         </div>
