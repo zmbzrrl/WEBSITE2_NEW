@@ -8,7 +8,7 @@ import PanelConfigurationSummary from "../components/PanelConfigurationSummary";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from "../App";
 import { saveDesign, getDesigns, updateDesign } from "../utils/database";
-import PDFExportButton from "../components/PDFExportButton";
+import { navigateToPrintPreviewMultiple } from "../utils/printUtils";
 
 const THEME = {
   primary: '#1b92d1',
@@ -196,8 +196,8 @@ const ProjPanels: React.FC = () => {
           
           const result = await getDesigns(userEmail);
           if (result.success && 'designs' in result) {
-            console.log('  Found designs:', result.designs.length);
-            const design = result.designs.find((d: any) => d.id === location.state.projectDesignId);
+            console.log('  Found designs:', result.designs?.length || 0);
+            const design = result.designs?.find((d: any) => d.id === location.state.projectDesignId);
             console.log('  Found design:', design ? 'yes' : 'no');
             
             if (design && design.designData?.designData?.panels) {
@@ -434,7 +434,7 @@ const ProjPanels: React.FC = () => {
         // We need to get the original design to preserve its name and revision number
         const designsResult = await getDesigns(userEmail);
         if (designsResult.success && 'designs' in designsResult) {
-          const originalDesign = designsResult.designs.find((design: any) => design.id === effectiveEditingDesignId);
+          const originalDesign = designsResult.designs?.find((design: any) => design.id === effectiveEditingDesignId);
           if (originalDesign) {
             // Keep the original project name (including revision number)
             const originalProjectName = originalDesign.design_name;
@@ -512,7 +512,7 @@ const ProjPanels: React.FC = () => {
         const designsResult = await getDesigns(userEmail);
         if (designsResult.success && 'designs' in designsResult) {
           // First, check if we have a project name that already exists (indicating we're updating)
-          const existingDesignWithSameName = designsResult.designs.find((design: any) => 
+                      const existingDesignWithSameName = designsResult.designs?.find((design: any) => 
             design.design_name === projectName
           );
           
@@ -551,7 +551,7 @@ const ProjPanels: React.FC = () => {
           // Also check if we have a project name with revision number that matches our current projectName
           // This handles the case where projectName was updated after first save
           if (projectName && projectName.includes('(rev') && !effectiveIsCreateNewRevision) {
-            const existingDesignWithRevision = designsResult.designs.find((design: any) => 
+            const existingDesignWithRevision = designsResult.designs?.find((design: any) => 
               design.design_name === projectName
             );
             
@@ -589,7 +589,7 @@ const ProjPanels: React.FC = () => {
           }
           
           // Check if there are any existing designs with this base project name
-          const existingDesigns = designsResult.designs.filter((design: any) => 
+          const existingDesigns = designsResult.designs?.filter((design: any) => 
             design.design_name === baseProjectName || 
             (design.design_name && design.design_name.startsWith(baseProjectName + ' (rev'))
           );
@@ -1118,31 +1118,70 @@ const ProjPanels: React.FC = () => {
         {/* Action Buttons */}
         {projPanels.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 32 }}>
-            {/* Save Project Button - Hidden in view mode */}
-            {!isViewMode && (
+            {/* Print and Save Buttons Row */}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {/* Print Project Button */}
               <button
-                onClick={handleSaveProject}
-                disabled={isSaving}
+                onClick={() => {
+                                     const panelConfigs = projPanels.map((panel, index) => ({
+                     icons: panel.icons.map(icon => ({
+                       src: icon.src || '',
+                       label: icon.label || '',
+                       position: icon.position,
+                       text: icon.text || '',
+                       category: icon.category || undefined,
+                       iconId: icon.iconId || undefined,
+                     })),
+                     panelDesign: panel.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' },
+                     iconTexts: {},
+                     type: panel.type,
+                     name: `Panel ${index + 1}`
+                   }));
+                  navigateToPrintPreviewMultiple(navigate, panelConfigs, projectName || 'Project');
+                }}
                 style={{
                   padding: '12px 28px',
-                  background: '#27ae60',
-                  color: '#fff',
-                  border: 'none',
+                  background: 'transparent',
+                  color: '#1a1f2c',
+                  border: '2px solid #1a1f2c',
                   borderRadius: THEME.buttonRadius,
                   fontSize: 16,
                   fontWeight: 600,
-                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  cursor: 'pointer',
                   boxShadow: THEME.shadow,
                   letterSpacing: '0.5px',
-                  transition: 'background 0.2s, transform 0.2s',
-                  opacity: isSaving ? 0.7 : 1,
+                  transition: 'all 0.2s, transform 0.2s',
                 }}
-              >
-                {isSaving ? '💾 Saving...' : 
-                 isCreateNewRevision ? '💾 Save as New Rev' :
-                 '💾 Save Project'}
-              </button>
-            )}
+                              >
+                  🖨️ Print Project
+                </button>
+              
+              {/* Save Project Button - Hidden in view mode */}
+              {!isViewMode && (
+                <button
+                  onClick={handleSaveProject}
+                  disabled={isSaving}
+                  style={{
+                    padding: '12px 28px',
+                    background: '#27ae60',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: THEME.buttonRadius,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    boxShadow: THEME.shadow,
+                    letterSpacing: '0.5px',
+                    transition: 'background 0.2s, transform 0.2s',
+                    opacity: isSaving ? 0.7 : 1,
+                  }}
+                >
+                  {isSaving ? '💾 Saving...' : 
+                   isCreateNewRevision ? '💾 Save as New Rev' :
+                   '💾 Save Project'}
+                </button>
+              )}
+            </div>
             
             {/* Save Message */}
             {saveMessage && (
@@ -1275,10 +1314,7 @@ const ProjPanels: React.FC = () => {
                 >
                   Proceed to Layouts
                 </button>
-                <PDFExportButton
-                  disabled={projPanels.length === 0}
-                  size="large"
-                />
+
               </div>
             )}
           </div>

@@ -1,22 +1,8 @@
 // 🧪 DATABASE TEST SCRIPT
 // This file helps test if your Supabase connection is working properly
 
-import { createClient } from '@supabase/supabase-js';
-
-// Get Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://pygpeqxuedvyzuocdnpt.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5Z3BlcXh1ZWR2eXp1b2NkbnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDQ2NDEsImV4cCI6MjA3MDQyMDY0MX0.oWbvIjxuX_NcZSe9qxLGW5-zl9VIGs3ZC5z3AZpqAz8';
-
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-    detectSessionInUrl: false
-  },
-  db: {
-    schema: 'api'  // Changed from 'public' to 'api' to match your project configuration
-  }
-});
+// Use the shared Supabase client to prevent multiple instances
+import { supabase } from './supabaseClient';
 
 // 🧪 TEST BASIC CONNECTION
 export const testBasicConnection = async () => {

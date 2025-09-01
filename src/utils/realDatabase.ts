@@ -2,28 +2,8 @@
 // This uses Supabase (a real database service) to store data permanently on the internet
 // Think of it like upgrading from a toy kitchen to a real restaurant kitchen
 
-import { createClient } from '@supabase/supabase-js';
-
-// 🔑 SUPABASE CONFIGURATION (ENVIRONMENT VARIABLES)
-// These are like the keys to your restaurant's storage room
-// Get these from: Supabase Dashboard → Settings → API
-// Both URL and key are FREE forever!
-
-// Use environment variables for security (fallback to hardcoded values for development)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://pygpeqxuedvyzuocdnpt.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5Z3BlcXh1ZWR2eXp1b2NkbnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDQ2NDEsImV4cCI6MjA3MDQyMDY0MX0.oWbvIjxuX_NcZSe9qxLGW5-zl9VIGs3ZC5z3AZpqAz8';
-
-// 🏪 Create the database connection (like getting the keys to the storage room)
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-    detectSessionInUrl: false
-  },
-  db: {
-    schema: 'api'  // Changed from 'public' to 'api' to match your project configuration
-  }
-});
+// Use the shared Supabase client to prevent multiple instances
+import { supabase } from './supabaseClient';
 
 // 🆔 Helper function to create unique IDs (same as mock database)
 const generateId = () => {
@@ -476,8 +456,7 @@ export const testConnection = async () => {
     console.log('🧪 Testing Supabase connection...');
     
     // Test 1: Try to get the Supabase client info
-    console.log('🔍 Supabase URL:', supabaseUrl);
-    console.log('🔍 Supabase Key length:', supabaseKey.length);
+    console.log('🔍 Supabase client created successfully');
     
     // Test 2: Try a simple health check
     const { data: healthData, error: healthError } = await supabase
@@ -544,34 +523,25 @@ export const testBasicConnection = async () => {
   try {
     console.log('🔌 Testing basic Supabase connection...');
     
-    // Try to make a simple request to the Supabase API
-    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
-      method: 'GET',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    // Use the shared client instead of direct API calls
+    const { data, error } = await supabase
+      .from('user_projects')
+      .select('count')
+      .limit(1);
     
-    console.log('🔌 Response status:', response.status);
-    console.log('🔌 Response headers:', Object.fromEntries(response.headers.entries()));
-    
-    if (response.ok) {
-      const data = await response.text();
+    if (error) {
+      console.log('🔌 Error response:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        status: 'error'
+      };
+    } else {
       console.log('🔌 Response data:', data);
       return {
         success: true,
         message: 'Basic connection successful',
-        status: response.status
-      };
-    } else {
-      const errorText = await response.text();
-      console.log('🔌 Error response:', errorText);
-      return {
-        success: false,
-        error: `HTTP ${response.status}: ${errorText}`,
-        status: response.status
+        status: 'success'
       };
     }
   } catch (error) {

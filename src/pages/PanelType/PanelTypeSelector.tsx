@@ -260,7 +260,7 @@ const PanelTypeSelector = () => {
     return rem;
   }, [boqQuantities, usedByCategory]);
 
-  // If BOQ not set, redirect to BOQ first
+  // If BOQ not set, redirect to BOQ first (only for new projects)
   useEffect(() => {
     // Check if we're coming from BOQ page to avoid immediate redirect
     const isComingFromBOQ = location.state?.fromBOQ;
@@ -269,10 +269,13 @@ const PanelTypeSelector = () => {
       // Allow bypass if we're adding to an existing project (edit flow)
       const isAddingToExistingProject = location.state?.isAddingToExistingProject;
       if (!isAddingToExistingProject && !isComingFromBOQ) {
-        navigate('/boq', { replace: true });
+        // Only redirect to BOQ if this is a new project (not edit mode)
+        if (!isEditMode) {
+          navigate('/boq', { replace: true });
+        }
       }
     }
-  }, [allowedPanelTypes, navigate, location.state]);
+  }, [allowedPanelTypes, navigate, location.state, isEditMode]);
 
   // When bypassing BOQ (adding to an existing project or new revision), derive allowed panel types
   // from existing BOQ quantities so we still gate/filter correctly.
@@ -365,7 +368,26 @@ const PanelTypeSelector = () => {
         </Box>
       )}
       <Container maxWidth="lg">
-        <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1 }}>
+        <Box sx={{ position: 'absolute', top: 20, right: 30, zIndex: 1, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => navigate('/boq', { state: { editMode: true } })}
+            sx={{
+              color: 'rgba(255, 255, 255, 0.9)',
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+              textTransform: 'none',
+              fontWeight: 400,
+              letterSpacing: '0.5px',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              '&:hover': {
+                borderColor: 'rgba(255, 255, 255, 0.6)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Edit BOQ
+          </Button>
           <CartButton />
         </Box>
 

@@ -20,7 +20,7 @@ import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../data/ralColors';
 import { ProjectContext } from '../../App';
 import { motion } from 'framer-motion';
-import TAG from "../../assets/panels/TAG_PIR.png";
+import TAG from "../  ../assets/panels/TAG_PIR.png";
 import QuantityDialog from '../../components/QuantityDialog';
 
 

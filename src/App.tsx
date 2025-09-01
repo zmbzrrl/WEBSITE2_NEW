@@ -48,6 +48,7 @@ import X2VCustomizer from "./pages/Customizers/ExtendedPanels/X2VCustomizer"; //
 import X1VCustomizer from "./pages/Customizers/ExtendedPanels/X1VCustomizer"; // Extended panel X1 vertical
 import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";       // IDPG panel customizer
 import MyDesigns from "./pages/MyDesigns";                             // My Designs page
+import PrintPreview from "./pages/PrintPreview";                       // Print Preview page
 import DatabaseTest from "./pages/DatabaseTest";                       // Database test page
 import AdminDashboard from "./pages/AdminDashboard";                    // Admin dashboard
 import { isAdminEmail } from "./utils/admin";
@@ -227,6 +228,9 @@ const AppRoutes = () => { // defines all the different pages/URLs
         
         {/* My Designs page */}
         <Route path="/my-designs" element={<PageTransition><MyDesigns /></PageTransition>} />
+        
+        {/* Print Preview page */}
+        <Route path="/print-preview" element={<PageTransition><PrintPreview /></PageTransition>} />
         
         {/* Admin dashboard */}
         <Route path="/admin" element={<PageTransition><AdminGuard><AdminDashboard /></AdminGuard></PageTransition>} />

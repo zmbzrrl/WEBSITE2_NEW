@@ -304,6 +304,7 @@ const IDPGCustomizer = () => {
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   const [panelDesign, setPanelDesign] = useState({
     backgroundColor: '#FFFFFF',
+    iconColor: '#000000',
     textColor: '#000000',
     fontSize: '12px',
     fonts: '',

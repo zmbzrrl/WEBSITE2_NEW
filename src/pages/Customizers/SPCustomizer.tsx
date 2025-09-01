@@ -31,6 +31,7 @@ import LED from "../../assets/LED.png";
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 import PanelDimensionSelector from '../../components/PanelDimensionSelector';
 import PanelModeSelector, { PanelMode } from '../../components/PanelModeSelector';
+import { navigateToPrintPreview } from '../../utils/printUtils';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -504,7 +505,7 @@ const SPCustomizer: React.FC = () => {
     iconColor: 'auto',
     textColor: '#000000',
     fontSize: '12px',
-    iconSize: '40px',
+    iconSize: '47px', // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -1049,7 +1050,7 @@ const SPCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = panelDesign.iconSize || '40px';
+    const iconSize = panelDesign.iconSize || '47px';
     const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
     const rowIndex = Math.floor(index / 3);
@@ -1091,7 +1092,7 @@ const SPCustomizer: React.FC = () => {
             }}
           />
         )}
-        {icon && (
+        {icon && panelMode !== 'text_only' && (
           <div 
             style={{ position: 'relative', display: 'inline-block' }}
             onMouseEnter={() => setIconHovered(prev => ({ ...prev, [index]: true }))}
@@ -1104,8 +1105,8 @@ const SPCustomizer: React.FC = () => {
               onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
               onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : panelDesign.iconSize || '40px'),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -1397,7 +1398,7 @@ const SPCustomizer: React.FC = () => {
   const config = getPanelLayoutConfig('SP');
   const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
   const [dimensionKey, setDimensionKey] = useState<string>('standard');
-  const [panelMode, setPanelMode] = useState<PanelMode>('custom');
+  const [panelMode, setPanelMode] = useState<PanelMode>('icons_text');
 
   // PIR helpers (toggle-controlled motion sensor)
   const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
@@ -1563,6 +1564,10 @@ const SPCustomizer: React.FC = () => {
                 if (mode === 'custom') {
                   setShowCustomModeDialog(true);
                 }
+                // Clear placed icons when switching to text_only mode
+                if (mode === 'text_only') {
+                  setPlacedIcons([]);
+                }
               }} />
             </div>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
@@ -1692,19 +1697,18 @@ const SPCustomizer: React.FC = () => {
         )}
         {/* Step 3: Panel Design */}
         {currentStep === 3 && (
-          console.log('Rendering Step 3: Panel Design'),
           <div style={{ 
-            display: 'flex', 
-            gap: '80px',
-            alignItems: 'flex-start',
+            display: 'grid', 
+            gridTemplateColumns: '500px 1fr',
+            gap: '100px',
+            alignItems: 'start',
             justifyContent: 'center',
-            maxWidth: '1200px',
+            maxWidth: '1400px',
             margin: '0 auto',
-            padding: '0 20px'
+            padding: '40px'
           }}>
             {/* Left side - Panel Design Controls */}
             <div style={{ 
-              flex: '0 0 480px',
               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
               padding: '28px',
               borderRadius: '12px',
@@ -2049,100 +2053,51 @@ const SPCustomizer: React.FC = () => {
                 </div>
               </div>
               
-
-              
-              {/* Icon Size Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Icon Size
-                </div>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {['30px', '40px', '50px'].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
-                      style={{
-                        padding: '10px 16px',
-                        borderRadius: '8px',
-                        border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
-                        background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                        color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: panelDesign.iconSize === size ? '700' : '600',
-                        transition: 'all 0.2s ease',
-                        minWidth: '60px',
-                        textAlign: 'center',
-                        boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
-                      }}
-                    >
-                      {size.replace('px', '')}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          </div>
+              {/* Icon Size Section - REMOVED - Fixed at 14mm (47px) */}
             </div>
 
             {/* Right side - Panel Template */}
-            <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-          <div
-            style={{
-              position: 'relative',
-              width: activeDimension.width || '320px',
-              height: activeDimension.height || '320px',
-              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-              padding: '0',
-              border: '2px solid rgba(255, 255, 255, 0.2)',
-              borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-              borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-              boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              transition: 'all 0.3s ease',
-              margin: '0 auto',
-              fontFamily: panelDesign.fonts || undefined,
-                  }}
-          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              minHeight: '400px'
+            }}>
+              <div
+                style={{
+                  position: 'relative',
+                  width: activeDimension.width || '320px',
+                  height: activeDimension.height || '320px',
+                  background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                  padding: '0',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                  borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  transition: 'all 0.3s ease',
+                  margin: '0 auto',
+                  fontFamily: panelDesign.fonts || undefined,
+                }}
+              >
                 <div style={{ 
-              position: 'absolute',
-              top: '2px',
-              left: '2px',
-              right: '2px',
-              bottom: '2px',
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-              pointerEvents: 'none',
-              zIndex: 1,
-            }} />
-            <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
-              {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
+                  position: 'absolute',
+                  top: '2px',
+                  left: '2px',
+                  right: '2px',
+                  bottom: '2px',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }} />
+                <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                  {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-          </div>
         )}
         {/* Step 4: Review Panel Details */}
         {currentStep === 4 && (
@@ -2211,7 +2166,7 @@ const SPCustomizer: React.FC = () => {
                 </div>
                 
                 {/* Add to Project Button positioned under the panel template */}
-                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
+                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
                   {isViewMode ? (
                     /* Go Back to My Designs Button - Only visible in view mode */
                     <StyledButton
@@ -2228,7 +2183,46 @@ const SPCustomizer: React.FC = () => {
                       ← Go Back to My Designs
                     </StyledButton>
                   ) : (
-                    /* Normal action button - Hidden in view mode */
+                    <>
+                      {/* Print Preview Button */}
+                      <StyledButton
+                        variant="outlined"
+                        onClick={() => {
+                          const panelConfig = {
+                            icons: Array.from({ length: 9 })
+                              .map((_, index) => {
+                                const icon = placedIcons.find((i) => i.position === index);
+                                return {
+                                  src: icon?.src || "",
+                                  label: icon?.label || "",
+                                  position: index,
+                                  text: iconTexts[index] || "",
+                                  category: icon?.category || undefined,
+                                  id: icon?.id || undefined,
+                                  iconId: icon?.iconId || undefined,
+                                };
+                              })
+                              .filter((entry) => entry.src || entry.text),
+                            panelDesign: { ...panelDesign, spConfig: { dimension: dimensionKey } },
+                            iconTexts,
+                            type: 'SP',
+                            name: 'SP Panel Design'
+                          };
+                          navigateToPrintPreview(navigate, panelConfig, projectName || 'SP Panel');
+                        }}
+                        sx={{
+                          borderColor: '#1a1f2c',
+                          color: '#1a1f2c',
+                          '&:hover': {
+                            borderColor: '#2c3e50',
+                            backgroundColor: 'rgba(26, 31, 44, 0.04)',
+                          }
+                        }}
+                      >
+                        Print Preview
+                      </StyledButton>
+                      
+                      {/* Normal action button - Hidden in view mode */}
             <StyledButton
               variant="contained"
               onClick={handleAddToCart}
@@ -2244,6 +2238,7 @@ const SPCustomizer: React.FC = () => {
                        isCreateNewRevision ? 'Create New Revision' :
                        'Add Panel to Project'}
             </StyledButton>
+                    </>
                   )}
         </Box>
               </div>

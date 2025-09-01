@@ -37,7 +37,7 @@ const SubTitle = styled(Typography)(({ theme }) => ({
 
 const OptionsGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
   gap: theme.spacing(2),
   marginTop: theme.spacing(1),
 }));
@@ -54,21 +54,24 @@ const OptionItem = styled(Box)(({ theme }) => ({
 
 type PanelKey = 'SP' | 'TAG' | 'IDPG' | 'DP' | 'X1H' | 'X1V' | 'X2H' | 'X2V';
 
-const ALL_PANELS: { key: PanelKey; label: string; description: string }[] = [
-  { key: 'SP', label: 'Single Panel', description: 'Standard single gang control panel' },
-  { key: 'TAG', label: 'Thermostat', description: 'Thermostat / TAG panel' },
-  { key: 'IDPG', label: 'Corridor Panel', description: 'Corridor door panel (IDPG)' },
-  { key: 'DP', label: 'Double Panel', description: 'Horizontal / Vertical double panels' },
-  { key: 'X1H', label: 'Extended Panel X1H', description: 'Extended, 1 socket, Horizontal' },
-  { key: 'X1V', label: 'Extended Panel X1V', description: 'Extended, 1 socket, Vertical' },
-  { key: 'X2H', label: 'Extended Panel X2H', description: 'Extended, 2 sockets, Horizontal' },
-  { key: 'X2V', label: 'Extended Panel X2V', description: 'Extended, 2 sockets, Vertical' },
+const ALL_PANELS: { key: PanelKey; label: string; description: string; image: string }[] = [
+  { key: 'SP', label: 'Single Panel', description: '', image: '/src/assets/panels/SP.png' },
+  { key: 'TAG', label: 'Thermostat', description: '', image: '/src/assets/panels/TAG_FLAT_95x95.png' },
+  { key: 'IDPG', label: 'Corridor Panel', description: '', image: '/src/assets/panels/IDPG_95X95_Icons.png' },
+  { key: 'DP', label: 'Double Panel', description: '', image: '/src/assets/panels/DP.jpg' },
+  { key: 'X1H', label: 'Extended, 1 socket, Horizontal', description: '', image: '/src/assets/panels/X1LS.png' },
+  { key: 'X1V', label: 'Extended, 1 socket, Vertical', description: '', image: '/src/assets/panels/X1V_UP.png' },
+  { key: 'X2H', label: 'Extended, 2 sockets, Horizontal', description: '', image: '/src/assets/panels/X2LS.png' },
+  { key: 'X2V', label: 'Extended, 2 sockets, Vertical', description: '', image: '/src/assets/panels/X2V_UP.png' },
 ];
 
 const BOQ: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { allowedPanelTypes, setAllowedPanelTypes, setBoqQuantities, boqQuantities, projectName, projectCode } = useContext(ProjectContext);
+
+  // Check if we're in edit mode
+  const isEditMode = location.state?.editMode || false;
 
   const [selected, setSelected] = useState<PanelKey[]>(() => (allowedPanelTypes as PanelKey[]) || []);
   const [quantities, setQuantities] = useState<Record<PanelKey, number>>(() => {
@@ -139,32 +142,66 @@ const BOQ: React.FC = () => {
     const compact: Record<string, number> = {};
     selected.forEach(k => { compact[k] = Math.max(1, quantities[k] || 1); });
     setBoqQuantities(compact);
-    navigate('/panel-type', { state: { fromBOQ: true } });
+    
+    if (isEditMode) {
+      // If in edit mode, go back to panel type selector
+      navigate('/panel-type');
+    } else {
+      // If not in edit mode, this is the first time setting up BOQ
+      navigate('/panel-type', { state: { fromBOQ: true } });
+    }
   };
 
   return (
     <PageContainer>
       <Card>
         <SectionTitle>
-          Bill of Quantities
+          {isEditMode ? 'Edit Bill of Quantities' : 'Bill of Quantities'}
         </SectionTitle>
         <SubTitle>
-          Select which panel categories are included in this project{(projectName || projectCode) ? ` for ${projectName}${projectCode ? ` - ${projectCode}` : ''}` : ''}. These will be the only options shown on the next screen.
+          {isEditMode 
+            ? `Modify panel categories for ${projectName}${projectCode ? ` - ${projectCode}` : ''}. Changes will affect available panel types.`
+            : `Select which panel categories are included in this project${(projectName || projectCode) ? ` for ${projectName}${projectCode ? ` - ${projectCode}` : ''}` : ''}. These will be the only options shown on the next screen.`
+          }
         </SubTitle>
 
         <OptionsGrid>
           {ALL_PANELS.map(opt => (
             <OptionItem key={opt.key}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', justifyContent: 'space-between' }}>
-                <FormControlLabel
-                  control={<Checkbox checked={selected.includes(opt.key)} onChange={() => toggle(opt.key)} />}
-                  label={
-                    <Box>
-                      <Typography sx={{ fontWeight: 600, color: '#2c3e50' }}>{opt.label}</Typography>
-                      <Typography sx={{ fontSize: 12, color: '#6b7280' }}>{opt.description}</Typography>
-                    </Box>
-                  }
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                  <FormControlLabel
+                    control={<Checkbox checked={selected.includes(opt.key)} onChange={() => toggle(opt.key)} />}
+                    label={
+                      <Box>
+                        <Typography sx={{ fontWeight: 600, color: '#2c3e50' }}>{opt.label}</Typography>
+                        <Typography sx={{ fontSize: 12, color: '#6b7280' }}>{opt.description}</Typography>
+                      </Box>
+                    }
+                  />
+                  <Box sx={{ 
+                    width: opt.key === 'DP' || opt.key.startsWith('X') ? 140 : 100, 
+                    height: opt.key === 'DP' || opt.key.startsWith('X') ? 140 : 100, 
+                    borderRadius: 2, 
+                    overflow: 'hidden',
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#f8f9fa'
+                  }}>
+                    <img 
+                      src={opt.image} 
+                      alt={opt.label}
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'contain',
+                        padding: opt.key === 'DP' || opt.key.startsWith('X') ? '10px' : '8px'
+                      }}
+                    />
+                  </Box>
+                </Box>
                 <TextField
                   type="number"
                   label="Qty"
@@ -194,7 +231,9 @@ const BOQ: React.FC = () => {
 
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button variant="outlined" onClick={() => navigate('/')}>Cancel</Button>
-            <Button variant="contained" disabled={!anyChecked} onClick={handleContinue}>Continue</Button>
+            <Button variant="contained" disabled={!anyChecked} onClick={handleContinue}>
+              {isEditMode ? 'Save Changes' : 'Continue'}
+            </Button>
           </Box>
         </Box>
       </Card>

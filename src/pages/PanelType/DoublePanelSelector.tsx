@@ -126,14 +126,6 @@ const DoublePanelSelector = () => {
     }
   }, [allowedPanelTypes, navigate]);
 
-  useEffect(() => {
-    // If DP category is exhausted per BOQ, redirect back to main selector
-    const cap = boqQuantities && typeof boqQuantities['DP'] === 'number' ? boqQuantities['DP'] : undefined;
-    if (cap !== undefined && remainingDP <= 0) {
-      navigate('/panel-type', { replace: true });
-    }
-  }, [remainingDP, boqQuantities, navigate]);
-
   const usedDP = useMemo(() => {
     return projPanels.reduce((sum, p) => {
       if (p.type === 'DPH' || p.type === 'DPV') {
@@ -148,6 +140,14 @@ const DoublePanelSelector = () => {
     const cap = boqQuantities && typeof boqQuantities['DP'] === 'number' ? boqQuantities['DP'] : undefined;
     return cap === undefined ? Infinity : Math.max(0, cap - usedDP);
   }, [boqQuantities, usedDP]);
+
+  useEffect(() => {
+    // If DP category is exhausted per BOQ, redirect back to main selector
+    const cap = boqQuantities && typeof boqQuantities['DP'] === 'number' ? boqQuantities['DP'] : undefined;
+    if (cap !== undefined && remainingDP <= 0) {
+      navigate('/panel-type', { replace: true });
+    }
+  }, [remainingDP, boqQuantities, navigate]);
 
   const panelTypes = [
     {

@@ -15,7 +15,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          mui: ['@mui/material', '@mui/icons-material']
+          mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          supabase: ['@supabase/supabase-js']
         }
       }
     }
@@ -24,5 +25,8 @@ export default defineConfig({
     alias: {
       '@': '/src'
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', '@emotion/react', '@emotion/styled']
   }
 }) 

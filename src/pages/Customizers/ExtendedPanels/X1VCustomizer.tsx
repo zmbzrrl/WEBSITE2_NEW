@@ -590,7 +590,7 @@ const X1VCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, projPanels } = cartContext;
+  const { addToCart, updatePanel, projPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
