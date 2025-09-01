@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, Button, Typography, Paper, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -42,6 +43,7 @@ const PrintContainer = styled(Box)(({ theme }) => ({
     padding: 0,
     backgroundColor: 'white',
     minHeight: 'auto',
+    height: 'auto',
     // Hide browser default headers and footers
     '@page': {
       margin: '12.7mm', // 0.5 inch margins
@@ -166,12 +168,13 @@ const CoverPage = styled(Paper)(({ theme }) => ({
   
   '@media print': {
     boxShadow: 'none',
-    margin: '12.7mm 12.7mm 0 12.7mm', // 0.5 inch margins on all sides for print
-    pageBreakAfter: 'always',
+    margin: '0',
+    padding: '12.7mm', // Match the page margins
     pageBreakInside: 'avoid',
     breakInside: 'avoid',
-    width: 'calc(100% - 25.4mm)', // Account for left and right margins
-    minHeight: 'auto',
+    width: '100%',
+    height: '100%',
+    minHeight: '100%',
     backgroundColor: 'white', // White background for print
     alignItems: 'flex-start',
     justifyContent: 'flex-start'
@@ -240,13 +243,16 @@ const A4Page = styled(Paper)(({ theme }) => ({
   
   '@media print': {
     boxShadow: 'none',
-    margin: '12.7mm 12.7mm 0 12.7mm', // 0.5 inch margins on all sides for print
+    margin: '0',
+    padding: '12.7mm', // Match the page margins
     pageBreakAfter: 'always',
     pageBreakInside: 'avoid',
     breakInside: 'avoid',
-    width: 'calc(100% - 25.4mm)', // Account for left and right margins
-    minHeight: 'auto',
+    width: '100%',
+    height: '100vh',
+    minHeight: '100vh',
     backgroundColor: 'white', // White background for print
+    justifyContent: 'flex-start'
   }
 }));
 
@@ -261,7 +267,10 @@ const PanelGrid = styled(Box)(({ theme }) => ({
   
   '@media print': {
     gap: '8mm', // Even smaller gap for print
-    padding: '0 10mm 10mm 10mm', // Slightly less for print
+    padding: '0', // Remove padding since container now handles margins
+    height: 'auto',
+    minHeight: 'auto',
+    alignSelf: 'flex-start'
   }
 }));
 
@@ -278,7 +287,8 @@ const PanelContainer = styled(Box)(({ theme }) => ({
   '@media print': {
     padding: '2mm', // Even smaller padding for print
     minHeight: '80mm',
-    maxHeight: '180mm',
+    maxHeight: 'none', // Remove max height constraint for print
+    height: '100%'
   }
 }));
 
@@ -558,7 +568,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             flexDirection: 'column', 
             alignItems: 'flex-start', 
             width: '100%', 
-            marginTop: '-200px',
+            marginTop: '-100px',
             '@media print': {
               marginTop: '0px',
               paddingTop: '40px',
@@ -610,7 +620,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                 fontWeight: 'bold',
                 color: '#1b92d1',
                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
-                marginBottom: '80px',
+                marginBottom: '60px',
                 textAlign: 'left',
                 '@media print': {
                   fontSize: '1.8rem',
@@ -621,8 +631,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
               {projectName}
             </Typography>
 
-            {/* Details section */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '30px', width: '100%', alignItems: 'flex-start' }}>
+                    {/* Details section */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', alignItems: 'flex-start' }}>
                             {/* First row: background color & plastic */}
               <Box sx={{ display: 'flex', gap: '100px', width: '100%', justifyContent: 'flex-start', paddingLeft: '0px' }}>
                 <Box sx={{ minWidth: '200px' }}>
@@ -838,7 +848,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
               gap: '50px', 
               width: '100%', 
               justifyContent: 'flex-start', 
-              marginTop: '50px'
+              marginTop: '30px'
             }}>
                             {/* Signature Box */}
               <Box sx={{ 
@@ -861,7 +871,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                     fontWeight: 'normal'
                   }}
                 >
-                  Signature & Stamp
+                Signature & Stamp
               </Typography>
                 <Box sx={{ flex: 1, borderTop: '1px solid #ccc', paddingTop: '10px' }}>
                   {/* Empty space for signature */}
@@ -890,12 +900,44 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                   }}
                 >
                   Comments
-            </Typography>
+              </Typography>
                 <Box sx={{ flex: 1, borderTop: '1px solid #ccc', paddingTop: '10px' }}>
                   {/* Empty space for comments */}
                 </Box>
               </Box>
             </Box>
+          </Box>
+
+          {/* Project Code Section */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'flex-start', 
+            width: '100%', 
+            marginTop: '50px'
+          }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: '#666',
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                marginBottom: '5px',
+                textAlign: 'left'
+              }}
+            >
+              Project Code
+            </Typography>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 'bold',
+                color: '#555',
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                textAlign: 'left'
+              }}
+            >
+              {projectCode}
+            </Typography>
           </Box>
         </CoverPage>
 
@@ -944,11 +986,11 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 
             <Box sx={{ 
               display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
+              justifyContent: 'flex-start', 
+              alignItems: 'flex-start',
                     width: '100%',
                     transform: 'scale(0.6)', // Scale down panels more to prevent overflow
-                    transformOrigin: 'center center'
+                    transformOrigin: 'top left'
             }}>
               <PanelRenderer
                 icons={config.icons}
