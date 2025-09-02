@@ -435,15 +435,34 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Backbox Details *
             </Typography>
-            <input
-              type="text"
-              value={backbox}
-              onChange={e => {
-                setBackbox(e.target.value);
-              }}
-              placeholder="Enter backbox details..."
-              style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px' }}
-            />
+            {currentStep === 4 ? (
+              <div style={{
+                width: '100%',
+                padding: '10px 12px',
+                marginBottom: '8px',
+                border: backboxError ? '1px solid red' : '1px solid #ccc',
+                borderRadius: '4px',
+                background: '#f8f9fa',
+                color: '#495057'
+              }}>
+                {backbox || 'No backbox selected'}
+              </div>
+            ) : (
+              <select
+                value={backbox}
+                onChange={e => {
+                  setBackbox(e.target.value);
+                }}
+                style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
+              >
+                <option value="">Select a backbox...</option>
+                <option value="Backbox 1">Backbox 1</option>
+                <option value="Backbox 2">Backbox 2</option>
+                <option value="Backbox 3">Backbox 3</option>
+                <option value="Backbox 4">Backbox 4</option>
+                <option value="Backbox 5">Backbox 5</option>
+              </select>
+            )}
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
           <Box sx={{ 
@@ -455,14 +474,29 @@ const InformationBox = ({
             mt: 2
           }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
-              Additional Comments (Optional)
+              Comments
             </Typography>
-            <textarea
-              value={extraComments}
-              onChange={e => setExtraComments(e.target.value)}
-              placeholder="Enter any additional comments..."
-              style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-            />
+            {currentStep === 4 ? (
+              <div style={{
+                width: '100%',
+                minHeight: '48px',
+                padding: '8px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                background: '#f8f9fa',
+                color: '#495057',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {extraComments?.trim() ? extraComments : 'none'}
+              </div>
+            ) : (
+              <textarea
+                value={extraComments}
+                onChange={e => setExtraComments(e.target.value)}
+                placeholder="Enter any additional comments..."
+                style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+              />
+            )}
           </Box>
         </Box>
       </Box>
@@ -533,6 +567,33 @@ const DPHCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // PIR helpers (toggle-controlled motion sensor)
+  const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+  const getPirIndex = (): number => {
+    // Prefer first grid bottom-center (7), else second grid bottom-center (16)
+    if (!placedIcons.some(icon => icon.position === 7)) return 7;
+    return 16;
+  };
+  const addPir = () => {
+    if (hasPIR) return;
+    const pirPos = getPirIndex();
+    if (placedIcons.some(icon => icon.position === pirPos)) return;
+    const pirIcon = (icons as any)['PIR'];
+    const newPir = {
+      id: Date.now(),
+      iconId: 'PIR',
+      src: pirIcon?.src || '',
+      label: 'PIR',
+      position: pirPos,
+      category: 'PIR'
+    } as any;
+    setPlacedIcons(prev => [...prev, newPir]);
+  };
+  const removePir = () => {
+    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+    setIconTexts(prev => ({ ...prev }));
+  };
   const [qtyOpen, setQtyOpen] = useState(false);
   const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
   const [pendingDesign, setPendingDesign] = useState<any | null>(null);
@@ -560,7 +621,8 @@ const DPHCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG' && cat !== 'Climate'));
+      // Hide PIR category; control it via dedicated toggle like SPCustomizer
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG' && cat !== 'Climate' && cat !== 'PIR'));
     });
   }, []);
 
@@ -1356,6 +1418,26 @@ const DPHCustomizer: React.FC = () => {
                   {category}
                 </button>
               ))}
+              {/* PIR toggle next to categories */}
+              <button
+                type="button"
+                onClick={() => (hasPIR ? removePir() : addPir())}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#1976d2',
+                  cursor: 'pointer',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold'
+                }}
+                title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+              >
+                {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+              </button>
             </div>
             <div style={{ 
               display: 'grid',
@@ -1526,128 +1608,7 @@ const DPHCustomizer: React.FC = () => {
         </div>
       </div>
 
-              {/* Font Selection Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Typography Font
-                </div>
-                <div style={{ position: 'relative' }} ref={fontDropdownRef}>
-                <input
-                  type="text"
-                  placeholder="Search Google Fonts..."
-                  value={fontSearch || panelDesign.fonts || ''}
-                  onChange={e => {
-                    const newSearch = e.target.value;
-                    setFontSearch(newSearch);
-                    if (newSearch === '') {
-                      setPanelDesign(prev => ({ ...prev, fonts: '' }));
-                    }
-                    setShowFontDropdown(true);
-                  }}
-                  onFocus={() => setShowFontDropdown(true)}
-        style={{
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      border: '1px solid #dee2e6',
-                      fontSize: '14px',
-                    width: '100%',
-                    fontFamily: panelDesign.fonts || undefined,
-                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                      transition: 'all 0.2s ease',
-                      outline: 'none'
-                  }}
-                />
-                {showFontDropdown && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '110%',
-                    left: 0,
-                    right: 0,
-                      background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      border: '1px solid #dee2e6',
-                      borderRadius: '8px',
-                      maxHeight: '200px',
-                    overflowY: 'auto',
-                    zIndex: 10,
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
-                  }}>
-                    {fontsLoading ? (
-                        <div style={{ padding: 16, textAlign: 'center', color: '#6c757d' }}>Loading fonts...</div>
-                    ) : (
-                      <>
-                        <div
-                            style={{ 
-                              padding: 12, 
-                              cursor: 'pointer', 
-                              fontFamily: 'inherit', 
-                              color: '#6c757d',
-                              borderBottom: '1px solid #f8f9fa',
-                              transition: 'background 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                          onClick={() => {
-                            setPanelDesign({ ...panelDesign, fonts: '' });
-                            setFontSearch('');
-                            setShowFontDropdown(false);
-                          }}
-                        >Default</div>
-                        {allGoogleFonts
-                          .filter(f => f.toLowerCase().includes(fontSearch.toLowerCase()))
-                            .slice(0, 20)
-                          .map(font => (
-                            <div
-                              key={font}
-                              style={{
-                                  padding: 12,
-                                cursor: 'pointer',
-                                fontFamily: font,
-                                  background: font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent',
-                                  transition: 'background 0.2s ease',
-                                  borderBottom: '1px solid #f8f9fa'
-                              }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = font === panelDesign.fonts ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'transparent'}
-                              onClick={() => {
-                                setPanelDesign({ ...panelDesign, fonts: font });
-                                setFontSearch(font);
-                                setShowFontDropdown(false);
-                              }}
-                            >
-                              {font}
-                            </div>
-                          ))}
-                        {allGoogleFonts.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && !fontsLoading && (
-                            <div style={{ padding: 16, color: '#adb5bd' }}>No fonts found</div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-            </div>
+              {/* Typography font controls removed for step 3 */}
               
               
               
@@ -1655,7 +1616,6 @@ const DPHCustomizer: React.FC = () => {
 
             
           </div>
-            </div>
 
             {/* Right side - Panel Template */}
             <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
@@ -1746,7 +1706,7 @@ const DPHCustomizer: React.FC = () => {
         )}
         {/* Step 4: Review Panel Details */}
         {currentStep === 4 && (
-          <>
+          <div style={{ pointerEvents: 'none', userSelect: 'none', cursor: 'default' }}>
             {/* Information Box and Panel Template side by side */}
             <div style={{ 
               marginTop: "60px", 
@@ -1811,7 +1771,7 @@ const DPHCustomizer: React.FC = () => {
                   </div>
                 
                 {/* Add to Project Button positioned under the panel template */}
-                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
+                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }} style={{ pointerEvents: 'auto' }}>
             <StyledButton
               variant="contained"
               onClick={handleAddToCart}
@@ -1828,7 +1788,7 @@ const DPHCustomizer: React.FC = () => {
         </Box>
               </div>
             </div>
-          </>
+          </div>
         )}
         {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
         {currentStep === 2 && (

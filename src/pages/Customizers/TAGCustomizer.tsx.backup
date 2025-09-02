@@ -27,10 +27,17 @@ import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
 import LED from "../../assets/LED.png";
+import DISPLAY from "../../assets/icons/DISPLAY.png";
+// Load TAG panel preview images
+interface ImageModule { default: string }
+const tagPanelModules: Record<string, ImageModule> = import.meta.glob(
+  "../../assets/TAG_PANELS/*.{png,svg,jpg,jpeg}",
+  { eager: true }
+);
 
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 import PanelDimensionSelector from '../../components/PanelDimensionSelector';
-import PanelModeSelector, { PanelMode } from '../../components/PanelModeSelector';
+// Removed panel mode feature for TAG customizer
 import { navigateToPrintPreview } from '../../utils/printUtils';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -227,8 +234,7 @@ const InformationBox = ({
   panelDesign,
   placedIcons,
 
-  ralColors,
-  isReadOnly
+  ralColors
 }: {
   backbox: string;
   setBackbox: (v: string) => void;
@@ -239,7 +245,6 @@ const InformationBox = ({
   placedIcons: any[];
 
   ralColors: any[];
-  isReadOnly: boolean;
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
 
@@ -437,39 +442,20 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Backbox Details *
             </Typography>
-            {isReadOnly ? (
-              <div style={{ pointerEvents: 'auto' }}>
-                <select
-                  value={backbox}
-                  onChange={e => {
-                    setBackbox(e.target.value);
-                  }}
-                  style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
-                >
-                  <option value="">Select a backbox...</option>
-                  <option value="Backbox 1">Backbox 1</option>
-                  <option value="Backbox 2">Backbox 2</option>
-                  <option value="Backbox 3">Backbox 3</option>
-                  <option value="Backbox 4">Backbox 4</option>
-                  <option value="Backbox 5">Backbox 5</option>
-                </select>
-              </div>
-            ) : (
-              <select
-                value={backbox}
-                onChange={e => {
-                  setBackbox(e.target.value);
-                }}
-                style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
-              >
-                <option value="">Select a backbox...</option>
-                <option value="Backbox 1">Backbox 1</option>
-                <option value="Backbox 2">Backbox 2</option>
-                <option value="Backbox 3">Backbox 3</option>
-                <option value="Backbox 4">Backbox 4</option>
-                <option value="Backbox 5">Backbox 5</option>
-              </select>
-            )}
+            <select
+              value={backbox}
+              onChange={e => {
+                setBackbox(e.target.value);
+              }}
+              style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
+            >
+              <option value="">Select a backbox...</option>
+              <option value="Backbox 1">Backbox 1</option>
+              <option value="Backbox 2">Backbox 2</option>
+              <option value="Backbox 3">Backbox 3</option>
+              <option value="Backbox 4">Backbox 4</option>
+              <option value="Backbox 5">Backbox 5</option>
+            </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
           <Box sx={{ 
@@ -481,29 +467,14 @@ const InformationBox = ({
             mt: 2
           }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
-              Comments
+              Additional Comments (Optional)
             </Typography>
-            {isReadOnly ? (
-              <div style={{
-                width: '100%',
-                minHeight: '48px',
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {extraComments?.trim() ? extraComments : 'none'}
-              </div>
-            ) : (
-              <textarea
-                value={extraComments}
-                onChange={e => setExtraComments(e.target.value)}
-                placeholder="Enter any additional comments..."
-                style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            )}
+            <textarea
+              value={extraComments}
+              onChange={e => setExtraComments(e.target.value)}
+              placeholder="Enter any additional comments..."
+              style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+            />
           </Box>
         </Box>
       </Box>
@@ -614,8 +585,8 @@ const SPCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      // Hide PIR from the selectable categories; we control it via a dedicated toggle
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'Thermostat' && cat !== 'PIR' && cat !== 'Climate'));
+      // Hide PIR, Sockets, and Climate; include TAG so TAG-specific icons appear
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'PIR' && cat !== 'Climate'));
     });
   }, []);
 
@@ -858,7 +829,7 @@ const SPCustomizer: React.FC = () => {
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'Thermostat')
+    .filter(([_, icon]) => icon.category === selectedCategory)
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -1095,9 +1066,11 @@ const SPCustomizer: React.FC = () => {
     const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
     const rowIndex = Math.floor(index / 3);
+    // Lower rows 2 and 3 by 30px
+    const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
     // Apply per-row offsets only for tall: row 1 -20px, row 2 +10px, row 3 +40px
     const perRowOffset = (dimensionKey === 'tall') ? ((rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0)) : 0;
-    const adjustedTop = `${baseTop + perRowOffset}px`;
+    const adjustedTop = `${baseTop + perRowOffset + lowerRowsOffset}px`;
     return (
       <div
         key={index}
@@ -1348,7 +1321,6 @@ const SPCustomizer: React.FC = () => {
     { step: 1, label: 'Select Panel\nType' },
     { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel\nDesign' },
-    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1439,7 +1411,8 @@ const SPCustomizer: React.FC = () => {
   const config = getPanelLayoutConfig('SP');
   const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
   const [dimensionKey, setDimensionKey] = useState<string>('standard');
-  const [panelMode, setPanelMode] = useState<PanelMode>('icons_text');
+  // Mode feature removed for TAG; default behavior is icons with text
+  const panelMode = 'icons_text' as const;
 
   // PIR helpers (toggle-controlled motion sensor)
   const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
@@ -1571,12 +1544,12 @@ const SPCustomizer: React.FC = () => {
           >
             Back
           </Button>
-          {currentStep !== 4 && (
+          {currentStep !== 3 && (
           <Button
             variant="contained"
-            disabled={currentStep === 4}
+            disabled={currentStep === 3}
             onClick={() => {
-              const nextStep = Math.min(4, currentStep + 1);
+              const nextStep = Math.min(3, currentStep + 1);
               console.log('Current step:', currentStep, 'Next step:', nextStep);
               setCurrentStep(nextStep);
             }}
@@ -1600,16 +1573,6 @@ const SPCustomizer: React.FC = () => {
                 onChange={setDimensionKey}
                 inlineLabel={'Size:'}
               />
-              <PanelModeSelector value={panelMode} onChange={(mode) => {
-                setPanelMode(mode);
-                if (mode === 'custom') {
-                  setShowCustomModeDialog(true);
-                }
-                // Clear placed icons when switching to text_only mode
-                if (mode === 'text_only') {
-                  setPlacedIcons([]);
-                }
-              }} />
             </div>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
               {/* Icon categories + list (left) */}
@@ -1697,6 +1660,35 @@ const SPCustomizer: React.FC = () => {
                 </div>
               ))}
                 </div>
+
+                {/* TAG Design Options section */}
+                <div style={{ marginTop: '24px' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1a1f2c', mb: 1 }}>
+                    design options
+                  </Typography>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                    gap: '10px'
+                  }}>
+                    {Object.entries(tagPanelModules)
+                      .sort(([a], [b]) => (a > b ? 1 : -1))
+                      .reverse()
+                      .map(([path, mod]) => (
+                        <div key={path} style={{
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 6,
+                          padding: 6
+                        }}>
+                          <img
+                            src={(mod as any).default}
+                            alt="TAG Panel"
+                            style={{ width: '100%', height: '104px', objectFit: 'contain' }}
+                          />
+                        </div>
+                      ))}
+                  </div>
+                </div>
               </div>
               {/* Panel template (right) */}
               <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '60px' }}>
@@ -1729,6 +1721,21 @@ const SPCustomizer: React.FC = () => {
                     zIndex: 1,
                   }} />
                   <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                    <img
+                      src={DISPLAY}
+                      alt="DISPLAY"
+                      style={{
+                        position: 'absolute',
+                        top: '90px',
+                        left: '45%',
+                        transform: 'translateX(-50%)',
+                        width: '220px',
+                        height: '50px',
+                        objectFit: 'contain',
+                        filter: getIconColorFilter(panelDesign.backgroundColor),
+                        pointerEvents: 'none',
+                      }}
+                    />
                     {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
                 </div>
@@ -1737,7 +1744,7 @@ const SPCustomizer: React.FC = () => {
           </div>
         )}
         {/* Step 3: Panel Design */}
-        {currentStep === 3 && (<>
+        {currentStep === 3 && (
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: '500px 1fr',
@@ -1861,56 +1868,230 @@ const SPCustomizer: React.FC = () => {
             </div>
               </div>
               
-              {/* Typography font and size controls removed for step 3 */}
-              
-              {/* Icon Size Section - REMOVED - Fixed at 14mm (47px) */}
-            </div>
+              {/* Font Size Section */}
+              {/* Font size controls removed for step 3 */}
 
-            {/* Right side - Panel Template */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              minHeight: '400px'
-            }}>
-              <div
-                style={{
-                  position: 'relative',
-                  width: activeDimension.width || '320px',
-                  height: activeDimension.height || '320px',
-                  background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                  padding: '0',
-                  border: '2px solid rgba(255, 255, 255, 0.2)',
-                  borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                  borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  transition: 'all 0.3s ease',
-                  margin: '0 auto',
-                  fontFamily: panelDesign.fonts || undefined,
-                }}
-              >
-                <div style={{ 
-                  position: 'absolute',
-                  top: '2px',
-                  left: '2px',
-                  right: '2px',
-                  bottom: '2px',
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                  pointerEvents: 'none',
-                  zIndex: 1,
-                }} />
-                <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
-                  {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
-                </div>
+              {/* Backbox and Comments fields */}
+              <Box sx={{ 
+                background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                p: 2,
+                borderRadius: 2,
+                border: '1px solid #e9ecef',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                mt: 2
+              }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
+                  Backbox Details *
+                </Typography>
+                <select
+                  value={backbox}
+                  onChange={e => {
+                    setBackbox(e.target.value);
+                    if (backboxError) setBackboxError('');
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    border: backboxError ? '1px solid #dc3545' : '1px solid #dee2e6', 
+                    borderRadius: '8px', 
+                    background: '#ffffff',
+                    fontSize: '14px',
+                    color: '#495057',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                >
+                  <option value="">Select a backbox...</option>
+                  <option value="Backbox 1">Backbox 1</option>
+                  <option value="Backbox 2">Backbox 2</option>
+                  <option value="Backbox 3">Backbox 3</option>
+                  <option value="Backbox 4">Backbox 4</option>
+                                    <option value="Backbox 5">Backbox 5</option>
+                </select>
+                {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
+              </Box>
+              <Box sx={{ 
+                background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                p: 2,
+                borderRadius: 2,
+                border: '1px solid #e9ecef',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                mt: 2
+              }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
+                  Comments
+                </Typography>
+                <textarea
+                  value={extraComments}
+                  onChange={e => setExtraComments(e.target.value)}
+                  placeholder="Enter any additional comments..."
+                  style={{ 
+                    width: '100%', 
+                    minHeight: '80px', 
+                    padding: '12px', 
+                    border: '1px solid #dee2e6', 
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    color: '#495057',
+                    outline: 'none',
+                    resize: 'vertical',
+                    transition: 'border-color 0.2s ease'
+                                    }}
+                />
+              </Box>
+              
+              {/* Add Panel to Project Button */}
+              <div style={{ 
+                marginTop: '32px',
+                textAlign: 'center'
+              }}>
+                <Button
+                  variant="contained"
+                  onClick={handleAddToCart}
+                  disabled={!backbox.trim()}
+                  sx={{
+                    backgroundColor: '#1a1f2c',
+                    color: '#ffffff',
+                    padding: '12px 32px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    boxShadow: '0 4px 12px rgba(26, 31, 44, 0.3)',
+                    '&:hover': {
+                      backgroundColor: '#2c3e50',
+                      boxShadow: '0 6px 16px rgba(26, 31, 44, 0.4)',
+                    },
+                    '&:disabled': {
+                      backgroundColor: '#6c757d',
+                      color: '#ffffff',
+                      cursor: 'not-allowed',
+                      boxShadow: 'none'
+                    }
+                  }}
+                >
+                  {isEditMode ? 'Update Panel' : 
+                   isCreateNewRevision ? 'Create New Revision' :
+                   'Add Panel to Project'}
+                </Button>
+                {!backbox.trim() && (
+                  <div style={{ 
+                    color: '#6c757d', 
+                    fontSize: '12px', 
+                    marginTop: '8px',
+                    fontStyle: 'italic'
+                  }}>
+                    Please select a backbox to continue
+                  </div>
+                )}
+              </div>
+          </div>
+
+          {/* Panel Template */}
+          <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
+            <div
+              style={{
+                position: 'relative',
+                width: '352px',
+                height: '352px',
+                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                padding: '0',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                transition: 'all 0.3s ease',
+                margin: '0 auto',
+                fontFamily: panelDesign.fonts || undefined,
+              }}
+            >
+              <div style={{ 
+                position: 'absolute',
+                top: '2px',
+                left: '2px',
+                right: '2px',
+                bottom: '2px',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }} />
+              <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                <img
+                  src={DISPLAY}
+                  alt="DISPLAY"
+                  style={{
+                    position: 'absolute',
+                    top: '90px',
+                    left: '45%',
+                    transform: 'translateX(-50%)',
+                    width: '242px',
+                    height: '55px',
+                    objectFit: 'contain',
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                    pointerEvents: 'none',
+                  }}
+                />
+                {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
               </div>
             </div>
           </div>
-        </>)}
-        {/* Step 4: Review Panel Details */}
-        {currentStep === 4 && (
-          <div style={{ pointerEvents: 'none', userSelect: 'none', cursor: 'default' }}>
+        </div>
+        )}
+
+        {/* Panel Template: Only visible for step 2 */}
+        {currentStep === 2 && (
+          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
+            <div
+              style={{
+                position: 'relative',
+                width: '352px',
+                height: '352px',
+                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                padding: '0',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                transition: 'all 0.3s ease',
+                margin: '0 auto',
+                fontFamily: panelDesign.fonts || undefined,
+              }}
+            >
+              <div style={{
+                position: 'absolute',
+                top: '2px',
+                left: '2px',
+                right: '2px',
+                bottom: '2px',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }} />
+              <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                <img
+                  src={DISPLAY}
+                  alt="DISPLAY"
+                  style={{
+                    position: 'absolute',
+                    top: '90px',
+                    left: '45%',
+                    transform: 'translateX(-50%)',
+                    width: '242px',
+                    height: '55px',
+                    objectFit: 'contain',
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                    pointerEvents: 'none',
+                  }}
+                />
+                {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
+              </div>
+            </div>
+          </div>
+        )}
             {/* Information Box and Panel Template side by side */}
             <div style={{ 
               marginTop: "60px", 
@@ -1921,31 +2102,15 @@ const SPCustomizer: React.FC = () => {
               gap: '40px',
               flexWrap: 'wrap'
             }}>
-              {/* Information Box */}
-              <div style={{ flex: '0 0 auto' }}>
-                <InformationBox
-                  backbox={backbox}
-                  setBackbox={v => {
-                    setBackbox(v);
-                    if (backboxError) setBackboxError('');
-                  }}
-                  backboxError={backboxError}
-                  extraComments={extraComments}
-                  setExtraComments={setExtraComments}
-                  panelDesign={panelDesign}
-                  placedIcons={placedIcons}
-                  ralColors={ralColors}
-                  isReadOnly={true}
-                />
-              </div>
+              
               
               {/* Panel Template */}
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
                   style={{
                     position: 'relative',
-                    width: '320px',
-                    height: '320px',
+                    width: '352px',
+                    height: '352px',
                     background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
                     padding: '0',
                     border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -1970,6 +2135,21 @@ const SPCustomizer: React.FC = () => {
                     zIndex: 1,
                   }} />
                   <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                    <img
+                      src={DISPLAY}
+                      alt="DISPLAY"
+                      style={{
+                        position: 'absolute',
+                        top: '90px',
+                        left: '45%',
+                        transform: 'translateX(-50%)',
+                        width: '242px',
+                        height: '55px',
+                        objectFit: 'contain',
+                        filter: getIconColorFilter(panelDesign.backgroundColor),
+                        pointerEvents: 'none',
+                      }}
+                    />
                     {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
                 </div>
@@ -2054,9 +2234,10 @@ const SPCustomizer: React.FC = () => {
             </div>
           </div>
         )}
-        
-        {/* DND/MUR Restriction Dialog */}
-        <Dialog
+      </Container>
+      
+      {/* DND/MUR Restriction Dialog */}
+      <Dialog
           open={showRestrictionDialog}
           onClose={() => setShowRestrictionDialog(false)}
           maxWidth="sm"
@@ -2188,9 +2369,8 @@ const SPCustomizer: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
-      </Container>
     </Box>
   );
 };
 
-export default SPCustomizer; 
+export default TAGCustomizer; 

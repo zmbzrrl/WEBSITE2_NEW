@@ -1644,14 +1644,12 @@ const IDPGCustomizer = () => {
                       }} />
                       Backbox Details *
                     </div>
-                    <input
-                      type="text"
+                    <select
                       value={backbox}
                       onChange={e => {
                         setBackbox(e.target.value);
                         if (backboxError) setBackboxError('');
                       }}
-                      placeholder="Enter backbox details..."
                       style={{
                         width: '100%',
                         padding: '12px 16px',
@@ -1659,12 +1657,19 @@ const IDPGCustomizer = () => {
                         borderRadius: '8px',
                         fontSize: '14px',
                         fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                        background: '#ffffff',
                         boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
                         transition: 'all 0.2s ease',
                         outline: 'none',
                       }}
-                    />
+                    >
+                      <option value="">Select a backbox...</option>
+                      <option value="Backbox 1">Backbox 1</option>
+                      <option value="Backbox 2">Backbox 2</option>
+                      <option value="Backbox 3">Backbox 3</option>
+                      <option value="Backbox 4">Backbox 4</option>
+                      <option value="Backbox 5">Backbox 5</option>
+                    </select>
                     {backboxError && (
                       <div style={{
                         color: '#dc3545',

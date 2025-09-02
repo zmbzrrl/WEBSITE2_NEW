@@ -30,7 +30,19 @@ const processIcons = (icons: Record<string, IconModule>) => {
       category = "Room Lights";
     } else if (name.toLowerCase().includes("curtain") || name.toLowerCase().includes("blind")) {
       category = "Curtains & Blinds";
-    } else if (name.toLowerCase().includes("butler") || name.toLowerCase().includes("service") || name.toLowerCase().includes("bell")) {
+    } else if (
+      name.toLowerCase().includes("butler") ||
+      name.toLowerCase().includes("service") ||
+      name.toLowerCase().includes("bell") ||
+      name.toLowerCase().includes("dnd") ||
+      name.toLowerCase().includes("mur") ||
+      name.toLowerCase().includes("privacy") ||
+      name.toLowerCase().includes("make up") ||
+      name.toLowerCase().includes("makeup") ||
+      name.toLowerCase().includes("do not disturb") ||
+      name.toLowerCase().includes("make up room") ||
+      name.toLowerCase().includes("make-up")
+    ) {
       category = "Guest Services";
     } else if (name.toLowerCase().includes("scene") || name.toLowerCase().includes("bedroom") || name.toLowerCase().includes("dining")) {
       category = "Scenes";

@@ -42,7 +42,19 @@ const processIcons = (icons: Record<string, IconModule>) => {
         category = "Room Lights";
       } else if (lowerName.includes("curtain") || lowerName.includes("curtains") || lowerName.includes("blind") || lowerName.includes("sheer")) {
         category = "Curtains & Blinds";
-      } else if (lowerName.includes("butler") || lowerName.includes("service") || lowerName.includes("bell") || lowerName.includes("dnd") || lowerName.includes("mur")) {
+      } else if (
+        lowerName.includes("butler") ||
+        lowerName.includes("service") ||
+        lowerName.includes("bell") ||
+        lowerName.includes("dnd") ||
+        lowerName.includes("mur") ||
+        lowerName.includes("privacy") ||
+        lowerName.includes("make up") ||
+        lowerName.includes("makeup") ||
+        lowerName.includes("do not disturb") ||
+        lowerName.includes("make up room") ||
+        lowerName.includes("make-up")
+      ) {
         category = "Guest Services";
       } else if (lowerName.includes("scene") || lowerName.includes("bedroom") || lowerName.includes("dining")) {
         category = "Scenes";

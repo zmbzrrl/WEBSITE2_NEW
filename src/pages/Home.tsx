@@ -78,7 +78,7 @@ const ContentWrapper = styled(Box)({
 // ===== LOGO STYLING =====
 // Logo = the main company logo that appears at the top
 // $showPrompt = a prop that controls whether the form is showing
-const Logo = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+const Logo = styled('img', { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   width: '400px',               // Sets logo width to 400 pixels
   marginBottom: '2rem',         // Adds space below the logo
   marginTop: '-1rem',           // Moves logo up slightly (negative margin)
@@ -116,7 +116,7 @@ const Logo = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
 
 // ===== ANIMATED BOX STYLING =====
 // AnimatedBox = contains the main heading text
-const AnimatedBox = styled(Box)<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
+const AnimatedBox = styled(Box, { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
   color: 'white',               // Makes text white
   marginBottom: theme.spacing(3),  // Adds space below
   marginTop: '-2rem',           // Moves up slightly
@@ -153,7 +153,7 @@ const AnimatedBox = styled(Box)<{ $showPrompt?: boolean }>(({ theme, $showPrompt
 
 // ===== BUTTON CONTAINER STYLING =====
 // ButtonContainer = holds the main "Get Started" button
-const ButtonContainer = styled(Box)<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+const ButtonContainer = styled(Box, { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   display: 'flex',              // Uses flexbox layout
   flexDirection: 'column',      // Arranges children vertically
   gap: '1rem',                  // Space between children
@@ -236,7 +236,7 @@ const DownArrow = styled(ArrowDownwardIcon)({
 
 // ===== FLOATING IMAGE STYLING =====
 // FloatingImage = panel images that float around the background
-const FloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+const FloatingImage = styled('img', { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   position: 'absolute',         // Positions absolutely (can be placed anywhere)
   width: $showPrompt ? '345px' : '230px',  // 15% bigger than original (300px -> 345px, 200px -> 230px)
   opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
@@ -295,7 +295,7 @@ const FloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt })
 
 // ===== SMALLER FLOATING IMAGE STYLING =====
 // SmallerFloatingImage = panel images that are 15% smaller than regular floating images
-const SmallerFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+const SmallerFloatingImage = styled('img', { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   position: 'absolute',         // Positions absolutely (can be placed anywhere)
   width: $showPrompt ? '293px' : '196px',  // 15% bigger than current (255px -> 293px, 170px -> 196px)
   opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
@@ -354,7 +354,7 @@ const SmallerFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPr
 
 // ===== LARGER FLOATING IMAGE STYLING =====
 // LargerFloatingImage = panel images that are 15% bigger than regular floating images
-const LargerFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+const LargerFloatingImage = styled('img', { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   position: 'absolute',         // Positions absolutely (can be placed anywhere)
   width: $showPrompt ? '635px' : '423px',  // 15% bigger than current (552px -> 635px, 368px -> 423px)
   opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
@@ -413,7 +413,7 @@ const LargerFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPro
 
 // ===== EXTENDED FLOATING IMAGE STYLING =====
 // ExtendedFloatingImage = GS_Extended image that is 10% bigger than LargerFloatingImage
-const ExtendedFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
+const ExtendedFloatingImage = styled('img', { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ $showPrompt }) => ({
   position: 'absolute',         // Positions absolutely (can be placed anywhere)
   width: $showPrompt ? '734px' : '488px',  // Another 5% bigger (699px -> 734px, 465px -> 488px)
   opacity: $showPrompt ? 0.3 : 1,          // Changes transparency based on form state
@@ -475,7 +475,7 @@ const ExtendedFloatingImage = styled('img')<{ $showPrompt?: boolean }>(({ $showP
 
 // ===== PROJECT PROMPT CONTAINER =====
 // ProjectPrompt = the main container for the form
-const ProjectPrompt = styled(Paper)<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
+const ProjectPrompt = styled(Paper, { shouldForwardProp: (prop) => prop !== '$showPrompt' })<{ $showPrompt?: boolean }>(({ theme, $showPrompt }) => ({
   position: 'relative',         // Allows positioning
   zIndex: 3,                    // Appears above everything else
   padding: theme.spacing(4),    // Adds space inside the form
