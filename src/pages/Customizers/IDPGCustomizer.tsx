@@ -10,7 +10,7 @@ import g1Icon from "../../assets/icons/G-GuestServices/G1.png";
 import g2Icon from "../../assets/icons/G-GuestServices/G2.png";
 import g3Icon from "../../assets/icons/G-GuestServices/G3.png";
 import crIcon from "../../assets/icons/CR.png";
-import allIcons from "../../assets/iconLibrary";
+import allIcons from "../../assets/iconLibrary2";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ProjectContext } from '../../App';
 import { motion } from 'framer-motion';
@@ -346,9 +346,9 @@ const IDPGCustomizer = () => {
   }, []);
 
   useEffect(() => {
-    import("../../assets/iconLibrary").then((module) => {
+    import("../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      const filteredCategories = module.iconCategories.filter(cat => cat !== 'PIR');
+      const filteredCategories = module.iconCategories.filter(cat => cat !== 'PIR' && cat !== 'Climate');
       setIconCategories(filteredCategories);
       if (filteredCategories.length > 0) {
         setSelectedCategory(filteredCategories[0]);

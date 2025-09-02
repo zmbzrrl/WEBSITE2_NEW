@@ -22,7 +22,7 @@ import SP from '../../../assets/panels/SP.png';
 import logo from '../../../assets/logo.png';
 
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
-import iconLibrary from '../../../assets/iconLibrary';
+import iconLibrary from '../../../assets/iconLibrary2';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import FlipIcon from '@mui/icons-material/Flip';
 import QuantityDialog from '../../../components/QuantityDialog';
@@ -558,9 +558,9 @@ const DPHCustomizer: React.FC = () => {
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
-    import("../../../assets/iconLibrary").then((module) => {
+    import("../../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG' && cat !== 'Climate'));
     });
   }, []);
 
@@ -948,7 +948,7 @@ const DPHCustomizer: React.FC = () => {
                 marginBottom: '5px',
                 position: 'relative',
                   zIndex: 1,
-                marginTop: isPIR ? '20px' : '0',
+                marginTop: isPIR ? '5px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
                   filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',

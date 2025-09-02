@@ -21,7 +21,7 @@ import { motion } from 'framer-motion';
 import logo from '../../../assets/logo.png';
 import { getIconColorName } from '../../../data/iconColors';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
-import iconLibrary from '../../../assets/iconLibrary';
+import iconLibrary from '../../../assets/iconLibrary2';
 import QuantityDialog from '../../../components/QuantityDialog';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -531,9 +531,9 @@ const DPVCustomizer: React.FC = () => {
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
-    import("../../../assets/iconLibrary").then((module) => {
+    import("../../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'Thermostat' && cat !== 'Climate' && cat !== 'PIR'));
     });
   }, []);
 
@@ -723,7 +723,7 @@ const DPVCustomizer: React.FC = () => {
   const [qtyOpen, setQtyOpen] = React.useState(false);
   const [qtyRemaining, setQtyRemaining] = React.useState<number | undefined>(undefined);
   const [pendingDesign, setPendingDesign] = React.useState<any | null>(null);
-  const [pendingCategory, setPendingCategory] = React.useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('DP');
+  const [pendingCategory, setPendingCategory] = React.useState<'SP'|'Thermostat'|'IDPG'|'DP'|'EXT'>('DP');
 
   const handleQtyConfirm = (qty: number) => {
     if (!pendingDesign) return;
@@ -735,7 +735,7 @@ const DPVCustomizer: React.FC = () => {
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'TAG')
+    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'Thermostat')
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -926,7 +926,7 @@ const DPVCustomizer: React.FC = () => {
                 marginBottom: '5px',
                 position: 'relative',
                   zIndex: 1,
-                marginTop: isPIR ? '20px' : '0',
+                marginTop: isPIR ? '5px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
                   filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',
@@ -1104,13 +1104,45 @@ const DPVCustomizer: React.FC = () => {
   const config = getPanelLayoutConfig('DPV');
   const { dimensions, iconLayout, textLayout, specialLayouts, iconPositions } = config;
 
-  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+  const mapTypeToCategory = (t: string): 'SP' | 'Thermostat' | 'IDPG' | 'DP' | 'EXT' => {
     if (t === 'SP') return 'SP';
-    if (t === 'TAG') return 'TAG';
+    if (t === 'TAG') return 'Thermostat';
     if (t === 'IDPG') return 'IDPG';
     if (t === 'DPH' || t === 'DPV') return 'DP';
     if (t.startsWith('X')) return 'EXT';
     return 'SP';
+  };
+
+  // PIR helpers (toggle-controlled motion sensor)
+  const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+  const getPirIndex = (): number => {
+    // Prefer position 7, then 16 if available in layouts that support it
+    const candidates = [7, 16];
+    for (const idx of candidates) {
+      if (iconPositions && iconPositions[idx] !== undefined && !placedIcons.some(i => i.position === idx)) {
+        return idx;
+      }
+    }
+    return -1;
+  };
+  const addPir = () => {
+    if (hasPIR) return;
+    const pirPos = getPirIndex();
+    if (pirPos < 0) return;
+    const pirIcon = (icons as any)['PIR'];
+    const newPir = {
+      id: Date.now(),
+      iconId: 'PIR',
+      src: pirIcon?.src || '',
+      label: 'PIR',
+      position: pirPos,
+      category: 'PIR'
+    } as any;
+    setPlacedIcons(prev => [...prev, newPir]);
+  };
+  const removePir = () => {
+    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+    setIconTexts(prev => ({ ...prev }));
   };
 
   return (
@@ -1218,34 +1250,55 @@ const DPVCustomizer: React.FC = () => {
               key={category}
               onClick={() => setSelectedCategory(category)}
               style={{
-                padding: "12px 24px",
-                background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                border: "1px solid #1a1f2c",
-                borderRadius: "4px",
-                cursor: "pointer",
+                padding: '10px 18px',
+                background: selectedCategory === category ? '#1a1f2c' : '#ffffff',
+                color: selectedCategory === category ? '#ffffff' : '#1a1f2c',
+                border: '1px solid #1a1f2c',
+                borderRadius: '6px',
+                cursor: 'pointer',
                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                fontSize: "14px",
-                letterSpacing: "0.5px",
-                transition: "all 0.3s ease",
-                minWidth: "120px",
+                fontSize: '14px',
+                letterSpacing: '0.5px',
+                transition: 'all 0.3s ease',
+                minWidth: '120px',
                 textAlign: 'right',
               }}
             >
               {category}
             </button>
           ))}
+          {/* PIR toggle next to categories */}
+          <button
+            type="button"
+            onClick={() => (hasPIR ? removePir() : addPir())}
+            style={{
+              padding: '10px 16px',
+              background: hasPIR ? '#dc3545' : '#1a1f2c',
+              color: '#ffffff',
+              border: '1px solid #1a1f2c',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              fontSize: '14px',
+              letterSpacing: '0.5px',
+              transition: 'all 0.3s ease',
+              minWidth: '120px',
+              textAlign: 'right',
+              fontWeight: 'bold'
+            }}
+            title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+          >
+            {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+          </button>
         </div>
         {/* Icons grid column */}
         <div style={{ 
-          display: "flex", 
-          gap: "16px", 
-          flexWrap: "wrap", 
-          justifyContent: "flex-start",
-          maxWidth: "400px",
-          margin: "0",
-          minHeight: '320px',
-          alignItems: 'flex-start',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 72px)',
+                  gap: '10px',
+                  maxHeight: 420,
+                  overflowY: 'auto',
+                  paddingRight: 6
         }}>
           {categoryIcons.map((icon) => (
             <div
@@ -1253,31 +1306,29 @@ const DPVCustomizer: React.FC = () => {
               draggable
               onDragStart={(e) => handleDragStart(e, icon)}
               style={{
-                padding: "12px",
-                background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                borderRadius: "6px",
-                cursor: "grab",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                width: "60px",
-                border: "1px solid #e0e0e0",
-                transition: "all 0.3s ease",
-              }}
+                        padding: '10px',
+                        background: 'transparent',
+                        borderRadius: '8px',
+                        cursor: 'grab',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        width: '72px',
+                        minHeight: '72px',
+                        border: '1px solid transparent',
+                        transition: 'border-color 0.2s ease, background 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1a1f2c33'; e.currentTarget.style.background = '#f7f9fc'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
             >
               <img
                 src={icon.src}
                 alt={icon.label}
-                style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                    title={icon.label}
+                        style={{ width: '32px', height: '32px', objectFit: 'contain' }}
               />
-              <span style={{ 
-                fontSize: "14px", 
-                color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                letterSpacing: "0.5px"
-              }}>
-                {icon.label}
-              </span>
             </div>
           ))}
         </div>

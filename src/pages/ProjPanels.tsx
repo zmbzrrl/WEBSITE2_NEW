@@ -63,6 +63,7 @@ const ProjPanels: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { projectName, setProjectName, projectCode, setProjectCode, location: projectLocation, operator, boqQuantities } = useContext(ProjectContext);
+  const { setLocation, setOperator, setServicePartner } = useContext(ProjectContext) as any;
   
   // State for panel number editing
   const [editingPanelIndex, setEditingPanelIndex] = useState<number | null>(null);
@@ -228,11 +229,19 @@ const ProjPanels: React.FC = () => {
         const sEditId = sessionStorage.getItem('ppEditingDesignId') || '';
         const sIsNewRev = sessionStorage.getItem('ppIsCreateNewRevision') === 'true';
         const sIsEditMode = sessionStorage.getItem('ppIsEditMode') === 'true';
+        const sProjectCode = sessionStorage.getItem('ppProjectCode') || '';
+        const sLocation = sessionStorage.getItem('ppLocation') || '';
+        const sOperator = sessionStorage.getItem('ppOperator') || '';
+        const sServicePartner = sessionStorage.getItem('ppServicePartner') || '';
         
         if (sName) {
           setOriginalProjectName(sName);
           if (!projectName) setProjectName(sName);
         }
+        if (sProjectCode && setProjectCode) setProjectCode(sProjectCode);
+        if (sLocation && setLocation) setLocation(sLocation);
+        if (sOperator && setOperator) setOperator(sOperator);
+        if (sServicePartner && setServicePartner) setServicePartner(sServicePartner);
         if (sEditId) setEditingDesignId(sEditId);
         if (sIsNewRev) setIsCreateNewRevision(true);
         if (sIsEditMode) {
@@ -446,8 +455,9 @@ const ProjPanels: React.FC = () => {
               designData: {
                 projectName: originalProjectName,
                 projectCode: projectCode || '',
-                location: projectLocation || '',
-                operator: operator || '',
+                location: projectLocation || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppLocation') || '') : ''),
+                operator: operator || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppOperator') || '') : ''),
+                servicePartner: (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppServicePartner') || '') : ''),
                 panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
                   ...panel,
                   displayNumber: getDisplayNumber(index),
@@ -527,8 +537,9 @@ const ProjPanels: React.FC = () => {
               designData: {
                 projectName: finalProjectName,
                 projectCode: projectCode || '',
-                location: projectLocation || '',
-                operator: operator || '',
+                location: projectLocation || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppLocation') || '') : ''),
+                operator: operator || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppOperator') || '') : ''),
+                servicePartner: (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppServicePartner') || '') : ''),
                 panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
                   ...panel,
                   displayNumber: getDisplayNumber(index),
@@ -566,8 +577,9 @@ const ProjPanels: React.FC = () => {
                 designData: {
                   projectName: finalProjectName,
                   projectCode: projectCode || '',
-                  location: projectLocation || '',
-                  operator: operator || '',
+                  location: projectLocation || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppLocation') || '') : ''),
+                  operator: operator || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppOperator') || '') : ''),
+                  servicePartner: (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppServicePartner') || '') : ''),
                   panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
                     ...panel,
                     displayNumber: getDisplayNumber(index),
@@ -589,15 +601,15 @@ const ProjPanels: React.FC = () => {
           }
           
           // Check if there are any existing designs with this base project name
-          const existingDesigns = designsResult.designs?.filter((design: any) => 
+          const existingDesigns = (designsResult.designs || []).filter((design: any) => 
             design.design_name === baseProjectName || 
             (design.design_name && design.design_name.startsWith(baseProjectName + ' (rev'))
           );
           
-          if (existingDesigns.length > 0) {
+          if ((existingDesigns as any[]).length > 0) {
             // There are existing designs, so this should be a new revision
             let maxRevision = -1; // Start at -1 so first revision is rev0
-            existingDesigns.forEach((design: any) => {
+            (existingDesigns as any[]).forEach((design: any) => {
               const match = design.design_name.match(/\(rev(\d+)\)$/);
               if (match) {
                 const revision = parseInt(match[1]);
@@ -627,8 +639,9 @@ const ProjPanels: React.FC = () => {
           designData: {
             projectName: finalProjectName,
             projectCode: projectCode || '',
-            location: projectLocation || '',
-            operator: operator || '',
+            location: projectLocation || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppLocation') || '') : ''),
+            operator: operator || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppOperator') || '') : ''),
+            servicePartner: (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppServicePartner') || '') : ''),
             panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
               ...panel,
               displayNumber: getDisplayNumber(index),

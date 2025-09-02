@@ -37,7 +37,7 @@ import dpRt from '../assets/panels/GS_Double module_224x95.png';
 import { ProjectContext } from '../App';
 import { mockSendEmail } from '../utils/mockBackend';
 import { isAdminEmail } from '../utils/admin';
-import DesignGuidelines from '../components/DesignGuidelines';
+ 
 
 
 //                              ===== STYLED COMPONENTS SECTION =====
@@ -638,9 +638,7 @@ const Home = () => {
   // false = no error, true = show error message
   const [showError, setShowError] = useState(false);
   
-  // Controls whether to show design guidelines modal
-  // false = hide modal, true = show modal
-  const [showDesignGuidelines, setShowDesignGuidelines] = useState(false);
+  
   
   // Stores all the form data (project details)
   // This is an object that holds multiple pieces of information
@@ -913,24 +911,7 @@ const Home = () => {
                 }} />
               </StyledButton>
               
-              {/* ===== DESIGN GUIDELINES LINK ===== */}
-              <Typography
-                variant="body2"
-                onClick={() => setShowDesignGuidelines(true)}
-                sx={{
-                  color: '#7f8c8d',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  fontFamily: 'sans-serif',
-                  fontSize: '0.9rem',
-                  marginTop: '1rem',
-                  '&:hover': {
-                    color: '#3498db'
-                  }
-                }}
-              >
-                Read INTEREL's Design Guidelines
-              </Typography>
+              
 
             </ButtonContainer>
           </>
@@ -1270,11 +1251,7 @@ const Home = () => {
         ) : null}
       </ContentWrapper>
       
-      {/* ===== DESIGN GUIDELINES MODAL ===== */}
-      <DesignGuidelines 
-        open={showDesignGuidelines}
-        onClose={() => setShowDesignGuidelines(false)}
-      />
+      
     </HomeContainer>
   );
 };

@@ -4,13 +4,16 @@ interface IconModule {
   default: string;
 }
 
-// Import all SVG icons from icons2 folder
-const icons2: Record<string, IconModule> = import.meta.glob("./icons2/*.svg", { eager: true });
+// Import all SVG and PNG icons from icons2 folder
+const icons2: Record<string, IconModule> = import.meta.glob("./icons2/*.{svg,png}", { eager: true });
+// Import TAG icons from TAG_icons folder
+const tagIconModules: Record<string, IconModule> = import.meta.glob("./TAG_icons/*.{svg,png}", { eager: true });
 
 // Convert the imported modules to a more usable format
 const processIcons = (icons: Record<string, IconModule>) => {
   return Object.entries(icons).reduce((acc, [path, module]) => {
-    const name = path.split("/").pop()?.replace(".svg", "") || "";
+    const filename = path.split("/").pop() || "";
+    const name = filename.replace(/\.(svg|png)$/i, "");
     const id = name; // Use the filename as the ID
     
     // Create label by replacing spaces and special characters
@@ -19,7 +22,9 @@ const processIcons = (icons: Record<string, IconModule>) => {
     
     // Determine category based on icon name
     let category = "General";
-    if (name.toLowerCase().includes("bathroom") || name.toLowerCase().includes("shower") || name.toLowerCase().includes("bathtub")) {
+    if (name.toLowerCase().includes("tag")) {
+      category = "Thermostat";
+    } else if (name.toLowerCase().includes("bathroom") || name.toLowerCase().includes("shower") || name.toLowerCase().includes("bathtub")) {
       category = "Bathroom";
     } else if (name.toLowerCase().includes("light") || name.toLowerCase().includes("lamp") || name.toLowerCase().includes("chandelier")) {
       category = "Room Lights";
@@ -43,20 +48,39 @@ const processIcons = (icons: Record<string, IconModule>) => {
   }, {} as Record<string, { id: string; src: string; category: string; label: string }>);
 };
 
+// Process TAG icons with explicit TAG category
+const processTagIcons = (icons: Record<string, IconModule>) => {
+  return Object.entries(icons).reduce((acc, [path, module]) => {
+    const filename = path.split("/").pop() || "";
+    const name = filename.replace(/\.(svg|png)$/i, "");
+    const id = name;
+    let label = name.replace(/([A-Z])/g, ' $1').trim();
+    label = label.replace(/\s+/g, ' ');
+    acc[id] = {
+      id,
+      src: module.default,
+      category: "Thermostat",
+      label
+    };
+    return acc;
+  }, {} as Record<string, { id: string; src: string; category: string; label: string }>);
+};
+
 // Export the icons and categories
 export const iconCategories = [
+  "Thermostat",
   "Bathroom",
   "Room Lights", 
   "Curtains & Blinds",
   "Guest Services",
   "Scenes",
-  "Climate",
   "General"
 ];
 
 // Export the full icon set for customizer use
 export const allIcons = {
   ...processIcons(icons2),
+  ...processTagIcons(tagIconModules),
   // Add PIR icon
   "PIR": {
     id: "PIR",

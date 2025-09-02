@@ -45,52 +45,5 @@ export const generatePDFServerSide = async (request: PDFGenerationRequest): Prom
   }
 };
 
-// Backend example (Node.js with Puppeteer):
-/*
-const puppeteer = require('puppeteer');
-
-app.post('/api/generate-pdf', async (req, res) => {
-  const { panelConfigs, projectName } = req.body;
-  
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  
-  // Set up the page with your panel designs
-  await page.setContent(`
-    <html>
-      <head>
-        <style>
-          /* Your print CSS styles */
-          @page { margin: 0.5in; size: A4; }
-          body { font-family: Arial, sans-serif; }
-          .panel-page { page-break-after: always; }
-        </style>
-      </head>
-      <body>
-        ${panelConfigs.map(config => `
-          <div class="panel-page">
-            <!-- Render your panel here -->
-            <div style="background: ${config.panelDesign.backgroundColor}">
-              <!-- Panel content -->
-            </div>
-          </div>
-        `).join('')}
-      </body>
-    </html>
-  `);
-  
-  const pdf = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
-  });
-  
-  await browser.close();
-  
-  // Save PDF to server and return URL
-  const fileName = `${projectName}_panels.pdf`;
-  // Save to server storage...
-  
-  res.json({ success: true, pdfUrl: `/pdfs/${fileName}` });
-});
-*/
+// Note: Backend implementation would require a Node.js server with Puppeteer
+// to generate PDFs from HTML content

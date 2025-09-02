@@ -139,35 +139,92 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
     }
   },
 
-  // Thermostat (TAG)
+  // Thermostat (TAG) - duplicate SP behavior and dimensions feature
   TAG: {
     dimensions: {
-      width: '320px',
-      height: '320px'
+      width: '95mm',
+      height: '95mm'
+    },
+    dimensionConfigs: {
+      standard: {
+        width: '95mm',
+        height: '95mm',
+        iconPositions: [
+          { top: '23px', left: '33px' },
+          { top: '23px', left: '136px' },
+          { top: '23px', left: '233px' },
+          { top: '123px', left: '33px' },
+          { top: '123px', left: '136px' },
+          { top: '123px', left: '233px' },
+          { top: '218px', left: '33px' },
+          { top: '218px', left: '136px' },
+          { top: '218px', left: '233px' },
+        ]
+      },
+      wide: {
+        width: '130mm',
+        height: '95mm',
+        iconPositions: [
+          { top: '23px', left: '33px' },
+          { top: '23px', left: '180px' },
+          { top: '23px', left: '327px' },
+          { top: '123px', left: '33px' },
+          { top: '123px', left: '180px' },
+          { top: '123px', left: '327px' },
+          { top: '218px', left: '33px' },
+          { top: '218px', left: '180px' },
+          { top: '218px', left: '327px' },
+        ]
+      },
+      tall: {
+        width: '95mm',
+        height: '130mm',
+        iconPositions: [
+          { top: '23px', left: '33px' },
+          { top: '23px', left: '136px' },
+          { top: '23px', left: '233px' },
+          { top: '123px', left: '33px' },
+          { top: '123px', left: '136px' },
+          { top: '123px', left: '233px' },
+          { top: '218px', left: '33px' },
+          { top: '218px', left: '136px' },
+          { top: '218px', left: '233px' },
+          { top: '313px', left: '33px' },
+          { top: '313px', left: '136px' },
+          { top: '313px', left: '233px' },
+        ]
+      }
     },
     iconPositions: [
-      { top: '15px', left: '15px' },   // Icon 0 (top-left)
-      { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
-      { top: '15px', left: '215px' },  // Icon 2 (top-right)
-      { top: '115px', left: '15px' },  // Icon 3 (middle-left)
-      { top: '115px', left: '115px' }, // Icon 4 (middle-center)
-      { top: '115px', left: '215px' }, // Icon 5 (middle-right)
-      { top: '215px', left: '15px' },  // Icon 6 (bottom-left)
-      { top: '215px', left: '115px' }, // Icon 7 (bottom-center)
-      { top: '215px', left: '215px' }, // Icon 8 (bottom-right)
-      { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
-      { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
-      { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total
+      { top: '23px', left: '33px' },
+      { top: '23px', left: '136px' },
+      { top: '23px', left: '233px' },
+      { top: '123px', left: '33px' },
+      { top: '123px', left: '136px' },
+      { top: '123px', left: '233px' },
+      { top: '218px', left: '33px' },
+      { top: '218px', left: '136px' },
+      { top: '218px', left: '233px' },
     ],
     iconLayout: {
-      size: '35px',
-      spacing: '8px',
-      position: 'center'
+      size: '40px',
+      spacing: '5px',
+      position: 'top'
     },
     textLayout: {
-      fontSize: '11px',
-      position: 'static',
-      padding: '3px'
+      fontSize: '12px',
+      position: 'absolute',
+      bottom: '13px',
+      padding: '-1px'
+    },
+    specialLayouts: {
+      PIR: {
+        iconSize: '40px',
+        marginTop: '20px'
+      },
+      Bathroom: {
+        iconSize: '50px'
+      }
     }
   },
 

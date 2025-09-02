@@ -270,6 +270,25 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
           fontFamily: panelDesign.fonts || undefined,
         }}
       >
+        {/* TAG DISPLAY overlay */}
+        {isTAG && (
+          <img
+            src={(allIcons as any).DISPLAY?.src || '/src/assets/icons/DISPLAY.png'}
+            alt="DISPLAY"
+            style={{
+              position: 'absolute',
+              top: '90px',
+              left: '45%',
+              transform: 'translateX(-50%)',
+              width: '220px',
+              height: '50px',
+              objectFit: 'contain',
+              filter: computedIconFilter,
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          />
+        )}
         <div style={{
             position: 'absolute',
             top: '2px',
@@ -353,55 +372,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               }
             }
             
-            // Special handling for TAG panel
-            if (isTAG) {
-              // Adjust position for DISPLAY icon (position 4)
-              if (index === 4 && icon?.iconId === 'DISPLAY') {
-                adjustedPos = { 
-                  ...adjustedPos, 
-                  left: '-115px', // Move left to center the large display
-                  top: '-70px'    // Move up to center the large display
-                };
-              }
-              
-              // Adjust positions for FAN icons in third row (positions 6, 7, 8)
-              if (index >= 6 && index <= 8 && icon?.iconId === 'FAN') {
-                adjustedPos = { 
-                  ...adjustedPos, 
-                  top: (parseInt(adjustedPos.top) - 75) + 'px' // Move up by 75px
-                };
-              }
-            }
-            
-            // Special handling for TAG panel: shift all icons 30px to the right
-            if (isTAG && adjustedPos && adjustedPos.left) {
-              const leftValue = parseInt(adjustedPos.left);
-              adjustedPos = { ...adjustedPos, left: (leftValue + 30) + 'px' };
-            }
-            // For TAG, bring first three rows (indices 0-8) 5px down
-            if (isTAG && adjustedPos && adjustedPos.top && index >= 0 && index <= 8) {
+            // TAG: lower rows 2 and 3 (indices 3-8) by 30px
+            if (isTAG && adjustedPos && adjustedPos.top && index >= 3 && index <= 8) {
               const topValue = parseInt(adjustedPos.top);
-              adjustedPos = { ...adjustedPos, top: (topValue + 5) + 'px' };
-            }
-            // For TAG, move row 3 (indices 6, 7, 8) up by 3px
-            if (isTAG && adjustedPos && adjustedPos.top && index >= 6 && index <= 8) {
-              const topValue = parseInt(adjustedPos.top);
-              adjustedPos = { ...adjustedPos, top: (topValue - 3) + 'px' };
-            }
-            // For TAG, shift row 3 (indices 6, 7, 8) 8px to the left
-            if (isTAG && adjustedPos && adjustedPos.left && index >= 6 && index <= 8) {
-              const leftValue = parseInt(adjustedPos.left);
-              adjustedPos = { ...adjustedPos, left: (leftValue - 8 - 3) + 'px' };
-            }
-            // For TAG, bring row 4 (indices 9, 10, 11) 8px up
-            if (isTAG && adjustedPos && adjustedPos.top && index >= 9 && index <= 11) {
-              const topValue = parseInt(adjustedPos.top);
-              adjustedPos = { ...adjustedPos, top: (topValue - 8) + 'px' };
-            }
-            // For TAG, move cell 10 (index 10) 6px to the left
-            if (isTAG && adjustedPos && adjustedPos.left && index === 10) {
-              const leftValue = parseInt(adjustedPos.left);
-              adjustedPos = { ...adjustedPos, left: (leftValue - 6) + 'px' };
+              adjustedPos = { ...adjustedPos, top: (topValue + 30) + 'px' } as any;
             }
             
             return (

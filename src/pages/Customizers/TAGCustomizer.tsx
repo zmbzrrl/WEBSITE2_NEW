@@ -5,7 +5,6 @@ import "./Customizer.css";
 import CartButton from "../../components/CartButton";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from "../../assets/logo.png";
-import icons, { allIcons } from "../../assets/iconLibrary";
 import {
   Container,
   Typography,
@@ -15,14 +14,31 @@ import {
   useTheme,
   TextField,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../data/ralColors';
 import { ProjectContext } from '../../App';
 import { motion } from 'framer-motion';
-import TAG from "../  ../assets/panels/TAG_PIR.png";
-import QuantityDialog from '../../components/QuantityDialog';
+import SP from "../../assets/panels/SP.png";
+import logo from "../../assets/logo.png";
+import LED from "../../assets/LED.png";
+import DISPLAY from "../../assets/icons/DISPLAY.png";
+// Load TAG panel preview images
+interface ImageModule { default: string }
+const tagPanelModules: Record<string, ImageModule> = import.meta.glob(
+  "../../assets/TAG_PANELS/*.{png,svg,jpg,jpeg}",
+  { eager: true }
+);
 
+import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
+import PanelDimensionSelector from '../../components/PanelDimensionSelector';
+// Removed panel mode feature for TAG customizer
+import { navigateToPrintPreview } from '../../utils/printUtils';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -88,11 +104,6 @@ const StepLabel = styled(Typography)<{ completed?: boolean; current?: boolean }>
   textAlign: 'center',
   fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
   letterSpacing: '0.5px',
-  maxWidth: '80px',
-  minHeight: '40px',
-  lineHeight: 1.2,
-  whiteSpace: 'normal',
-  wordBreak: 'break-word',
 }));
 
 const StyledButton = styled(Button)(({ theme }) => ({
@@ -150,7 +161,7 @@ interface Design {
 }
 
 // Component for each grid cell
-const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
+const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
@@ -161,48 +172,26 @@ const AbsoluteCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
     onDrop(index, iconId);
   };
 
-  // Define absolute positions for TAG panel (4x3 grid)
-  const getPosition = (index: number) => {
-    const positions = [
-      { top: '15px', left: '15px' },   // Icon 0 (top-left)
-      { top: '0px', left: '115px' },   // Icon 1 (top-center) - moved 15px up
-      { top: '15px', left: '215px' },  // Icon 2 (top-right)
-      { top: '115px', left: '15px' },  // Icon 3 (middle-left)
-      { top: '115px', left: '115px' }, // Icon 4 (middle-center)
-      { top: '115px', left: '215px' }, // Icon 5 (middle-right)
-      { top: '215px', left: '15px' },  // Icon 6 (bottom-left)
-      { top: '215px', left: '115px' }, // Icon 7 (bottom-center)
-      { top: '215px', left: '215px' }, // Icon 8 (bottom-right)
-      { top: '220px', left: '15px' },  // Icon 9 (fourth-left) - moved up 95px total
-      { top: '220px', left: '115px' }, // Icon 10 (fourth-center) - moved up 95px total
-      { top: '220px', left: '215px' }, // Icon 11 (fourth-right) - moved up 95px total
-    ];
-    return positions[index] || { top: '0px', left: '0px' };
-  };
-
-  const position = getPosition(index);
-
   return (
     <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-    style={{
-        position: "absolute",
-        ...position,
-        width: "80px",
-        height: "80px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-      background: "transparent",
+      style={{
+        width: "30%",
+        height: "100px",
+        display: "inline-block",
+        textAlign: "center",
+        background: "transparent",
+        margin: "5px",
+        position: "relative",
+        boxSizing: "border-box",
+        verticalAlign: "top",
         cursor: "copy",
-        zIndex: 2,
-    }}
-  >
-    {children}
-  </div>
-);
+      }}
+    >
+      {children}
+    </div>
+  );
 };
 
 // Google Fonts API key (for demo, you should use your own key for production)
@@ -235,7 +224,7 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-// Move InformationBox to the top level, before TAGCustomizer
+// Move InformationBox to the top level, before SPCustomizer
 const InformationBox = ({
   backbox,
   setBackbox,
@@ -401,10 +390,9 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: Auto-colored
+                  Icons & Text: Auto-colored
                 </Typography>
               </Box>
-
             </Box>
           </Box>
           {/* Typography Section */}
@@ -489,43 +477,10 @@ const InformationBox = ({
   );
 };
 
-const TAGCustomizer: React.FC = () => {
+const SPCustomizer: React.FC = () => {
+  const cartContext = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Edit mode state
-  const isEditMode = location.state?.editMode || false;
-  const editPanelIndex = location.state?.panelIndex;
-  const editPanelData = location.state?.panelData;
-  
-  // Add CSS animation for pulse effect
-  React.useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes pulse {
-        0% {
-          transform: scale(1);
-          opacity: 1;
-        }
-        50% {
-          transform: scale(1.2);
-          opacity: 0.8;
-        }
-        100% {
-          transform: scale(1);
-          opacity: 1;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      if (document.head.contains(style)) {
-        document.head.removeChild(style);
-      }
-    };
-  }, []);
-
-  const cartContext = useCart();
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);
@@ -545,17 +500,19 @@ const TAGCustomizer: React.FC = () => {
     iconColor: string;
     textColor: string;
     fontSize: string;
+    iconSize: string;
     backbox?: string;
     extraComments?: string;
   }>({
     backgroundColor: '',
-    fonts: '',
+    fonts: 'Myriad Pro',
     backlight: '',
 
     plasticColor: '',
     iconColor: 'auto',
     textColor: '#000000',
     fontSize: '12px',
+    iconSize: '47px', // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -564,15 +521,8 @@ const TAGCustomizer: React.FC = () => {
   const [fontSearch, setFontSearch] = useState('');
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
+  const [useCustomFont, setUseCustomFont] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
-  
-  // Cell 1 cycling state
-  const [cell1IconIndex, setCell1IconIndex] = useState(0);
-  const cell1Icons = ["CF", "C", "F"]; // The 3 icons that cycle in cell 1
-  
-  // Get all TAG icons for cycling in cell 1
-  const tagIcons = Object.values(icons).filter((icon: any) => icon.category === 'TAG');
-  
   // Function to determine icon color based on background
   const getIconColorFilter = (backgroundColor: string): string => {
     // Convert hex to RGB for brightness calculation
@@ -593,38 +543,52 @@ const TAGCustomizer: React.FC = () => {
       return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
     }
   };
-
-  const getAutoTextColor = (backgroundColor: string): string => {
-    const hex = (backgroundColor || '#ffffff').replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness < 128 ? '#ffffff' : '#2c2c2c';
-  };
-
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
+  const { projectName, projectCode } = useContext(ProjectContext);
+  const [selectedFont, setSelectedFont] = useState<string>('Arial');
+  const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
+  // Drag restriction preview state
+  const [isDraggingIcon, setIsDraggingIcon] = useState<boolean>(false);
+  const [restrictedCells, setRestrictedCells] = useState<number[]>([]);
+  
+  // Popup state for DND/MUR restrictions
+  const [showRestrictionDialog, setShowRestrictionDialog] = useState(false);
+  const [restrictionMessage, setRestrictionMessage] = useState('');
+  
+  // Popup state for selecting custom panel mode
+  const [showCustomModeDialog, setShowCustomModeDialog] = useState(false);
+  
+  // Edit mode state
+  const isEditMode = location.state?.editMode || false;
+  const isViewMode = location.state?.viewMode || false;
+  const isCreateNewRevision = location.state?.createNewRevision || false;
+  const editPanelIndex = location.state?.panelIndex;
+  const editPanelData = location.state?.panelData;
+  const isAddingToExistingProject = location.state?.isAddingToExistingProject || false;
+  
+  // Debug logging for edit mode
+  console.log('🔍 SPCustomizer Edit Mode Debug:');
+  console.log('  isEditMode:', isEditMode);
+  console.log('  editPanelIndex:', editPanelIndex);
+  console.log('  editPanelData:', editPanelData ? 'present' : 'missing');
+  console.log('  location.state:', location.state);
+  
+
+  
   console.log('RENDER', { backbox, extraComments });
 
-
-
-  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
-  const [qtyOpen, setQtyOpen] = useState(false);
-  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
-  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
-  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('TAG');
-
   useEffect(() => {
-    import("../../assets/iconLibrary").then((module) => {
+    import("../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat === 'PIR'));
+      // Hide PIR, Sockets, and Climate; include TAG so TAG-specific icons appear
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'PIR' && cat !== 'Climate'));
     });
   }, []);
 
   // Load existing panel data if in edit mode
   useEffect(() => {
     if (isEditMode && editPanelData) {
-      console.log('🔍 TAG EDIT MODE DEBUG:');
+      console.log('🔍 EDIT MODE DEBUG:');
       console.log('isEditMode:', isEditMode);
       console.log('editPanelData:', editPanelData);
       console.log('editPanelData type:', typeof editPanelData);
@@ -658,16 +622,32 @@ const TAGCustomizer: React.FC = () => {
           iconsData = designData.icons;
         }
       }
+      // Check if this is a saved individual panel (new structure)
+      else if (deepCopiedData.type === 'SP' && deepCopiedData.icons) {
+        console.log('📋 Found saved individual panel structure');
+        if (deepCopiedData.panelDesign) {
+          panelDesignData = deepCopiedData.panelDesign;
+        }
+        iconsData = deepCopiedData.icons;
+      }
+      
+      console.log('📋 Final extracted data:');
+      console.log('panelDesignData:', panelDesignData);
+      console.log('iconsData:', iconsData);
       
       // Load panel design
       if (panelDesignData) {
+        console.log('🎨 Loading panel design:', panelDesignData);
         setPanelDesign(panelDesignData);
         setBackbox(panelDesignData.backbox || '');
         setExtraComments(panelDesignData.extraComments || '');
+      } else {
+        console.log('⚠️ No panel design data found');
       }
       
       // Load placed icons
       if (iconsData) {
+        console.log('🎯 Loading icons data:', iconsData);
         const loadedIcons: PlacedIcon[] = iconsData
           .filter((icon: any) => icon.iconId)
           .map((icon: any) => ({
@@ -678,6 +658,7 @@ const TAGCustomizer: React.FC = () => {
             position: icon.position,
             category: icon.category || ''
           }));
+        console.log('🎯 Loaded icons:', loadedIcons);
         setPlacedIcons(loadedIcons);
         
         // Load icon texts
@@ -687,7 +668,10 @@ const TAGCustomizer: React.FC = () => {
             loadedTexts[icon.position] = icon.text;
           }
         });
+        console.log('📝 Loaded texts:', loadedTexts);
         setIconTexts(loadedTexts);
+      } else {
+        console.log('⚠️ No icons data found');
       }
       
       // Set current step to design step (step 3) for editing
@@ -699,7 +683,7 @@ const TAGCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, projPanels, updatePanel } = cartContext;
+  const { addToCart, updatePanel, loadProjectPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -711,39 +695,46 @@ const TAGCustomizer: React.FC = () => {
     const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
     if (isOccupied || selectedIcon === null) return;
 
+    // Column helpers and DND/MUR detection
+    const isRightCol = (idx: number) => idx === 2 || idx === 5 || idx === 8;
+    const isLeftCol = (idx: number) => idx === 0 || idx === 3 || idx === 6;
+    const selLabelLower = (selectedIcon.label || '').toLowerCase();
+    const isDNDIcon = selLabelLower.includes('dnd') || selLabelLower.includes('privacy') || selLabelLower.includes('do not disturb');
+    const isMURIcon = selLabelLower.includes('mur') || selLabelLower.includes('service') || selLabelLower.includes('make up');
+
     // Check if trying to place PIR icon
     if (selectedIcon.category === "PIR") {
-      // Only allow placement in bottom center cell (10)
-      if (cellIndex !== 10) return;
+      // Only allow placement in bottom center cell (7)
+      if (cellIndex !== 7) return;
       
       // Check if PIR icon is already placed
       const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
       if (hasPIR) return;
     }
 
-    // Special handling for cell 1 - allow any TAG icon and cycle through CF, C, F
-    if (cellIndex === 1) {
-      // Remove any existing icon in cell 1
-      setPlacedIcons((prev) => prev.filter((icon) => icon.position !== 1));
-      
-      // Place the selected icon
-      const iconPosition: PlacedIcon = {
-        id: Date.now(),
-        iconId: selectedIcon.id,
-        src: selectedIcon.src,
-        label: selectedIcon.label,
-        position: cellIndex,
-        category: selectedIcon.category
-      };
-      
-      setPlacedIcons((prev) => [...prev, iconPosition]);
-      setSelectedIcon(null);
+    // DND cannot be placed in right column
+    if (isDNDIcon && isRightCol(cellIndex)) {
+      setRestrictionMessage('**DND (Do Not Disturb)** icons are designed to work with the red/white LED indicators on the left side of the panel. The right side uses green/white indicators, which is why **DND** icons can only be placed in the left and center columns.');
+      setShowRestrictionDialog(true);
+      return;
+    }
+    // MUR cannot be placed in left column
+    if (isMURIcon && isLeftCol(cellIndex)) {
+      setRestrictionMessage('**MUR (Make Up Room)** icons are designed to work with the green/white LED indicators on the right side of the panel. The left side uses red/white indicators, which is why **MUR** icons can only be placed in the center and right columns.');
+      setShowRestrictionDialog(true);
       return;
     }
 
-    // Prevent placing icons in cells 3, 4, 5 (covered by permanent DISPLAY)
-    if ([3, 4, 5].includes(cellIndex)) {
-      return;
+    // Check if trying to place G1 or G2 icon
+    if (selectedIcon.id === "G1" || selectedIcon.id === "G2") {
+      // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7) - not in right column (cells 2,5,8)
+      if (cellIndex !== 0 && cellIndex !== 1 && cellIndex !== 3 && cellIndex !== 4 && cellIndex !== 6 && cellIndex !== 7) return;
+    }
+
+    // Check if trying to place G3 icon
+    if (selectedIcon.id === "G3") {
+      // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8) - not in left column (cells 0,3,6)
+      if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
     }
 
     const iconPosition: PlacedIcon = {
@@ -775,51 +766,6 @@ const TAGCustomizer: React.FC = () => {
     setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
   };
 
-  // Cell 1 cycling function - move this before renderGridCell
-  const handleCell1Click = () => {
-    if (currentStep === 4) return;
-    
-    // Define the temperature unit icons that should cycle in cell 1
-    const temperatureIcons = ["CF", "C", "F"];
-    
-    // Find the current icon in cell 1
-    const currentIcon = placedIcons.find(icon => icon.position === 1);
-    const currentIconId = currentIcon?.iconId;
-    
-    // Find current index in temperature icons array
-    const currentIndex = temperatureIcons.indexOf(currentIconId || "CF");
-    
-    // Cycle to next icon
-    const nextIndex = (currentIndex + 1) % temperatureIcons.length;
-    const nextIconId = temperatureIcons[nextIndex];
-    
-    // Find the icon data from icons
-    const nextIcon = (icons as any)[nextIconId];
-    
-    if (nextIcon) {
-      setPlacedIcons(prev => [
-        ...prev.filter(icon => icon.position !== 1),
-        {
-          id: Date.now(),
-          iconId: nextIcon.id,
-          src: nextIcon.src,
-          label: nextIcon.label,
-          position: 1,
-          category: nextIcon.category
-        }
-      ]);
-    }
-  };
-
-  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
-    if (t === 'SP') return 'SP';
-    if (t === 'TAG') return 'TAG';
-    if (t === 'IDPG') return 'IDPG';
-    if (t === 'DPH' || t === 'DPV') return 'DP';
-    if (t.startsWith('X')) return 'EXT';
-    return 'SP';
-  };
-
   const handleAddToCart = (): void => {
     // Check if backbox details are provided
     if (!backbox.trim()) {
@@ -828,8 +774,8 @@ const TAGCustomizer: React.FC = () => {
     }
 
     const design: Design & { panelDesign: typeof panelDesign } = {
-      type: "TAG",
-      icons: Array.from({ length: 12 })
+      type: "SP",
+      icons: Array.from({ length: 9 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
           return {
@@ -845,62 +791,40 @@ const TAGCustomizer: React.FC = () => {
       quantity: 1,
       panelDesign: { ...panelDesign, backbox, extraComments },
     };
-    
-    if (isEditMode && editPanelIndex !== undefined) {
-      // Update existing panel in edit mode
-      console.log('✅ Updating existing TAG panel at index:', editPanelIndex);
-      updatePanel(editPanelIndex, design);
-      navigate('/cart');
-    } else {
-      // Add new panel with quantity prompt constrained by BOQ remaining
-      const category = mapTypeToCategory(design.type);
 
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
-
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => (boqQuantities as any)[k] as number | undefined)
-            .filter((v): v is number => typeof v === 'number')
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = (boqQuantities as any)[cat];
-        return typeof cap === 'number' ? cap : undefined;
-      };
-
-      const cap = getCategoryCap(category);
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
-
-      if (remaining !== undefined) {
-        if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
-          return;
-        }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
+    if (isEditMode) {
+      // Handle edit mode - either update existing panel or add new one
+      if (editPanelIndex !== undefined) {
+        // Update existing panel at specific index (for project panels)
+        console.log('🔧 Updating panel at index:', editPanelIndex);
+        updatePanel(editPanelIndex, design);
+      } else {
+        // For individual panels, replace the entire cart with this panel
+        console.log('🔧 Replacing cart with edited individual panel');
+        // Clear existing panels and add the edited one
+        loadProjectPanels([design]);
       }
-
+      
+      // Preserve the project-level edit state when navigating back
+      const preservedState = location.state?.projectEditMode !== undefined ? {
+        projectEditMode: location.state.projectEditMode,
+        projectDesignId: location.state.projectDesignId,
+        projectOriginalName: location.state.projectOriginalName,
+        projectCreateNewRevision: location.state.projectCreateNewRevision
+      } : {};
+      
+      navigate('/cart', { state: preservedState }); // Go back to cart after updating
+    } else {
+      // Add new panel
       addToCart(design);
     }
   };
 
-  const handleQtyConfirm = (qty: number) => {
-    if (!pendingDesign) return;
-    const finalDesign = { ...pendingDesign, quantity: qty };
-    addToCart(finalDesign);
-    setPendingDesign(null);
-    setQtyOpen(false);
-  };
+
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'TAG')
+    .filter(([_, icon]) => icon.category === selectedCategory)
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -909,6 +833,26 @@ const TAGCustomizer: React.FC = () => {
     }));
 
   const handleDragStart = (e: React.DragEvent, icon: IconOption | PlacedIcon) => {
+    if (panelMode === 'text_only') {
+      // no icons allowed
+      e.preventDefault();
+      return;
+    }
+    // Determine if the dragged icon is DND or MUR to show restricted cells
+    const label = ('label' in icon ? icon.label : '') || '';
+    const lower = label.toLowerCase();
+    const isDND = lower.includes('dnd') || lower.includes('privacy') || lower.includes('do not disturb');
+    const isMUR = lower.includes('mur') || lower.includes('service') || lower.includes('make up');
+    if (isDND || isMUR) {
+      // SP grid indices: left [0,3,6], center [1,4,7], right [2,5,8]
+      const rightCol = [2,5,8];
+      const leftCol = [0,3,6];
+      setIsDraggingIcon(true);
+      setRestrictedCells(isDND ? rightCol : leftCol);
+    } else {
+      setIsDraggingIcon(false);
+      setRestrictedCells([]);
+    }
     if ('position' in icon) {
       // This is a placed icon
       e.dataTransfer.setData('text/plain', JSON.stringify({
@@ -929,52 +873,53 @@ const TAGCustomizer: React.FC = () => {
   const handleDrop = (cellIndex: number, data: string) => {
     try {
       const dragData = JSON.parse(data);
+      if (panelMode === 'text_only') return; // icons not allowed
+      // Clear drag preview on drop
+      setIsDraggingIcon(false);
+      setRestrictedCells([]);
       
       if (dragData.type === 'new') {
+        if (panelMode === 'icons_text' || panelMode === 'custom') {
         // Handle new icon placement
         const icon = categoryIcons.find(i => i.id === dragData.id);
         if (!icon) return;
 
+        const isRightCol = (idx: number) => idx === 2 || idx === 5 || idx === 8;
+        const isLeftCol = (idx: number) => idx === 0 || idx === 3 || idx === 6;
+        const labelLower = (icon.label || '').toLowerCase();
+        const isDNDIcon = labelLower.includes('dnd') || labelLower.includes('privacy') || labelLower.includes('do not disturb');
+        const isMURIcon = labelLower.includes('mur') || labelLower.includes('service') || labelLower.includes('make up');
+
         // Check if trying to place PIR icon
         if (icon.category === "PIR") {
-          if (cellIndex !== 10) return;
+          if (cellIndex !== 7) return;
           const hasPIR = placedIcons.some((icon) => icon.category === "PIR");
           if (hasPIR) return;
         }
 
-        // Check if trying to place G1 or G2 icons in restricted cells (2, 5, 8, 11) - right column
-        if ((icon.id === "G1" || icon.id === "G2") && [2, 5, 8, 11].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8, 11)");
+        // DND cannot be placed in right column
+        if (isDNDIcon && isRightCol(cellIndex)) {
+          setRestrictionMessage('**DND (Do Not Disturb)** icons are designed to work with the red/white LED indicators on the left side of the panel. The right side uses green/white indicators, which is why **DND** icons can only be placed in the left and center columns.');
+          setShowRestrictionDialog(true);
+          return;
+        }
+        // MUR cannot be placed in left column
+        if (isMURIcon && isLeftCol(cellIndex)) {
+          setRestrictionMessage('**MUR (Make Up Room)** icons are designed to work with the green/white LED indicators on the right side of the panel. The left side uses red/white indicators, which is why **MUR** icons can only be placed in the center and right columns.');
+          setShowRestrictionDialog(true);
           return;
         }
 
-        // Check if trying to place G3 icon in restricted cells (0, 3, 6, 9) - left column
-        if (icon.id === "G3" && [0, 3, 6, 9].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
-          return;
+        // Check if trying to place G1 or G2 icon
+        if (icon.id === "G1" || icon.id === "G2") {
+          // Only allow placement in columns 1 and 2 (cells 0,1,3,4,6,7) - not in right column (cells 2,5,8)
+          if (cellIndex !== 0 && cellIndex !== 1 && cellIndex !== 3 && cellIndex !== 4 && cellIndex !== 6 && cellIndex !== 7) return;
         }
 
-        // Special handling for cell 1 - allow any TAG icon
-        if (cellIndex === 1) {
-          // Remove any existing icon in cell 1
-          setPlacedIcons((prev) => prev.filter((icon) => icon.position !== 1));
-          
-          const iconPosition: PlacedIcon = {
-            id: Date.now(),
-            iconId: icon.id,
-            src: icon.src,
-            label: icon.label,
-            position: cellIndex,
-            category: icon.category
-          };
-          
-          setPlacedIcons((prev) => [...prev, iconPosition]);
-          return;
-        }
-
-        // Prevent placing icons in cells 3, 4, 5 (covered by permanent DISPLAY)
-        if ([3, 4, 5].includes(cellIndex)) {
-          return;
+        // Check if trying to place G3 icon
+        if (icon.id === "G3") {
+          // Only allow placement in columns 2 and 3 (cells 1,2,4,5,7,8) - not in left column (cells 0,3,6)
+          if (cellIndex !== 1 && cellIndex !== 2 && cellIndex !== 4 && cellIndex !== 5 && cellIndex !== 7 && cellIndex !== 8) return;
         }
 
         const isOccupied = placedIcons.some((icon) => icon.position === cellIndex);
@@ -990,6 +935,7 @@ const TAGCustomizer: React.FC = () => {
         };
 
         setPlacedIcons((prev) => [...prev, iconPosition]);
+        }
       } else if (dragData.type === 'placed') {
         // Handle swapping placed icons
         const sourceIcon = placedIcons.find(i => i.id === dragData.id);
@@ -997,50 +943,59 @@ const TAGCustomizer: React.FC = () => {
         
         if (!sourceIcon) return;
 
+        const isRightCol = (idx: number) => idx === 2 || idx === 5 || idx === 8;
+        const isLeftCol = (idx: number) => idx === 0 || idx === 3 || idx === 6;
+        const srcLabelLower = (sourceIcon.label || '').toLowerCase();
+        const tgtLabelLower = (targetIcon?.label || '').toLowerCase();
+        const srcIsDND = srcLabelLower.includes('dnd') || srcLabelLower.includes('privacy') || srcLabelLower.includes('do not disturb');
+        const srcIsMUR = srcLabelLower.includes('mur') || srcLabelLower.includes('service') || srcLabelLower.includes('make up');
+        const tgtIsDND = tgtLabelLower.includes('dnd') || tgtLabelLower.includes('privacy') || tgtLabelLower.includes('do not disturb');
+        const tgtIsMUR = tgtLabelLower.includes('mur') || tgtLabelLower.includes('service') || tgtLabelLower.includes('make up');
+
         // Check PIR restrictions
         if (sourceIcon.category === "PIR") {
-          if (cellIndex !== 10) return;
+          if (cellIndex !== 7) return;
         }
         if (targetIcon?.category === "PIR") {
-          if (dragData.position !== 10) return;
+          if (dragData.position !== 7) return;
         }
 
-        // Check cell 1 restrictions for CF, C, F icons
-        if (cellIndex === 1) {
-          const allowedIcons = ["CF", "C", "F"];
-          if (!allowedIcons.includes(sourceIcon.iconId)) return;
+        // DND cannot move into right column
+        if (srcIsDND && isRightCol(cellIndex)) {
+          setRestrictionMessage('**DND (Do Not Disturb)** icons are designed to work with the red/white LED indicators on the left side of the panel. The right side uses green/white indicators, which is why **DND** icons can only be placed in the left and center columns.');
+          setShowRestrictionDialog(true);
+          return;
         }
-        if (dragData.position === 1) {
-          const allowedIcons = ["CF", "C", "F"];
-          if (!allowedIcons.includes(targetIcon?.iconId || "")) return;
+        // MUR cannot move into left column
+        if (srcIsMUR && isLeftCol(cellIndex)) {
+          setRestrictionMessage('**MUR (Make Up Room)** icons are designed to work with the green/white LED indicators on the right side of the panel. The left side uses red/white indicators, which is why **MUR** icons can only be placed in the center and right columns.');
+          setShowRestrictionDialog(true);
+          return;
+        }
+        // Also ensure the target icon's new destination is valid
+        if (targetIcon) {
+          if (tgtIsDND && isRightCol(dragData.position)) return;
+          if (tgtIsMUR && isLeftCol(dragData.position)) return;
         }
 
-        // Prevent moving icons into cells 3, 4, 5 (covered by permanent DISPLAY)
-        if ([3, 4, 5].includes(cellIndex)) {
-          return;
+        // Check G1/G2 restrictions
+        if (sourceIcon.iconId === "G1" || sourceIcon.iconId === "G2") {
+          // G1/G2 cannot be moved to column 3 (cells 2, 5, 8)
+          if (cellIndex === 2 || cellIndex === 5 || cellIndex === 8) return;
         }
-        if ([3, 4, 5].includes(dragData.position)) {
-          return;
-        }
-
-        // Check G1/G2 restrictions for restricted cells (2, 5, 8, 11) - right column
-        if ((sourceIcon.iconId === "G1" || sourceIcon.iconId === "G2") && [2, 5, 8, 11].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8, 11)");
-          return;
-        }
-        if ((targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") && [2, 5, 8, 11].includes(dragData.position)) {
-          console.log("DROP: BLOCKED G1/G2 icon placement in right column (cells 2, 5, 8, 11)");
-          return;
+        if (targetIcon?.iconId === "G1" || targetIcon?.iconId === "G2") {
+          // G1/G2 cannot be moved from column 3 (cells 2, 5, 8)
+          if (dragData.position === 2 || dragData.position === 5 || dragData.position === 8) return;
         }
 
-        // Check G3 restrictions for restricted cells (0, 3, 6, 9) - left column
-        if (sourceIcon.iconId === "G3" && [0, 3, 6, 9].includes(cellIndex)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
-          return;
+        // Check G3 restrictions
+        if (sourceIcon.iconId === "G3") {
+          // G3 cannot be moved to column 1 (cells 0, 3, 6)
+          if (cellIndex === 0 || cellIndex === 3 || cellIndex === 6) return;
         }
-        if (targetIcon?.iconId === "G3" && [0, 3, 6, 9].includes(dragData.position)) {
-          console.log("DROP: BLOCKED G3 icon placement in left column (cells 0, 3, 6, 9)");
-          return;
+        if (targetIcon?.iconId === "G3") {
+          // G3 cannot be moved from column 1 (cells 0, 3, 6)
+          if (dragData.position === 0 || dragData.position === 3 || dragData.position === 6) return;
         }
 
         // Swap icon positions
@@ -1081,394 +1036,287 @@ const TAGCustomizer: React.FC = () => {
   };
 
   const handleTextClick = (index: number) => {
+    // If text-only mode, allow text everywhere; if icons&text, only allow text when an icon exists
+    if (panelMode === 'icons_text') {
+      const hasIcon = placedIcons.some((i) => i.position === index);
+      if (!hasIcon) return;
+    }
+    if (panelMode === 'custom' || panelMode === 'icons_text' || panelMode === 'text_only') {
     setEditingCell(index);
+    }
   };
 
   const handleTextBlur = () => {
     setEditingCell(null);
   };
 
-  const renderGridCell = (index: number) => {
-    const displayIndex = index;
-    const isThirdRow = displayIndex >= 6 && displayIndex <= 8;
-    const isFourthRow = displayIndex >= 9 && displayIndex <= 11;
-    const isFirstRow = displayIndex >= 0 && displayIndex <= 2;
-    const isSecondRow = displayIndex >= 3 && displayIndex <= 5;
-    const fanIcon = { iconId: 'FAN', src: (allIcons as any).FAN?.src || '', label: 'FAN', category: 'TAG' };
-    const icon = placedIcons.find((i) => i.position === displayIndex);
-    const text = iconTexts[displayIndex];
+  const renderAbsoluteCell = (index: number) => {
+    const icon = placedIcons.find((i) => i.position === index);
+    const text = iconTexts[index];
     const isPIR = icon?.category === "PIR";
-    const isEditing = editingCell === displayIndex;
-    const isHovered = hoveredCell === displayIndex;
-    const isIconHovered = !!iconHovered[displayIndex];
-
-    // Define which cells are editable (removed cell 1 and third row)
-    const editableCells = [7, 8, 9, 10, 11].filter(i => i < 6 || i > 8); // Exclude 6,7,8
-    const isEditable = editableCells.includes(displayIndex);
-
-    // Check if this is a DISPLAY icon
-    const isDisplay = icon?.iconId === "DISPLAY";
-    const isDisplayCell = displayIndex === 3 && isDisplay;
-
+    const isEditing = editingCell === index;
+    const isHovered = hoveredCell === index;
+    const isIconHovered = !!iconHovered[index];
+    const iconSize = panelDesign.iconSize || '47px';
+    const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
+    const baseTop = parseInt((pos as any).top || '0', 10);
+    const rowIndex = Math.floor(index / 3);
+    // Lower rows 2 and 3 by 30px
+    const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
+    // Apply per-row offsets only for tall: row 1 -20px, row 2 +10px, row 3 +40px
+    const perRowOffset = (dimensionKey === 'tall') ? ((rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0)) : 0;
+    const adjustedTop = `${baseTop + perRowOffset + lowerRowsOffset}px`;
     return (
-      <AbsoluteCell key={index} index={index} onDrop={currentStep === 4 || isThirdRow ? () => {} : handleDrop}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            position: "relative",
-            height: "100%",
-            paddingTop: "10px",
-          }}
-          onMouseEnter={currentStep !== 4 && !isThirdRow ? () => setIconHovered(prev => ({ ...prev, [displayIndex]: true })) : undefined}
-          onMouseLeave={currentStep !== 4 && !isThirdRow ? () => setIconHovered(prev => ({ ...prev, [displayIndex]: false })) : undefined}
-        >
-          {/* Permanent DISPLAY icon in cell 4 */}
-          {displayIndex === 4 && (
-            <div
+      <div
+        key={index}
+        style={{
+          position: 'absolute',
+          ...pos,
+          width: (pos as any).width || iconSize,
+          height: (pos as any).height || iconSize,
+          top: adjustedTop,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          zIndex: 2,
+        }}
+        onDragOver={e => { e.preventDefault(); }}
+        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
+      >
+        {/* Restricted overlay during drag of DND/MUR */}
+        {isDraggingIcon && restrictedCells.includes(index) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(220, 53, 69, 0.18)',
+              border: '2px dashed rgba(220, 53, 69, 0.8)',
+              borderRadius: '6px',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+        )}
+        {icon && panelMode !== 'text_only' && (
+          <div 
+            style={{ position: 'relative', display: 'inline-block' }}
+            onMouseEnter={() => setIconHovered(prev => ({ ...prev, [index]: true }))}
+            onMouseLeave={() => setIconHovered(prev => ({ ...prev, [index]: false }))}
+          >
+            <img
+              src={icon.src}
+              alt={icon.label}
+              draggable={currentStep !== 4}
+              onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
+              onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
-                position: "relative",
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
+                objectFit: 'contain',
+                marginBottom: '5px',
+                position: 'relative',
+                zIndex: 1,
+                marginTop: isPIR ? '5px' : '0',
+                cursor: currentStep !== 4 ? 'move' : 'default',
+                filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
+                transition: 'filter 0.2s',
               }}
-            >
-              <img
-                src={(allIcons as any).DISPLAY?.src || ""}
-                alt="DISPLAY"
+            />
+            {currentStep !== 4 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDeleteIcon(icon.id); }}
                 style={{
-                  width: "240px", // Bigger size
-                  height: "80px", // Bigger height
-                  objectFit: "contain",
-                  position: "absolute",
-                  left: "-115px", // Moved 55px to the left
-                  top: "-70px", // Move up by 70px total
-                  zIndex: 2,
-                  filter: getIconColorFilter(panelDesign.backgroundColor), // Auto-determine icon color
-                  transition: 'filter 0.2s',
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  background: 'rgba(220, 53, 69, 0.9)',
+                  color: 'white',
+                  border: '2px solid rgba(255, 255, 255, 0.8)',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  padding: 0,
+                  lineHeight: 1,
+                  zIndex: 3,
+                  opacity: isIconHovered ? 1 : 0,
+                  transform: isIconHovered ? 'scale(1)' : 'scale(0.8)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                  fontWeight: 'bold',
                 }}
-              />
-            </div>
-          )}
-
-          {/* Always show FAN icon in third row */}
-          {isThirdRow ? (
-            <div style={{ position: "relative", display: "inline-block", top: "-75px" }}>
-              <img
-                src={fanIcon.src}
-                alt="FAN"
-                style={{
-                  width: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
-                  height: displayIndex === 6 ? "45px" : displayIndex === 7 ? "58px" : "65px",
-                  objectFit: "contain",
-                  marginBottom: "5px",
-                  position: "relative",
-                  zIndex: 1,
-                  filter: getIconColorFilter(panelDesign.backgroundColor), // Auto-determine icon color
-                  transition: 'filter 0.2s',
-                  top: displayIndex === 6 ? "10px" : displayIndex === 7 ? "6px" : undefined,
-                }}
-              />
-            </div>
-          ) : icon && (
-            <div
-              style={{
-                position: "relative",
-                display: "inline-block",
-              }}
-            >
-              {/* Special handling for cell 1 - make it clickable for cycling */}
-              {displayIndex === 1 ? (
-                <div
-                  onClick={currentStep !== 4 ? handleCell1Click : undefined}
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    border: currentStep !== 4 ? "3px solid #1976d2" : "none",
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: currentStep !== 4 ? "pointer" : "default",
-                    marginBottom: "5px",
-                    transition: "all 0.3s ease",
-                    backgroundColor: currentStep !== 4 ? "rgba(25, 118, 210, 0.15)" : "transparent",
-                    boxShadow: currentStep !== 4 ? "0 2px 8px rgba(25, 118, 210, 0.2), 0 0 0 1px rgba(25, 118, 210, 0.1)" : "none",
-                    position: "relative",
-                  }}
-                  onMouseEnter={currentStep !== 4 ? (e) => {
-                    e.currentTarget.style.borderColor = "#1565c0";
-                    e.currentTarget.style.backgroundColor = "rgba(25, 118, 210, 0.3)";
-                    e.currentTarget.style.transform = "scale(1.05)";
-                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(25, 118, 210, 0.4), 0 0 0 2px rgba(25, 118, 210, 0.2)";
-                  } : undefined}
-                  onMouseLeave={currentStep !== 4 ? (e) => {
-                    e.currentTarget.style.borderColor = "#1976d2";
-                    e.currentTarget.style.backgroundColor = "rgba(25, 118, 210, 0.15)";
-                    e.currentTarget.style.transform = "scale(1)";
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(25, 118, 210, 0.2), 0 0 0 1px rgba(25, 118, 210, 0.1)";
-                  } : undefined}
-                  title={currentStep !== 4 ? "Click to switch temperature unit" : undefined}
-                >
-                  <img
-                    src={icon.src}
-                    alt={icon.label}
-                    style={{
-                      width: "26px",
-                      height: "26px",
-                      objectFit: "contain",
-                      filter: getIconColorFilter(panelDesign.backgroundColor),
-                      transition: 'filter 0.2s',
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220, 53, 69, 1)'; e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.4)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220, 53, 69, 0.9)'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'; }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+        {/* Text field - centered when no icon, below icon when icon exists */}
+        {!isPIR && (
+          <div style={{ 
+            width: '100%', 
+            textAlign: 'center', 
+            marginTop: icon ? '-11px' : '0px',
+            height: icon ? 'auto' : '100%',
+            display: icon ? 'block' : 'flex',
+            alignItems: icon ? 'flex-start' : 'center',
+            justifyContent: icon ? 'flex-start' : 'center'
+          }}>
+            {currentStep === 4 ? (
+              text && (
+                <div style={{
+                  width: '100%',
+                  textAlign: 'center',
+                  fontSize: panelDesign.fontSize || '12px',
+                  color: getAutoTextColor(panelDesign.backgroundColor),
+                  fontFamily: panelDesign.fonts || undefined,
+                  wordBreak: 'break-word',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: icon ? 'auto' : '100%',
+                }}>{text}</div>
+              )
+            ) : (
+              <>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={text || ''}
+                    onChange={e => handleTextChange(e, index)}
+                    onBlur={handleTextBlur}
+                    autoFocus
+                    style={{ 
+                      width: '100%', 
+                      padding: '4px', 
+                      fontSize: panelDesign.fontSize || '12px', 
+                      textAlign: 'center', 
+                      border: '1px solid rgba(255, 255, 255, 0.2)', 
+                      borderRadius: '4px', 
+                      outline: 'none', 
+                      background: 'rgba(255, 255, 255, 0.1)', 
+                      transition: 'all 0.2s ease', 
+                      fontFamily: panelDesign.fonts || undefined, 
+                      color: getAutoTextColor(panelDesign.backgroundColor), 
+                      marginTop: '0px',
+                      height: icon ? 'auto' : '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                   />
-                  {/* Small click indicator */}
-                  {currentStep !== 4 && (
-                    <div style={{
-                      position: "absolute",
-                      top: "-10px",
-                      right: "-10px",
-                      width: "18px",
-                      height: "18px",
-                      backgroundColor: "#1976d2",
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "11px",
-                      color: "white",
-                      fontWeight: "bold",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                      zIndex: 10,
-                      animation: "pulse 2s infinite",
-                    }}>
-                      ↻
-                    </div>
-                  )}
-                </div>
-              ) : (
-              <img
-                src={icon.src}
-                alt={icon.label}
-                draggable={currentStep !== 4}
-                onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
-                style={{
-                    width: isPIR ? "40px" : isDisplay ? "180px" : "40px",
-                    height: isPIR ? "40px" : isDisplay ? "60px" : "40px",
-                  objectFit: "contain",
-                  marginBottom: "5px",
-                  position: "relative",
-                  zIndex: 1,
-                  marginTop: isPIR ? "20px" : "0",
-                  cursor: currentStep !== 4 ? "move" : "default",
-                  filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
-                  transition: 'filter 0.2s',
-                }}
-              />
-              )}
-              {/* Only show delete button if not in third row and not cell 1 */}
-              {currentStep !== 4 && !isThirdRow && displayIndex !== 1 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteIcon(icon.id);
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: "-8px",
-                    right: "-8px",
-                    background: "rgba(220, 53, 69, 0.9)",
-                    color: "white",
-                    border: "2px solid rgba(255, 255, 255, 0.8)",
-                    borderRadius: "50%",
-                    width: "20px",
-                    height: "20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    padding: 0,
-                    lineHeight: 1,
-                    zIndex: 3,
-                    opacity: isIconHovered ? 1 : 0,
-                    transform: isIconHovered ? "scale(1)" : "scale(0.8)",
-                    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-                    fontWeight: "bold",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(220, 53, 69, 1)";
-                    e.currentTarget.style.transform = "scale(1.1)";
-                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(220, 53, 69, 0.4)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(220, 53, 69, 0.9)";
-                    e.currentTarget.style.transform = "scale(1)";
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
-                }}
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          )}
-          
-          {/* Cell 1 clickable area for cycling icons - only when no icon is present */}
-          {displayIndex === 1 && !icon && currentStep !== 4 && (
-            <div
-              onClick={handleCell1Click}
-              style={{
-                width: "40px",
-                height: "40px",
-                border: "3px solid #1976d2",
-                borderRadius: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                marginBottom: "5px",
-                transition: "all 0.3s ease",
-                backgroundColor: "rgba(25, 118, 210, 0.1)",
-                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.2), 0 0 0 1px rgba(25, 118, 210, 0.1)",
-                position: "relative",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#1565c0";
-                e.currentTarget.style.backgroundColor = "rgba(25, 118, 210, 0.3)";
-                e.currentTarget.style.transform = "scale(1.05)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(25, 118, 210, 0.4), 0 0 0 2px rgba(25, 118, 210, 0.2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#1976d2";
-                e.currentTarget.style.backgroundColor = "rgba(25, 118, 210, 0.1)";
-                e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(25, 118, 210, 0.2), 0 0 0 1px rgba(25, 118, 210, 0.1)";
-              }}
-              title="Click to switch temperature unit"
-            >
-              <span style={{ 
-                fontSize: "13px", 
-                color: "#1976d2", 
-                fontWeight: "bold",
-                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-              }}>
-                {placedIcons.find(icon => icon.position === 1)?.label || "CF"}
-              </span>
-              {/* Small click indicator */}
-              <div style={{
-                position: "absolute",
-                top: "-10px",
-                right: "-10px",
-                width: "18px",
-                height: "18px",
-                backgroundColor: "#1976d2",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "11px",
-                color: "white",
-                fontWeight: "bold",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                zIndex: 10,
-                animation: "pulse 2s infinite",
-              }}>
-                ↻
-              </div>
-            </div>
-          )}
-          <div style={{ 
-            position: "absolute",
-            bottom: icon ? "5px" : "25px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "120px", // Fixed width instead of 90%
-            zIndex: 0,
-          }}>
-            {!isPIR && (
-              <>
-                {currentStep === 4 ? (
-                  // Step 4: Read-only display, no "Add text" placeholder
-                  text && (
-                    <div 
-                      style={{ 
-                        fontSize: panelDesign.fontSize || "12px", 
-                        color: getAutoTextColor(panelDesign.backgroundColor),
-                        wordBreak: "break-word",
-                        width: "120px", // Fixed width
-                        textAlign: "center",
-                        padding: "4px",
-                        borderRadius: "4px",
-                        fontFamily: panelDesign.fonts || undefined,
-                      }}
-                    >
-              {text}
-            </div>
-                  )
                 ) : (
-                  // Other steps: Editable functionality
-                  <>
-                    {isEditing ? (
-          <input
-            type="text"
-            value={text || ""}
-            onChange={(e) => handleTextChange(e, displayIndex)}
-                        onBlur={handleTextBlur}
-                        autoFocus
-            style={{
-                          width: "120px", // Fixed width instead of 100%
-              padding: "4px",
-                          fontSize: panelDesign.fontSize || "12px",
-              textAlign: "center",
-                          border: "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: "4px",
-                          outline: "none",
-                          background: "rgba(255, 255, 255, 0.1)",
-                          transition: "all 0.2s ease",
-                          fontFamily: panelDesign.fonts || undefined,
-                          color: getAutoTextColor(panelDesign.backgroundColor),
-                        }}
-                      />
-                    ) : (
-                      <div 
-                        onClick={() => handleTextClick(displayIndex)}
-                        style={{ 
-                          fontSize: panelDesign.fontSize || "12px", 
-                          color: text ? getAutoTextColor(panelDesign.backgroundColor) : "#999999",
-                          wordBreak: "break-word",
-                          width: "120px", // Fixed width instead of maxWidth 100%
-                          textAlign: "center",
-                          padding: "4px",
-                          cursor: isEditable ? "pointer" : "default",
-                          borderRadius: "4px",
-                          backgroundColor: isHovered && isEditable ? "rgba(255, 255, 255, 0.1)" : "transparent",
-                          transition: "all 0.2s ease",
-                          fontFamily: panelDesign.fonts || undefined,
-                        }}
+                  (() => {
+                    const textAllowed = panelMode === 'custom' || panelMode === 'text_only' || (panelMode === 'icons_text' && !!icon);
+                    if (textAllowed) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                          {(panelMode === 'custom' && !icon) && (
+                            <div
+                              title="Add icon"
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                margin: '0 auto 6px auto',
+                                border: '1px dashed #cbd5e1',
+                                borderRadius: '50%',
+                                color: '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '18px',
+                                lineHeight: 1,
+                                opacity: 0.7,
+                                transition: 'opacity 0.2s ease-in-out'
+                              }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
+                            >
+                              +
+                            </div>
+                          )}
+                  <div
+                    onClick={() => handleTextClick(index)}
+                            style={{ 
+                              fontSize: panelDesign.fontSize || '12px', 
+                              color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', 
+                              wordBreak: 'break-word', 
+                              width: '100%', 
+                              textAlign: 'center', 
+                              padding: '4px', 
+                              cursor: 'pointer', 
+                              borderRadius: '4px', 
+                              backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', 
+                              transition: 'all 0.2s ease', 
+                              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', 
+                              marginTop: '0px', 
+                              whiteSpace: 'nowrap', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: icon ? 'auto' : '100%',
+                              ...(text ? { overflow: 'hidden', textOverflow: 'ellipsis' } : { overflow: 'visible', textOverflow: 'clip' }) 
+                            }}
+                  >
+                    {text || 'Add text'}
+                  </div>
+                        </div>
+                      );
+                    }
+                    // Text is not allowed here → show icon indicator instead
+                    return (
+                      <div
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: '#999999', width: '100%', textAlign: 'center', padding: '4px', borderRadius: '4px', backgroundColor: 'transparent', fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', marginTop: '0px', cursor: 'default' }}
                       >
-                        {text || (isEditable ? "Add text" : "")}
+                        <div
+                          title="Add icon"
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            margin: '0 auto',
+                            border: '1px dashed #cbd5e1',
+                            borderRadius: '50%',
+                            color: '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '18px',
+                            lineHeight: 1,
+                            opacity: 0.7,
+                            transition: 'opacity 0.2s ease-in-out'
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
+                        >
+                          +
+                        </div>
                       </div>
-                    )}
-                  </>
+                    );
+                  })()
                 )}
               </>
             )}
-            {/* Removed temp unit text indicator */}
           </div>
-        </div>
-      </AbsoluteCell>
+        )}
+      </div>
     );
   };
 
   const customizerSteps = [
-    { step: 1, label: 'Select Panel Type' },
+    { step: 1, label: 'Select Panel\nType' },
     { step: 2, label: 'Configure Panel\nLayout' },
-    { step: 3, label: 'Select Panel Design' },
-    { step: 4, label: 'Review panel details' },
+    { step: 3, label: 'Select Panel\nDesign' },
+    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1556,33 +1404,57 @@ const TAGCustomizer: React.FC = () => {
     }
   }, [panelDesign.fonts]);
 
-  // On mount and when icons or placedIcons change, ensure cell 1 always has a TAG icon (default to CF)
-  useEffect(() => {
-    if (!placedIcons.some(icon => icon.position === 1) && tagIcons.length > 0) {
-      // Try to find CF, otherwise use the first TAG icon
-      const cfIcon = tagIcons.find(icon => icon.id === 'CF') || tagIcons[0];
-      setPlacedIcons(prev => [
-        ...prev.filter(icon => icon.position !== 1),
-        {
-          id: Date.now(),
-          iconId: cfIcon.id,
-          src: cfIcon.src,
-          label: cfIcon.label,
-          position: 1,
-          category: cfIcon.category
-        }
-      ]);
-    }
-    // eslint-disable-next-line
-  }, [icons, placedIcons.length]);
+  const config = getPanelLayoutConfig('SP');
+  const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
+  const [dimensionKey, setDimensionKey] = useState<string>('standard');
+  // Mode feature removed for TAG; default behavior is icons with text
+  const panelMode = 'icons_text' as const;
 
-  // Cell 1 cycling state: track which TAG icon is currently in cell 1
-  const cell1TagIndex = tagIcons.findIndex(icon => icon.id === placedIcons.find(i => i.position === 1)?.iconId);
+  // PIR helpers (toggle-controlled motion sensor)
+  const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+  const getPirIndex = (): number => {
+    const totalSlots = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
+      ? dimensionConfigs[dimensionKey].iconPositions.length
+      : (iconPositions || []).length;
+    if (totalSlots >= 12 || dimensionKey === 'tall') return 10; // tall panels
+    return 7; // standard/wide panels
+  };
+  const addPir = () => {
+    if (hasPIR) return;
+    const pirPos = getPirIndex();
+    if (placedIcons.some(icon => icon.position === pirPos)) return;
+    const pirIcon = (icons as any)['PIR'];
+    const newPir = {
+      id: Date.now(),
+      iconId: 'PIR',
+      src: pirIcon?.src || '',
+      label: 'PIR',
+      position: pirPos,
+      category: 'PIR'
+    } as any;
+    setPlacedIcons(prev => [...prev, newPir]);
+  };
+  const removePir = () => {
+    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+    setIconTexts(prev => ({ ...prev }));
+  };
 
-  // Make placedIcons available globally for GridCell margin logic
-  if (typeof window !== 'undefined') {
-    (window as any).placedIcons = placedIcons;
-  }
+  // Derive active dimensions and positions by selected key (fallback to defaults)
+  const activeDimension = (dimensionConfigs && dimensionConfigs[dimensionKey]) ? dimensionConfigs[dimensionKey] : dimensions;
+  const activeIconPositions = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
+    ? dimensionConfigs[dimensionKey].iconPositions
+    : (iconPositions || []);
+  const gridOffsetX = dimensionKey === 'wide' ? 40 : (dimensionKey === 'standard' ? 20 : (dimensionKey === 'tall' ? 25 : 0));
+  const gridOffsetY = dimensionKey === 'tall' ? 58 : 15;
+
+  const getAutoTextColor = (backgroundColor: string): string => {
+    const hex = (backgroundColor || '#ffffff').replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128 ? '#ffffff' : '#2c2c2c';
+  };
 
   return (
     <Box
@@ -1623,20 +1495,20 @@ const TAGCustomizer: React.FC = () => {
 
         <Box
           sx={{
-        position: 'absolute', 
-        top: 20, 
-        left: 30, 
-        display: 'flex',
-        alignItems: 'center',
+            position: 'absolute',
+            top: 20,
+            left: 30,
+            display: 'flex',
+            alignItems: 'center',
             gap: 2,
           }}
         >
-        <img 
-          src={logo2} 
-          alt="Logo" 
-          style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
-          onClick={() => navigate('/')} 
-        />
+          <img 
+            src={logo2} 
+            alt="Logo" 
+            style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+            onClick={() => navigate('/')} 
+          />
           <Typography
             variant="h6"
             component="h1"
@@ -1662,107 +1534,225 @@ const TAGCustomizer: React.FC = () => {
               if (currentStep === 2) {
                 navigate('/panel-type');
               } else {
-                setCurrentStep((prev) => prev - 1);
+                setCurrentStep((s) => Math.max(2, s - 1));
               }
             }}
-            disabled={currentStep === 1}
           >
             Back
           </Button>
+          {currentStep !== 4 && (
           <Button
             variant="contained"
-            onClick={() => setCurrentStep((prev) => prev + 1)}
-            disabled={currentStep === customizerSteps.length}
-            sx={{ display: currentStep === 4 ? 'none' : 'inline-flex' }}
+            disabled={currentStep === 4}
+            onClick={() => {
+              const nextStep = Math.min(4, currentStep + 1);
+              console.log('Current step:', currentStep, 'Next step:', nextStep);
+              setCurrentStep(nextStep);
+            }}
           >
             Next
           </Button>
+          )}
         </Box>
 
-        {/* Icon List: Only visible on step 2 */}
+        {/* Step 2: Dimension selector + Panel template + Icon list side-by-side */}
         {currentStep === 2 && (
-      <div style={{ marginBottom: "20px" }}>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
-          {iconCategories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              style={{
-                    padding: "12px 24px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
-                borderRadius: "4px",
-                cursor: "pointer",
+          <div style={{ marginBottom: "20px" }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <PanelDimensionSelector
+                options={[
+                  { key: 'standard', label: '95 × 95 mm', sublabel: "3.7 × 3.7''" },
+                  { key: 'wide', label: '130 × 95 mm', sublabel: "5.1 × 3.7''" },
+                  { key: 'tall', label: '95 × 130 mm', sublabel: "3.7 × 5.1''" },
+                ]}
+                value={dimensionKey}
+                onChange={setDimensionKey}
+                inlineLabel={'Size:'}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+              {/* Icon categories + list (left) */}
+              <div style={{ flex: '0 0 50%', maxWidth: '50%', marginTop: '30px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+              {iconCategories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  style={{
+                        padding: '10px 18px',
+                        background: selectedCategory === category ? '#1a1f2c' : '#ffffff',
+                        color: selectedCategory === category ? '#ffffff' : '#1a1f2c',
+                        border: '1px solid #1a1f2c',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
                     fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                    minWidth: "120px",
-              }}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
+                        fontSize: '14px',
+                        letterSpacing: '0.5px',
+                        transition: 'all 0.3s ease',
+                        minWidth: '120px',
+                  }}
+                >
+                  {category}
+                </button>
+              ))}
+              {/* PIR toggle next to categories */}
+              <button
+                type="button"
+                onClick={() => (hasPIR ? removePir() : addPir())}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#1976d2',
+                  cursor: 'pointer',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold'
+                }}
+                title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+              >
+                {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+              </button>
+            </div>
             <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
-              maxWidth: "800px",
-              margin: "0 auto"
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 72px)',
+                  gap: '10px',
+                  maxHeight: 420,
+                  overflowY: 'auto',
+                  paddingRight: 6
             }}>
-          {categoryIcons.map((icon) => (
-            <div
-              key={icon.id}
+              {categoryIcons.map((icon) => (
+                <div
+                  key={icon.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, icon)}
-              style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
-              }}
-            >
-              <img
-                src={icon.src}
-                alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain", filter: icon.category === "TAG" ? getIconColorFilter(panelDesign.backgroundColor) : undefined }}
-                  />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
+                  style={{
+                        padding: '10px',
+                        background: 'transparent',
+                        borderRadius: '8px',
+                        cursor: 'grab',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        width: '72px',
+                        minHeight: '72px',
+                        border: '1px solid transparent',
+                        transition: 'border-color 0.2s ease, background 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1a1f2c33'; e.currentTarget.style.background = '#f7f9fc'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <img
+                    src={icon.src}
+                    alt={icon.label}
+                        title={icon.label}
+                        style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+                      />
+                </div>
+              ))}
+                </div>
+
+                {/* TAG Design Options section */}
+                <div style={{ marginTop: '24px' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1a1f2c', mb: 1 }}>
+                    design options
+                  </Typography>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                    gap: '10px'
                   }}>
-                    {icon.label}
-                  </span>
+                    {Object.entries(tagPanelModules)
+                      .sort(([a], [b]) => (a > b ? 1 : -1))
+                      .reverse()
+                      .map(([path, mod]) => (
+                        <div key={path} style={{
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 6,
+                          padding: 6
+                        }}>
+                          <img
+                            src={(mod as any).default}
+                            alt="TAG Panel"
+                            style={{ width: '100%', height: '104px', objectFit: 'contain' }}
+                          />
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+              {/* Panel template (right) */}
+              <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '60px' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: activeDimension.width || dimensions.width,
+                    height: activeDimension.height || dimensions.height,
+                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                    padding: '0',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    transition: 'all 0.3s ease',
+                    margin: 0,
+                    fontFamily: panelDesign.fonts || undefined,
+                  }}
+                >
+                  <div style={{ 
+                    position: 'absolute',
+                    top: '2px',
+                    left: '2px',
+                    right: '2px',
+                    bottom: '2px',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                    <img
+                      src={DISPLAY}
+                      alt="DISPLAY"
+                      style={{
+                        position: 'absolute',
+                        top: '90px',
+                        left: '45%',
+                        transform: 'translateX(-50%)',
+                        width: '220px',
+                        height: '50px',
+                        objectFit: 'contain',
+                        filter: getIconColorFilter(panelDesign.backgroundColor),
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
+                  </div>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
         )}
         {/* Step 3: Panel Design */}
         {currentStep === 3 && (
           <div style={{ 
-            display: 'flex', 
-            gap: '80px',
-            alignItems: 'flex-start',
+            display: 'grid', 
+            gridTemplateColumns: '500px 1fr',
+            gap: '100px',
+            alignItems: 'start',
             justifyContent: 'center',
-            maxWidth: '1200px',
+            maxWidth: '1400px',
             margin: '0 auto',
-            padding: '0 20px'
+            padding: '40px'
           }}>
             {/* Left side - Panel Design Controls */}
             <div style={{ 
-              flex: '0 0 480px',
               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
               padding: '28px',
               borderRadius: '12px',
@@ -1822,8 +1812,8 @@ const TAGCustomizer: React.FC = () => {
                   }} />
                   Background Color (RAL)
                 </div>
-      <div
-        style={{
+            <div
+              style={{
                 display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
                     gap: '10px',
@@ -1871,9 +1861,9 @@ const TAGCustomizer: React.FC = () => {
                       <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
                 </button>
               ))}
-        </div>
-      </div>
-
+            </div>
+              </div>
+              
               {/* Font Selection Section */}
               <div style={{ 
                 marginBottom: '28px',
@@ -1901,6 +1891,62 @@ const TAGCustomizer: React.FC = () => {
                   }} />
                   Typography Font
                 </div>
+                
+                {/* Custom Font Checkbox */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  marginBottom: '12px' 
+                }}>
+                  <input
+                    type="checkbox"
+                    id="customFont"
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setPanelDesign(prev => ({ ...prev, fonts: '' }));
+                      } else {
+                        setPanelDesign(prev => ({ ...prev, fonts: 'Myriad Pro' }));
+                      }
+                    }}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <label 
+                    htmlFor="customFont"
+                    style={{
+                      fontSize: '14px',
+                      color: '#495057',
+                      cursor: 'pointer',
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                    }}
+                  >
+                    Custom Font
+                  </label>
+                </div>
+                
+                {/* Default Font Display */}
+                {!useCustomFont && (
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #dee2e6',
+                    fontSize: '14px',
+                    width: '100%',
+                    fontFamily: 'Myriad Pro, sans-serif',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    color: '#495057'
+                  }}>
+                    Myriad Pro
+                  </div>
+                )}
+                
+                {/* Custom Font Input - Only show when checkbox is checked */}
+                {useCustomFont && (
                 <div style={{ position: 'relative' }} ref={fontDropdownRef}>
                 <input
                   type="text"
@@ -1995,9 +2041,8 @@ const TAGCustomizer: React.FC = () => {
                     )}
                   </div>
                 )}
-              </div>
             </div>
-              
+                )}
               {/* Font Size Section */}
               <div style={{ 
                 marginBottom: '28px',
@@ -2027,10 +2072,10 @@ const TAGCustomizer: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   {['10px', '12px', '14px', '16px'].map((size) => (
-        <button
+                    <button
                       key={size}
                       onClick={() => setPanelDesign(prev => ({ ...prev, fontSize: size }))}
-          style={{
+                      style={{
                         padding: '10px 16px',
                         borderRadius: '8px',
                         border: panelDesign.fontSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
@@ -2047,72 +2092,71 @@ const TAGCustomizer: React.FC = () => {
                       }}
                     >
                       {size.replace('px', '')}
-        </button>
+                    </button>
                   ))}
                 </div>
               </div>
               
-
+              {/* Icon Size Section - REMOVED - Fixed at 14mm (47px) */}
             </div>
 
             {/* Right side - Panel Template */}
-            <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-          <div
-            style={{
-              width: "350px",
-                  background: `linear-gradient(135deg, 
-                    rgba(255, 255, 255, 0.3) 0%, 
-                    rgba(255, 255, 255, 0.1) 50%, 
-                    rgba(255, 255, 255, 0.05) 100%), 
-                    ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                  padding: "15px",
-                  border: "2px solid rgba(255, 255, 255, 0.2)",
-                  borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                  borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                  boxShadow: `
-                    0 20px 40px rgba(0, 0, 0, 0.3),
-                    0 8px 16px rgba(0, 0, 0, 0.2),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                    0 0 0 1px rgba(255, 255, 255, 0.1)
-                  `,
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  transition: "all 0.3s ease",
-                  position: "relative",
-                  transform: "perspective(1000px) rotateX(5deg)",
-                  transformStyle: "preserve-3d",
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              minHeight: '400px'
+            }}>
+              <div
+                style={{
+                  position: 'relative',
+                  width: activeDimension.width || '320px',
+                  height: activeDimension.height || '320px',
+                  background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                  padding: '0',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                  borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  transition: 'all 0.3s ease',
+                  margin: '0 auto',
+                  fontFamily: panelDesign.fonts || undefined,
                 }}
               >
-                {/* Inner glow effect */}
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "2px",
-                    left: "2px",
-                    right: "2px",
-                    bottom: "2px",
-                    background: `linear-gradient(135deg, 
-                      rgba(255, 255, 255, 0.1) 0%, 
-                      transparent 50%, 
-                      rgba(0, 0, 0, 0.05) 100%)`,
-                    pointerEvents: "none",
-                    zIndex: 1,
-                  }}
-                />
-                
-                {/* Content with higher z-index */}
                 <div style={{ 
-                  position: "relative",
-                  width: "320px",
-                  height: "320px", // Use square aspect ratio
-                  zIndex: 2,
-                }}>
-              {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
-      </div>
-    </div>
-        </div>
+                  position: 'absolute',
+                  top: '2px',
+                  left: '2px',
+                  right: '2px',
+                  bottom: '2px',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }} />
+                <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                  <img
+                    src={DISPLAY}
+                    alt="DISPLAY"
+                    style={{
+                      position: 'absolute',
+                      top: '90px',
+                      left: '45%',
+                      transform: 'translateX(-50%)',
+                      width: '220px',
+                      height: '50px',
+                      objectFit: 'contain',
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
         )}
         {/* Step 4: Review Panel Details */}
         {currentStep === 4 && (
@@ -2149,66 +2193,110 @@ const TAGCustomizer: React.FC = () => {
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
                   style={{
-                    width: "320px",
-                    height: "320px",
-                    background: `linear-gradient(135deg, 
-                      rgba(255, 255, 255, 0.3) 0%, 
-                      rgba(255, 255, 255, 0.1) 50%, 
-                      rgba(255, 255, 255, 0.05) 100%), 
-                      ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    border: "2px solid rgba(255, 255, 255, 0.2)",
-                    borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                    borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                    boxShadow: `
-                      0 20px 40px rgba(0, 0, 0, 0.3),
-                      0 8px 16px rgba(0, 0, 0, 0.2),
-                      inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                      inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                      0 0 0 1px rgba(255, 255, 255, 0.1)
-                    `,
-                    backdropFilter: "blur(20px)",
-                    WebkitBackdropFilter: "blur(20px)",
-                    transition: "all 0.3s ease",
-                    position: "relative",
-                    transform: "perspective(1000px) rotateX(5deg)",
-                    transformStyle: "preserve-3d",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    margin: "0 auto"
-                  }}
-                >
-                  {/* Inner glow effect */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "2px",
-                      left: "2px",
-                      right: "2px",
-                      bottom: "2px",
-                      background: `linear-gradient(135deg, 
-                        rgba(255, 255, 255, 0.1) 0%, 
-                        transparent 50%, 
-                        rgba(0, 0, 0, 0.05) 100%)`,
-                      pointerEvents: "none",
-                      zIndex: 1,
+                    position: 'relative',
+                    width: '320px',
+                    height: '320px',
+                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                    padding: '0',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    transition: 'all 0.3s ease',
+                    margin: '0 auto',
+                    fontFamily: panelDesign.fonts || undefined,
                     }}
-                  />
-                  {/* Content with higher z-index */}
+                >
                   <div style={{ 
-                    position: "relative",
-                    width: "320px",
-                    height: "320px",
-                    zIndex: 2,
-                    overflow: "hidden"
-                  }}>
-                    {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
+                    position: 'absolute',
+                    top: '2px',
+                    left: '2px',
+                    right: '2px',
+                    bottom: '2px',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
+                    <img
+                      src={DISPLAY}
+                      alt="DISPLAY"
+                      style={{
+                        position: 'absolute',
+                        top: '90px',
+                        left: '45%',
+                        transform: 'translateX(-50%)',
+                        width: '220px',
+                        height: '50px',
+                        objectFit: 'contain',
+                        filter: getIconColorFilter(panelDesign.backgroundColor),
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
                 </div>
                 
                 {/* Add to Project Button positioned under the panel template */}
-                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
+                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+                  {isViewMode ? (
+                    /* Go Back to My Designs Button - Only visible in view mode */
+                    <StyledButton
+                      variant="contained"
+                      onClick={() => navigate('/my-designs')}
+                      sx={{
+                        backgroundColor: '#3498db',
+                        color: '#ffffff',
+                        '&:hover': {
+                          backgroundColor: '#2980b9',
+                        }
+                      }}
+                    >
+                      ← Go Back to My Designs
+                    </StyledButton>
+                  ) : (
+                    <>
+                      {/* Print Preview Button */}
+                      <StyledButton
+                        variant="outlined"
+                        onClick={() => {
+                          const panelConfig = {
+                            icons: Array.from({ length: 9 })
+                              .map((_, index) => {
+                                const icon = placedIcons.find((i) => i.position === index);
+                                return {
+                                  src: icon?.src || "",
+                                  label: icon?.label || "",
+                                  position: index,
+                                  text: iconTexts[index] || "",
+                                  category: icon?.category || undefined,
+                                  id: icon?.id || undefined,
+                                  iconId: icon?.iconId || undefined,
+                                };
+                              })
+                              .filter((entry) => entry.src || entry.text),
+                            panelDesign: { ...panelDesign, spConfig: { dimension: dimensionKey } },
+                            iconTexts,
+                            type: 'SP',
+                            name: 'SP Panel Design'
+                          };
+                          navigateToPrintPreview(navigate, panelConfig, projectName || 'SP Panel');
+                        }}
+                        sx={{
+                          borderColor: '#1a1f2c',
+                          color: '#1a1f2c',
+                          '&:hover': {
+                            borderColor: '#2c3e50',
+                            backgroundColor: 'rgba(26, 31, 44, 0.04)',
+                          }
+                        }}
+                      >
+                        Print Preview
+                      </StyledButton>
+                      
+                      {/* Normal action button - Hidden in view mode */}
             <StyledButton
               variant="contained"
               onClick={handleAddToCart}
@@ -2217,87 +2305,157 @@ const TAGCustomizer: React.FC = () => {
                 color: '#ffffff',
                 '&:hover': {
                   backgroundColor: '#2c3e50',
-                },
+                        }
               }}
             >
-                    {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+                      {isEditMode ? 'Update Panel' : 
+                       isCreateNewRevision ? 'Create New Revision' :
+                       'Add Panel to Project'}
             </StyledButton>
+                    </>
+                  )}
         </Box>
               </div>
             </div>
           </>
         )}
-        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
-        {currentStep === 2 && (
-          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 16, marginLeft: "50px" }}>
-            {/* Panel Template */}
-            <div
+        
+        {/* DND/MUR Restriction Dialog */}
+        <Dialog
+          open={showRestrictionDialog}
+          onClose={() => setShowRestrictionDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ 
+            textAlign: 'center',
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            fontWeight: 500,
+            fontSize: '1.1rem'
+          }}>
+            Panel LED Layout
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              gap: 2,
+              py: 1
+            }}>
+              {/* Large centered LED image */}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center',
+                mb: 1
+              }}>
+                <img 
+                  src={LED} 
+                  alt="LED Hardware Layout" 
               style={{
-                width: "350px",
-                background: `linear-gradient(135deg, 
-                  rgba(255, 255, 255, 0.3) 0%, 
-                  rgba(255, 255, 255, 0.1) 50%, 
-                  rgba(255, 255, 255, 0.05) 100%), 
-                  ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                padding: "15px",
-                border: "2px solid rgba(255, 255, 255, 0.2)",
-                borderTop: "3px solid rgba(255, 255, 255, 0.4)",
-                borderLeft: "3px solid rgba(255, 255, 255, 0.3)",
-                boxShadow: `
-                  0 20px 40px rgba(0, 0, 0, 0.3),
-                  0 8px 16px rgba(0, 0, 0, 0.2),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                  inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-                  0 0 0 1px rgba(255, 255, 255, 0.1)
-                `,
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                transition: "all 0.3s ease",
-                position: "relative",
-                transform: "perspective(1000px) rotateX(5deg)",
-                transformStyle: "preserve-3d",
+                    width: '160px', 
+                    height: '160px',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+              
+              <Typography sx={{ 
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                lineHeight: 1.5,
+                textAlign: 'center',
+                fontSize: '0.95rem'
+              }}>
+                {restrictionMessage.split('**').map((part, index) => 
+                  index % 2 === 1 ? (
+                    <span key={index} style={{ fontWeight: 'bold', color: '#1a1f2c' }}>
+                      {part}
+                    </span>
+                  ) : (
+                    part
+                  )
+                )}
+              </Typography>
+              
+              <Box sx={{ 
+                p: 2, 
+                bgcolor: '#f8f9fa', 
+                borderRadius: 1.5,
+                border: '1px solid #e9ecef',
+                textAlign: 'center',
+                maxWidth: '350px'
+              }}>
+                <Typography variant="body2" sx={{ 
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  color: '#6c757d',
+                  lineHeight: 1.4
+                }}>
+                  <strong>Panel LED Configuration:</strong><br/>
+                  • Left side: <span style={{color: '#dc3545'}}>Red/White indicators</span><br/>
+                  • Right side: <span style={{color: '#28a745'}}>Green/White indicators</span>
+                </Typography>
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowRestrictionDialog(false)}
+              variant="contained"
+              sx={{
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                textTransform: 'none',
+                px: 3,
+                py: 1
               }}
             >
-              {/* Inner glow effect */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "2px",
-                  left: "2px",
-                  right: "2px",
-                  bottom: "2px",
-                  background: `linear-gradient(135deg, 
-                    rgba(255, 255, 255, 0.1) 0%, 
-                    transparent 50%, 
-                    rgba(0, 0, 0, 0.05) 100%)`,
-                  pointerEvents: "none",
-                  zIndex: 1,
-                }}
-              />
-              
-              {/* Content with higher z-index */}
-              <div style={{ 
-                position: "relative",
-                width: "320px",
-                height: "320px", // Use square aspect ratio
-                zIndex: 2,
-              }}>
-                {Array.from({ length: 12 }).map((_, index) => renderGridCell(index))}
-              </div>
-            </div>
-
-          </div>
-        )}
+              Got it!
+            </Button>
+          </DialogActions>
+        </Dialog>
+        
+        {/* Custom Mode Info Dialog */}
+        <Dialog
+          open={showCustomModeDialog}
+          onClose={() => setShowCustomModeDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ 
+            textAlign: 'center',
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            fontWeight: 500,
+            fontSize: '1.1rem'
+          }}>
+            Custom Panel Submission
+          </DialogTitle>
+          <DialogContent>
+            <Typography sx={{ 
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              lineHeight: 1.6,
+              textAlign: 'center',
+              fontSize: '0.95rem'
+            }}>
+              Design proposals for standard panels are available immediately. Custom panels require review and validation by our Interior Design team prior to proposal release. Estimated turnaround: 3–5 business days.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowCustomModeDialog(false)}
+              variant="contained"
+              sx={{
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                textTransform: 'none',
+                px: 3,
+                py: 1
+              }}
+            >
+              Okay
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
-      <QuantityDialog
-        open={qtyOpen}
-        category={pendingCategory}
-        remaining={qtyRemaining}
-        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
-        onConfirm={handleQtyConfirm}
-      />
     </Box>
   );
 };
 
-export default TAGCustomizer; 
+export default SPCustomizer; 

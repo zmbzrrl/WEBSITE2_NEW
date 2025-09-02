@@ -8,6 +8,11 @@ import InfoIcon from '@mui/icons-material/Info';
 import PanelRenderer from '../components/PanelRenderer';
 import logoImage from '../assets/logo.png';
 import { getIconColorName } from '../data/iconColors';
+import { ralColors } from '../data/ralColors';
+import page2Svg from '../assets/pdf/2.svg';
+import page3Svg from '../assets/pdf/3.svg';
+import page4Svg from '../assets/pdf/4.svg';
+import page13Svg from '../assets/pdf/13.svg';
 
 // Function to determine icon color based on background (similar to customizers)
 const getIconColorFromBackground = (backgroundColor: string): string => {
@@ -30,6 +35,19 @@ const getIconColorFromBackground = (backgroundColor: string): string => {
     // Light background - use dark grey icons
     return 'Dark Grey';
   }
+};
+
+// Map hex color to RAL code string if available
+const hexToRal = (hex: string): string => {
+  if (!hex) return '';
+  const normalized = hex.toLowerCase();
+  const match = ralColors.find((c: any) => (c.hex || '').toLowerCase() === normalized);
+  if (match) {
+    // Prefer code (e.g., RAL 9003) and include name
+    const code = match.code || match.name || normalized;
+    return code;
+  }
+  return hex; // fallback to hex string
 };
 
 // Styled components for print-optimized layout
@@ -256,18 +274,17 @@ const A4Page = styled(Paper)(({ theme }) => ({
   }
 }));
 
-// Grid container for 2 panels per page
+// Grid container for 2 panels per page (stacked vertically)
 const PanelGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: '1fr 1fr', // 2 columns
-  gap: '10mm', // Reduced gap between panels
+  gridTemplateColumns: '1fr', // single column (stacked)
+  gap: '10mm',
   flex: 1,
   alignItems: 'start',
-  padding: '0 12.7mm 12.7mm 12.7mm', // 0.5 inch margins for content area
-  
+  padding: '0 12.7mm 12.7mm 12.7mm',
   '@media print': {
-    gap: '8mm', // Even smaller gap for print
-    padding: '0', // Remove padding since container now handles margins
+    gap: '5mm',
+    padding: '0',
     height: 'auto',
     minHeight: 'auto',
     alignSelf: 'flex-start'
@@ -285,8 +302,8 @@ const PanelContainer = styled(Box)(({ theme }) => ({
   padding: '3mm', // Reduced padding
   
   '@media print': {
-    padding: '2mm', // Even smaller padding for print
-    minHeight: '80mm',
+    padding: '2mm',
+    minHeight: '60mm',
     maxHeight: 'none', // Remove max height constraint for print
     height: '100%'
   }
@@ -502,9 +519,9 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
     navigate(-1);
   };
 
-  // Group panels into pairs for 2 per page
+  // Group panels two per page (stacked vertically on a single-column grid)
   const groupPanelsIntoPages = (panels: PanelConfig[]) => {
-    const pages = [];
+    const pages: PanelConfig[][] = [];
     for (let i = 0; i < panels.length; i += 2) {
       pages.push(panels.slice(i, i + 2));
     }
@@ -532,7 +549,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 
   const panelPages = groupPanelsIntoPages(panelConfigs);
   const totalPanels = panelConfigs.length;
-  const totalPages = panelPages.length + 1; // +1 for cover page
+  const staticMiddleSvgs: string[] = [page2Svg, page3Svg, page4Svg];
+  const totalPages = 1 /* cover */ + staticMiddleSvgs.length /* pages 2-4 */ + panelPages.length /* panel pages */ + 1 /* last page 13.svg */;
   const currentDate = new Date().toLocaleDateString();
 
   return (
@@ -657,16 +675,15 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                     }}
                   >
                     {(() => {
-                      // Get all unique background colors from all panels
-                      const uniqueColors = [...new Set(
-                        panelConfigs.map(config => config.panelDesign?.backgroundColor).filter(Boolean)
-                      )];
-                      
+                      // Collect background hexes
+                      const colors = panelConfigs
+                        .map(config => config.panelDesign?.backgroundColor)
+                        .filter((c): c is string => Boolean(c && typeof c === 'string'));
+                      const uniqueColors = [...new Set(colors)];
                       if (uniqueColors.length === 0) return 'N/A';
-                      if (uniqueColors.length === 1) return uniqueColors[0];
-                      
-                      // If multiple colors, show them separated by commas
-                      return uniqueColors.join(', ');
+                      // Map to RAL codes when possible
+                      const ralList = uniqueColors.map(hexToRal);
+                      return ralList.join(', ');
                     })()}
             </Typography>
                 </Box>
@@ -692,29 +709,30 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                     }}
                   >
                     {(() => {
-                      // Get all unique background colors from all panels
-                      const uniqueBackgroundColors = [...new Set(
-                        panelConfigs.map(config => config.panelDesign?.backgroundColor).filter(Boolean)
-                      )];
-                      
-                      if (uniqueBackgroundColors.length === 0) return 'N/A';
-                      
-                      // Determine icon colors based on background colors
-                      const iconColors = uniqueBackgroundColors.map(bgColor => getIconColorFromBackground(bgColor));
-                      const uniqueIconColors = [...new Set(iconColors)];
-                      
-                      // Determine plastic color based on icon colors
-                      if (uniqueIconColors.length === 1) {
-                        if (uniqueIconColors[0] === 'White') return 'White';
-                        if (uniqueIconColors[0] === 'Dark Grey') return 'Black';
-                        return uniqueIconColors[0];
-                      } else if (uniqueIconColors.length === 2) {
-                        return 'Black, White';
+                      // Determine plastic from derived icon colors: White if icons are White, otherwise Black.
+                      const explicitIconColors = panelConfigs
+                        .map(c => c.panelDesign?.iconColor)
+                        .filter((c): c is string => Boolean(c && typeof c === 'string'));
+                      let iconColorNames: string[] = [];
+                      if (explicitIconColors.length > 0) {
+                        iconColorNames = explicitIconColors.map(hex => {
+                          const h = hex.toLowerCase();
+                          if (h === '#ffffff' || h === '#fff') return 'White';
+                          if (h === '#808080' || h === '#000000' || h === '#000') return 'Dark Grey';
+                          return getIconColorFromBackground(hex);
+                        });
                       } else {
-                        return 'N/A';
+                        const bgColors = panelConfigs
+                          .map(c => c.panelDesign?.backgroundColor)
+                          .filter((c): c is string => Boolean(c && typeof c === 'string'));
+                        iconColorNames = bgColors.map(getIconColorFromBackground);
                       }
+                      const set = new Set(iconColorNames);
+                      if (set.size === 0) return 'N/A';
+                      if (set.has('White') && set.has('Dark Grey')) return 'Black, White';
+                      return set.has('White') ? 'White' : 'Black';
                     })()}
-            </Typography>
+                  </Typography>
                 </Box>
               </Box>
 
@@ -941,6 +959,45 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
           </Box>
         </CoverPage>
 
+        {/* Static pages 2,3,4 from SVGs */}
+        {staticMiddleSvgs.map((svgSrc, idx) => (
+          <A4Page key={`static-${idx}`}>
+            <CompactHeader>
+              <LogoSection>
+                <Logo src={logoImage} alt="INTEREL Logo" />
+              </LogoSection>
+              <ProjectInfoSection>
+                <ProjectRow>
+                  <ProjectLabel>Project</ProjectLabel>
+                  <ProjectLabel>Code</ProjectLabel>
+                  <ProjectLabel>Room</ProjectLabel>
+                  <ProjectLabel>Rev</ProjectLabel>
+                  <ProjectLabel>Date</ProjectLabel>
+                  <ProjectLabel>Page</ProjectLabel>
+                </ProjectRow>
+                <ProjectRow>
+                  <ProjectValue>{projectName.replace(/\s*Rev\.?\s*[A-Z0-9]+/i, '').replace(/[\[\]()]/g, '').trim()}</ProjectValue>
+                  <ProjectValue>{projectCode}</ProjectValue>
+                  <ProjectValue>{roomType}</ProjectValue>
+                  <ProjectValue>{revision}</ProjectValue>
+                  <ProjectValue>{currentDate}</ProjectValue>
+                  <ProjectValue>{2 + idx} of {totalPages}</ProjectValue>
+                </ProjectRow>
+              </ProjectInfoSection>
+            </CompactHeader>
+            <Box sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '10mm'
+            }}>
+              <img src={svgSrc} alt={`Page ${2 + idx}`} style={{ width: '100%', height: 'auto', clipPath: 'inset(12.7mm 0 12.7mm 0)', backgroundColor: 'transparent' }} />
+            </Box>
+          </A4Page>
+        ))}
+
         {/* Panel Pages */}
         {panelPages.map((pagePanels, pageIndex) => (
           <A4Page key={pageIndex}>
@@ -964,7 +1021,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                   <ProjectValue>{roomType}</ProjectValue>
                   <ProjectValue>{revision}</ProjectValue>
                   <ProjectValue>{currentDate}</ProjectValue>
-                  <ProjectValue>{pageIndex + 2} of {totalPages}</ProjectValue>
+                  <ProjectValue>{(staticMiddleSvgs.length + 2) + pageIndex} of {totalPages}</ProjectValue>
                 </ProjectRow>
               </ProjectInfoSection>
             </CompactHeader>
@@ -984,48 +1041,63 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                     {config.name || `Panel ${pageIndex * 2 + panelIndex + 1}`}
                   </Typography>
 
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'flex-start', 
-              alignItems: 'flex-start',
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'flex-start', 
+                    alignItems: 'flex-start',
                     width: '100%',
-                    transform: 'scale(0.6)', // Scale down panels more to prevent overflow
+                    transform: 'scale(0.55)',
                     transformOrigin: 'top left'
-            }}>
-              <PanelRenderer
-                icons={config.icons}
-                panelDesign={config.panelDesign}
-                iconTexts={config.iconTexts}
-                type={config.type}
-              />
-            </Box>
+                  }}>
+                    <PanelRenderer
+                      icons={config.icons}
+                      panelDesign={config.panelDesign}
+                      iconTexts={config.iconTexts}
+                      type={config.type}
+                    />
+                  </Box>
                 </PanelContainer>
               ))}
-              
-              {/* Fill empty space if odd number of panels */}
-              {pagePanels.length === 1 && (
-                <PanelContainer sx={{ visibility: 'hidden' }}>
-                  <Typography variant="subtitle2">Empty</Typography>
-                </PanelContainer>
-              )}
             </PanelGrid>
-
-            <SignatureSection>
-              <SignatureBox>
-                <SignatureLine />
-                <Typography variant="caption" color="textSecondary">
-                  Signature & Stamp
-                </Typography>
-              </SignatureBox>
-
-            <BrandingFooter>
-                <Typography variant="caption">
-                  © INTEREL 2025
-              </Typography>
-            </BrandingFooter>
-            </SignatureSection>
           </A4Page>
         ))}
+
+        {/* Final last page from 13.svg */}
+        <A4Page>
+          <CompactHeader>
+            <LogoSection>
+              <Logo src={logoImage} alt="INTEREL Logo" />
+            </LogoSection>
+            <ProjectInfoSection>
+              <ProjectRow>
+                <ProjectLabel>Project</ProjectLabel>
+                <ProjectLabel>Code</ProjectLabel>
+                <ProjectLabel>Room</ProjectLabel>
+                <ProjectLabel>Rev</ProjectLabel>
+                <ProjectLabel>Date</ProjectLabel>
+                <ProjectLabel>Page</ProjectLabel>
+              </ProjectRow>
+              <ProjectRow>
+                <ProjectValue>{projectName.replace(/\s*Rev\.?\s*[A-Z0-9]+/i, '').replace(/[\[\]()]/g, '').trim()}</ProjectValue>
+                <ProjectValue>{projectCode}</ProjectValue>
+                <ProjectValue>{roomType}</ProjectValue>
+                <ProjectValue>{revision}</ProjectValue>
+                <ProjectValue>{currentDate}</ProjectValue>
+                <ProjectValue>{totalPages} of {totalPages}</ProjectValue>
+              </ProjectRow>
+            </ProjectInfoSection>
+          </CompactHeader>
+          <Box sx={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '10mm'
+          }}>
+            <img src={page13Svg} alt={`Page ${totalPages}`} style={{ width: '100%', height: 'auto', clipPath: 'inset(12.7mm 0 12.7mm 0)', backgroundColor: 'transparent' }} />
+          </Box>
+        </A4Page>
       </PrintContent>
       
       {/* Print Instructions Dialog */}
@@ -1061,7 +1133,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             fontSize: '0.9rem',
             fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
           }}>
-            💡 <strong>Tip:</strong> Your document now includes a compact header with INTEREL logo, cover page, signature sections on every page, and is optimized for A4 printing with 2 panels per page. Once the client signs the design proposal, you can send it over to your INTEREL sales manager for production. 😊
+            💡 <strong>Tip:</strong> Once the client signs the design proposal, you can send it over to your INTEREL sales manager for production. 😊
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>

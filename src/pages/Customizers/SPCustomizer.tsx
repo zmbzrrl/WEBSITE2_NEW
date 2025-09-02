@@ -571,10 +571,10 @@ const SPCustomizer: React.FC = () => {
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
-    import("../../assets/iconLibrary").then((module) => {
+    import("../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
       // Hide PIR from the selectable categories; we control it via a dedicated toggle
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'TAG' && cat !== 'PIR'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'Thermostat' && cat !== 'PIR' && cat !== 'Climate'));
     });
   }, []);
 
@@ -817,7 +817,7 @@ const SPCustomizer: React.FC = () => {
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'TAG')
+    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'Thermostat')
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -1111,7 +1111,7 @@ const SPCustomizer: React.FC = () => {
                 marginBottom: '5px',
                 position: 'relative',
                 zIndex: 1,
-                marginTop: isPIR ? '20px' : '0',
+                marginTop: isPIR ? '5px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
                 filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                 transition: 'filter 0.2s',

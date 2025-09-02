@@ -21,7 +21,7 @@ import { motion } from 'framer-motion';
 import QuantityDialog from '../../../components/QuantityDialog';
 import { getIconColorName } from '../../../data/iconColors';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
-import iconLibrary from '../../../assets/iconLibrary';
+import iconLibrary from '../../../assets/iconLibrary2';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -552,7 +552,7 @@ const X2HCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../../assets/iconLibrary").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG'));
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG' && cat !== 'Climate'));
     });
   }, []);
 
@@ -978,7 +978,7 @@ const X2HCustomizer: React.FC = () => {
                 marginBottom: '5px',
                 position: 'relative',
                   zIndex: 1,
-                marginTop: isPIR ? '20px' : '0',
+                marginTop: isPIR ? '5px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
                   filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
                   transition: 'filter 0.2s',
@@ -1268,23 +1268,23 @@ const X2HCustomizer: React.FC = () => {
         {/* Icon List: Only visible on step 2 */}
         {currentStep === 2 && (
       <div style={{ marginBottom: "20px" }}>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "12px", justifyContent: "flex-start", flexWrap: "wrap" }}>
           {iconCategories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
               style={{
-                    padding: "12px 24px",
-                    background: selectedCategory === category ? "#1a1f2c" : "#ffffff",
-                    color: selectedCategory === category ? "#ffffff" : "#1a1f2c",
-                    border: "1px solid #1a1f2c",
-                borderRadius: "4px",
-                cursor: "pointer",
+                    padding: '10px 18px',
+                    background: selectedCategory === category ? '#1a1f2c' : '#ffffff',
+                    color: selectedCategory === category ? '#ffffff' : '#1a1f2c',
+                    border: '1px solid #1a1f2c',
+                borderRadius: '6px',
+                cursor: 'pointer',
                     fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    fontSize: "14px",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                    minWidth: "120px",
+                    fontSize: '14px',
+                    letterSpacing: '0.5px',
+                    transition: 'all 0.3s ease',
+                    minWidth: '120px',
               }}
             >
               {category}
@@ -1292,12 +1292,12 @@ const X2HCustomizer: React.FC = () => {
           ))}
         </div>
             <div style={{ 
-              display: "flex", 
-              gap: "16px", 
-              flexWrap: "wrap", 
-              justifyContent: "center",
-              maxWidth: "800px",
-              margin: "0 auto"
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 72px)',
+                  gap: '10px',
+                  maxHeight: 420,
+                  overflowY: 'auto',
+                  paddingRight: 6
             }}>
           {categoryIcons.map((icon) => (
             <div
@@ -1305,31 +1305,29 @@ const X2HCustomizer: React.FC = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(e, icon)}
               style={{
-                    padding: "12px",
-                    background: selectedIcon?.id === icon.id ? "#1a1f2c" : "#ffffff",
-                    borderRadius: "6px",
-                    cursor: "grab",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                    width: "60px",
-                    border: "1px solid #e0e0e0",
-                    transition: "all 0.3s ease",
-              }}
+                        padding: '10px',
+                        background: 'transparent',
+                        borderRadius: '8px',
+                        cursor: 'grab',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        width: '72px',
+                        minHeight: '72px',
+                        border: '1px solid transparent',
+                        transition: 'border-color 0.2s ease, background 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1a1f2c33'; e.currentTarget.style.background = '#f7f9fc'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
             >
               <img
                 src={icon.src}
                 alt={icon.label}
-                    style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                    title={icon.label}
+                        style={{ width: '32px', height: '32px', objectFit: 'contain' }}
               />
-                  <span style={{ 
-                    fontSize: "14px", 
-                    color: selectedIcon?.id === icon.id ? "#ffffff" : "#1a1f2c",
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                    letterSpacing: "0.5px"
-                  }}>
-                    {icon.label}
-                  </span>
             </div>
           ))}
         </div>

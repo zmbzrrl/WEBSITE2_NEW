@@ -4,8 +4,18 @@ interface IconModule {
   default: string;
 }
 
-// Import all SVG icons from icons2 folder
+// Import SVG icons from optional icons2 folder (may be empty)
 const icons2: Record<string, IconModule> = import.meta.glob("./icons2/*.svg", { eager: true });
+// Import general icons from icons/ subfolders (svg and png)
+const generalIconsRaw: Record<string, IconModule> = {
+  ...import.meta.glob("./icons/**/*.svg", { eager: true }),
+  ...import.meta.glob("./icons/**/*.png", { eager: true }),
+};
+// Import TAG icons (svg and png)
+const tagIconsRaw: Record<string, IconModule> = {
+  ...import.meta.glob("./TAG_icons/*.svg", { eager: true }),
+  ...import.meta.glob("./TAG_icons/*.png", { eager: true }),
+};
 
 // Convert the imported modules to a more usable format
 const processIcons = (icons: Record<string, IconModule>) => {
@@ -17,24 +27,49 @@ const processIcons = (icons: Record<string, IconModule>) => {
     let label = name.replace(/([A-Z])/g, ' $1').trim(); // Add space before capital letters
     label = label.replace(/\s+/g, ' '); // Replace multiple spaces with single space
     
-    // Determine category based on icon name
+    // Determine category based on folder name first, then fallback to filename
     let category = "General";
-    if (name.toLowerCase().includes("bathroom") || name.toLowerCase().includes("shower") || name.toLowerCase().includes("bathtub")) {
-      category = "Bathroom";
-    } else if (name.toLowerCase().includes("light") || name.toLowerCase().includes("lamp") || name.toLowerCase().includes("chandelier") || name.toLowerCase().includes("master") || name.toLowerCase().includes("bulb") || name.toLowerCase().includes("sconce")) {
-      category = "Room Lights";
-    } else if (name.toLowerCase().includes("curtain") || name.toLowerCase().includes("curtains") || name.toLowerCase().includes("blind") || name.toLowerCase().includes("sheer")) {
-      category = "Curtains & Blinds";
-    } else if (name.toLowerCase().includes("butler") || name.toLowerCase().includes("service") || name.toLowerCase().includes("bell") || name.toLowerCase().includes("dnd") || name.toLowerCase().includes("mur")) {
-      category = "Guest Services";
-    } else if (name.toLowerCase().includes("scene") || name.toLowerCase().includes("bedroom") || name.toLowerCase().includes("dining")) {
-      category = "Scenes";
+    const lowerPath = path.toLowerCase();
+    if (lowerPath.includes("/a-bathroom/")) category = "Bathroom";
+    else if (lowerPath.includes("/b-roomlights/")) category = "Room Lights";
+    else if (lowerPath.includes("/c-curtains&blinds/") || lowerPath.includes("/c-curtains") || lowerPath.includes("/curtains&blinds/")) category = "Curtains & Blinds";
+    else if (lowerPath.includes("/g-guestservices/")) category = "Guest Services";
+    else {
+      const lowerName = name.toLowerCase();
+      if (lowerName.includes("bathroom") || lowerName.includes("shower") || lowerName.includes("bathtub")) {
+        category = "Bathroom";
+      } else if (lowerName.includes("light") || lowerName.includes("lamp") || lowerName.includes("chandelier") || lowerName.includes("master") || lowerName.includes("bulb") || lowerName.includes("sconce")) {
+        category = "Room Lights";
+      } else if (lowerName.includes("curtain") || lowerName.includes("curtains") || lowerName.includes("blind") || lowerName.includes("sheer")) {
+        category = "Curtains & Blinds";
+      } else if (lowerName.includes("butler") || lowerName.includes("service") || lowerName.includes("bell") || lowerName.includes("dnd") || lowerName.includes("mur")) {
+        category = "Guest Services";
+      } else if (lowerName.includes("scene") || lowerName.includes("bedroom") || lowerName.includes("dining")) {
+        category = "Scenes";
+      }
     }
     
     acc[id] = {
       id,
       src: module.default,
       category,
+      label
+    };
+    return acc;
+  }, {} as Record<string, { id: string; src: string; category: string; label: string }>);
+};
+
+// Process TAG icons with explicit TAG category
+const processTagIcons = (icons: Record<string, IconModule>) => {
+  return Object.entries(icons).reduce((acc, [path, module]) => {
+    const name = path.split("/").pop()?.replace(/\.(svg|png)$/i, "") || "";
+    const id = name;
+    let label = name.replace(/([A-Z])/g, ' $1').trim();
+    label = label.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    acc[id] = {
+      id,
+      src: module.default,
+      category: "TAG",
       label
     };
     return acc;
@@ -48,9 +83,10 @@ export type LimitationType = 'all' | 'icons_only' | 'text_only' | 'icons_with_te
 const createUserSelectableIcons = (allIcons: Record<string, { id: string; src: string; category: string; label: string }>, limitationType: LimitationType = 'all') => {
   const userSelectableIcons = { ...allIcons };
   
-  // Remove fan/climate related icons
+  // Remove fan/climate related icons except for TAG category
   Object.keys(userSelectableIcons).forEach(iconId => {
-    if (iconId.toLowerCase().includes("fan")) {
+    const icon = userSelectableIcons[iconId];
+    if (icon && icon.category !== 'TAG' && iconId.toLowerCase().includes("fan")) {
       delete userSelectableIcons[iconId];
     }
   });
@@ -109,12 +145,15 @@ export const iconCategories = [
   "Guest Services",
   "Scenes",
   "General",
+  "TAG",
   "PIR"
 ];
 
 // Export the full icon set for customizer use
 export const allIcons = {
   ...processIcons(icons2),
+  ...processIcons(generalIconsRaw),
+  ...processTagIcons(tagIconsRaw),
   // Add PIR icon
   "PIR": {
     id: "PIR",

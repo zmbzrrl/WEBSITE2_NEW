@@ -56,6 +56,7 @@ import { isAdminEmail } from "./utils/admin";
 // Component imports
 import { CartProvider, useCart } from "./contexts/CartContext";  // Cart functionality - manages shopping cart
 import PageTransition from "./components/PageTransition";        // Smooth page transition animations
+import DesignGuidelines from "./components/DesignGuidelines";    // Design Guidelines dialog
 
 
 
@@ -82,7 +83,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 // Material-UI components - provides pre-built UI components
 // ThemeProvider = applies design theme across the app
 // CssBaseline = resets default browser styles
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box, Button } from '@mui/material';
 
 // Framer Motion - adds smooth animations and transitions to Project.
 // AnimatePresence : smooth animation when things added/removed (e.g. page transition, panel appearing)
@@ -98,7 +99,9 @@ import "./styles.css"; // General app styles
 
 
 
+
 //                                     ===== PROJECT CONTEXT SETUP =====                       //
+
 
 
 
@@ -116,6 +119,8 @@ export const ProjectContext = createContext<{
   setLocation: React.Dispatch<React.SetStateAction<string>>,  // Function to update location
   operator: string,              // 🏢 Project operator/service partner
   setOperator: React.Dispatch<React.SetStateAction<string>>,   // Function to update operator
+  servicePartner?: string,       // Optional service partner name
+  setServicePartner?: React.Dispatch<React.SetStateAction<string>>, // Update service partner
   allowedPanelTypes: string[],   // BOQ-selected allowed panel categories for selector gating
   setAllowedPanelTypes: React.Dispatch<React.SetStateAction<string[]>>, // Update allowed panel categories
   boqQuantities: Record<string, number>, // BOQ quantities per category key (SP, TAG, IDPG, DP, EXT)
@@ -130,6 +135,8 @@ export const ProjectContext = createContext<{
   setLocation: () => {}, // Function to update location
   operator: '', // 🏢 Default operator
   setOperator: () => {}, // Function to update operator
+  servicePartner: '',
+  setServicePartner: () => {},
   allowedPanelTypes: [],
   setAllowedPanelTypes: () => {},
   boqQuantities: {},
@@ -139,6 +146,7 @@ export const ProjectContext = createContext<{
 
 
 //                                         ===== PROJECT SYNC COMPONENT =====                      //
+
 
 
 
@@ -245,9 +253,24 @@ const AppRoutes = () => { // defines all the different pages/URLs
   );
 };
 
+// Global button that opens the Design Guidelines dialog. Hidden on /print-preview
+const GlobalGuidelinesButton: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
+  const location = useLocation();
+  const isPrintPreview = location.pathname === '/print-preview';
+  if (isPrintPreview) return null;
+  return (
+    <Box position="fixed" bottom={24} right={24} zIndex={1300}>
+      <Button variant="contained" color="primary" onClick={onOpen}>
+        Read INTEREL's Design Guidelines
+      </Button>
+    </Box>
+  );
+};
+
 
 
 //                                         ===== MAIN APP COMPONENT =====                      //
+
 
 
 
@@ -262,8 +285,10 @@ const App: React.FC = () => {
   const [projectCode, setProjectCode] = useState('');  // Current project code
   const [location, setLocation] = useState('');        // 🗺️ Project location
   const [operator, setOperator] = useState('');        // 🏢 Project operator/service partner
+  const [servicePartner, setServicePartner] = useState(''); // Service partner name
   const [allowedPanelTypes, setAllowedPanelTypes] = useState<string[]>([]); // BOQ-selected panel categories
   const [boqQuantities, setBoqQuantities] = useState<Record<string, number>>({}); // BOQ quantities per category
+  const [isGuidelinesOpen, setIsGuidelinesOpen] = useState(false);
 
   return (
     // ThemeProvider applies the Material-UI theme (colors, fonts, spacing) to the entire app
@@ -283,6 +308,8 @@ const App: React.FC = () => {
           setLocation,
           operator,
           setOperator,
+          servicePartner,
+          setServicePartner,
           allowedPanelTypes,
           setAllowedPanelTypes,
           boqQuantities,
@@ -293,6 +320,10 @@ const App: React.FC = () => {
           
           {/* Router enables navigation between different pages */}
           <Router>
+            {/* Global button & dialog launcher */}
+            <GlobalGuidelinesButton onOpen={() => setIsGuidelinesOpen(true)} />
+            <DesignGuidelines open={isGuidelinesOpen} onClose={() => setIsGuidelinesOpen(false)} />
+
             {/* AppRoutes defines all the pages and their URLs */}
             <AppRoutes />
           </Router>

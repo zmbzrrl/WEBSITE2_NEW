@@ -12,7 +12,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import DPH from "../../assets/panels/DP.jpg";
-import DPV from "../../assets/panels/DP.jpg";
+import DPV from "../../assets/panels/GS_Double module_224x25_vertical.png";
 import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -355,7 +355,9 @@ const DoublePanelSelector = () => {
                         alt={panel.name}
                         className="panel-image"
                         style={{
-                          maxHeight: 1680,
+                          ...(panel.name === 'Vertical Double Panel'
+                            ? { height: 180, maxHeight: 180 }
+                            : { maxHeight: 220 }),
                           width: '100%',
                           objectFit: 'contain',
                         }}

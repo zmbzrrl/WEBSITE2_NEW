@@ -117,6 +117,7 @@ const MyDesigns: React.FC = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { setProjectName, setProjectCode, setLocation, setOperator, setAllowedPanelTypes } = useContext(ProjectContext);
+  const { setServicePartner } = useContext(ProjectContext) as any;
   
   const [designs, setDesigns] = useState<any[]>([]);
   const [organizedDesigns, setOrganizedDesigns] = useState<any>({});
@@ -569,11 +570,19 @@ const MyDesigns: React.FC = () => {
       if (result.success) {
         console.log('Project details submitted successfully:', result.message);
         
-        // Save project details to context
+        // Save project details to context and persist
         setProjectName(projectDetails.projectName);
         setProjectCode(projectDetails.projectCode);
         setLocation(projectDetails.location);
         setOperator(projectDetails.operator);
+        setServicePartner && setServicePartner(projectDetails.servicePartner);
+        try {
+          sessionStorage.setItem('ppProjectName', projectDetails.projectName || '');
+          sessionStorage.setItem('ppProjectCode', projectDetails.projectCode || '');
+          sessionStorage.setItem('ppLocation', projectDetails.location || '');
+          sessionStorage.setItem('ppOperator', projectDetails.operator || '');
+          sessionStorage.setItem('ppServicePartner', projectDetails.servicePartner || '');
+        } catch {}
         
         // Navigate to BOQ first for selecting allowed panel categories
         setAllowedPanelTypes([]);
@@ -585,6 +594,14 @@ const MyDesigns: React.FC = () => {
         setProjectCode(projectDetails.projectCode);
         setLocation(projectDetails.location);
         setOperator(projectDetails.operator);
+        setServicePartner && setServicePartner(projectDetails.servicePartner);
+        try {
+          sessionStorage.setItem('ppProjectName', projectDetails.projectName || '');
+          sessionStorage.setItem('ppProjectCode', projectDetails.projectCode || '');
+          sessionStorage.setItem('ppLocation', projectDetails.location || '');
+          sessionStorage.setItem('ppOperator', projectDetails.operator || '');
+          sessionStorage.setItem('ppServicePartner', projectDetails.servicePartner || '');
+        } catch {}
         setAllowedPanelTypes([]);
         navigate('/boq');
       }
@@ -595,6 +612,14 @@ const MyDesigns: React.FC = () => {
       setProjectCode(projectDetails.projectCode);
       setLocation(projectDetails.location);
       setOperator(projectDetails.operator);
+      setServicePartner && setServicePartner(projectDetails.servicePartner);
+      try {
+        sessionStorage.setItem('ppProjectName', projectDetails.projectName || '');
+        sessionStorage.setItem('ppProjectCode', projectDetails.projectCode || '');
+        sessionStorage.setItem('ppLocation', projectDetails.location || '');
+        sessionStorage.setItem('ppOperator', projectDetails.operator || '');
+        sessionStorage.setItem('ppServicePartner', projectDetails.servicePartner || '');
+      } catch {}
       setAllowedPanelTypes([]);
       navigate('/boq');
     }
