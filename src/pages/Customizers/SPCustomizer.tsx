@@ -27,6 +27,7 @@ import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
 import LED from "../../assets/LED.png";
+import QuantityDialog from '../../components/QuantityDialog';
 
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 import PanelDimensionSelector from '../../components/PanelDimensionSelector';
@@ -227,8 +228,7 @@ const InformationBox = ({
   panelDesign,
   placedIcons,
 
-  ralColors,
-  isReadOnly
+  ralColors
 }: {
   backbox: string;
   setBackbox: (v: string) => void;
@@ -239,7 +239,6 @@ const InformationBox = ({
   placedIcons: any[];
 
   ralColors: any[];
-  isReadOnly: boolean;
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
 
@@ -437,8 +436,6 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Backbox Details *
             </Typography>
-            {isReadOnly ? (
-              <div style={{ pointerEvents: 'auto' }}>
                 <select
                   value={backbox}
                   onChange={e => {
@@ -453,23 +450,6 @@ const InformationBox = ({
                   <option value="Backbox 4">Backbox 4</option>
                   <option value="Backbox 5">Backbox 5</option>
                 </select>
-              </div>
-            ) : (
-              <select
-                value={backbox}
-                onChange={e => {
-                  setBackbox(e.target.value);
-                }}
-                style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
-              >
-                <option value="">Select a backbox...</option>
-                <option value="Backbox 1">Backbox 1</option>
-                <option value="Backbox 2">Backbox 2</option>
-                <option value="Backbox 3">Backbox 3</option>
-                <option value="Backbox 4">Backbox 4</option>
-                <option value="Backbox 5">Backbox 5</option>
-              </select>
-            )}
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
           <Box sx={{ 
@@ -481,29 +461,14 @@ const InformationBox = ({
             mt: 2
           }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
-              Comments
+              Additional Comments (Optional)
             </Typography>
-            {isReadOnly ? (
-              <div style={{
-                width: '100%',
-                minHeight: '48px',
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {extraComments?.trim() ? extraComments : 'none'}
-              </div>
-            ) : (
               <textarea
                 value={extraComments}
                 onChange={e => setExtraComments(e.target.value)}
                 placeholder="Enter any additional comments..."
                 style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
               />
-            )}
           </Box>
         </Box>
       </Box>
@@ -524,7 +489,7 @@ const SPCustomizer: React.FC = () => {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<number | null>(null);
   const iconNames = Array.from(new Set(placedIcons.map(icon => icon.iconId)));
-  const [currentStep, setCurrentStep] = useState(2); // 2, 3, or 4
+  const [currentStep, setCurrentStep] = useState(2); // 2 or 3
   const [panelDesign, setPanelDesign] = useState<{
     backgroundColor: string;
     fonts: string;
@@ -539,14 +504,14 @@ const SPCustomizer: React.FC = () => {
     extraComments?: string;
   }>({
     backgroundColor: '',
-    fonts: 'Myriad Pro',
+    fonts: 'Myriad Pro SemiBold SemiCondensed',
     backlight: '',
 
     plasticColor: '',
     iconColor: 'auto',
     textColor: '#000000',
-    fontSize: '12px',
-    iconSize: '47px', // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
+    fontSize: '9pt',
+    iconSize: '14mm',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -557,6 +522,18 @@ const SPCustomizer: React.FC = () => {
   const [fontsLoading, setFontsLoading] = useState(false);
   const [useCustomFont, setUseCustomFont] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Quantity dialog state
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
+  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('SP');
+  
+  // Popup state for selecting custom panel mode
+  const [showCustomModeDialog, setShowCustomModeDialog] = useState(false);
+  
+
+
   // Function to determine icon color based on background
   const getIconColorFilter = (backgroundColor: string): string => {
     // Convert hex to RGB for brightness calculation
@@ -578,7 +555,7 @@ const SPCustomizer: React.FC = () => {
     }
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Drag restriction preview state
@@ -589,8 +566,32 @@ const SPCustomizer: React.FC = () => {
   const [showRestrictionDialog, setShowRestrictionDialog] = useState(false);
   const [restrictionMessage, setRestrictionMessage] = useState('');
   
-  // Popup state for selecting custom panel mode
-  const [showCustomModeDialog, setShowCustomModeDialog] = useState(false);
+  // Custom panel component state
+  const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
+  const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
+  const [fontSearchFocused, setFontSearchFocused] = useState(false);
+  
+  // Google Fonts list
+  const googleFonts = [
+    'Myriad Pro SemiBold SemiCondensed', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Source Sans Pro', 'Montserrat', 'Raleway', 'Ubuntu', 'Nunito', 'Inter',
+    'PT Sans', 'Noto Sans', 'Oswald', 'Roboto Condensed', 'Roboto Mono', 'Playfair Display', 'Merriweather', 'Bebas Neue',
+    'Abril Fatface', 'Pacifico', 'Dancing Script', 'Great Vibes', 'Satisfy', 'Kaushan Script', 'Courgette', 'Lobster',
+    'Bangers', 'Permanent Marker', 'Rock Salt', 'Shadows Into Light', 'Indie Flower', 'Comic Neue', 'Fredoka One',
+    'Righteous', 'Bree Serif', 'Crete Round', 'Josefin Slab', 'Arvo', 'Lora', 'Crimson Text', 'Libre Baskerville',
+    'Playfair Display SC', 'Alegreya', 'Cormorant Garamond', 'EB Garamond', 'Crimson Pro', 'Source Serif Pro',
+    'Noto Serif', 'Merriweather', 'Lora', 'Crimson Text', 'Libre Baskerville', 'Playfair Display SC', 'Alegreya',
+    'Cormorant Garamond', 'EB Garamond', 'Crimson Pro', 'Source Serif Pro', 'Noto Serif', 'Roboto Slab',
+    'Zilla Slab', 'Josefin Slab', 'Bitter', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Inconsolata',
+    'Space Mono', 'Cousine', 'Anonymous Pro', 'IBM Plex Mono', 'Red Hat Mono', 'Cascadia Code', 'Fira Mono'
+  ];
+  
+  // Function to load Google Fonts
+  const loadGoogleFont = (fontFamily: string) => {
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}:wght@300;400;500;600;700&display=swap`;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  };
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -614,8 +615,8 @@ const SPCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      // Hide PIR from the selectable categories; we control it via a dedicated toggle
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'Thermostat' && cat !== 'PIR' && cat !== 'Climate'));
+      // Hide PIR, Sockets, Climate, and Thermostat
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'PIR' && cat !== 'Climate' && cat !== 'Thermostat'));
     });
   }, []);
 
@@ -657,7 +658,7 @@ const SPCustomizer: React.FC = () => {
         }
       }
       // Check if this is a saved individual panel (new structure)
-      else if (deepCopiedData.type === 'SP' && deepCopiedData.icons) {
+      else if (deepCopiedData.type === 'TAG' && deepCopiedData.icons) {
         console.log('📋 Found saved individual panel structure');
         if (deepCopiedData.panelDesign) {
           panelDesignData = deepCopiedData.panelDesign;
@@ -717,7 +718,7 @@ const SPCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, updatePanel, loadProjectPanels } = cartContext;
+  const { addToCart, updatePanel, loadProjectPanels, projPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -779,6 +780,18 @@ const SPCustomizer: React.FC = () => {
       position: cellIndex,
       category: selectedIcon.category
     };
+
+    // Check if this icon allows text
+    const allowsText = isTextAllowed(iconPosition);
+    if (!allowsText) {
+      // Clear any existing text for this position
+      setIconTexts((prev) => {
+        const newTexts = { ...prev };
+        delete newTexts[cellIndex];
+        return newTexts;
+      });
+      console.log('🧹 Cleared text for thermostat icon at position:', cellIndex);
+    }
 
     setPlacedIcons((prev) => [...prev, iconPosition]);
     setSelectedIcon(null);
@@ -849,16 +862,64 @@ const SPCustomizer: React.FC = () => {
       
       navigate('/cart', { state: preservedState }); // Go back to cart after updating
     } else {
-      // Add new panel
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
+
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+        if (!boqQuantities) return undefined;
+        if (cat === 'EXT') {
+          const keys = ['X1H','X1V','X2H','X2V'] as const;
+          const total = keys
+            .map(k => (boqQuantities as any)[k] as number | undefined)
+            .filter((v): v is number => typeof v === 'number')
+            .reduce((a,b)=>a+b,0);
+          return total;
+        }
+        const cap = (boqQuantities as any)[cat];
+        return typeof cap === 'number' ? cap : undefined;
+      };
+
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          alert(`You have reached the BOQ limit for ${category}.`);
+          return;
+        }
+        setPendingDesign(design);
+        setPendingCategory(category);
+        setQtyRemaining(remaining);
+        setQtyOpen(true);
+        return;
+      }
+
       addToCart(design);
     }
   };
 
+  const handleQtyConfirm = (qty: number) => {
+    if (!pendingDesign) return;
+    const finalDesign = { ...pendingDesign, quantity: qty };
+    addToCart(finalDesign);
+    setPendingDesign(null);
+    setQtyOpen(false);
+  };
 
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+    if (t === 'SP') return 'SP';
+    if (t === 'TAG') return 'TAG';
+    if (t === 'IDPG') return 'IDPG';
+    if (t === 'DPH' || t === 'DPV') return 'DP';
+    if (t.startsWith('X')) return 'EXT';
+    return 'SP';
+  };
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
-    .filter(([_, icon]) => icon.category === selectedCategory && icon.category !== 'Thermostat')
+    .filter(([_, icon]) => icon.category === selectedCategory)
     .map(([id, icon]) => ({
       id,
       src: icon.src,
@@ -968,6 +1029,18 @@ const SPCustomizer: React.FC = () => {
           category: icon.category
         };
 
+        // Check if this icon allows text
+        const allowsText = isTextAllowed(iconPosition);
+        if (!allowsText) {
+          // Clear any existing text for this position
+          setIconTexts((prev) => {
+            const newTexts = { ...prev };
+            delete newTexts[cellIndex];
+            return newTexts;
+          });
+          console.log('🧹 Cleared text for thermostat icon at position:', cellIndex);
+        }
+
         setPlacedIcons((prev) => [...prev, iconPosition]);
         }
       } else if (dragData.type === 'placed') {
@@ -1043,19 +1116,21 @@ const SPCustomizer: React.FC = () => {
           return icon;
         }));
 
-        // Swap text between positions
+        // Swap text between positions, but clear text if new icon doesn't allow it
         setIconTexts(prev => {
           const newTexts = { ...prev };
           const sourceText = prev[dragData.position];
           const targetText = prev[cellIndex];
           
-          if (sourceText !== undefined) {
+          // Check if source icon allows text in new position
+          if (sourceText !== undefined && isTextAllowed(sourceIcon)) {
             newTexts[cellIndex] = sourceText;
           } else {
             delete newTexts[cellIndex];
           }
           
-          if (targetText !== undefined) {
+          // Check if target icon allows text in new position
+          if (targetText !== undefined && targetIcon && isTextAllowed(targetIcon)) {
             newTexts[dragData.position] = targetText;
           } else {
             delete newTexts[dragData.position];
@@ -1095,9 +1170,11 @@ const SPCustomizer: React.FC = () => {
     const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
     const rowIndex = Math.floor(index / 3);
+    // Move rows 2 and 3 down by 10px
+    const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 10 : 0;
     // Apply per-row offsets only for tall: row 1 -20px, row 2 +10px, row 3 +40px
     const perRowOffset = (dimensionKey === 'tall') ? ((rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0)) : 0;
-    const adjustedTop = `${baseTop + perRowOffset}px`;
+    const adjustedTop = `${baseTop + perRowOffset + lowerRowsOffset}px`;
     return (
       <div
         key={index}
@@ -1114,7 +1191,7 @@ const SPCustomizer: React.FC = () => {
           zIndex: 2,
         }}
         onDragOver={e => { e.preventDefault(); }}
-        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
+        onDrop={e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
       >
         {/* Restricted overlay during drag of DND/MUR */}
         {isDraggingIcon && restrictedCells.includes(index) && (
@@ -1142,8 +1219,8 @@ const SPCustomizer: React.FC = () => {
             <img
               src={icon.src}
               alt={icon.label}
-              draggable={currentStep !== 4}
-              onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
+              draggable={true}
+              onDragStart={(e) => handleDragStart(e, icon)}
               onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
                 width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
@@ -1153,12 +1230,12 @@ const SPCustomizer: React.FC = () => {
                 position: 'relative',
                 zIndex: 1,
                 marginTop: isPIR ? '5px' : '0',
-                cursor: currentStep !== 4 ? 'move' : 'default',
+                cursor: 'move',
                 filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                 transition: 'filter 0.2s',
               }}
             />
-            {currentStep !== 4 && (
+            {(
               <button
                 onClick={(e) => { e.stopPropagation(); handleDeleteIcon(icon.id); }}
                 style={{
@@ -1204,23 +1281,8 @@ const SPCustomizer: React.FC = () => {
             alignItems: icon ? 'flex-start' : 'center',
             justifyContent: icon ? 'flex-start' : 'center'
           }}>
-            {currentStep === 4 ? (
-              text && (
-                <div style={{
-                  width: '100%',
-                  textAlign: 'center',
-                  fontSize: panelDesign.fontSize || '12px',
-                  color: getAutoTextColor(panelDesign.backgroundColor),
-                  fontFamily: panelDesign.fonts || undefined,
-                  wordBreak: 'break-word',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: icon ? 'auto' : '100%',
-                }}>{text}</div>
-              )
-            ) : (
-              <>
+            {(
+            <>
                 {isEditing ? (
                   <input
                     type="text"
@@ -1336,7 +1398,7 @@ const SPCustomizer: React.FC = () => {
                     );
                   })()
                 )}
-              </>
+            </>
             )}
           </div>
         )}
@@ -1348,7 +1410,6 @@ const SPCustomizer: React.FC = () => {
     { step: 1, label: 'Select Panel\nType' },
     { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel\nDesign' },
-    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1487,6 +1548,24 @@ const SPCustomizer: React.FC = () => {
     return brightness < 128 ? '#ffffff' : '#2c2c2c';
   };
 
+  // Check if an icon allows text input
+  const isTextAllowed = (icon: PlacedIcon | undefined): boolean => {
+    if (!icon) return false;
+    
+    // All TAG icons should not allow text
+    const iconId = icon.iconId?.toLowerCase() || '';
+    const iconCategory = icon.category?.toLowerCase() || '';
+    
+    // Block text for any icon from TAG_icons folder
+    if (iconId.startsWith('tag_') || iconCategory === 'tag') {
+      console.log('🚫 Text blocked for TAG icon:', icon.label, 'ID:', icon.iconId, 'Category:', icon.category);
+      return false;
+    }
+    
+    console.log('✅ Text allowed for icon:', icon.label, 'ID:', icon.iconId, 'Category:', icon.category);
+    return true;
+  };
+
   return (
     <Box
       sx={{
@@ -1571,12 +1650,12 @@ const SPCustomizer: React.FC = () => {
           >
             Back
           </Button>
-          {currentStep !== 4 && (
+          {currentStep !== 3 && (
           <Button
             variant="contained"
-            disabled={currentStep === 4}
+            disabled={currentStep === 3}
             onClick={() => {
-              const nextStep = Math.min(4, currentStep + 1);
+              const nextStep = Math.min(3, currentStep + 1);
               console.log('Current step:', currentStep, 'Next step:', nextStep);
               setCurrentStep(nextStep);
             }}
@@ -1697,6 +1776,8 @@ const SPCustomizer: React.FC = () => {
                 </div>
               ))}
                 </div>
+
+
               </div>
               {/* Panel template (right) */}
               <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '60px' }}>
@@ -1737,7 +1818,7 @@ const SPCustomizer: React.FC = () => {
           </div>
         )}
         {/* Step 3: Panel Design */}
-        {currentStep === 3 && (<>
+        {currentStep === 3 && (
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: '500px 1fr',
@@ -1861,91 +1942,47 @@ const SPCustomizer: React.FC = () => {
             </div>
               </div>
               
-              {/* Typography font and size controls removed for step 3 */}
-              
-              {/* Icon Size Section - REMOVED - Fixed at 14mm (47px) */}
-            </div>
+              {/* Font Size Section */}
+              {/* Font size controls removed for step 3 */}
 
-            {/* Right side - Panel Template */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              minHeight: '400px'
-            }}>
-              <div
-                style={{
-                  position: 'relative',
-                  width: activeDimension.width || '320px',
-                  height: activeDimension.height || '320px',
-                  background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                  padding: '0',
-                  border: '2px solid rgba(255, 255, 255, 0.2)',
-                  borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                  borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  transition: 'all 0.3s ease',
-                  margin: '0 auto',
-                  fontFamily: panelDesign.fonts || undefined,
-                }}
-              >
-                <div style={{ 
-                  position: 'absolute',
-                  top: '2px',
-                  left: '2px',
-                  right: '2px',
-                  bottom: '2px',
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                  pointerEvents: 'none',
-                  zIndex: 1,
-                }} />
-                <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
-                  {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
+              {/* Backbox and Comments fields */}
+              <Box sx={{ 
+                background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                p: 2,
+                borderRadius: 2,
+                border: '1px solid #e9ecef',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                mt: 2
+              }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
+                  Backbox Details *
+                </Typography>
+                    <select
+                      value={backbox}
+                      onChange={e => {
+                        setBackbox(e.target.value);
+                      }}
+                      style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
+                    >
+                      <option value="">Select a backbox...</option>
+                      <option value="Backbox 1">Backbox 1</option>
+                      <option value="Backbox 2">Backbox 2</option>
+                      <option value="Backbox 3">Backbox 3</option>
+                      <option value="Backbox 4">Backbox 4</option>
+                      <option value="Backbox 5">Backbox 5</option>
+                    </select>
+                {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
+              </Box>
+
                 </div>
-              </div>
-            </div>
-          </div>
-        </>)}
-        {/* Step 4: Review Panel Details */}
-        {currentStep === 4 && (
-          <div style={{ pointerEvents: 'none', userSelect: 'none', cursor: 'default' }}>
-            {/* Information Box and Panel Template side by side */}
-            <div style={{ 
-              marginTop: "60px", 
-              marginBottom: "40px",
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'flex-start',
-              gap: '40px',
-              flexWrap: 'wrap'
-            }}>
-              {/* Information Box */}
-              <div style={{ flex: '0 0 auto' }}>
-                <InformationBox
-                  backbox={backbox}
-                  setBackbox={v => {
-                    setBackbox(v);
-                    if (backboxError) setBackboxError('');
-                  }}
-                  backboxError={backboxError}
-                  extraComments={extraComments}
-                  setExtraComments={setExtraComments}
-                  panelDesign={panelDesign}
-                  placedIcons={placedIcons}
-                  ralColors={ralColors}
-                  isReadOnly={true}
-                />
-              </div>
               
               {/* Panel Template */}
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
                 <div
                   style={{
                     position: 'relative',
-                    width: '320px',
-                    height: '320px',
+                width: activeDimension.width || dimensions.width,
+                height: activeDimension.height || dimensions.height,
                     background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
                     padding: '0',
                     border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -1971,11 +2008,11 @@ const SPCustomizer: React.FC = () => {
                   }} />
                   <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
                     {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
-                  </div>
                 </div>
+              </div>
                 
                 {/* Add to Project Button positioned under the panel template */}
-                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }} style={{ pointerEvents: 'auto' }}>
+            <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
                   {isViewMode ? (
                     /* Go Back to My Designs Button - Only visible in view mode */
                     <StyledButton
@@ -1993,45 +2030,7 @@ const SPCustomizer: React.FC = () => {
                     </StyledButton>
                   ) : (
                     <>
-                      {/* Print Preview Button */}
-                      <StyledButton
-                        variant="outlined"
-                        onClick={() => {
-                          const panelConfig = {
-                            icons: Array.from({ length: 9 })
-                              .map((_, index) => {
-                                const icon = placedIcons.find((i) => i.position === index);
-                                return {
-                                  src: icon?.src || "",
-                                  label: icon?.label || "",
-                                  position: index,
-                                  text: iconTexts[index] || "",
-                                  category: icon?.category || undefined,
-                                  id: icon?.id || undefined,
-                                  iconId: icon?.iconId || undefined,
-                                };
-                              })
-                              .filter((entry) => entry.src || entry.text),
-                            panelDesign: { ...panelDesign, spConfig: { dimension: dimensionKey } },
-                            iconTexts,
-                            type: 'SP',
-                            name: 'SP Panel Design'
-                          };
-                          navigateToPrintPreview(navigate, panelConfig, projectName || 'SP Panel');
-                        }}
-                        sx={{
-                          borderColor: '#1a1f2c',
-                          color: '#1a1f2c',
-                          '&:hover': {
-                            borderColor: '#2c3e50',
-                            backgroundColor: 'rgba(26, 31, 44, 0.04)',
-                          }
-                        }}
-                      >
-                        Print Preview
-                      </StyledButton>
-                      
-                      {/* Normal action button - Hidden in view mode */}
+                                                          {/* Add to Project Button */}
             <StyledButton
               variant="contained"
               onClick={handleAddToCart}
@@ -2047,13 +2046,564 @@ const SPCustomizer: React.FC = () => {
                        isCreateNewRevision ? 'Create New Revision' :
                        'Add Panel to Project'}
             </StyledButton>
+                      
+                      {/* Custom Panel Description - Only visible when Create Custom Panel button is shown */}
+                      {!showCustomPanelComponent && (
+                        <div style={{
+                          color: '#000000',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                          fontSize: '14px',
+                          letterSpacing: '0.5px',
+                          fontWeight: 'bold',
+                          marginTop: '30px',
+                          marginBottom: '8px',
+                          textAlign: 'center'
+                        }}>
+                          Want different icons, icon sizes, font sizes, typography?
+                        </div>
+                      )}
+                      
+                      {/* Create Custom Panel Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (showCustomPanelComponent) {
+                            // Reset to default state when switching to standard panel
+                            setPanelDesign({
+                              ...panelDesign,
+                              fontSize: '9pt',
+                              iconSize: '14mm',
+                              fonts: 'Myriad Pro SemiBold SemiCondensed'
+                            });
+                            setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
+                            setExtraComments('');
+                          }
+                          setShowCustomPanelComponent(!showCustomPanelComponent);
+                        }}
+                        style={{
+                          padding: '10px 16px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#1976d2',
+                          cursor: 'pointer',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                          fontSize: '14px',
+                          letterSpacing: '0.5px',
+                          fontWeight: 'bold',
+                          marginTop: '-15px'
+                        }}
+                      >
+                        {showCustomPanelComponent ? 'Design Standard Panel' : 'Create Custom Panel'}
+                      </button>
                     </>
                   )}
-        </Box>
+                </Box>
+              </div>
+            </div>
+        )}
+        
+        {/* Custom Panel Component - Separate Section */}
+        {showCustomPanelComponent && (
+          <div style={{ 
+            marginTop: '40px',
+            maxWidth: '1400px',
+            margin: '40px auto 0 auto',
+            padding: '0 40px'
+          }}>
+            <div style={{ 
+              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+              padding: '32px',
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+              border: '1px solid #e9ecef',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Subtle background pattern */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, #007bff 0%, #0056b3 50%, #007bff 100%)',
+                borderRadius: '16px 16px 0 0'
+              }} />
+              
+              <h3 style={{
+                margin: '0 0 28px 0',
+                fontSize: '22px',
+                fontWeight: '600',
+                color: '#1a1f2c',
+                textAlign: 'center',
+                letterSpacing: '0.5px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>
+                Custom Panel Options
+              </h3>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '24px'
+              }}>
+                {/* Font Size Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #007bff 0%, #0056b3 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Font Size
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    {['9pt', '7pt', '12pt'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, fontSize: size })}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          border: panelDesign.fontSize === size ? '2px solid #007bff' : '2px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: panelDesign.fontSize === size ? '#007bff' : '#fff',
+                          color: panelDesign.fontSize === size ? '#fff' : '#1a1f2c',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0,123,255,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (panelDesign.fontSize !== size) {
+                            e.currentTarget.style.borderColor = '#007bff';
+                            e.currentTarget.style.background = '#f8f9ff';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (panelDesign.fontSize !== size) {
+                            e.currentTarget.style.borderColor = '#dee2e6';
+                            e.currentTarget.style.background = '#fff';
+                          }
+                        }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Icon Size Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #007bff 0%, #0056b3 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Icon Size
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    {['14mm', '10mm'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, iconSize: size })}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          border: panelDesign.iconSize === size ? '2px solid #007bff' : '2px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: panelDesign.iconSize === size ? '#007bff' : '#fff',
+                          color: panelDesign.iconSize === size ? '#fff' : '#1a1f2c',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0,123,255,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (panelDesign.iconSize !== size) {
+                            e.currentTarget.style.borderColor = '#007bff';
+                            e.currentTarget.style.background = '#f8f9ff';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (panelDesign.iconSize !== size) {
+                            e.currentTarget.style.borderColor = '#dee2e6';
+                            e.currentTarget.style.background = '#fff';
+                          }
+                        }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                                    {/* Custom Icon Upload Section */}
+                    <div style={{ 
+                      background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                      padding: '20px',
+                      borderRadius: '10px',
+                      border: '1px solid #e9ecef',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                    }}>
+                      <div style={{ 
+                        fontWeight: '600', 
+                        marginBottom: '16px', 
+                        color: '#1a1f2c',
+                        fontSize: '15px',
+                        letterSpacing: '0.3px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <div style={{
+                          width: '4px',
+                          height: '16px',
+                          background: 'linear-gradient(180deg, #007bff 0%, #007bff 100%)',
+                          borderRadius: '2px'
+                        }} />
+                        Custom Icon Upload
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            console.log('Custom icon uploaded:', file.name);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          border: '1px solid #dee2e6',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          background: '#fff',
+                          cursor: 'pointer',
+                          borderColor: '#007bff'
+                        }}
+                      />
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#6c757d', 
+                        marginTop: '8px',
+                        fontStyle: 'italic'
+                      }}>
+                        Supported: PNG, JPG, SVG (Max: 2MB)
+                      </div>
+                    </div>
+                    
+                    {/* Sample Template Design Reference Section */}
+                    <div style={{ 
+                      background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                      padding: '20px',
+                      borderRadius: '10px',
+                      border: '1px solid #e9ecef',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                    }}>
+                      <div style={{ 
+                        fontWeight: '600', 
+                        marginBottom: '16px', 
+                        color: '#1a1f2c',
+                        fontSize: '15px',
+                        letterSpacing: '0.3px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <div style={{
+                          width: '4px',
+                          height: '16px',
+                          background: 'linear-gradient(180deg, #ff9800 0%, #f57c00 100%)',
+                          borderRadius: '2px'
+                        }} />
+                        Sample Template Design Reference
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf,.doc,.docx"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            console.log('Sample template uploaded:', file.name);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          border: '1px solid #dee2e6',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          background: '#fff',
+                          cursor: 'pointer',
+                          borderColor: '#ff9800'
+                        }}
+                      />
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#6c757d', 
+                        marginTop: '8px',
+                        fontStyle: 'italic'
+                      }}>
+                        Supported: PNG, JPG, SVG, PDF, DOC, DOCX (Max: 5MB)
+                      </div>
+                    </div>
+                
+                {/* Font/Typography Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #9c27b0 0%, #673ab7 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Typography
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Search Google Fonts..."
+                      value={fontSearchTerm}
+                      onChange={(e) => setFontSearchTerm(e.target.value)}
+                      onFocus={() => setFontSearchFocused(true)}
+                      onBlur={() => setTimeout(() => setFontSearchFocused(false), 200)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        background: '#fff',
+                        borderColor: '#9c27b0'
+                      }}
+                    />
+                    {fontSearchFocused && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: '#fff',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 1000,
+                        maxHeight: '300px',
+                        overflowY: 'auto'
+                      }}>
+                        {fontSearchTerm ? (
+                          // Show filtered results when searching
+                          <>
+                            {googleFonts
+                              .filter(font => font.toLowerCase().includes(fontSearchTerm.toLowerCase()))
+                              .slice(0, 20)
+                              .map((font) => (
+                                <div
+                                  key={font}
+                                  onClick={() => {
+                                    setPanelDesign({ ...panelDesign, fonts: font });
+                                    setFontSearchTerm(font);
+                                    loadGoogleFont(font);
+                                  }}
+                                  style={{
+                                    padding: '10px 12px',
+                                    cursor: 'pointer',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    fontFamily: font,
+                                    fontSize: '14px',
+                                    transition: 'background-color 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f8f9ff';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#fff';
+                                  }}
+                                >
+                                  {font}
+                                </div>
+                              ))}
+                            {googleFonts.filter(font => font.toLowerCase().includes(fontSearchTerm.toLowerCase())).length > 20 && (
+                              <div style={{
+                                padding: '8px 12px',
+                                fontSize: '12px',
+                                color: '#6c757d',
+                                fontStyle: 'italic',
+                                textAlign: 'center',
+                                borderTop: '1px solid #f0f0f0'
+                              }}>
+                                Showing first 20 results. Type more to narrow search.
+          </div>
+        )}
+                          </>
+                        ) : (
+                          // Show all fonts when not searching
+                          <>
+                            <div style={{
+                              padding: '8px 12px',
+                              fontSize: '12px',
+                              color: '#6c757d',
+                              fontStyle: 'italic',
+                              textAlign: 'center',
+                              borderBottom: '1px solid #f0f0f0',
+                              backgroundColor: '#f8f9fa'
+                            }}>
+                              Browse all available fonts ({googleFonts.length} total)
+                            </div>
+                            {googleFonts.map((font) => (
+                              <div
+                                key={font}
+                                onClick={() => {
+                                  setPanelDesign({ ...panelDesign, fonts: font });
+                                  setFontSearchTerm(font);
+                                  loadGoogleFont(font);
+                                }}
+                                style={{
+                                  padding: '10px 12px',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid #f0f0f0',
+                                  fontFamily: font,
+                                  fontSize: '14px',
+                                  transition: 'background-color 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#f8f9ff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#fff';
+                                }}
+                              >
+                                {font}
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {panelDesign.fonts && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      background: '#f8f9ff',
+                      border: '1px solid #9c27b0',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#9c27b0',
+                      fontFamily: panelDesign.fonts
+                    }}>
+                      Selected: {panelDesign.fonts}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Comments Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #28a745 0%, #20c997 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Additional Comments
+                  </div>
+                  <textarea
+                    value={extraComments}
+                    onChange={(e) => setExtraComments(e.target.value)}
+                    placeholder="Describe your custom panel requirements..."
+                    style={{
+                      width: '100%',
+                      minHeight: '80px',
+                      padding: '12px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      resize: 'vertical',
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      borderColor: '#28a745'
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
         )}
+        
         
         {/* DND/MUR Restriction Dialog */}
         <Dialog
@@ -2188,7 +2738,17 @@ const SPCustomizer: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+        
+        {/* Custom Panel Dialog */}
+
       </Container>
+      <QuantityDialog
+        open={qtyOpen}
+        category={pendingCategory}
+        remaining={qtyRemaining}
+        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
+        onConfirm={handleQtyConfirm}
+      />
     </Box>
   );
 };

@@ -127,7 +127,6 @@ const PanelTypeSelector = () => {
     { step: 1, label: 'Select Panel Type' },
     { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel Design' },
-    { step: 4, label: 'Review panel details' },
   ];
   const activeStep = 0; // Step 1 is active on this page
 
@@ -439,8 +438,8 @@ const PanelTypeSelector = () => {
                   key={panel.name}
                   item 
                   xs={12} 
-                  sm={6} 
-                  md={4}
+                  sm={panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 12 : 6} 
+                  md={panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 6 : 4}
                   component="div"
                 >
                   <StyledPanel variants={itemVariants}>
@@ -468,12 +467,7 @@ const PanelTypeSelector = () => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         p: 3,
-                        marginLeft: 
-                          panel.name === 'Double Panel' 
-                            ? '-158px'
-                            : panel.name === 'Extended Panel'
-                            ? '142px'
-                            : undefined,
+                        marginLeft: undefined,
                       }}
                     >
                       {typeof (boqQuantities as any)?.[panel.key] === 'number' && (
@@ -504,23 +498,23 @@ const PanelTypeSelector = () => {
                         style={{
                           maxHeight:
                             panel.name === 'Single Panel' || panel.name === 'Thermostat'
-                              ? 262
+                              ? 183  // 30% smaller: 262 * 0.7
                               : panel.name === 'Corridor Panel'
-                              ? 346
+                              ? 277  // 20% smaller: 346 * 0.8
                               : panel.name === 'Double Panel'
                               ? 250
                               : panel.name === 'Extended Panel'
-                              ? 768
+                              ? 276  // Another 5% bigger: 263 * 1.05
                               : 288,
                           width:
                             panel.name === 'Single Panel' || panel.name === 'Thermostat'
-                              ? '107%'
+                              ? '75%'  // 30% smaller: 107% * 0.7
                               : panel.name === 'Corridor Panel'
-                              ? '144%'
+                              ? '115%'  // 20% smaller: 144% * 0.8
                               : panel.name === 'Double Panel'
                               ? '87%'
                               : panel.name === 'Extended Panel'
-                              ? '264%'
+                              ? '96%'  // Another 5% bigger: 91% * 1.05
                               : '120%',
                           marginBottom: 16,
                           marginTop: panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 0 : undefined,

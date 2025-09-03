@@ -324,7 +324,6 @@ const ExtendedPanelSelector = () => {
               { step: 1, label: 'Select Panel Type' },
               { step: 2, label: 'Configure Panel\nLayout' },
               { step: 3, label: 'Select Panel Design' },
-              { step: 4, label: 'Review panel details' },
             ].map((s, idx) => (
               <React.Fragment key={s.step}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120 }}>
@@ -350,7 +349,7 @@ const ExtendedPanelSelector = () => {
                   </Box>
                   <Typography
                     sx={{
-                      color: idx === 0 ? '#1976d2' : '#666',
+                      color: idx === 0 ? '#1976d2' : '#ffffff',
                       fontWeight: idx === 0 ? 600 : 400,
                       fontSize: 14,
                       textAlign: 'center',
@@ -361,7 +360,7 @@ const ExtendedPanelSelector = () => {
                     {s.label}
                   </Typography>
                 </Box>
-                {idx < 3 && (
+                {idx < 2 && (
                   <Box sx={{ flex: 1, height: 2, background: '#e0e0e0', mx: 1, minWidth: 24, borderRadius: 1 }} />
                 )}
               </React.Fragment>

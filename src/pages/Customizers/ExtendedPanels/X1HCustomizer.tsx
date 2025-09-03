@@ -1,4 +1,4 @@
-/// Import necessary libraries and components
+// Import necessary libraries and components
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from '../../../contexts/CartContext';
 import '../Customizer.css';
@@ -19,12 +19,13 @@ import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
 import QuantityDialog from '../../../components/QuantityDialog';
-import SP from '../../../assets/panels/SP.png';
 import logo from '../../../assets/logo.png';
 
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import FlipIcon from '@mui/icons-material/Flip';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -129,7 +130,7 @@ interface PlacedIcon {
 
 interface GridCellProps {
   index: number;
-  onDrop: (index: number, data: string) => void;
+  onDrop: (index: number, iconId: string) => void;
   children: React.ReactNode;
 }
 
@@ -159,30 +160,30 @@ const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const data = e.dataTransfer.getData('text/plain');
-    onDrop(index, data);
+    const iconId = e.dataTransfer.getData('text/plain');
+    onDrop(index, iconId);
   };
 
   return (
-    <div
+  <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      style={{
-        width: "30%",
-        height: "100px",
-        display: "inline-block",
-        textAlign: "center",
-        background: "transparent",
-        margin: "5px",
-        position: "relative",
-        boxSizing: "border-box",
-        verticalAlign: "top",
+    style={{
+      width: "30%",
+      height: "100px",
+      display: "inline-block",
+      textAlign: "center",
+      background: "transparent",
+      margin: "5px",
+      position: "relative",
+      boxSizing: "border-box",
+      verticalAlign: "top",
         cursor: "copy",
-      }}
-    >
-      {children}
-    </div>
-  );
+    }}
+  >
+    {children}
+  </div>
+);
 };
 
 // Google Fonts API key (for demo, you should use your own key for production)
@@ -191,6 +192,20 @@ const GOOGLE_FONTS_API_KEY = 'AIzaSyDQngnSe6or2muwiDaov5HV02fk-4OiZaM';
 // Fallback font list if API fails
 const FALLBACK_GOOGLE_FONTS = [
   'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Oswald', 'Raleway', 'Merriweather', 'Nunito', 'Quicksand', 'Source Sans Pro', 'Inter',
+];
+
+// Google Fonts list for custom panel component
+const googleFonts = [
+  'Myriad Pro SemiBold SemiCondensed', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Source Sans Pro', 'Montserrat', 'Raleway', 'Ubuntu', 'Nunito', 'Inter',
+  'PT Sans', 'Noto Sans', 'Oswald', 'Roboto Condensed', 'Roboto Mono', 'Playfair Display', 'Merriweather', 'Bebas Neue',
+  'Abril Fatface', 'Pacifico', 'Dancing Script', 'Great Vibes', 'Satisfy', 'Kaushan Script', 'Courgette', 'Lobster',
+  'Bangers', 'Permanent Marker', 'Rock Salt', 'Shadows Into Light', 'Indie Flower', 'Comic Neue', 'Fredoka One',
+  'Righteous', 'Bree Serif', 'Crete Round', 'Josefin Slab', 'Arvo', 'Lora', 'Crimson Text', 'Libre Baskerville',
+  'Playfair Display SC', 'Alegreya', 'Cormorant Garamond', 'EB Garamond', 'Crimson Pro', 'Source Serif Pro',
+  'Noto Serif', 'Merriweather', 'Lora', 'Crimson Text', 'Libre Baskerville', 'Playfair Display SC', 'Alegreya',
+  'Cormorant Garamond', 'EB Garamond', 'Crimson Pro', 'Source Serif Pro', 'Noto Serif', 'Roboto Slab',
+  'Zilla Slab', 'Josefin Slab', 'Bitter', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Inconsolata',
+  'Space Mono', 'Cousine', 'Anonymous Pro', 'IBM Plex Mono', 'Red Hat Mono', 'Cascadia Code', 'Fira Mono'
 ];
 
 // Helper to load Google Font dynamically
@@ -236,7 +251,6 @@ const InformationBox = ({
   ralColors: any[];
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
-
   return (
     <Box sx={{ 
       width: 400,
@@ -379,10 +393,10 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: Auto-colored
+                  Icons & Text: Auto-colored
                 </Typography>
               </Box>
-
+              
             </Box>
           </Box>
           {/* Typography Section */}
@@ -416,7 +430,7 @@ const InformationBox = ({
                 Font: {panelDesign.fonts || 'Default'}
               </Typography>
               <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                Size: {'9px'}
+                Size: {panelDesign.fontSize || '12px'}
               </Typography>
             </Box>
           </Box>
@@ -432,19 +446,6 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Backbox Details *
             </Typography>
-            {currentStep === 4 ? (
-              <div style={{
-                width: '100%',
-                padding: '10px 12px',
-                marginBottom: '8px',
-                border: backboxError ? '1px solid red' : '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057'
-              }}>
-                {backbox || 'No backbox selected'}
-              </div>
-            ) : (
               <select
                 value={backbox}
                 onChange={e => {
@@ -459,7 +460,6 @@ const InformationBox = ({
                 <option value="Backbox 4">Backbox 4</option>
                 <option value="Backbox 5">Backbox 5</option>
               </select>
-            )}
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
           <Box sx={{ 
@@ -473,27 +473,12 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Comments
             </Typography>
-            {currentStep === 4 ? (
-              <div style={{
-                width: '100%',
-                minHeight: '48px',
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {extraComments?.trim() ? extraComments : 'none'}
-              </div>
-            ) : (
               <textarea
                 value={extraComments}
                 onChange={e => setExtraComments(e.target.value)}
                 placeholder="Enter any additional comments..."
                 style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
               />
-            )}
           </Box>
         </Box>
       </Box>
@@ -501,27 +486,7 @@ const InformationBox = ({
   );
 };
 
-// --- Add this utility for DPH double grid positions ---
-// Original 3x3 grid positions (left side)
-const baseIconPositions = [
-  { top: '23px', left: '33px' },   // 0
-  { top: '23px', left: '136px' },  // 1
-  { top: '23px', left: '233px' },  // 2
-  { top: '123px', left: '33px' },  // 3
-  { top: '123px', left: '136px' }, // 4
-  { top: '123px', left: '233px' }, // 5
-  { top: '218px', left: '33px' },  // 6
-  { top: '218px', left: '136px' }, // 7
-  { top: '218px', left: '233px' }, // 8
-];
-// Right side: offset left by 320px
-const rightIconPositions = baseIconPositions.map(pos => ({
-  ...pos,
-  left: (parseInt(pos.left) + 320) + 'px',
-}));
-const doublePanelIconPositions = [...baseIconPositions, ...rightIconPositions];
-
-const X1HCustomizer: React.FC = () => {
+const X1VCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -534,29 +499,27 @@ const X1HCustomizer: React.FC = () => {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<number | null>(null);
   const iconNames = Array.from(new Set(placedIcons.map(icon => icon.iconId)));
-  const [currentStep, setCurrentStep] = useState(2); // 2, 3, or 4
+  const [currentStep, setCurrentStep] = useState(2); // 2 or 3
   const [panelDesign, setPanelDesign] = useState<{
     backgroundColor: string;
-          fonts: string;
-      backlight: string;
-      iconColor: string;
-      plasticColor: string;
+    fonts: string;
+    backlight: string;
+    iconColor: string;
+    plasticColor: string;
     textColor: string;
     fontSize: string;
     iconSize: string;
     backbox?: string;
     extraComments?: string;
-    swapSides?: boolean;
-    mirrorGrid?: boolean;
   }>({
     backgroundColor: '',
-          fonts: '',
-      backlight: '',
-      iconColor: '#000000',
-      plasticColor: '',
+    fonts: '',
+    backlight: '',
+    iconColor: '#000000',
+    plasticColor: '',
     textColor: '#000000',
-    fontSize: '9px',
-    iconSize: '14mm',
+    fontSize: '12px',
+    iconSize: '40px',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -567,12 +530,16 @@ const X1HCustomizer: React.FC = () => {
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
   
+  // Custom panel component state
+  const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
+  const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
+  const [fontSearchFocused, setFontSearchFocused] = useState(false);
+  
   // PIR helpers (toggle-controlled motion sensor)
   const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
   const getPirIndex = (): number => {
-    // This layout supports positions beyond 9; use 7 if available else 16
-    if (!placedIcons.some(icon => icon.position === 7)) return 7;
-    return 16;
+    // X1V uses a single 3x3 grid → bottom center index 7
+    return 7;
   };
   const addPir = () => {
     if (hasPIR) return;
@@ -593,36 +560,14 @@ const X1HCustomizer: React.FC = () => {
     setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
     setIconTexts(prev => ({ ...prev }));
   };
-  // Function to determine icon color based on background
-  const getIconColorFilter = (backgroundColor: string): string => {
-    // Convert hex to RGB for brightness calculation
-    const hex = backgroundColor.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    
-    // Calculate brightness (0-255)
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    
-    // Use white for dark backgrounds, dark grey for light backgrounds
-    if (brightness < 128) {
-      // Dark background - use white icons
-      return 'brightness(0) saturate(100%) invert(1)';
-    } else {
-      // Light background - use dark grey icons
-      return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
-    }
-  };
+
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
-  const [swapSides, setSwapSides] = useState(false); // NEW: swap state
-  const [mirrorGrid, setMirrorGrid] = useState(false); // NEW: mirror state
-  const [qtyOpen, setQtyOpen] = useState(false);
-  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
-  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
-  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('EXT');
+  // Add swap and mirror state
+  const [swapUpDown, setSwapUpDown] = useState(false); // NEW: swap state
+  const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -634,7 +579,8 @@ const X1HCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG' && cat !== 'Climate'));
+      // Hide PIR category; control via toggle
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG' && cat !== 'Climate' && cat !== 'PIR'));
     });
   }, []);
 
@@ -646,10 +592,10 @@ const X1HCustomizer: React.FC = () => {
         setPanelDesign(editPanelData.panelDesign);
         setBackbox(editPanelData.panelDesign.backbox || '');
         setExtraComments(editPanelData.panelDesign.extraComments || '');
-        // Load swap state
-        setSwapSides(editPanelData.panelDesign.swapSides || false);
-        // Load mirror state
-        setMirrorGrid(editPanelData.panelDesign.mirrorGrid || false);
+        
+        // Load swap states
+        setSwapUpDown(editPanelData.panelDesign.swapUpDown || false);
+        setMirrorVertical(editPanelData.panelDesign.mirrorVertical || false);
       }
       
       // Load placed icons
@@ -685,7 +631,7 @@ const X1HCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, updatePanel, loadProjectPanels, projPanels } = cartContext;
+  const { addToCart, updatePanel, projPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -756,6 +702,11 @@ const X1HCustomizer: React.FC = () => {
     setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
   };
 
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
+  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('EXT');
+
   const handleAddToCart = (): void => {
     // Check if backbox details are provided
     if (!backbox.trim()) {
@@ -763,9 +714,9 @@ const X1HCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign & { swapSides?: boolean; mirrorGrid?: boolean } } = {
-      type: "X1H",
-      icons: Array.from({ length: iconPositions?.length || 0 })
+    const design: Design & { panelDesign: typeof panelDesign & { swapUpDown?: boolean; mirrorVertical?: boolean } } = {
+      type: "X1V",
+      icons: Array.from({ length: 18 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
           return {
@@ -779,40 +730,13 @@ const X1HCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, swapSides, mirrorGrid },
+      panelDesign: { ...panelDesign, backbox, extraComments, swapUpDown, mirrorVertical },
     };
 
-    // Enforce BOQ cap for new additions
-    const category = mapTypeToCategory(design.type);
-    const cap = (boqQuantities && (boqQuantities as any)[category]) || Infinity;
-    const existingCount = projPanels.filter(p => mapTypeToCategory(p.type) === category).length;
-    if (!isEditMode && existingCount + 1 > cap) {
-      alert(`You have reached the BOQ limit for ${category}. Max: ${cap}`);
-      return;
-    }
-
-    if (isEditMode) {
-      // Handle edit mode - either update existing panel or add new one
-      if (editPanelIndex !== undefined) {
-        // Update existing panel at specific index (for project panels)
-        console.log('🔧 Updating panel at index:', editPanelIndex);
-        updatePanel(editPanelIndex, design);
-      } else {
-        // For individual panels, replace the entire cart with this panel
-        console.log('🔧 Replacing cart with edited individual panel');
-        // Clear existing panels and add the edited one
-        loadProjectPanels([design]);
-      }
-      
-      // Preserve the project-level edit state when navigating back
-      const preservedState = location.state?.projectEditMode !== undefined ? {
-        projectEditMode: location.state.projectEditMode,
-        projectDesignId: location.state.projectDesignId,
-        projectOriginalName: location.state.projectOriginalName,
-        projectCreateNewRevision: location.state.projectCreateNewRevision
-      } : {};
-      
-      navigate('/cart', { state: preservedState }); // Go back to cart after updating
+    if (isEditMode && editPanelIndex !== undefined) {
+      // Update existing panel
+      updatePanel(editPanelIndex, design);
+      navigate('/cart'); // Go back to cart after updating
     } else {
       // Add new panel with quantity prompt constrained by BOQ remaining
       const category = mapTypeToCategory(design.type);
@@ -1029,19 +953,15 @@ const X1HCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
-  // Helper to get swapped positions for rendering
-  const getCellRenderPosition = (index: number) => {
-    if (!swapSides) return index;
-    // For 3x3 grid (0-8) and single slot (9): swap their horizontal sides
-    // The grid is on the left (0-8), slot 9 is on the right by default
-    // When swapped, grid moves right, slot 9 moves left
-    if (index === 9) return 10; // We'll render slot 9 at a new left position
-    if (index >= 0 && index <= 8) return index + 20; // We'll render grid at new left offset
-    return index;
+  // Swap up/down logic - just toggle the state
+  const handleSwapUpDown = () => {
+    setSwapUpDown(s => !s);
   };
 
-  // Define swapped positions for visual layout only
-  const swappedGridOffset = 320; // Move grid to right side
+  // Mirror vertically logic - just toggle the state
+  const handleMirrorVertical = () => {
+    setMirrorVertical(m => !m);
+  };
 
   const renderAbsoluteCell = (index: number) => {
     const icon = placedIcons.find((i) => i.position === index);
@@ -1053,36 +973,40 @@ const X1HCustomizer: React.FC = () => {
     const iconSize = panelDesign.iconSize || '40px';
     // Default position
     let pos = iconPositions?.[index] || { top: '0px', left: '0px' };
-    // If swapSides is true, adjust positions
-    if (swapSides) {
-      if (index === 9) {
-        // For the single icon slot, move it to the left side (where the grid was)
-        // Position it more towards the center of the left side, around 40px from left edge
-        pos = { ...pos, left: '40px' };
-      } else if (index >= 0 && index <= 8) {
-        // Move the 3x3 grid to the right side
-        pos = { ...pos, left: (parseInt(pos.left) + swappedGridOffset) + 'px' };
+    
+    // If swapUpDown is true, swap top 3x3 grid with bottom single slot
+    if (swapUpDown) {
+      if (index >= 0 && index <= 8) {
+        // Move the 3x3 grid to the bottom half
+        // Panel is 640px tall, so move grid to bottom half (320px offset)
+        const swappedGridOffset = 320;
+        pos = { ...pos, top: (parseInt(pos.top) + swappedGridOffset) + 'px' };
+      } else if (index === 9) {
+        // Move the single slot to the top half, positioned more centrally
+        // Original position is 328px top, 36px left
+        // Move it to center of top half (around 55px from top)
+        pos = { ...pos, top: '55px' };
       }
     }
     
-    // If mirrorGrid is true, mirror the 3x3 grid horizontally
-    if (mirrorGrid && index >= 0 && index <= 8) {
-      // Mirror the grid: columns 0,1,2 become 2,1,0
-      // Original positions: 0,1,2 | 3,4,5 | 6,7,8
-      // Mirrored positions: 2,1,0 | 5,4,3 | 8,7,6
-      const mirrorMap = [2, 1, 0, 5, 4, 3, 8, 7, 6];
-      const mirroredIndex = mirrorMap[index];
-      const mirroredPos = iconPositions?.[mirroredIndex] || pos;
-      pos = { ...mirroredPos };
-      
-      // If also swapped, apply the swap offset to the mirrored position
-      if (swapSides) {
-        pos = { ...pos, left: (parseInt(pos.left) + swappedGridOffset) + 'px' };
+    // If mirrorVertical is true, mirror the 3x3 grid horizontally (column 0<->2)
+    if (mirrorVertical && index >= 0 && index <= 8) {
+      const row = Math.floor(index / 3);
+      const col = index % 3;
+      if (col === 0) {
+        // Column 0 moves to column 2 position
+        const col2Pos = iconPositions?.[row * 3 + 2] || pos;
+        pos = { ...col2Pos };
+      } else if (col === 2) {
+        // Column 2 moves to column 0 position
+        const col0Pos = iconPositions?.[row * 3] || pos;
+        pos = { ...col0Pos };
       }
+      // Column 1 stays in place
     }
     
     // Calculate container size to match icon size
-    const containerSize = index === 9 ? '240px' : '14mm';
+    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px'));
     
     return (
         <div
@@ -1099,7 +1023,7 @@ const X1HCustomizer: React.FC = () => {
           zIndex: 2,
         }}
         onDragOver={e => { e.preventDefault(); }}
-        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
+                        onDrop={currentStep === 3 ? undefined : e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
         >
           {icon && (
             <div
@@ -1110,22 +1034,22 @@ const X1HCustomizer: React.FC = () => {
               <img
                 src={icon.src}
                 alt={icon.label}
-                draggable={currentStep !== 4}
-                onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
+                draggable={currentStep !== 3}
+                onDragStart={currentStep !== 3 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: index === 9 ? '240px' : '14mm',
-                height: index === 9 ? '240px' : '14mm',
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
                   zIndex: 1,
                 marginTop: isPIR ? '5px' : '0',
-                cursor: currentStep !== 4 ? 'move' : 'default',
-                  filter: !isPIR && icon?.category !== 'Sockets' ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
+                cursor: currentStep !== 3 ? 'move' : 'default',
+                                      filter: undefined,
                   transition: 'filter 0.2s',
                 }}
               />
-              {currentStep !== 4 && (
+              {currentStep !== 3 && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleDeleteIcon(icon.id); }}
                 style={{
@@ -1167,12 +1091,12 @@ const X1HCustomizer: React.FC = () => {
                   <div style={{ fontSize: '18px', color: '#bbb', fontWeight: 600, padding: '16px 0' }}>
                     drop socket
                   </div>
-                ) : currentStep === 4 ? (
+                ) : currentStep === 3 ? (
                   text && (
                     <div style={{
                       width: '100%',
                       textAlign: 'center',
-                      fontSize: '9px',
+                      fontSize: panelDesign.fontSize || '12px',
                       color: panelDesign.iconColor || '#000000',
                       fontFamily: panelDesign.fonts || undefined,
                       wordBreak: 'break-word',
@@ -1187,12 +1111,12 @@ const X1HCustomizer: React.FC = () => {
                         onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                        style={{ width: '100%', padding: '4px', fontSize: '9px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div
                         onClick={() => handleTextClick(index)}
-                        style={{ fontSize: '9px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                       >
                         {text || 'Add text'}
                       </div>
@@ -1209,7 +1133,6 @@ const X1HCustomizer: React.FC = () => {
     { step: 1, label: 'Select Panel\nType' },
     { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel\nDesign' },
-    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1297,10 +1220,9 @@ const X1HCustomizer: React.FC = () => {
     }
   }, [panelDesign.fonts]);
 
-  // Only destructure config once, then override iconPositions
-  const config = getPanelLayoutConfig('X1H');
-  console.log('X1H iconPositions length:', config.iconPositions?.length, config.iconPositions);
-  const { dimensions, iconLayout, textLayout, specialLayouts, iconPositions = [] } = config;
+  // Only destructure config once, and use iconPositions from config
+  const config = getPanelLayoutConfig('X1V');
+  const { dimensions, iconLayout, textLayout, specialLayouts, iconPositions } = config;
 
   const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
     if (t === 'SP') return 'SP';
@@ -1395,76 +1317,79 @@ const X1HCustomizer: React.FC = () => {
           >
             Back
           </Button>
-          {currentStep !== 4 && (
+          {currentStep !== 3 && (
           <Button
             variant="contained"
-            disabled={currentStep === 4}
-            onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
+            disabled={currentStep === 3}
+            onClick={() => setCurrentStep((s) => Math.min(3, s + 1))}
           >
             Next
           </Button>
           )}
         </Box>
 
-                {/* Icon List: Only visible on step 2 */}
+        {/* Icon List: Only visible on step 2 */}
         {currentStep === 2 && (
-          <>
-            <div style={{ marginBottom: "20px" }}>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "12px", justifyContent: "flex-start", flexWrap: "wrap" }}>
-            {iconCategories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                style={{
-                      padding: '10px 18px',
-                        background: selectedCategory === category ? '#1a1f2c' : '#ffffff',
-                        color: selectedCategory === category ? '#ffffff' : '#1a1f2c',
-                        border: '1px solid #1a1f2c',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                        fontSize: '14px',
-                        letterSpacing: '0.5px',
-                        transition: 'all 0.3s ease',
-                        minWidth: '120px',
-                }}
-              >
-                {category}
-              </button>
-            ))}
+      <div style={{ display: 'flex', flexDirection: 'row', gap: '40px', justifyContent: 'center', alignItems: 'flex-start', marginBottom: '20px' }}>
+        {/* Categories column */}
+        <div style={{ minWidth: 140, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
+          {iconCategories.map((category) => (
             <button
-              type="button"
-              onClick={() => (hasPIR ? removePir() : addPir())}
+              key={category}
+              onClick={() => setSelectedCategory(category)}
               style={{
-                padding: '10px 16px',
+                padding: '10px 18px',
+                background: selectedCategory === category ? '#1a1f2c' : '#ffffff',
+                color: selectedCategory === category ? '#ffffff' : '#1a1f2c',
+                border: '1px solid #1a1f2c',
                 borderRadius: '6px',
-                border: 'none',
-                background: 'transparent',
-                color: '#1976d2',
                 cursor: 'pointer',
                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                 fontSize: '14px',
                 letterSpacing: '0.5px',
-                fontWeight: 'bold'
+                transition: 'all 0.3s ease',
+                minWidth: '120px',
+                textAlign: 'right',
               }}
-              title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
             >
-              {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+              {category}
             </button>
-          </div>
-            <div style={{ 
+          ))}
+          {/* PIR toggle next to categories */}
+          <button
+            type="button"
+            onClick={() => (hasPIR ? removePir() : addPir())}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              background: 'transparent',
+              color: '#1976d2',
+              cursor: 'pointer',
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              fontSize: '14px',
+              letterSpacing: '0.5px',
+              fontWeight: 'bold'
+            }}
+            title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+          >
+            {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
+          </button>
+        </div>
+        {/* Icons grid column */}
+        <div style={{ 
                   display: 'grid',
                   gridTemplateColumns: 'repeat(7, 72px)',
                   gap: '10px',
                   maxHeight: 420,
                   overflowY: 'auto',
                   paddingRight: 6
-            }}>
+        }}>
           {categoryIcons.map((icon) => (
             <div
               key={icon.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, icon)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, icon)}
               style={{
                         padding: '10px',
                         background: 'transparent',
@@ -1492,26 +1417,61 @@ const X1HCustomizer: React.FC = () => {
             </div>
           ))}
         </div>
-            {/* Layout Control Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, margin: '24px 0 0 0' }}>
-              <Button
-                variant="outlined"
-                onClick={() => setSwapSides((s) => !s)}
-                sx={{ minWidth: 160, display: 'flex', alignItems: 'center', gap: 1 }}
-                startIcon={!swapSides ? <ArrowForwardIcon sx={{ transform: 'rotate(180deg)' }} /> : <ArrowForwardIcon />}
-              >
-                {!swapSides ? 'Left Side' : 'Right Side'}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setMirrorGrid((m) => !m)}
-                sx={{ minWidth: 160 }}
-              >
-                {mirrorGrid ? 'Unmirror' : 'Mirror'}
-              </Button>
+        {/* Swap/Mirror Buttons under the icons list */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 16, margin: '24px 0 0 0' }}>
+          <Button
+            variant="outlined"
+            onClick={handleSwapUpDown}
+            sx={{ minWidth: 160, display: 'flex', alignItems: 'center', gap: 1 }}
+            startIcon={!swapUpDown ? <ArrowUpwardIcon /> : <ArrowDownwardIcon />}
+          >
+            {!swapUpDown ? 'Up' : 'Down'}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleMirrorVertical}
+            sx={{ minWidth: 160 }}
+            startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} />}
+          >
+            {mirrorVertical ? 'Unmirror' : 'Mirror'}
+          </Button>
+        </div>
+        {/* Panel Preview for Step 2 (only this one should render) */}
+        <div style={{ flex: '0 0 340px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: 0 }}>
+          <div
+            style={{
+              position: 'relative',
+              width: '320px',
+              height: dimensions.height,
+              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+              padding: '0',
+              border: '2px solid rgba(255, 255, 255, 0.2)',
+              borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+              borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              transition: 'all 0.3s ease',
+              margin: '0 auto',
+              fontFamily: panelDesign.fonts || undefined,
+            }}
+          >
+            <div style={{ 
+              position: 'absolute',
+              top: '2px',
+              left: '2px',
+              right: '2px',
+              bottom: '2px',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }} />
+            <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+              {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
             </div>
           </div>
-          </>
+        </div>
+      </div>
         )}
         {/* Step 3: Panel Design */}
         {currentStep === 3 && (
@@ -1638,22 +1598,145 @@ const X1HCustomizer: React.FC = () => {
         </div>
       </div>
 
-              {/* Typography font controls removed for step 3 */}
-              
-              
-              
-
-
-            
+              {/* Backbox Section */}
+              <div style={{ 
+                marginBottom: '28px',
+                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                padding: '20px',
+                borderRadius: '10px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  marginBottom: '16px', 
+                  color: '#1a1f2c',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    width: '4px',
+                    height: '16px',
+                    background: 'linear-gradient(180deg, #28a745 0%, #20c997 100%)',
+                    borderRadius: '2px'
+                  }} />
+                  Backbox Details *
+                </div>
+                <select
+                  value={backbox}
+                  onChange={e => {
+                    setBackbox(e.target.value);
+                    if (backboxError) setBackboxError('');
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    border: backboxError ? '1px solid red' : '1px solid #dee2e6', 
+                    borderRadius: '8px', 
+                    background: '#fff',
+                    fontSize: '14px',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                  }}
+                >
+                  <option value="">Select a backbox...</option>
+                  <option value="Backbox 1">Backbox 1</option>
+                  <option value="Backbox 2">Backbox 2</option>
+                  <option value="Backbox 3">Backbox 3</option>
+                  <option value="Backbox 4">Backbox 4</option>
+                  <option value="Backbox 5">Backbox 5</option>
+                </select>
+                {backboxError && <div style={{ color: 'red', fontSize: '12px', marginTop: '8px' }}>{backboxError}</div>}
+              </div>
           </div>
+
+          {/* Custom Panel Toggle */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: '20px', 
+            marginTop: '40px',
+            flexWrap: 'wrap'
+          }}>
+            <StyledButton
+              variant="contained"
+              onClick={handleAddToCart}
+              sx={{
+                backgroundColor: '#1a1f2c',
+                color: '#ffffff',
+                '&:hover': {
+                  backgroundColor: '#2c3e50',
+                },
+                padding: '12px 32px',
+                fontSize: '16px',
+                fontWeight: '600'
+              }}
+            >
+              {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+            </StyledButton>
+            
+            <div style={{ textAlign: 'center' }}>
+              {/* Custom Panel Description - Only visible when Create Custom Panel button is shown */}
+              {!showCustomPanelComponent && (
+                <div style={{
+                  color: '#000000',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold',
+                  marginTop: '30px',
+                  marginBottom: '8px',
+                  textAlign: 'center'
+                }}>
+                  Want different icons, icon sizes, font sizes, typography?
+                </div>
+              )}
+              
+              {/* Create Custom Panel Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (showCustomPanelComponent) {
+                    // Reset to default state when switching to standard panel
+                    setPanelDesign({
+                      ...panelDesign,
+                      fontSize: '9pt',
+                      iconSize: '14mm',
+                      fonts: 'Myriad Pro SemiBold SemiCondensed'
+                    });
+                    setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
+                    setExtraComments('');
+                  }
+                  setShowCustomPanelComponent(!showCustomPanelComponent);
+                }}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#1976d2',
+                  cursor: 'pointer',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold',
+                  marginTop: '-15px'
+                }}
+              >
+                {showCustomPanelComponent ? 'Design Standard Panel' : 'Create Custom Panel'}
+              </button>
+            </div>
+          </Box>
 
             {/* Right side - Panel Template */}
             <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
               <div
                 style={{
               position: 'relative',
-              width: '640px', // doubled from 320px
-              height: '320px', // keep height unchanged
+              width: '320px',
+              height: dimensions.height, // use config
               background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
               padding: '0',
               border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -1684,129 +1767,464 @@ const X1HCustomizer: React.FC = () => {
         </div>
           </div>
         )}
-        {/* Step 4: Review Panel Details */}
-        {currentStep === 4 && (
-          <div style={{ pointerEvents: 'none', userSelect: 'none', cursor: 'default' }}>
-            {/* Information Box and Panel Template side by side */}
-            <div style={{ 
-              marginTop: "60px", 
-              marginBottom: "40px",
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'flex-start',
-              gap: '40px',
-              flexWrap: 'wrap'
-            }}>
-              {/* Information Box */}
-              <div style={{ flex: '0 0 auto' }}>
-                <InformationBox
-                  backbox={backbox}
-                  setBackbox={v => {
-                    setBackbox(v);
-                    if (backboxError) setBackboxError('');
-                  }}
-                  backboxError={backboxError}
-                  extraComments={extraComments}
-                  setExtraComments={setExtraComments}
-                  panelDesign={panelDesign}
-                  placedIcons={placedIcons}
 
-                  ralColors={ralColors}
-                />
-              </div>
-              
-              {/* Panel Template */}
-              <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-                <div
-                  style={{
-                    position: 'relative',
-                    width: '640px', // doubled from 320px
-                    height: '320px',
-                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    padding: '0',
-                    border: '2px solid rgba(255, 255, 255, 0.2)',
-                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    transition: 'all 0.3s ease',
-                    margin: '0 auto',
-                    fontFamily: panelDesign.fonts || undefined,
-                    }}
-                >
-                  <div style={{ 
-                    position: 'absolute',
-                    top: '2px',
-                    left: '2px',
-                    right: '2px',
-                    bottom: '2px',
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                    pointerEvents: 'none',
-                      zIndex: 1,
-                  }} />
-                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-                    {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
-                    </div>
-                  </div>
-                
-                {/* Add to Project Button positioned under the panel template */}
-                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}>
-            <StyledButton
-              variant="contained"
-              onClick={handleAddToCart}
-              sx={{
-                backgroundColor: '#1a1f2c',
-                color: '#ffffff',
-                '&:hover': {
-                  backgroundColor: '#2c3e50',
-                },
-              }}
-            >
-                    {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
-            </StyledButton>
-        </Box>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
-        {currentStep === 2 && (
-          <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
-            <div
-              style={{
-                position: 'relative',
-                width: '640px',
-                height: dimensions.height,
-                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                padding: '0',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-                borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                transition: 'all 0.3s ease',
-                margin: '0 auto',
-                fontFamily: panelDesign.fonts || undefined,
-              }}
-            >
+        {/* Custom Panel Component - Separate Section */}
+        {showCustomPanelComponent && (
+            <div style={{ 
+            marginTop: '40px',
+            maxWidth: '1400px',
+            margin: '40px auto 0',
+            padding: '0 20px'
+          }}>
+            <div style={{
+              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+              borderRadius: '16px',
+              padding: '32px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(255,255,255,0.8)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Subtle background pattern */}
               <div style={{
                 position: 'absolute',
-                top: '2px',
-                left: '2px',
-                right: '2px',
-                bottom: '2px',
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                pointerEvents: 'none',
-                zIndex: 1,
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, #28a745 0%, #20c997 50%, #28a745 100%)',
+                borderRadius: '16px 16px 0 0'
               }} />
-              <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-                {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
+              
+              <h3 style={{
+                margin: '0 0 32px 0',
+                fontSize: '24px',
+                fontWeight: '700',
+                color: '#1a1f2c',
+                textAlign: 'center',
+                letterSpacing: '0.5px',
+                textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                Custom Panel Options
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                
+                {/* Font Size Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+              display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #28a745 0%, #20c997 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Font Size
+                    </div>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    {['9pt', '7pt', '12pt'].map((size) => (
+      <button
+                        key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, fontSize: size })}
+        style={{
+                          padding: '12px 20px',
+                          borderRadius: '8px',
+                          border: panelDesign.fontSize === size ? '2px solid #28a745' : '1px solid #dee2e6',
+                          background: panelDesign.fontSize === size ? 'linear-gradient(145deg, #28a745 0%, #20c997 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                          color: panelDesign.fontSize === size ? '#ffffff' : '#495057',
+                        cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                            transition: 'all 0.2s ease',
+                          minWidth: '60px',
+                          textAlign: 'center',
+                          boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(40,167,69,0.3)' : '0 2px 6px rgba(0,0,0,0.08)',
+                          transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)'
+                      }}
+                      >
+                        {size}
+                      </button>
+                  ))}
+            </div>
+          </div>
+
+            {/* Icon Size Section */}
+            <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              padding: '20px',
+              borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}>
+              <div style={{ 
+                fontWeight: '600', 
+                marginBottom: '16px', 
+                color: '#1a1f2c',
+                fontSize: '15px',
+                letterSpacing: '0.3px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{
+                  width: '4px',
+                  height: '16px',
+                      background: 'linear-gradient(180deg, #ff6b35 0%, #f7931e 100%)',
+                  borderRadius: '2px'
+                }} />
+                Icon Size
+              </div>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    {['14mm', '10mm'].map((size) => (
+                  <button
+                    key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, iconSize: size })}
+                    style={{
+                          padding: '12px 20px',
+                      borderRadius: '8px',
+                          border: panelDesign.iconSize === size ? '2px solid #ff6b35' : '1px solid #dee2e6',
+                          background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #ff6b35 0%, #f7931e 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                      color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                          fontWeight: '600',
+                      transition: 'all 0.2s ease',
+                      minWidth: '60px',
+                      textAlign: 'center',
+                          boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(255,107,53,0.3)' : '0 2px 6px rgba(0,0,0,0.08)',
+                          transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)'
+                    }}
+                  >
+                        {size}
+                  </button>
+                ))}
+            </div>
+          </div>
+
+                {/* Custom Icon Upload Section */}
+                  <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #6f42c1 0%, #8e44ad 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Custom Icon Upload
+                  </div>
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.svg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        console.log('Custom icon uploaded:', file.name);
+                        // Handle custom icon upload
+                      }
+                    }}
+                style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      background: '#fff',
+                      cursor: 'pointer'
+                    }}
+                  />
+                <div style={{ 
+                    fontSize: '12px', 
+                    color: '#6c757d', 
+                    marginTop: '8px',
+                    fontStyle: 'italic'
+                  }}>
+                    Supported: PNG, JPG, SVG (Max: 2MB)
+                </div>
+              </div>
+                
+                {/* Sample Template Design Reference Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #17a2b8 0%, #138496 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Sample Template
+        </div>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        console.log('Sample template uploaded:', file.name);
+                        // Handle sample template upload
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      background: '#fff',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#6c757d', 
+                    marginTop: '8px',
+                    fontStyle: 'italic'
+                  }}>
+                    Supported: PDF, DOC, DOCX, PNG, JPG, JPEG (Max: 5MB)
+          </div>
+                </div>
+                
+                {/* Font/Typography Section */}
+            <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+              display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #9c27b0 0%, #673ab7 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Typography
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Search Google Fonts..."
+                      value={fontSearchTerm}
+                      onChange={(e) => setFontSearchTerm(e.target.value)}
+                      onFocus={() => setFontSearchFocused(true)}
+                      onBlur={() => setTimeout(() => setFontSearchFocused(false), 200)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        background: '#fff',
+                        borderColor: '#9c27b0'
+                      }}
+                    />
+                    {fontSearchFocused && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: '#fff',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 1000,
+                        maxHeight: '300px',
+                        overflowY: 'auto'
+                      }}>
+                        {fontSearchTerm ? (
+                          // Show filtered results when searching
+                          <>
+                            {googleFonts
+                              .filter(font => font.toLowerCase().includes(fontSearchTerm.toLowerCase()))
+                              .slice(0, 20)
+                              .map((font) => (
+                                <div
+                                  key={font}
+                                  onClick={() => {
+                                    setPanelDesign({ ...panelDesign, fonts: font });
+                                    setFontSearchTerm(font);
+                                    loadGoogleFont(font);
+                                  }}
+                                  style={{
+                                    padding: '10px 12px',
+                                    cursor: 'pointer',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    fontFamily: font,
+                                    fontSize: '14px',
+                                    transition: 'background-color 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f8f9ff';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#fff';
+                                  }}
+                                >
+                                  {font}
+              </div>
+                              ))}
+                          </>
+                        ) : (
+                          // Show all fonts when not searching
+                          <>
+                            {googleFonts.slice(0, 20).map((font) => (
+                              <div
+                                key={font}
+                                onClick={() => {
+                                  setPanelDesign({ ...panelDesign, fonts: font });
+                                  setFontSearchTerm(font);
+                                  loadGoogleFont(font);
+                                }}
+                  style={{
+                                  padding: '10px 12px',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid #f0f0f0',
+                                  fontFamily: font,
+                                  fontSize: '14px',
+                                  transition: 'background-color 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#f8f9ff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#fff';
+                                }}
+                              >
+                                {font}
+            </div>
+                            ))}
+                          </>
+                        )}
+          </div>
+        )}
+                  </div>
+                  {panelDesign.fonts && (
+                  <div style={{ 
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      background: '#f8f9ff',
+                      border: '1px solid #9c27b0',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#9c27b0',
+                      fontFamily: panelDesign.fonts
+                    }}>
+                      Selected: {panelDesign.fonts}
+                    </div>
+                  )}
+                  </div>
+                
+                {/* Comments Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #28a745 0%, #20c997 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Additional Comments
+                  </div>
+                  <textarea
+                    value={extraComments}
+                    onChange={e => setExtraComments(e.target.value)}
+                    placeholder="Enter any additional comments or special requirements..."
+                    style={{
+                      width: '100%',
+                      minHeight: '80px',
+                      padding: '12px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      background: '#fff',
+                      resize: 'vertical',
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                    }}
+                  />
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#6c757d', 
+                    marginTop: '8px',
+                    fontStyle: 'italic'
+                  }}>
+                    Add any special instructions, notes, or requirements for your custom panel
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
+
       </Container>
       <QuantityDialog
         open={qtyOpen}
@@ -1819,4 +2237,4 @@ const X1HCustomizer: React.FC = () => {
   );
 };
 
-export default X1HCustomizer; 
+export default X1VCustomizer; 

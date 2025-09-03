@@ -19,9 +19,14 @@ import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
 import QuantityDialog from '../../../components/QuantityDialog';
-import { getIconColorName } from '../../../data/iconColors';
+
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
+
+// Fallback font list if API fails
+const FALLBACK_GOOGLE_FONTS = [
+  'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Oswald', 'Raleway', 'Merriweather', 'Nunito', 'Quicksand', 'Source Sans Pro', 'Inter',
+];
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -182,26 +187,7 @@ const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
 );
 };
 
-// Google Fonts API key (for demo, you should use your own key for production)
-const GOOGLE_FONTS_API_KEY = 'AIzaSyDQngnSe6or2muwiDaov5HV02fk-4OiZaM';
 
-// Fallback font list if API fails
-const FALLBACK_GOOGLE_FONTS = [
-  'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Oswald', 'Raleway', 'Merriweather', 'Nunito', 'Quicksand', 'Source Sans Pro', 'Inter',
-];
-
-// Helper to load Google Font dynamically
-function loadGoogleFont(font: string) {
-  const fontId = font.replace(/ /g, '+');
-  const id = `google-font-${fontId}`;
-  if (!document.getElementById(id)) {
-    const link = document.createElement('link');
-    link.id = id;
-    link.rel = 'stylesheet';
-    link.href = `https://fonts.googleapis.com/css?family=${fontId}`;
-    document.head.appendChild(link);
-  }
-}
 
 const hexToRgba = (hex: string, alpha: number): string => {
   if (!hex) return `rgba(255, 255, 255, ${alpha})`;
@@ -221,7 +207,6 @@ const InformationBox = ({
   setExtraComments,
   panelDesign,
   placedIcons,
-  ICON_COLOR_FILTERS,
   ralColors
 }: {
   backbox: string;
@@ -231,11 +216,9 @@ const InformationBox = ({
   setExtraComments: (v: string) => void;
   panelDesign: any;
   placedIcons: any[];
-  ICON_COLOR_FILTERS: { [key: string]: string };
   ralColors: any[];
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
-  const iconColorName = Object.keys(ICON_COLOR_FILTERS).find(color => color === panelDesign.iconColor);
   return (
     <Box sx={{ 
       width: 400,
@@ -378,7 +361,7 @@ const InformationBox = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {getIconColorName(panelDesign.iconColor)}
+                  Icons: Auto-colored
                 </Typography>
               </Box>
               
@@ -431,19 +414,6 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Backbox Details *
             </Typography>
-            {currentStep === 4 ? (
-              <div style={{
-                width: '100%',
-                padding: '10px 12px',
-                marginBottom: '8px',
-                border: backboxError ? '1px solid red' : '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057'
-              }}>
-                {backbox || 'No backbox selected'}
-              </div>
-            ) : (
               <select
                 value={backbox}
                 onChange={e => {
@@ -458,7 +428,6 @@ const InformationBox = ({
                 <option value="Backbox 4">Backbox 4</option>
                 <option value="Backbox 5">Backbox 5</option>
               </select>
-            )}
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
           <Box sx={{ 
@@ -472,27 +441,12 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Comments
             </Typography>
-            {currentStep === 4 ? (
-              <div style={{
-                width: '100%',
-                minHeight: '48px',
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {extraComments?.trim() ? extraComments : 'none'}
-              </div>
-            ) : (
               <textarea
                 value={extraComments}
                 onChange={e => setExtraComments(e.target.value)}
                 placeholder="Enter any additional comments..."
                 style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
               />
-            )}
           </Box>
         </Box>
       </Box>
@@ -513,7 +467,7 @@ const X2VCustomizer: React.FC = () => {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<number | null>(null);
   const iconNames = Array.from(new Set(placedIcons.map(icon => icon.iconId)));
-  const [currentStep, setCurrentStep] = useState(2); // 2, 3, or 4
+  const [currentStep, setCurrentStep] = useState(2); // 2 or 3
   const [panelDesign, setPanelDesign] = useState<{
     backgroundColor: string;
     fonts: string;
@@ -570,18 +524,63 @@ const X2VCustomizer: React.FC = () => {
     setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
     setIconTexts(prev => ({ ...prev }));
   };
-  const ICON_COLOR_FILTERS: { [key: string]: string } = {
-    '#000000': 'brightness(0) saturate(100%)',
-    '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-    '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-    '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-    '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-    '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
-  };
+
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
+
+  // Function to determine icon color based on background
+  const getIconColorFilter = (backgroundColor: string): string => {
+    // Convert hex to RGB for brightness calculation
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate brightness (0-255)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // Use white for dark backgrounds, dark grey for light backgrounds
+    if (brightness < 128) {
+      // Dark background - use white icons
+      return 'brightness(0) saturate(100%) invert(1)';
+    } else {
+      // Light background - use dark grey icons
+      return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
+    }
+  };
+
+  const getAutoTextColor = (backgroundColor: string): string => {
+    const hex = (backgroundColor || '#ffffff').replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128 ? '#ffffff' : '#2c2c2c';
+  };
+
+  // Custom panel component state
+  const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
+  const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
+  const [fontSearchFocused, setFontSearchFocused] = useState(false);
+  
+  // Google Fonts list
+  const googleFonts = [
+    'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Arial Black', 'Impact', 'Comic Sans MS',
+    'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Source Sans Pro', 'Raleway', 'PT Sans', 'Oswald', 'Lora', 'Nunito',
+    'Playfair Display', 'Merriweather', 'Ubuntu', 'Crimson Text', 'Libre Baskerville', 'Droid Sans', 'Droid Serif', 'PT Serif',
+    'Myriad Pro', 'Myriad Pro SemiBold SemiCondensed', 'Futura', 'Gill Sans', 'Calibri', 'Candara', 'Segoe UI', 'Consolas',
+    'Courier New', 'Monaco', 'Menlo', 'Lucida Console', 'Andale Mono', 'DejaVu Sans Mono', 'Liberation Mono', 'Bitstream Vera Sans Mono'
+  ];
+
+  // Function to load Google Font
+  const loadGoogleFont = (fontName: string) => {
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@300;400;500;600;700&display=swap`;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  };
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -591,12 +590,14 @@ const X2VCustomizer: React.FC = () => {
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
-    import("../../../assets/iconLibrary").then((module) => {
+    import("../../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      // Hide PIR category; control via toggle
-      setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG' && cat !== 'Climate' && cat !== 'PIR'));
+      // Include all categories from iconLibrary2
+      setIconCategories(module.iconCategories.filter(cat => cat !== 'Climate' && cat !== 'PIR'));
     });
   }, []);
+
+
 
   // Load existing panel data if in edit mode
   useEffect(() => {
@@ -1014,11 +1015,11 @@ const X2VCustomizer: React.FC = () => {
                   zIndex: 1,
                 marginTop: isPIR ? '5px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
-                  filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                  filter: !isPIR && icon?.category !== 'Sockets' ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                   transition: 'filter 0.2s',
                 }}
               />
-              {currentStep !== 4 && (
+              {(
               <button
                 onClick={(e) => { e.stopPropagation(); handleDeleteIcon(icon.id); }}
                 style={{
@@ -1060,17 +1061,6 @@ const X2VCustomizer: React.FC = () => {
                   <div style={{ fontSize: '18px', color: '#bbb', fontWeight: 600, padding: '16px 0' }}>
                     drop socket
                   </div>
-                ) : currentStep === 4 ? (
-                  text && (
-                    <div style={{
-                      width: '100%',
-                      textAlign: 'center',
-                      fontSize: panelDesign.fontSize || '12px',
-                      color: panelDesign.iconColor || '#000000',
-                      fontFamily: panelDesign.fonts || undefined,
-                      wordBreak: 'break-word',
-                    }}>{text}</div>
-                  )
                 ) : (
                   <>
                     {isEditing ? (
@@ -1080,12 +1070,12 @@ const X2VCustomizer: React.FC = () => {
                         onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: getAutoTextColor(panelDesign.backgroundColor), marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div
                         onClick={() => handleTextClick(index)}
-                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                       >
                         {text || 'Add text'}
                       </div>
@@ -1102,7 +1092,6 @@ const X2VCustomizer: React.FC = () => {
     { step: 1, label: 'Select Panel\nType' },
     { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel\nDesign' },
-    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1155,21 +1144,7 @@ const X2VCustomizer: React.FC = () => {
     </Box>
   );
 
-  // Fetch Google Fonts list on mount
-  useEffect(() => {
-    if (!GOOGLE_FONTS_API_KEY) return; // skip if no key
-    setFontsLoading(true);
-    fetch(`https://www.googleapis.com/webfonts/v1/webfonts?key=${GOOGLE_FONTS_API_KEY}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.items) {
-          setAllGoogleFonts(data.items.map((item: any) => item.family));
-          console.log('Total Google Fonts loaded:', data.items.length);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setFontsLoading(false));
-  }, []);
+
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -1287,11 +1262,11 @@ const X2VCustomizer: React.FC = () => {
           >
             Back
           </Button>
-          {currentStep !== 4 && (
+          {currentStep !== 3 && (
           <Button
             variant="contained"
-            disabled={currentStep === 4}
-            onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
+            disabled={currentStep === 3}
+            onClick={() => setCurrentStep((s) => Math.min(3, s + 1))}
           >
             Next
           </Button>
@@ -1349,11 +1324,9 @@ const X2VCustomizer: React.FC = () => {
         {/* Icons grid column */}
         <div style={{ 
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 72px)',
-                  gap: '10px',
-                  maxHeight: 420,
-                  overflowY: 'auto',
-                  paddingRight: 6
+                  gridTemplateColumns: 'repeat(2, 120px)',
+                  gap: '16px',
+                  padding: '16px'
         }}>
           {categoryIcons.map((icon) => (
             <div
@@ -1361,7 +1334,7 @@ const X2VCustomizer: React.FC = () => {
               draggable
               onDragStart={(e) => handleDragStart(e, icon)}
               style={{
-                        padding: '10px',
+                        padding: '16px',
                         background: 'transparent',
                         borderRadius: '8px',
                         cursor: 'grab',
@@ -1369,8 +1342,8 @@ const X2VCustomizer: React.FC = () => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'flex-start',
-                        width: '72px',
-                        minHeight: '72px',
+                        width: '120px',
+                        minHeight: '100px',
                         border: '1px solid transparent',
                         transition: 'border-color 0.2s ease, background 0.2s ease',
                         boxSizing: 'border-box'
@@ -1551,7 +1524,7 @@ const X2VCustomizer: React.FC = () => {
 
               {/* Typography font and font size controls removed for step 3 */}
               
-              {/* Colors Section */}
+              {/* Backbox Section */}
               <div style={{ 
                 marginBottom: '28px',
                 background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
@@ -1573,101 +1546,115 @@ const X2VCustomizer: React.FC = () => {
                   <div style={{
                     width: '4px',
                     height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
+                    background: 'linear-gradient(180deg, #28a745 0%, #20c997 100%)',
                     borderRadius: '2px'
                   }} />
-                  Colors
+                  Backbox Details *
                 </div>
-                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Icon Color
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-      <button
-                      key={color}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-        style={{
-                            width: '36px',
-                            height: '36px',
-                        borderRadius: '50%',
-                        background: color,
-                            border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
-                        cursor: 'pointer',
-                        padding: 0,
-                        outline: 'none',
-                            boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
-                            transition: 'all 0.2s ease',
-                            transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
-                      }}
-                    />
-                  ))}
-                </div>
+                <select
+                  value={backbox}
+                  onChange={e => {
+                    setBackbox(e.target.value);
+                    if (backboxError) setBackboxError('');
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    border: backboxError ? '1px solid red' : '1px solid #dee2e6', 
+                    borderRadius: '8px', 
+                    background: '#fff',
+                    fontSize: '14px',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                  }}
+                >
+                  <option value="">Select a backbox...</option>
+                  <option value="Backbox 1">Backbox 1</option>
+                  <option value="Backbox 2">Backbox 2</option>
+                  <option value="Backbox 3">Backbox 3</option>
+                  <option value="Backbox 4">Backbox 4</option>
+                  <option value="Backbox 5">Backbox 5</option>
+                </select>
+                {backboxError && <div style={{ color: 'red', fontSize: '12px', marginTop: '8px' }}>{backboxError}</div>}
               </div>
-              
-            </div>
-          </div>
 
-            {/* Icon Size Section */}
-            <div style={{ 
-              marginBottom: '28px',
-              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-              padding: '20px',
-              borderRadius: '10px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-              border: '1px solid #e9ecef'
-            }}>
-              <div style={{ 
-                fontWeight: '600', 
-                marginBottom: '16px', 
-                color: '#1a1f2c',
-                fontSize: '15px',
-                letterSpacing: '0.3px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
+          {/* Custom Panel Toggle */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: '20px', 
+            marginTop: '40px',
+            flexWrap: 'wrap'
+          }}>
+            <StyledButton
+              variant="contained"
+              onClick={handleAddToCart}
+              sx={{
+                backgroundColor: '#1a1f2c',
+                color: '#ffffff',
+                '&:hover': {
+                  backgroundColor: '#2c3e50',
+                },
+                padding: '12px 32px',
+                fontSize: '16px',
+                fontWeight: '600'
+              }}
+            >
+              {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+            </StyledButton>
+            
+            <div style={{ textAlign: 'center' }}>
+              {/* Custom Panel Description - Only visible when Create Custom Panel button is shown */}
+              {!showCustomPanelComponent && (
                 <div style={{
-                  width: '4px',
-                  height: '16px',
-                  background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                  borderRadius: '2px'
-                }} />
-                Icon Size
-              </div>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {['30px', '40px', '50px'].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
-                    style={{
-                      padding: '10px 16px',
-                      borderRadius: '8px',
-                      border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
-                      background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: panelDesign.iconSize === size ? '700' : '600',
-                      transition: 'all 0.2s ease',
-                      minWidth: '60px',
-                      textAlign: 'center',
-                      boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                      transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
-                    }}
-                  >
-                    {size.replace('px', '')}
-                  </button>
-                ))}
-              </div>
+                  color: '#000000',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold',
+                  marginTop: '30px',
+                  marginBottom: '8px',
+                  textAlign: 'center'
+                }}>
+                  Want different icons, icon sizes, font sizes, typography?
+                </div>
+              )}
+              
+              {/* Create Custom Panel Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (showCustomPanelComponent) {
+                    // Reset to default state when switching to standard panel
+                    setPanelDesign({
+                      ...panelDesign,
+                      fontSize: '9pt',
+                      iconSize: '14mm',
+                      fonts: 'Myriad Pro SemiBold SemiCondensed'
+                    });
+                    setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
+                    setExtraComments('');
+                  }
+                  setShowCustomPanelComponent(!showCustomPanelComponent);
+                }}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#1976d2',
+                  cursor: 'pointer',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold',
+                  marginTop: '-15px'
+                }}
+              >
+                {showCustomPanelComponent ? 'Design Standard Panel' : 'Create Custom Panel'}
+              </button>
             </div>
+          </Box>
+
           </div>
 
             {/* Right side - Panel Template */}
@@ -1707,92 +1694,508 @@ const X2VCustomizer: React.FC = () => {
         </div>
           </div>
         )}
-        {/* Step 4: Review Panel Details */}
-        {currentStep === 4 && (
-          <div style={{ pointerEvents: 'none', userSelect: 'none', cursor: 'default' }}>
-            {/* Information Box and Panel Template side by side */}
+
+        {/* Custom Panel Component - Separate Section */}
+        {showCustomPanelComponent && (
+          <div style={{ 
+            marginTop: '40px',
+            maxWidth: '1400px',
+            margin: '40px auto 0 auto',
+            padding: '0 40px'
+          }}>
             <div style={{ 
-              marginTop: "60px", 
-              marginBottom: "40px",
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'flex-start',
-              gap: '40px',
-              flexWrap: 'wrap'
+              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+              padding: '32px',
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+              border: '1px solid #e9ecef',
+              position: 'relative',
+              overflow: 'hidden'
             }}>
-              {/* Information Box */}
-              <div style={{ flex: '0 0 auto' }}>
-                <InformationBox
-                  backbox={backbox}
-                  setBackbox={v => {
-                    setBackbox(v);
-                    if (backboxError) setBackboxError('');
-                  }}
-                  backboxError={backboxError}
-                  extraComments={extraComments}
-                  setExtraComments={setExtraComments}
-                  panelDesign={panelDesign}
-                  placedIcons={placedIcons}
-                  ICON_COLOR_FILTERS={ICON_COLOR_FILTERS}
-                  ralColors={ralColors}
-                />
-              </div>
+              {/* Subtle background pattern */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, #007bff 0%, #0056b3 50%, #007bff 100%)',
+                borderRadius: '16px 16px 0 0'
+              }} />
               
-              {/* Panel Template */}
-              <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-                <div
-                  style={{
-                    position: 'relative',
-                    width: '320px',
-                    height: dimensions.height, // use config
-                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    padding: '0',
-                    border: '2px solid rgba(255, 255, 255, 0.2)',
-                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    transition: 'all 0.3s ease',
-                    margin: '0 auto',
-                    fontFamily: panelDesign.fonts || undefined,
-                    }}
-                >
+              <h3 style={{
+                margin: '0 0 28px 0',
+                fontSize: '22px',
+                fontWeight: '600',
+                color: '#1a1f2c',
+                textAlign: 'center',
+                letterSpacing: '0.5px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>
+                Custom Panel Options
+              </h3>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '24px'
+              }}>
+                {/* Font Size Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
                   <div style={{ 
-                    position: 'absolute',
-                    top: '2px',
-                    left: '2px',
-                    right: '2px',
-                    bottom: '2px',
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                    pointerEvents: 'none',
-                      zIndex: 1,
-                  }} />
-                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-                    {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
-                    </div>
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #007bff 0%, #0056b3 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Font Size
                   </div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    {['7pt', '9pt', '12pt'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, fontSize: size })}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          border: panelDesign.fontSize === size ? '2px solid #007bff' : '2px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: panelDesign.fontSize === size ? '#007bff' : '#fff',
+                          color: panelDesign.fontSize === size ? '#fff' : '#1a1f2c',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0,123,255,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (panelDesign.fontSize !== size) {
+                            e.currentTarget.style.borderColor = '#007bff';
+                            e.currentTarget.style.background = '#f8f9ff';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (panelDesign.fontSize !== size) {
+                            e.currentTarget.style.borderColor = '#dee2e6';
+                            e.currentTarget.style.background = '#fff';
+                          }
+                        }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 
-                {/* Add to Project Button positioned under the panel template */}
-                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }} style={{ pointerEvents: 'auto' }}>
-            <StyledButton
-              variant="contained"
-              onClick={handleAddToCart}
-              sx={{
-                backgroundColor: '#1a1f2c',
-                color: '#ffffff',
-                '&:hover': {
-                  backgroundColor: '#2c3e50',
-                },
-              }}
-            >
-                    {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
-            </StyledButton>
-        </Box>
+                {/* Icon Size Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #007bff 0%, #0056b3 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Icon Size
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    {['10mm', '14mm'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, iconSize: size })}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          border: panelDesign.iconSize === size ? '2px solid #007bff' : '2px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: panelDesign.iconSize === size ? '#007bff' : '#fff',
+                          color: panelDesign.iconSize === size ? '#fff' : '#1a1f2c',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0,123,255,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (panelDesign.iconSize !== size) {
+                            e.currentTarget.style.borderColor = '#007bff';
+                            e.currentTarget.style.background = '#f8f9ff';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (panelDesign.iconSize !== size) {
+                            e.currentTarget.style.borderColor = '#dee2e6';
+                            e.currentTarget.style.background = '#fff';
+                          }
+                        }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Custom Icon Upload Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #007bff 0%, #007bff 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Custom Icon Upload
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        console.log('Custom icon uploaded:', file.name);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      background: '#fff',
+                      cursor: 'pointer',
+                      borderColor: '#007bff'
+                    }}
+                  />
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#6c757d', 
+                    marginTop: '8px',
+                    fontStyle: 'italic'
+                  }}>
+                    Supported: PNG, JPG, SVG (Max: 2MB)
+                  </div>
+                </div>
+                
+                {/* Sample Template Design Reference Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #ff9800 0%, #f57c00 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Sample Template Design Reference
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        console.log('Sample template uploaded:', file.name);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      background: '#fff',
+                      cursor: 'pointer',
+                      borderColor: '#ff9800'
+                    }}
+                  />
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#6c757d', 
+                    marginTop: '8px',
+                    fontStyle: 'italic'
+                  }}>
+                    Supported: PNG, JPG, SVG, PDF, DOC, DOCX (Max: 5MB)
+                  </div>
+                </div>
+                
+                {/* Font/Typography Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #9c27b0 0%, #673ab7 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Typography
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Search Google Fonts..."
+                      value={fontSearchTerm}
+                      onChange={(e) => setFontSearchTerm(e.target.value)}
+                      onFocus={() => setFontSearchFocused(true)}
+                      onBlur={() => setTimeout(() => setFontSearchFocused(false), 200)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        background: '#fff',
+                        borderColor: '#9c27b0'
+                      }}
+                    />
+                    {fontSearchFocused && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: '#fff',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 1000,
+                        maxHeight: '300px',
+                        overflowY: 'auto'
+                      }}>
+                        {fontSearchTerm ? (
+                          // Show filtered results when searching
+                          <>
+                            {googleFonts
+                              .filter(font => font.toLowerCase().includes(fontSearchTerm.toLowerCase()))
+                              .slice(0, 20)
+                              .map((font) => (
+                                <div
+                                  key={font}
+                                  onClick={() => {
+                                    setPanelDesign({ ...panelDesign, fonts: font });
+                                    setFontSearchTerm(font);
+                                    loadGoogleFont(font);
+                                  }}
+                                  style={{
+                                    padding: '10px 12px',
+                                    cursor: 'pointer',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    fontFamily: font,
+                                    fontSize: '14px',
+                                    transition: 'background-color 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f8f9ff';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#fff';
+                                  }}
+                                >
+                                  {font}
+                                </div>
+                              ))}
+                            {googleFonts.filter(font => font.toLowerCase().includes(fontSearchTerm.toLowerCase())).length > 20 && (
+                              <div style={{
+                                padding: '8px 12px',
+                                fontSize: '12px',
+                                color: '#6c757d',
+                                fontStyle: 'italic',
+                                textAlign: 'center',
+                                borderTop: '1px solid #f0f0f0'
+                              }}>
+                                Showing first 20 results. Type more to narrow search.
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          // Show all fonts when not searching
+                          <>
+                            <div style={{
+                              padding: '8px 12px',
+                              fontSize: '12px',
+                              color: '#6c757d',
+                              fontStyle: 'italic',
+                              textAlign: 'center',
+                              borderBottom: '1px solid #f0f0f0',
+                              backgroundColor: '#f8f9fa'
+                            }}>
+                              Browse all available fonts ({googleFonts.length} total)
+                            </div>
+                            {googleFonts.map((font) => (
+                              <div
+                                key={font}
+                                onClick={() => {
+                                  setPanelDesign({ ...panelDesign, fonts: font });
+                                  setFontSearchTerm(font);
+                                  loadGoogleFont(font);
+                                }}
+                                style={{
+                                  padding: '10px 12px',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid #f0f0f0',
+                                  fontFamily: font,
+                                  fontSize: '14px',
+                                  transition: 'background-color 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#f8f9ff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#fff';
+                                }}
+                              >
+                                {font}
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {panelDesign.fonts && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      background: '#f8f9ff',
+                      border: '1px solid #9c27b0',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#9c27b0',
+                      fontFamily: panelDesign.fonts
+                    }}>
+                      Selected: {panelDesign.fonts}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Comments Section */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #28a745 0%, #20c997 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Additional Comments
+                  </div>
+                  <textarea
+                    value={extraComments}
+                    onChange={(e) => setExtraComments(e.target.value)}
+                    placeholder="Describe your custom panel requirements..."
+                    style={{
+                      width: '100%',
+                      minHeight: '80px',
+                      padding: '12px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      resize: 'vertical',
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      borderColor: '#28a745'
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
         )}
+
       </Container>
       <QuantityDialog
         open={qtyOpen}

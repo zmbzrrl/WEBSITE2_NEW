@@ -55,10 +55,13 @@ const QuantityDialog: React.FC<QuantityDialogProps> = ({ open, category, remaini
 
   return (
     <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
-      <DialogTitle>Select quantity</DialogTitle>
+      <DialogTitle>Allocate BOQ Quantity</DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-          Category: {category} {typeof remaining === 'number' ? `(Remaining: ${remaining})` : '(Unlimited)'}
+          How much of the BOQ's input quantity does this design represent?
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary', fontSize: '0.875rem' }}>
+          Category: {category} {typeof remaining === 'number' ? `(Available: ${remaining})` : '(Unlimited)'}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
           <IconButton aria-label="decrease" onClick={() => adjust(-1)} disabled={value <= min} size="small">
@@ -80,7 +83,7 @@ const QuantityDialog: React.FC<QuantityDialogProps> = ({ open, category, remaini
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel} color="inherit">Cancel</Button>
-        <Button onClick={handleConfirm} variant="contained">Confirm</Button>
+        <Button onClick={handleConfirm} variant="contained">Allocate Quantity</Button>
       </DialogActions>
     </Dialog>
   );

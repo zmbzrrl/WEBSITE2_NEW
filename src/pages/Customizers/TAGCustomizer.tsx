@@ -1,4 +1,4 @@
-git// Import necessary libraries and components
+// Import necessary libraries and components
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
@@ -28,6 +28,7 @@ import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
 import LED from "../../assets/LED.png";
 import DISPLAY from "../../assets/icons/DISPLAY.png";
+import QuantityDialog from '../../components/QuantityDialog';
 // Load TAG panel preview images
 interface ImageModule { default: string }
 const tagPanelModules: Record<string, ImageModule> = import.meta.glob(
@@ -528,6 +529,15 @@ const TAGCustomizer: React.FC = () => {
   const [fontsLoading, setFontsLoading] = useState(false);
   const [useCustomFont, setUseCustomFont] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Quantity dialog state
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
+  const [pendingDesign, setPendingDesign] = useState<any | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('TAG');
+  
+
+
   // Function to determine icon color based on background
   const getIconColorFilter = (backgroundColor: string): string => {
     // Convert hex to RGB for brightness calculation
@@ -549,7 +559,7 @@ const TAGCustomizer: React.FC = () => {
     }
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Drag restriction preview state
@@ -715,7 +725,7 @@ const TAGCustomizer: React.FC = () => {
     throw new Error("CartContext must be used within a CartProvider");
   }
 
-  const { addToCart, updatePanel, loadProjectPanels } = cartContext;
+  const { addToCart, updatePanel, loadProjectPanels, projPanels } = cartContext;
 
   useEffect(() => {
     if (iconCategories.length > 0) {
@@ -859,12 +869,60 @@ const TAGCustomizer: React.FC = () => {
       
       navigate('/cart', { state: preservedState }); // Go back to cart after updating
     } else {
-      // Add new panel
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
+
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+        if (!boqQuantities) return undefined;
+        if (cat === 'EXT') {
+          const keys = ['X1H','X1V','X2H','X2V'] as const;
+          const total = keys
+            .map(k => (boqQuantities as any)[k] as number | undefined)
+            .filter((v): v is number => typeof v === 'number')
+            .reduce((a,b)=>a+b,0);
+          return total;
+        }
+        const cap = (boqQuantities as any)[cat];
+        return typeof cap === 'number' ? cap : undefined;
+      };
+
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          alert(`You have reached the BOQ limit for ${category}.`);
+          return;
+        }
+        setPendingDesign(design);
+        setPendingCategory(category);
+        setQtyRemaining(remaining);
+        setQtyOpen(true);
+        return;
+      }
+
       addToCart(design);
     }
   };
 
+  const handleQtyConfirm = (qty: number) => {
+    if (!pendingDesign) return;
+    const finalDesign = { ...pendingDesign, quantity: qty };
+    addToCart(finalDesign);
+    setPendingDesign(null);
+    setQtyOpen(false);
+  };
 
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+    if (t === 'SP') return 'SP';
+    if (t === 'TAG') return 'TAG';
+    if (t === 'IDPG') return 'IDPG';
+    if (t === 'DPH' || t === 'DPV') return 'DP';
+    if (t.startsWith('X')) return 'EXT';
+    return 'SP';
+  };
 
   // Filter icons by selected category
   const categoryIcons = Object.entries(icons)
@@ -1287,37 +1345,37 @@ const TAGCustomizer: React.FC = () => {
                         return null;
                     }
                                           } else {
-                        // No icon - show icon indicator only on Step 2
-                        if (currentStep === 2) {
-                          return (
-                            <div
-                              title="Add icon"
-                              style={{
-                                width: '36px',
-                                height: '36px',
-                                margin: '0 auto',
-                                border: '1px dashed #cbd5e1',
-                                borderRadius: '50%',
-                                color: '#94a3b8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '18px',
-                                lineHeight: 1,
-                                opacity: 0.7,
-                                transition: 'opacity 0.2s ease-in-out',
-                                cursor: 'pointer'
-                              }}
-                              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
-                            >
-                              +
-                            </div>
-                          );
-                        } else {
-                          // No icon and not Step 2 - show nothing
-                          return null;
-                        }
+                                                  // No icon - show icon indicator only on Step 2
+                          if (currentStep === 2) {
+                            return (
+                              <div
+                                title="Add icon"
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  margin: '0 auto',
+                                  border: '1px dashed #cbd5e1',
+                                  borderRadius: '50%',
+                                  color: '#94a3b8',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '18px',
+                                  lineHeight: 1,
+                                  opacity: 0.7,
+                                  transition: 'opacity 0.2s ease-in-out',
+                                  cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
+                              >
+                                +
+                              </div>
+                            );
+                          } else {
+                            // No icon and not Step 2 - show nothing
+                            return null;
+                          }
                       }
                   })()
                 )}
@@ -2713,6 +2771,13 @@ const TAGCustomizer: React.FC = () => {
         {/* Custom Panel Dialog */}
 
       </Container>
+      <QuantityDialog
+        open={qtyOpen}
+        category={pendingCategory}
+        remaining={qtyRemaining}
+        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
+        onConfirm={handleQtyConfirm}
+      />
     </Box>
   );
 };
