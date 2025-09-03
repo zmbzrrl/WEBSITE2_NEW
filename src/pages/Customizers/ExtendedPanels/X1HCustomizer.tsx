@@ -532,6 +532,7 @@ const X1VCustomizer: React.FC = () => {
   
   // Custom panel component state
   const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
+  const [showCustomPanelDialog, setShowCustomPanelDialog] = useState(false);
   const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
   const [fontSearchFocused, setFontSearchFocused] = useState(false);
   
@@ -1709,7 +1710,11 @@ const X1VCustomizer: React.FC = () => {
                     setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
                     setExtraComments('');
                   }
-                  setShowCustomPanelComponent(!showCustomPanelComponent);
+                                            if (showCustomPanelComponent) {
+                            setShowCustomPanelComponent(false);
+                          } else {
+                            setShowCustomPanelDialog(true);
+                          }
                 }}
                 style={{
                   padding: '10px 16px',
@@ -2233,6 +2238,134 @@ const X1VCustomizer: React.FC = () => {
         onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
         onConfirm={handleQtyConfirm}
       />
+      
+      {/* Custom Panel Approval Dialog */}
+      <Dialog
+        open={showCustomPanelDialog}
+        onClose={() => setShowCustomPanelDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          textAlign: 'center',
+          fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+          fontWeight: 600,
+          fontSize: '1.2rem',
+          color: '#1a1f2c',
+          pb: 1
+        }}>
+          Custom Panel Design Request
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            gap: 2,
+            py: 2
+          }}>
+            <Box sx={{
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #0056b3 0%, #007bff 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 1
+            }}>
+              <Typography sx={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}>
+                ⚡
+              </Typography>
+            </Box>
+            
+            <Typography sx={{
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              fontSize: '16px',
+              color: '#2c3e50',
+              textAlign: 'center',
+              lineHeight: 1.6,
+              mb: 1
+            }}>
+              Custom panel designs require special approval from our design team to ensure quality and feasibility.
+            </Typography>
+            
+            <Typography sx={{
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              fontSize: '14px',
+              color: '#5a6c7d',
+              textAlign: 'center',
+              lineHeight: 1.5
+            }}>
+              Unlike standard panels that generate instant proposals, custom designs undergo a comprehensive review process to ensure they meet our quality standards and technical specifications.
+            </Typography>
+            
+            <Box sx={{
+              background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid #e9ecef',
+              width: '100%',
+              mt: 1
+            }}>
+              <Typography sx={{
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#1a1f2c',
+                textAlign: 'center',
+                mb: 1
+              }}>
+                ⏱️ Processing Time: 3-5 Business Days
+              </Typography>
+              <Typography sx={{
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                fontSize: '13px',
+                color: '#5a6c7d',
+                textAlign: 'center'
+              }}>
+                Our design team will review your requirements and provide a detailed proposal with pricing and specifications.
+              </Typography>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3, px: 3 }}>
+          <Button 
+            onClick={() => setShowCustomPanelDialog(false)}
+            variant="outlined"
+            sx={{
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              textTransform: 'none',
+              px: 3,
+              py: 1,
+              mr: 1,
+              borderColor: '#dee2e6',
+              color: '#5a6c7d'
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              setShowCustomPanelDialog(false);
+              setShowCustomPanelComponent(true);
+            }}
+            variant="contained"
+            sx={{
+              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+              textTransform: 'none',
+              px: 3,
+              py: 1,
+              background: 'linear-gradient(135deg, #0056b3 0%, #007bff 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #004494 0%, #0066cc 100%)'
+              }
+            }}
+          >
+            Proceed with Custom Design
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

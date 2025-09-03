@@ -584,9 +584,9 @@ const MyDesigns: React.FC = () => {
           sessionStorage.setItem('ppServicePartner', projectDetails.servicePartner || '');
         } catch {}
         
-        // Navigate to BOQ first for selecting allowed panel categories
+        // Navigate to panel type selector - BOQ will be handled if needed
         setAllowedPanelTypes([]);
-        navigate('/boq');
+        navigate('/panel-type');
       } else {
         console.error('Failed to submit project details:', result.error);
         // Still navigate even if email fails
@@ -603,7 +603,7 @@ const MyDesigns: React.FC = () => {
           sessionStorage.setItem('ppServicePartner', projectDetails.servicePartner || '');
         } catch {}
         setAllowedPanelTypes([]);
-        navigate('/boq');
+        navigate('/panel-type');
       }
     } catch (error) {
       console.error('Error submitting project details:', error);
@@ -621,7 +621,7 @@ const MyDesigns: React.FC = () => {
         sessionStorage.setItem('ppServicePartner', projectDetails.servicePartner || '');
       } catch {}
       setAllowedPanelTypes([]);
-      navigate('/boq');
+      navigate('/panel-type');
     }
   };
   

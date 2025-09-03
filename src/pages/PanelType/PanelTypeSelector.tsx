@@ -268,13 +268,14 @@ const PanelTypeSelector = () => {
       // Allow bypass if we're adding to an existing project (edit flow)
       const isAddingToExistingProject = location.state?.isAddingToExistingProject;
       if (!isAddingToExistingProject && !isComingFromBOQ) {
-        // Only redirect to BOQ if this is a new project (not edit mode)
-        if (!isEditMode) {
+        // Only redirect to BOQ if this is a new project (not edit mode) AND we have project details
+        // This prevents redirect on page refresh when user is already in the middle of designing
+        if (!isEditMode && (projectName || projectCode)) {
           navigate('/boq', { replace: true });
         }
       }
     }
-  }, [allowedPanelTypes, navigate, location.state, isEditMode]);
+  }, [allowedPanelTypes, navigate, location.state, isEditMode, projectName, projectCode]);
 
   // When bypassing BOQ (adding to an existing project or new revision), derive allowed panel types
   // from existing BOQ quantities so we still gate/filter correctly.
