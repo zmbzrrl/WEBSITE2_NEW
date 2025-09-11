@@ -1,0 +1,146 @@
+{
+  "import_metadata": {
+    "version": "2.0",
+    "created_at": "2024-01-15T10:00:00Z",
+    "description": "New hierarchy: Property → User Groups → Users → Projects → Designs",
+    "total_properties": 0,
+    "total_user_groups": 0,
+    "total_users": 0,
+    "total_projects": 0,
+    "total_designs": 0
+  },
+  "properties": [
+    {
+      "region": "Dubai",
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "region": "London", 
+      "property_name": "Hilton London Tower Bridge"
+    }
+  ],
+  "user_groups": [
+    {
+      "ug": "UG001",
+      "prop_id": "property_1", // Reference to property (will be resolved during import)
+      "property_name": "Marriott Palm Jumeirah" // Helper field for reference
+    },
+    {
+      "ug": "UG002", 
+      "prop_id": "property_1",
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "ug": "UG001",
+      "prop_id": "property_2", 
+      "property_name": "Hilton London Tower Bridge"
+    }
+  ],
+  "users": [
+    {
+      "email": "admin@marriott.com",
+      "ug_id": "UG001", // References the 'ug' field directly
+      "ug": "UG001", // Helper field
+      "property_name": "Marriott Palm Jumeirah" // Helper field
+    },
+    {
+      "email": "manager@marriott.com",
+      "ug_id": "UG002",
+      "ug": "UG002",
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "email": "admin@hilton.com", 
+      "ug_id": "UG001",
+      "ug": "UG001",
+      "property_name": "Hilton London Tower Bridge"
+    }
+  ],
+  "projects": [
+    {
+      "user_email": "admin@marriott.com",
+      "project_name": "Palm Jumeirah Lobby Lighting",
+      "project_description": "Main lobby lighting control system",
+      "designs": [
+        {
+          "design_name": "Lobby SP Panel",
+          "panel_type": "SP",
+          "design_data": {
+            "panelType": "SP",
+            "backgroundColor": "#FFFFFF",
+            "iconColor": "#1b92d1",
+            "textColor": "#333333",
+            "iconSize": "40px",
+            "icons": [
+              {
+                "iconId": "B-1",
+                "label": "Light Control",
+                "position": 1,
+                "text": "LIGHTS",
+                "color": "#1b92d1"
+              },
+              {
+                "iconId": "B-2",
+                "label": "Temperature", 
+                "position": 2,
+                "text": "TEMP",
+                "color": "#ff6b35"
+              }
+            ],
+            "layout": {
+              "rows": 2,
+              "columns": 2,
+              "spacing": "10px"
+            }
+          },
+          "panel_configurations": [
+            {
+              "panel_index": 1,
+              "room_type": "Lobby",
+              "panel_data": {
+                "roomName": "Main Lobby",
+                "panelPosition": "Entrance Wall",
+                "customSettings": {
+                  "brightness": 80,
+                  "autoDim": true
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "user_email": "admin@hilton.com",
+      "project_name": "Tower Bridge Guest Rooms",
+      "project_description": "Guest room lighting automation",
+      "designs": [
+        {
+          "design_name": "Guest Room IDPG Panel",
+          "panel_type": "IDPG",
+          "design_data": {
+            "panelType": "IDPG",
+            "backgroundColor": "#F5F5F5",
+            "iconColor": "#333333",
+            "textColor": "#000000",
+            "iconSize": "35px",
+            "icons": [
+              {
+                "iconId": "G-1",
+                "label": "Guest Services",
+                "position": 1,
+                "text": "SERVICE",
+                "color": "#333333"
+              }
+            ],
+            "layout": {
+              "rows": 1,
+              "columns": 1,
+              "spacing": "5px"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

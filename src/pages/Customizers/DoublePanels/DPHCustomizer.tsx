@@ -13,6 +13,10 @@ import {
   useTheme,
   TextField,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
@@ -377,7 +381,7 @@ const InformationBox = ({
                   width: 20, 
                   height: 20, 
                   borderRadius: 1.5, 
-                  background: panelDesign.iconColor,
+                  background: 'auto',
                   border: '2px solid #dee2e6',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }} />
@@ -605,6 +609,27 @@ const DPHCustomizer: React.FC = () => {
     '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
+  // Function to determine icon color based on background
+  const getIconColorFilter = (backgroundColor: string): string => {
+    // Convert hex to RGB for brightness calculation
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate brightness (0-255)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // Use white for dark backgrounds, dark grey for light backgrounds
+    if (brightness < 128) {
+      // Dark background - use white icons
+      return 'brightness(0) saturate(100%) invert(1)';
+    } else {
+      // Light background - use dark grey icons
+      return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
+    }
+  };
+
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
@@ -1011,7 +1036,7 @@ const DPHCustomizer: React.FC = () => {
                   zIndex: 1,
                 marginTop: isPIR ? '5px' : '0',
                 cursor: 'move',
-                  filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                  filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                   transition: 'filter 0.2s',
                 }}
               />

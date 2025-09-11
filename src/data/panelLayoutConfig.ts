@@ -90,18 +90,18 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         width: '95mm',
         height: '130mm',
         iconPositions: [
-          { top: '23px', left: '33px' },   // Icon 0 (top-left)
-          { top: '23px', left: '136px' },  // Icon 1 (top-center)
-          { top: '23px', left: '233px' },  // Icon 2 (top-right)
-          { top: '123px', left: '33px' },  // Icon 3 (middle-left)
-          { top: '123px', left: '136px' }, // Icon 4 (middle-center)
-          { top: '123px', left: '233px' }, // Icon 5 (middle-right)
-          { top: '218px', left: '33px' },  // Icon 6 (bottom-left)
-          { top: '218px', left: '136px' }, // Icon 7 (bottom-center)
-          { top: '218px', left: '233px' }, // Icon 8 (bottom-right)
-          { top: '313px', left: '33px' },  // Icon 9 (bottom-extra-left)
-          { top: '313px', left: '136px' }, // Icon 10 (bottom-extra-center)
-          { top: '313px', left: '233px' }, // Icon 11 (bottom-extra-right)
+          { top: '23px', left: '28px' },   // Icon 0 (top-left)
+          { top: '23px', left: '131px' },  // Icon 1 (top-center)
+          { top: '23px', left: '228px' },  // Icon 2 (top-right)
+          { top: '123px', left: '28px' },  // Icon 3 (middle-left)
+          { top: '123px', left: '131px' }, // Icon 4 (middle-center)
+          { top: '123px', left: '228px' }, // Icon 5 (middle-right)
+          { top: '218px', left: '28px' },  // Icon 6 (bottom-left)
+          { top: '218px', left: '131px' }, // Icon 7 (bottom-center)
+          { top: '218px', left: '228px' }, // Icon 8 (bottom-right)
+          { top: '313px', left: '28px' },  // Icon 9 (bottom-extra-left)
+          { top: '313px', left: '131px' }, // Icon 10 (bottom-extra-center)
+          { top: '313px', left: '228px' }, // Icon 11 (bottom-extra-right)
         ]
       }
     },
@@ -134,7 +134,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         marginTop: '20px'
       },
       Bathroom: {
-        iconSize: '50px' // 40px + 10px
+        iconSize: '47px' // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
       }
     }
   },
@@ -223,7 +223,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         marginTop: '20px'
       },
       Bathroom: {
-        iconSize: '50px'
+        iconSize: '47px' // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
       }
     }
   },

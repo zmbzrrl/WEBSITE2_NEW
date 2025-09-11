@@ -91,6 +91,9 @@ interface PanelPreviewProps {
     spConfig?: {
       dimension: 'standard' | 'wide' | 'tall';
     };
+    tagConfig?: {
+      dimension: 'standard' | 'wide' | 'tall';
+    };
   };
   iconTexts?: { [key: number]: string };
   type?: string;
@@ -168,7 +171,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     }
   }
   
-  // For SP panels, calculate dimensions based on configuration
+  // Calculate grid offsets for SP and TAG panels
+  let gridOffsetX = 0;
+  let gridOffsetY = 0;
+  
+  // For SP panels, calculate dimensions and grid offsets based on configuration
   if (isSP && panelDesign.spConfig) {
     const { dimension } = panelDesign.spConfig;
     if (config.dimensionConfigs && config.dimensionConfigs[dimension]) {
@@ -176,7 +183,28 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         width: config.dimensionConfigs[dimension].width,
         height: config.dimensionConfigs[dimension].height
       };
+      // Also update the icon positions for the selected dimension
+      dimensionIconPositions = config.dimensionConfigs[dimension].iconPositions;
     }
+    // Apply the same grid offsets as the customizer
+    gridOffsetX = dimension === 'wide' ? 40 : (dimension === 'standard' ? 20 : (dimension === 'tall' ? 25 : 0));
+    gridOffsetY = dimension === 'tall' ? 58 : 15;
+  }
+  
+  // For TAG panels, calculate dimensions and grid offsets based on configuration
+  if (isTAG && panelDesign.tagConfig) {
+    const { dimension } = panelDesign.tagConfig;
+    if (config.dimensionConfigs && config.dimensionConfigs[dimension]) {
+      dimensions = {
+        width: config.dimensionConfigs[dimension].width,
+        height: config.dimensionConfigs[dimension].height
+      };
+      // Also update the icon positions for the selected dimension
+      dimensionIconPositions = config.dimensionConfigs[dimension].iconPositions;
+    }
+    // Apply the same grid offsets as the customizer
+    gridOffsetX = dimension === 'wide' ? 40 : (dimension === 'standard' ? 20 : (dimension === 'tall' ? 25 : 0));
+    gridOffsetY = dimension === 'tall' ? 58 : 15;
   }
   const isDoublePanel = isDPH || isDPV;
   const isExtendedPanel = isX2V || isX1H || isX1V || isX2H;
@@ -193,7 +221,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
     const isSingleIconSlot = (isX1H || isX1V) && icon.position === 9;
     const isX2SingleIconSlot = (isX2H || isX2V) && (icon.position === 9 || icon.position === 10);
     
-    // Special handling for TAG panel
+    // Special handling for TAG panel - use special sizes for DISPLAY and FAN icons
     if (isTAG) {
       if (icon?.iconId === 'DISPLAY') {
         return '240px'; // Large display icon
@@ -204,6 +232,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         if (icon.position === 7) return '58px';
         if (icon.position === 8) return '65px';
       }
+      return panelDesign.iconSize || iconLayout?.size || '40px';
     }
     
     // Special handling for IDPG panel - use the iconSize from panelDesign
@@ -215,7 +244,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
       return specialLayouts?.PIR?.iconSize || '40px';
     }
     if (isBathroom) {
-      return specialLayouts?.Bathroom?.iconSize || `${parseInt(iconLayout?.size || '40px') + 10}px`;
+      return specialLayouts?.Bathroom?.iconSize || '47px';
     }
     
     // Return larger size for single icon slots
@@ -256,7 +285,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         style={{
           position: 'relative',
           width: isDPH ? '640px' : dimensions.width,
-          height: isTAG ? (parseInt(dimensions.height) - 5) + 'px' : dimensions.height,
+          height: dimensions.height,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
           padding: '0',
           border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -409,42 +438,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                     />
               )}
               
-              {/* Special rendering for TAG panel permanent icons */}
-              {isTAG && index === 4 && (
-                <img
-                  src="/src/assets/icons/DISPLAY.png"
-                  alt="DISPLAY"
-                  style={{
-                    width: '240px',
-                    height: '80px',
-                    objectFit: 'contain',
-                    position: 'absolute',
-                    left: '-115px',
-                    top: '-70px',
-                    zIndex: 3,
-                    filter: computedIconFilter,
-                    transition: 'filter 0.2s',
-                  }}
-                />
-              )}
-              
-              {/* Always show FAN icons in third row for TAG */}
-              {isTAG && index >= 6 && index <= 8 && (
-                <img
-                  src="/src/assets/icons/FAN.png"
-                  alt="FAN"
-                  style={{
-                    width: index === 6 ? '45px' : index === 7 ? '58px' : '65px',
-                    height: index === 6 ? '45px' : index === 7 ? '58px' : '65px',
-                    objectFit: 'contain',
-                    position: 'absolute',
-                    top: index === 6 ? '-65px' : index === 7 ? '-69px' : '-75px',
-                    zIndex: 3,
-                    filter: computedIconFilter,
-                    transition: 'filter 0.2s',
-                  }}
-                />
-              )}
+
                   {!isPIR && text && (
                     <div
                       style={{
@@ -1234,152 +1228,173 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   };
 
   // Render different panel layouts based on type
-  if (isSP) {
-    // Single Panel - Horizontal layout
+    if (isSP || isTAG) {
+    // SP and TAG Panels - Use absolute positioning like customizers
     return (
       <div
         style={{
           ...basePanelStyle,
           width: dimensions.width,
           height: dimensions.height,
-          display: 'flex',
-          flexDirection: 'row',
-          gap: 0,
         }}
       >
         <div style={innerGlowStyle} />
-        {renderGrid()}
-      </div>
-    );
-  }
-
-  if (isTAG) {
-    // Robust lookup for DISPLAY and FAN icons
-    const getIconSrc = (key: string) => {
-      return (
-        (allIcons as any)[key]?.src ||
-        (allIcons as any)[key.toUpperCase()]?.src ||
-        (allIcons as any)[key.toLowerCase()]?.src ||
-        ''
-      );
-    };
-    const displayIcon = {
-      src: getIconSrc('DISPLAY'),
-      label: 'DISPLAY',
-      iconId: 'DISPLAY',
-      category: 'TAG',
-    };
-    const fanIcon = {
-      src: getIconSrc('FAN'),
-      label: 'FAN',
-      iconId: 'FAN',
-      category: 'TAG',
-    };
-    return (
-      <div
-        style={{
-          position: 'relative',
-          width: dimensions.width,
-          height: dimensions.height,
-          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-          padding: '0',
-          border: '2px solid rgba(255, 255, 255, 0.2)',
-          borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-          borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-          boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          transition: 'all 0.3s ease',
-          margin: '0 auto',
-          fontFamily: panelDesign.fonts || undefined,
-        }}
-      >
-        <div style={{
-            position: 'absolute',
-            top: '2px',
-            left: '2px',
-            right: '2px',
-            bottom: '2px',
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-            pointerEvents: 'none',
-            zIndex: 1,
-        }} />
-        {iconPositions?.map((pos, index) => {
-          let icon = icons.find((i) => i.position === index);
-          let forceIcon = null;
-          // Cell 4: always DISPLAY
-          if (index === 4) forceIcon = displayIcon;
-          // Cells 6,7,8: always FAN
-          if (index === 6 || index === 7 || index === 8) forceIcon = fanIcon;
+        
+        {/* TAG DISPLAY overlay */}
+        {isTAG && (
+          <img
+            src={(allIcons as any).DISPLAY?.src || '/src/assets/icons/DISPLAY.png'}
+            alt="DISPLAY"
+            style={{
+              position: 'absolute',
+              top: '90px',
+              left: '45%',
+              transform: 'translateX(-50%)',
+              width: '220px',
+              height: '50px',
+              objectFit: 'contain',
+              filter: computedIconFilter,
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          />
+        )}
+        
+        <div style={{ 
+          position: 'relative', 
+          zIndex: 2, 
+          width: '100%', 
+          height: '100%', 
+          transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` 
+        }}>
+          {(dimensionIconPositions || iconPositions).map((pos, index) => {
+            let icon = icons.find((i) => i.position === index);
+            let forceIcon = null;
+            
+            // TAG panel special handling - force specific icons in specific positions
+            if (isTAG) {
+              // Cell 4: always DISPLAY
+              if (index === 4) {
+                forceIcon = {
+                  src: (allIcons as any).DISPLAY?.src || '/src/assets/icons/DISPLAY.png',
+                  label: 'DISPLAY',
+                  iconId: 'DISPLAY',
+                  category: 'TAG',
+                };
+              }
+              // Cells 6,7,8: always FAN
+              if (index === 6 || index === 7 || index === 8) {
+                forceIcon = {
+                  src: (allIcons as any).FAN?.src || '/src/assets/icons/FAN.png',
+                  label: 'FAN',
+                  iconId: 'FAN',
+                  category: 'TAG',
+                };
+              }
+            }
+            
             const isPIR = icon?.category === 'PIR';
             const text = (iconTexts && iconTexts[index]) || icon?.text;
-          const hasIcon = (icon && icon.src) || forceIcon;
-          const iconSize = getIconSize(icon);
-          const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
-          const adjustedFontSize = text ? calculateFontSize(text, parseInt(dimensions.width) / 3, baseFontSize) : baseFontSize;
+            const hasIcon = (icon && icon.src) || forceIcon;
+            const iconSize = getIconSize(forceIcon || icon);
+            const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
+            const adjustedFontSize = text ? calculateFontSize(text, parseInt(dimensions.width) / 6, baseFontSize) : baseFontSize;
+            
+            // Apply per-row offsets for SP and TAG panels (same as customizers)
+            let adjustedPos = pos;
+            if (isSP || isTAG) {
+              const baseTop = parseInt((pos as any).top || '0', 10);
+              const rowIndex = Math.floor(index / 3);
+              
+              // Apply per-row offsets based on dimension
+              let perRowOffset = 0;
+              if (isSP && panelDesign.spConfig) {
+                const { dimension } = panelDesign.spConfig;
+                if (dimension === 'tall') {
+                  perRowOffset = (rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0);
+                }
+                // Move rows 2 and 3 down by 10px
+                const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 10 : 0;
+                perRowOffset += lowerRowsOffset;
+              }
+              
+              if (isTAG && panelDesign.tagConfig) {
+                const { dimension } = panelDesign.tagConfig;
+                if (dimension === 'tall') {
+                  perRowOffset = (rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0);
+                }
+                // Lower rows 2 and 3 by 30px
+                const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
+                perRowOffset += lowerRowsOffset;
+              }
+              
+              adjustedPos = { ...pos, top: (baseTop + perRowOffset) + 'px' };
+            }
+            
             return (
               <div
                 key={index}
                 style={{
-                position: 'absolute',
-                ...pos,
-                width: pos.width || iconSize,
-                height: pos.height || iconSize,
+                  position: 'absolute',
+                  ...adjustedPos,
+                  width: iconSize,
+                  height: iconSize,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: hasIcon ? 'flex-start' : 'center',
-                zIndex: 2,
+                  zIndex: 2,
                 }}
               >
-              {forceIcon ? (
-                    <img
-                  src={forceIcon.src || '/src/assets/icons/DISPLAY.png'}
-                  alt={forceIcon.label}
-                      style={{
-                    width: iconLayout?.size || '35px',
-                    height: iconLayout?.size || '35px',
-                        objectFit: 'contain',
-                    marginBottom: iconLayout?.spacing || '5px',
-                    filter: ICON_COLOR_FILTERS[panelDesign.iconColor] || undefined,
-                        transition: 'filter 0.2s',
-                      }}
-                    />
-              ) : hasIcon && (
-                    <img
-                      src={icon?.src || ''}
-                      alt={icon?.label || ''}
-                      style={{
-                    width: iconSize,
-                    height: iconSize,
-                        objectFit: 'contain',
-                    marginBottom: iconLayout?.spacing || '5px',
-                    marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                        filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
-                        transition: 'filter 0.2s',
-                      }}
-                    />
-              )}
-                  {!isPIR && text && (
-                    <div
-                      style={{
-                    fontSize: adjustedFontSize,
-                        color: panelDesign.textColor || '#000000',
-                        wordBreak: 'break-word',
-                        maxWidth: '100%',
-                        textAlign: 'center',
-                    padding: textLayout?.padding || '4px',
-                        borderRadius: '4px',
-                        fontFamily: panelDesign.fonts || undefined,
-                    whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {text}
-                    </div>
-                  )}
+                {forceIcon ? (
+                  <img
+                    src={forceIcon.src}
+                    alt={forceIcon.label}
+                    style={{
+                      width: iconSize,
+                      height: iconSize,
+                      objectFit: 'contain',
+                      marginBottom: iconLayout?.spacing || '5px',
+                      filter: computedIconFilter,
+                      transition: 'filter 0.2s',
+                    }}
+                  />
+                ) : hasIcon && (
+                  <img
+                    src={icon.src}
+                    alt={icon.label}
+                    style={{
+                      width: iconSize,
+                      height: iconSize,
+                      objectFit: 'contain',
+                      marginBottom: iconLayout?.spacing || '5px',
+                      marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
+                      filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
+                      transition: 'filter 0.2s',
+                    }}
+                  />
+                )}
+                {!isPIR && text && (
+                  <div
+                    style={{
+                      fontSize: adjustedFontSize,
+                      color: panelDesign.textColor || '#000000',
+                      wordBreak: 'break-word',
+                      maxWidth: '100%',
+                      textAlign: 'center',
+                      padding: textLayout?.padding || '4px',
+                      borderRadius: '4px',
+                      fontFamily: panelDesign.fonts || undefined,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {text}
+                  </div>
+                )}
               </div>
             );
           })}
+        </div>
       </div>
     );
   }

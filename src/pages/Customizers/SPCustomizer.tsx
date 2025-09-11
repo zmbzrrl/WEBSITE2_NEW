@@ -677,6 +677,12 @@ const SPCustomizer: React.FC = () => {
         setPanelDesign(panelDesignData);
         setBackbox(panelDesignData.backbox || '');
         setExtraComments(panelDesignData.extraComments || '');
+        
+        // Load dimension configuration if present
+        if (panelDesignData.spConfig && panelDesignData.spConfig.dimension) {
+          console.log('📏 Loading dimension config:', panelDesignData.spConfig.dimension);
+          setDimensionKey(panelDesignData.spConfig.dimension);
+        }
       } else {
         console.log('⚠️ No panel design data found');
       }
@@ -821,7 +827,7 @@ const SPCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign } = {
+    const design: Design & { panelDesign: typeof panelDesign & { spConfig?: { dimension: string } } } = {
       type: "SP",
       icons: Array.from({ length: 9 })
         .map((_, index) => {
@@ -837,7 +843,7 @@ const SPCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { ...panelDesign, backbox, extraComments, spConfig: { dimension: dimensionKey } },
     };
 
     if (isEditMode) {
@@ -1224,8 +1230,8 @@ const SPCustomizer: React.FC = () => {
               onDragStart={(e) => handleDragStart(e, icon)}
               onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',

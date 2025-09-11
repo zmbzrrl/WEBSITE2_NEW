@@ -222,7 +222,8 @@ const InformationBox = ({
   panelDesign,
   placedIcons,
   ICON_COLOR_FILTERS,
-  ralColors
+  ralColors,
+  currentStep
 }: {
   backbox: string;
   setBackbox: (v: string) => void;
@@ -233,6 +234,7 @@ const InformationBox = ({
   placedIcons: any[];
   ICON_COLOR_FILTERS: { [key: string]: string };
   ralColors: any[];
+  currentStep: number;
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
   const iconColorName = Object.keys(ICON_COLOR_FILTERS).find(color => color === panelDesign.iconColor);
@@ -553,7 +555,7 @@ const X2HCustomizer: React.FC = () => {
     plasticColor: '',
     textColor: '#000000',
     fontSize: '12px',
-    iconSize: '40px',
+    iconSize: '14mm',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -563,6 +565,13 @@ const X2HCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Icon size conversion function (mm to px)
+  const convertIconSize = (size: string): string => {
+    if (size === '14mm') return '47px'; // 14mm = 47px (95mm panel = 320px, so 14mm = 47px)
+    if (size === '10mm') return '34px'; // 10mm = 34px (95mm panel = 320px, so 10mm = 34px)
+    return size; // Return as-is if already in px or other format
+  };
   
   // PIR helpers (toggle-controlled motion sensor)
   const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
@@ -997,11 +1006,11 @@ const X2HCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = panelDesign.iconSize || '40px';
+    const iconSize = convertIconSize(panelDesign.iconSize || '14mm');
     const pos = iconPositions[index] || { top: '0px', left: '0px' };
     
     // Calculate container size to match icon size
-    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : ((index === 9 || index === 10) ? '204px' : panelDesign.iconSize || '40px'));
+    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : ((index === 9 || index === 10) ? '204px' : convertIconSize(panelDesign.iconSize || '14mm')));
     
     return (
         <div
@@ -1685,7 +1694,7 @@ const X2HCustomizer: React.FC = () => {
                 Icon Size
               </div>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {['30px', '40px', '50px'].map((size) => (
+                {['10mm', '14mm'].map((size) => (
                   <button
                     key={size}
                     onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
@@ -1777,6 +1786,7 @@ const X2HCustomizer: React.FC = () => {
                   placedIcons={placedIcons}
                   ICON_COLOR_FILTERS={ICON_COLOR_FILTERS}
                   ralColors={ralColors}
+                  currentStep={currentStep}
                 />
               </div>
               

@@ -212,7 +212,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
       return specialLayouts?.PIR?.iconSize || '40px';
     }
     if (isBathroom) {
-      return specialLayouts?.Bathroom?.iconSize || `${parseInt(iconLayout?.size || '40px') + 10}px`;
+      return specialLayouts?.Bathroom?.iconSize || '47px';
     }
     
     // Return larger size for single icon slots

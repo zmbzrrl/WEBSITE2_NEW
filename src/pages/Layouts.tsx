@@ -6,7 +6,7 @@ import { Add, Save, Upload } from '@mui/icons-material';
 import PanelPreview from "../components/PanelPreview";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from '../App';
-import PDFExportButton from "../components/PDFExportButton";
+import { saveLayout, getUserHierarchy, getLayouts, loadLayout, createProperty, updateLayout, deleteLayout as deleteLayoutApi, createRevision, getAccessibleProperties } from "../utils/newDatabase";
 
 const THEME = {
   primary: '#1b92d1',
@@ -118,6 +118,57 @@ const Layouts: React.FC = () => {
   const [currentLayoutId, setCurrentLayoutId] = useState<string>('1');
   const canvasRef = useRef<HTMLDivElement>(null);
   const { projectName, projectCode } = useContext(ProjectContext);
+  
+  // Save layout state
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string>('');
+  const [saveError, setSaveError] = useState<string>('');
+  
+  // Load layout state
+  const [isLoading, setIsLoading] = useState(false);
+  const [savedLayouts, setSavedLayouts] = useState<any[]>([]);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  
+  // Create property state
+  const [showCreatePropertyDialog, setShowCreatePropertyDialog] = useState(false);
+  const [newProperty, setNewProperty] = useState({
+    projectCode: '',
+    propertyName: '',
+    region: ''
+  });
+
+  // Property access/selection state
+  const [accessibleProperties, setAccessibleProperties] = useState<Array<{ prop_id: string; property_name: string; region: string }>>([]);
+  const [selectedPropId, setSelectedPropId] = useState<string>('');
+
+  // Load accessible properties on mount
+  useEffect(() => {
+    const init = async () => {
+      const userEmail = localStorage.getItem('userEmail');
+      if (!userEmail) return;
+      const res = await getAccessibleProperties(userEmail);
+      if (res.success) {
+        setAccessibleProperties(res.properties || []);
+        if ((res.properties || []).length > 0) {
+          setSelectedPropId((res.properties as any[])[0].prop_id);
+        }
+      }
+    };
+    init();
+  }, []);
+  
+
+  // Clear save messages after 5 seconds
+  useEffect(() => {
+    if (saveMessage || saveError) {
+      const timer = setTimeout(() => {
+        setSaveMessage('');
+        setSaveError('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveMessage, saveError]);
+
 
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -391,6 +442,286 @@ const Layouts: React.FC = () => {
         ? { ...layout, name: newName }
         : layout
     ));
+  };
+
+  // Save layout function
+  const handleSaveLayout = async () => {
+    // Check if user is logged in
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveError('Please log in first to save layouts.');
+      return;
+    }
+    if (!selectedPropId) {
+      setSaveError('Please select a property first.');
+      return;
+    }
+
+    // Get current layout data
+    const currentLayout = getCurrentLayout();
+    
+    // Validate that we have something to save
+    if (currentLayout.placedPanels.length === 0 && currentLayout.placedDevices.length === 0) {
+      setSaveError('Please add at least one panel or device to the layout before saving.');
+      return;
+    }
+
+    // Validate layout name
+    if (!currentLayout.name || currentLayout.name.trim() === '') {
+      setSaveError('Please enter a room type/name for the layout before saving.');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError('');
+    setSaveMessage('');
+
+    try {
+      // Prepare layout data for saving
+      const layoutData = {
+        layoutName: currentLayout.name.trim(),
+          imageUrl: currentLayout.imageUrl,
+          imageScale: currentLayout.imageScale,
+          imagePosition: currentLayout.imagePosition,
+          imageFit: currentLayout.imageFit,
+          placedPanels: currentLayout.placedPanels.map(panel => ({
+            ...panel,
+            panelSize: panelSizes[panel.id] || 40 // Include custom panel sizes
+          })),
+          placedDevices: currentLayout.placedDevices.map(device => ({
+            ...device,
+            deviceSize: deviceSizes[device.id] || 24 // Include custom device sizes
+          })),
+          panelSizes: panelSizes,
+          deviceSizes: deviceSizes,
+          // Include project context
+          projectName: projectName || 'Untitled Project',
+          projectCode: projectCode || '',
+          location: sessionStorage.getItem('ppLocation') || '',
+          operator: sessionStorage.getItem('ppOperator') || '',
+          servicePartner: sessionStorage.getItem('ppServicePartner') || '',
+          createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString(),
+        // Add layout-specific metadata
+        totalPanels: currentLayout.placedPanels.length,
+        totalDevices: currentLayout.placedDevices.length,
+        hasImage: !!currentLayout.imageUrl
+      };
+
+      // Save to new database system
+      const result = await saveLayout(userEmail, layoutData, selectedPropId);
+      
+      if (result.success) {
+        setSaveMessage(`Layout "${currentLayout.name}" saved successfully!`);
+        // Clear error if any
+        setSaveError('');
+      } else {
+        setSaveError(result.message || 'Failed to save layout');
+      }
+    } catch (error) {
+      console.error('Error saving layout:', error);
+      setSaveError('An unexpected error occurred while saving the layout. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Load layout functions
+  const handleLoadLayouts = async () => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveError('Please log in first to load layouts.');
+      return;
+    }
+    if (!selectedPropId) {
+      setSaveError('Please select a property first.');
+      return;
+    }
+
+    setIsLoading(true);
+    setSaveError('');
+
+    try {
+      const result = await getLayouts(userEmail, selectedPropId);
+      
+      if (result.success) {
+        setSavedLayouts(result.layouts || []);
+        setShowLoadDialog(true);
+      } else {
+        setSaveError(result.message || 'Failed to load layouts');
+      }
+    } catch (error) {
+      console.error('Error loading layouts:', error);
+      setSaveError('An unexpected error occurred while loading layouts.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadSavedLayout = async (layoutId: string) => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveError('Please log in first to load layouts.');
+      return;
+    }
+    if (!selectedPropId) {
+      setSaveError('Please select a property first.');
+      return;
+    }
+
+    try {
+      const result = await loadLayout(layoutId, userEmail, selectedPropId);
+      
+      if (result.success && result.layout) {
+        const layoutData = result.layout.layout_data;
+        
+        // Update the current layout with loaded data
+        setLayouts(prevLayouts => 
+          prevLayouts.map(layout => 
+            layout.id === currentLayoutId 
+              ? {
+                  ...layout,
+                  name: layoutData.layoutName,
+                  imageUrl: layoutData.imageUrl,
+                  imageScale: layoutData.imageScale,
+                  imagePosition: layoutData.imagePosition,
+                  imageFit: layoutData.imageFit,
+                  placedPanels: layoutData.placedPanels || [],
+                  placedDevices: layoutData.placedDevices || []
+                }
+              : layout
+          )
+        );
+
+        // Update panel and device sizes
+        if (layoutData.panelSizes) {
+          setPanelSizes(layoutData.panelSizes);
+        }
+        if (layoutData.deviceSizes) {
+          setDeviceSizes(layoutData.deviceSizes);
+        }
+
+        setShowLoadDialog(false);
+        setSaveMessage(`Layout "${result.layout.layout_name}" loaded successfully!`);
+      } else {
+        setSaveError(result.message || 'Failed to load layout');
+      }
+    } catch (error) {
+      console.error('Error loading layout:', error);
+      setSaveError('An unexpected error occurred while loading the layout.');
+    }
+  };
+
+  // Create property function
+  const handleCreateProperty = async () => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveError('Please log in first to create properties.');
+      return;
+    }
+
+    // Validate project code format (REGION-NUMBER-NUMBER)
+    const projectCodeRegex = /^[A-Z]{2}-\d{4}-\d{4}$/;
+    if (!projectCodeRegex.test(newProperty.projectCode)) {
+      setSaveError('Project code must be in format: REGION-NUMBER-NUMBER (e.g., AE-4020-5678)');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      const result = await createProperty(userEmail, newProperty);
+      
+      if (result.success) {
+        setSaveMessage(`Property "${newProperty.propertyName}" created successfully!`);
+        setShowCreatePropertyDialog(false);
+        setNewProperty({ projectCode: '', propertyName: '', region: '' });
+      } else {
+        setSaveError(result.message || 'Failed to create property');
+      }
+    } catch (error) {
+      console.error('Error creating property:', error);
+      setSaveError('An unexpected error occurred while creating the property.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Layout actions (rename/edit, delete, new revision)
+  const handleRenameLayout = async (layoutId: string, currentName: string) => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveError('Please log in first.');
+      return;
+    }
+    const newName = window.prompt('Rename layout', currentName)?.trim();
+    if (!newName || newName === currentName) return;
+    setIsSaving(true);
+    try {
+      const res = await updateLayout(layoutId, userEmail, { layout_name: newName });
+      if (!res.success) {
+        setSaveError(res.message || 'Failed to rename layout');
+      } else {
+        setSaveMessage('Layout renamed');
+        // refresh list
+        await handleLoadLayouts();
+      }
+    } catch (e) {
+      setSaveError('Unexpected error while renaming');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteLayout = async (layoutId: string, layoutName: string) => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveError('Please log in first.');
+      return;
+    }
+    const ok = window.confirm(`Delete layout "${layoutName}"? This cannot be undone.`);
+    if (!ok) return;
+    setIsSaving(true);
+    try {
+      const res = await deleteLayoutApi(layoutId, userEmail);
+      if (!res.success) {
+        setSaveError(res.message || 'Failed to delete layout');
+      } else {
+        setSaveMessage('Layout deleted');
+        await handleLoadLayouts();
+      }
+    } catch (e) {
+      setSaveError('Unexpected error while deleting');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCreateRevision = async (layoutId: string, layoutName: string) => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      setSaveError('Please log in first.');
+      return;
+    }
+    if (!selectedPropId) {
+      setSaveError('Please select a property first.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await createRevision(layoutId, userEmail, selectedPropId);
+      if (!res.success) {
+        setSaveError(res.message || 'Failed to create revision');
+      } else {
+        setSaveMessage('Revision created');
+        await handleLoadLayouts();
+      }
+    } catch (e) {
+      setSaveError('Unexpected error while creating revision');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Device management functions
@@ -1366,40 +1697,413 @@ const Layouts: React.FC = () => {
             Back to Panels
           </button>
           <button
-            onClick={() => {
-              // Save layout functionality
-              alert('Layout saved successfully!');
-            }}
+            onClick={handleSaveLayout}
+            disabled={isSaving}
             style={{
               padding: '12px 24px',
-              background: THEME.primary,
+              background: isSaving ? THEME.secondary : THEME.primary,
               color: '#fff',
               border: 'none',
               borderRadius: THEME.buttonRadius,
               fontSize: 16,
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: isSaving ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s',
               display: 'flex',
               alignItems: 'center',
-              gap: 8
+              gap: 8,
+              opacity: isSaving ? 0.7 : 1
             }}
           >
             <Save fontSize="small" />
-            Save Layout
+            {isSaving ? 'Saving...' : 'Save Layout'}
           </button>
-          <PDFExportButton
-            roomData={getCurrentLayout().placedPanels.map(panel => ({
-              roomType: panel.roomType,
-              panels: [panel],
-              placedPanels: getCurrentLayout().placedPanels,
-              placedDevices: getCurrentLayout().placedDevices || [],
-              layoutImage: getCurrentLayout().imageUrl || undefined
-            }))}
-            layoutElementRef={canvasRef}
-            disabled={!getCurrentLayout().imageUrl}
-          />
+          
+          {/* Load Layout Button */}
+          <button
+            onClick={handleLoadLayouts}
+            disabled={isLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              backgroundColor: THEME.secondary,
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+              gap: 8,
+              opacity: isLoading ? 0.7 : 1
+            }}
+          >
+            <Upload fontSize="small" />
+            {isLoading ? 'Loading...' : 'Load Layout'}
+          </button>
+          
+          {/* Create Property Button */}
+          <button 
+            onClick={() => setShowCreatePropertyDialog(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500
+            }}
+          >
+            <Add fontSize="small" />
+            Create Property
+          </button>
         </div>
+
+
+        {/* Save Status Messages */}
+        {(saveMessage || saveError) && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: '20px'
+          }}>
+            <div style={{
+              padding: '12px 20px',
+              borderRadius: THEME.buttonRadius,
+              fontSize: 14,
+              fontWeight: 500,
+              maxWidth: '400px',
+              textAlign: 'center',
+              background: saveMessage ? '#d4edda' : '#f8d7da',
+              color: saveMessage ? '#155724' : '#721c24',
+              border: `1px solid ${saveMessage ? '#c3e6cb' : '#f5c6cb'}`
+            }}>
+              {saveMessage || saveError}
+            </div>
+          </div>
+        )}
+
+        {/* Load Layout Dialog */}
+        {showLoadDialog && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: 8,
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+            }}>
+              <h3 style={{
+                margin: '0 0 20px 0',
+                fontSize: 18,
+                fontWeight: 600,
+                color: '#333'
+              }}>
+                Load Saved Layout
+              </h3>
+              
+              {savedLayouts.length === 0 ? (
+                <p style={{
+                  textAlign: 'center',
+                  color: '#666',
+                  fontStyle: 'italic',
+                  margin: '40px 0'
+                }}>
+                  No saved layouts found. Save a layout first to load it later.
+                </p>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gap: '12px',
+                  maxHeight: '400px',
+                  overflow: 'auto'
+                }}>
+                  {savedLayouts.map((layout) => (
+                    <div
+                      key={layout.id}
+                      onClick={() => loadSavedLayout(layout.id)}
+                      style={{
+                        padding: '16px',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        backgroundColor: '#fafafa'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                        e.currentTarget.style.borderColor = THEME.primary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#fafafa';
+                        e.currentTarget.style.borderColor = '#e0e0e0';
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '8px'
+                      }}>
+                        <h4 style={{
+                          margin: 0,
+                          fontSize: 16,
+                          fontWeight: 600,
+                          color: '#333'
+                        }}>
+                          {layout.layout_name}
+                        </h4>
+                        <span style={{
+                          fontSize: 12,
+                          color: '#666',
+                          backgroundColor: '#f0f0f0',
+                          padding: '2px 8px',
+                          borderRadius: 12
+                        }}>
+                          {new Date(layout.created_at).toLocaleDateString()}
+                        </span>
+      </div>
+
+                      <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                        Owner: {layout.user_email}
+                      </div>
+                      
+                      <div style={{
+                        fontSize: 14,
+                        color: '#666',
+                        marginBottom: '12px'
+                      }}>
+                        {layout.layout_data?.totalPanels || 0} panels, {layout.layout_data?.totalDevices || 0} devices
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); loadSavedLayout(layout.id); }}
+                          style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleCreateRevision(layout.id, layout.layout_name); }}
+                          style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
+                        >
+                          New Revision
+                        </button>
+                        {(() => {
+                          const currentEmail = localStorage.getItem('userEmail');
+                          const isOwner = currentEmail && currentEmail === layout.user_email;
+                          if (!isOwner) return null;
+                          return (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRenameLayout(layout.id, layout.layout_name); }}
+                                style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteLayout(layout.id, layout.layout_name); }}
+                                style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', color: '#b00020' }}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                marginTop: '20px',
+                gap: '12px'
+              }}>
+                <button
+                  onClick={() => setShowLoadDialog(false)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f5f5f5',
+                    color: '#666',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontSize: 14
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Property Selector */}
+        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 14, color: '#555' }}>Property:</span>
+            <select
+              value={selectedPropId}
+              onChange={(e) => setSelectedPropId(e.target.value)}
+              style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4 }}
+            >
+              {accessibleProperties.map((p) => (
+                <option key={p.prop_id} value={p.prop_id}>
+                  {p.property_name} — {p.region} ({p.prop_id})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Create Property Dialog */}
+        {showCreatePropertyDialog && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: 8,
+              padding: '24px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+            }}>
+              <h3 style={{
+                margin: '0 0 20px 0',
+                fontSize: 18,
+                fontWeight: 600,
+                color: '#333'
+              }}>
+                Create New Property
+              </h3>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                  Project Code (REGION-NUMBER-NUMBER):
+                </label>
+                <input
+                  type="text"
+                  value={newProperty.projectCode}
+                  onChange={(e) => setNewProperty({...newProperty, projectCode: e.target.value.toUpperCase()})}
+                  placeholder="AE-4020-5678"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    fontSize: 14
+                  }}
+                />
+                <div style={{ fontSize: 12, color: '#666', marginTop: '4px' }}>
+                  Format: 2 letters, 4 numbers, 4 numbers (e.g., AE-4020-5678)
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                  Property Name:
+                </label>
+                <input
+                  type="text"
+                  value={newProperty.propertyName}
+                  onChange={(e) => setNewProperty({...newProperty, propertyName: e.target.value})}
+                  placeholder="Marriott Palm Jumeirah"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    fontSize: 14
+                  }}
+                />
+              </div>
+              
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                  Region:
+                </label>
+                <input
+                  type="text"
+                  value={newProperty.region}
+                  onChange={(e) => setNewProperty({...newProperty, region: e.target.value})}
+                  placeholder="Dubai"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    fontSize: 14
+                  }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  onClick={() => setShowCreatePropertyDialog(false)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f5f5f5',
+                    color: '#666',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontSize: 14
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateProperty}
+                  disabled={isSaving || !newProperty.projectCode || !newProperty.propertyName || !newProperty.region}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: isSaving ? '#ccc' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    fontSize: 14
+                  }}
+                >
+                  {isSaving ? 'Creating...' : 'Create Property'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

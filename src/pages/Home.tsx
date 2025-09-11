@@ -694,9 +694,8 @@ const Home = () => {
     // Save email to localStorage
     localStorage.setItem('userEmail', projectDetails.email);
     
-    // Move to options step
-    setCurrentStep('options');
-    setShowError(false);
+    // Immediately route to Properties page after login
+    navigate('/properties');
   };
 
   // ===== HANDLE START DESIGNING =====

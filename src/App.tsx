@@ -51,6 +51,7 @@ import MyDesigns from "./pages/MyDesigns";                             // My Des
 import PrintPreview from "./pages/PrintPreview";                       // Print Preview page
 import DatabaseTest from "./pages/DatabaseTest";                       // Database test page
 import AdminDashboard from "./pages/AdminDashboard";                    // Admin dashboard
+import Properties from "./pages/Properties";
 import { isAdminEmail } from "./utils/admin";
 
 // Component imports
@@ -207,6 +208,9 @@ const AppRoutes = () => { // defines all the different pages/URLs
         
         {/* Home page - the main landing page */}
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+
+        {/* Properties landing page after login */}
+        <Route path="/properties" element={<PageTransition><Properties /></PageTransition>} />
         
         {/* BOQ page - Bill of Quantities */}
         <Route path="/boq" element={<PageTransition><BOQ /></PageTransition>} />
@@ -235,7 +239,7 @@ const AppRoutes = () => { // defines all the different pages/URLs
         <Route path="/layouts" element={<PageTransition><Layouts /></PageTransition>} />
         
         {/* My Designs page */}
-        <Route path="/my-designs" element={<PageTransition><MyDesigns /></PageTransition>} />
+        {/* <Route path="/my-designs" element={<PageTransition><MyDesigns /></PageTransition>} /> */}
         
         {/* Print Preview page */}
         <Route path="/print-preview" element={<PageTransition><PrintPreview /></PageTransition>} />

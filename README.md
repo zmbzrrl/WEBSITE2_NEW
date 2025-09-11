@@ -6,8 +6,51 @@ A React application built with Vite and TypeScript.
 
 ```bash
 npm install
+# run frontend
 npm run dev
+# run backend (in another terminal)
+npm run server
 ```
+
+Backend runs at `http://localhost:5001` by default. Health check at `GET /health`.
+
+### Environment Variables
+Create a `.env` file in the project root for the backend server with:
+
+```
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+EMAIL_API_KEY=your_sendgrid_api_key
+EMAIL_FROM=no-reply@example.com
+PORT=5001
+```
+
+- `SUPABASE_SERVICE_KEY` should be the service role key (keep it server-side only).
+- `EMAIL_API_KEY` is used with SendGrid SMTP via Nodemailer.
+
+### Endpoints
+- `GET /health` → `{ ok: true, time: ... }`
+- `POST /notify` JSON body `{ to, subject, text }` → sends an email using Nodemailer.
+
+### Testing from the UI
+A small button “Send Test Email” was added to the `AdminDashboard`. It calls the backend `POST /notify` with test data.
+
+## Deployment
+
+### Frontend (Netlify)
+The existing instructions below still apply for deploying the static frontend.
+
+### Backend (Render or Railway)
+You can deploy the `server/` directory as a Node service.
+
+- Start command: `node server/index.js`
+- Environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `EMAIL_API_KEY`, `EMAIL_FROM`, `PORT` (Render/Railway usually set their own `PORT`)
+- Make sure to allow the deployed backend URL in CORS if you later restrict it
+
+After deploy, update your frontend to call that backend URL (currently the helper defaults to `http://localhost:5001`). You can pass a different base URL to the client helper if needed.
+
+### Vercel (Serverless alternative)
+Optionally convert `server/index.js` routes into API functions under `api/` if deploying to Vercel. For now this project uses a simple Express server which is best suited to Render/Railway/Fly.io.
 
 ## Deployment to Netlify
 

@@ -13,6 +13,10 @@ import {
   useTheme,
   TextField,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
@@ -977,7 +981,7 @@ const X2VCustomizer: React.FC = () => {
     const pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     
     // Calculate container size to match icon size
-    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : ((index === 9 || index === 10) ? '240px' : panelDesign.iconSize || '40px'));
+    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : ((index === 9 || index === 10) ? '240px' : panelDesign.iconSize || '40px'));
     
     return (
         <div
@@ -1008,8 +1012,8 @@ const X2VCustomizer: React.FC = () => {
                 draggable={currentStep !== 4}
                 onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : ((index === 9 || index === 10) ? '240px' : panelDesign.iconSize || '40px')),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '40px') + 10}px` : ((index === 9 || index === 10) ? '240px' : panelDesign.iconSize || '40px')),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : ((index === 9 || index === 10) ? '240px' : panelDesign.iconSize || '40px')),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : ((index === 9 || index === 10) ? '240px' : panelDesign.iconSize || '40px')),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',

@@ -16,7 +16,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     detectSessionInUrl: false
   },
   db: {
-    schema: 'api'
+    schema: 'public'
   }
 });
 
@@ -26,9 +26,8 @@ export const testSupabaseConnection = async () => {
     console.log('🔌 Testing shared Supabase connection...');
     
     const { data, error } = await supabase
-      .from('user_projects')
-      .select('count')
-      .limit(1);
+      .from('users')
+      .select('email', { count: 'exact', head: true });
 
     if (error) {
       console.error('❌ Shared connection failed:', error);

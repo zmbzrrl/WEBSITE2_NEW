@@ -355,7 +355,7 @@ const DoublePanelSelector = () => {
                         className="panel-image"
                         style={{
                           ...(panel.name === 'Vertical Double Panel'
-                            ? { height: 180, maxHeight: 180 }
+                            ? { height: 234, maxHeight: 234 }
                             : { maxHeight: 220 }),
                           width: '100%',
                           objectFit: 'contain',

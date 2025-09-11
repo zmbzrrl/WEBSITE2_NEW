@@ -13,6 +13,10 @@ import {
   useTheme,
   TextField,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
@@ -429,7 +433,30 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Backbox Details *
             </Typography>
-            {/* Backbox and Comments fields are now part of InformationBox */}
+            <select
+              value={backbox}
+              onChange={e => {
+                setBackbox(e.target.value);
+                if (backboxError) setBackboxError('');
+              }}
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                border: backboxError ? '1px solid red' : '1px solid #dee2e6', 
+                borderRadius: '8px', 
+                background: '#fff',
+                fontSize: '14px',
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+              }}
+            >
+              <option value="">Select a backbox...</option>
+              <option value="Backbox 1">Backbox 1</option>
+              <option value="Backbox 2">Backbox 2</option>
+              <option value="Backbox 3">Backbox 3</option>
+              <option value="Backbox 4">Backbox 4</option>
+              <option value="Backbox 5">Backbox 5</option>
+            </select>
+            {backboxError && <div style={{ color: 'red', fontSize: '12px', marginTop: '8px' }}>{backboxError}</div>}
           </Box>
           <Box sx={{ 
             background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
@@ -442,7 +469,12 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Comments
             </Typography>
-            {/* Backbox and Comments fields are now part of InformationBox */}
+            <textarea
+              value={extraComments}
+              onChange={e => setExtraComments(e.target.value)}
+              placeholder="Enter any additional comments..."
+              style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+            />
           </Box>
         </Box>
       </Box>
@@ -556,6 +588,27 @@ const DPVCustomizer: React.FC = () => {
     '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
+  // Function to determine icon color based on background
+  const getIconColorFilter = (backgroundColor: string): string => {
+    // Convert hex to RGB for brightness calculation
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate brightness (0-255)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // Use white for dark backgrounds, dark grey for light backgrounds
+    if (brightness < 128) {
+      // Dark background - use white icons
+      return 'brightness(0) saturate(100%) invert(1)';
+    } else {
+      // Light background - use dark grey icons
+      return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
+    }
+  };
+
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
@@ -967,7 +1020,7 @@ const DPVCustomizer: React.FC = () => {
                   zIndex: 1,
                 marginTop: isPIR ? '5px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
-                  filter: !isPIR ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                  filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                   transition: 'filter 0.2s',
                 }}
               />

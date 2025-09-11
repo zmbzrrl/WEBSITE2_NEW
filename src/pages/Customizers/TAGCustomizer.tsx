@@ -684,6 +684,12 @@ const TAGCustomizer: React.FC = () => {
         setPanelDesign(panelDesignData);
         setBackbox(panelDesignData.backbox || '');
         setExtraComments(panelDesignData.extraComments || '');
+        
+        // Load dimension configuration if present
+        if (panelDesignData.tagConfig && panelDesignData.tagConfig.dimension) {
+          console.log('📏 Loading dimension config:', panelDesignData.tagConfig.dimension);
+          setDimensionKey(panelDesignData.tagConfig.dimension);
+        }
       } else {
         console.log('⚠️ No panel design data found');
       }
@@ -828,7 +834,7 @@ const TAGCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign } = {
+    const design: Design & { panelDesign: typeof panelDesign & { tagConfig?: { dimension: string } } } = {
       type: "TAG",
       icons: Array.from({ length: 9 })
         .map((_, index) => {
@@ -844,7 +850,7 @@ const TAGCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { ...panelDesign, backbox, extraComments, tagConfig: { dimension: dimensionKey } },
     };
 
     if (isEditMode) {
@@ -1227,8 +1233,8 @@ const TAGCustomizer: React.FC = () => {
               onDragStart={(e) => handleDragStart(e, icon)}
               onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? `${parseInt(panelDesign.iconSize || '47px') + 10}px` : panelDesign.iconSize || '47px'),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
