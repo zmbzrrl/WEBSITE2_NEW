@@ -8,6 +8,8 @@ import PanelConfigurationSummary from "../components/PanelConfigurationSummary";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from "../App";
 import { saveDesign, getDesigns, updateDesign } from "../utils/database";
+import { saveLayout, updateLayout, loadLayout } from "../utils/newDatabase";
+import { listPropertyRevisions } from "../utils/newDatabase";
 import { navigateToPrintPreviewMultiple } from "../utils/printUtils";
 
 const THEME = {
@@ -62,7 +64,7 @@ const ProjPanels: React.FC = () => {
   const { projPanels, updateQuantity, removeFromCart, reorderPanels, updatePanel, currentProjectCode, loadProjectPanels } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const { projectName, setProjectName, projectCode, setProjectCode, location: projectLocation, operator, boqQuantities } = useContext(ProjectContext);
+  const { projectName, setProjectName, projectCode, setProjectCode, location: projectLocation, operator } = useContext(ProjectContext);
   const { setLocation, setOperator, setServicePartner } = useContext(ProjectContext) as any;
   
   // State for panel number editing
@@ -89,10 +91,16 @@ const ProjPanels: React.FC = () => {
   // Handle edit mode when component loads
   useEffect(() => {
     console.log('🔍 ProjPanels useEffect - location.state:', location.state);
+    // If session indicates edit mode, ensure view mode is off so interactions are enabled
+    try {
+      const sessIsEditFlag = sessionStorage.getItem('ppIsEditMode') === 'true';
+      if (sessIsEditFlag) setIsViewMode(false);
+    } catch {}
     
     if (location.state?.editMode && location.state?.projectData) {
       console.log('✅ Setting EDIT MODE');
       setIsEditMode(true);
+      setIsViewMode(false);
       setEditingDesignId(location.state.designId);
       
       // Extract base project name without revision suffix
@@ -172,6 +180,7 @@ const ProjPanels: React.FC = () => {
       console.log('  projectCreateNewRevision:', location.state.projectCreateNewRevision);
       // Restore edit state when returning from customizer
       setIsEditMode(location.state.projectEditMode);
+      if (location.state.projectEditMode) setIsViewMode(false);
       setEditingDesignId(location.state.projectDesignId);
       setOriginalProjectName(location.state.projectOriginalName);
       setIsCreateNewRevision(location.state.projectCreateNewRevision);
@@ -192,65 +201,62 @@ const ProjPanels: React.FC = () => {
             return;
           }
           
-          console.log('🔍 Attempting to reload panels from database');
+          console.log('🔍 Attempting to reload panels from database (property-aware)');
           console.log('  projectDesignId:', location.state.projectDesignId);
-          
-          const result = await getDesigns(userEmail);
-          if (result.success && 'designs' in result) {
-            console.log('  Found designs:', result.designs?.length || 0);
-            const design = result.designs?.find((d: any) => d.id === location.state.projectDesignId);
-            console.log('  Found design:', design ? 'yes' : 'no');
-            
-            if (design && design.designData?.designData?.panels) {
-              console.log('🔍 Reloading panels from database after customizer return');
-              console.log('  Panels found:', design.designData.designData.panels.length);
-              const deepCopiedPanels = design.designData.designData.panels.map((panel: any) => 
-                JSON.parse(JSON.stringify(panel))
-              );
+          const propId = projectCode || (() => { try { return sessionStorage.getItem('ppProjectCode') || ''; } catch { return ''; } })();
+          // Only reload if cart is empty to avoid overwriting unsaved in-memory edits
+          if (propId && (!projPanels || projPanels.length === 0)) {
+            const lr = await loadLayout(location.state.projectDesignId, userEmail, propId);
+            if ((lr as any).success) {
+              const layout = (lr as any).layout;
+              const data = (layout?.data) || {};
+              if (data.panels && Array.isArray(data.panels)) {
+                const deepCopiedPanels = data.panels.map((p: any) => JSON.parse(JSON.stringify(p)));
               loadProjectPanels(deepCopiedPanels);
-            } else {
-              console.log('❌ No panels found in design data');
-              console.log('  design.designData:', design?.designData);
-              console.log('  design.designData?.designData:', design?.designData?.designData);
             }
-          } else {
-            console.log('❌ Failed to get designs from database');
+              if (layout?.name) setProjectName(layout.name);
           }
-        } catch (error) {
-          console.error('Error reloading panels:', error);
+          }
+        } catch (e) {
+          console.log('❌ Error reloading panels:', e);
         }
       };
-      
       reloadPanelsFromDatabase();
     } else {
-      // No navigation state available; try restoring persisted context
-      try {
-        const sName = sessionStorage.getItem('ppProjectName') || '';
-        const sEditId = sessionStorage.getItem('ppEditingDesignId') || '';
-        const sIsNewRev = sessionStorage.getItem('ppIsCreateNewRevision') === 'true';
-        const sIsEditMode = sessionStorage.getItem('ppIsEditMode') === 'true';
-        const sProjectCode = sessionStorage.getItem('ppProjectCode') || '';
-        const sLocation = sessionStorage.getItem('ppLocation') || '';
-        const sOperator = sessionStorage.getItem('ppOperator') || '';
-        const sServicePartner = sessionStorage.getItem('ppServicePartner') || '';
-        
-        if (sName) {
-          setOriginalProjectName(sName);
-          if (!projectName) setProjectName(sName);
-        }
-        if (sProjectCode && setProjectCode) setProjectCode(sProjectCode);
-        if (sLocation && setLocation) setLocation(sLocation);
-        if (sOperator && setOperator) setOperator(sOperator);
-        if (sServicePartner && setServicePartner) setServicePartner(sServicePartner);
-        if (sEditId) setEditingDesignId(sEditId);
-        if (sIsNewRev) setIsCreateNewRevision(true);
-        if (sIsEditMode) {
-          console.log('✅ Restoring edit mode from sessionStorage');
+      // Fallback: sessionStorage-based edit mode (e.g., coming from Properties Edit without router state)
+      (async () => {
+        try {
+          const sessIsEdit = sessionStorage.getItem('ppIsEditMode') === 'true';
+          const sessDesignId = sessionStorage.getItem('ppEditingDesignId') || '';
+          const sessProjectName = sessionStorage.getItem('ppProjectName') || '';
+          const sessProp = sessionStorage.getItem('ppProjectCode') || '';
+          const userEmail = localStorage.getItem('userEmail') || '';
+          if (sessIsEdit && sessDesignId && sessProp && userEmail) {
+            console.log('🔁 Loading edit mode from sessionStorage. designId:', sessDesignId, 'prop:', sessProp);
           setIsEditMode(true);
+            setIsViewMode(false);
+            setEditingDesignId(sessDesignId);
+            if (sessProjectName) setOriginalProjectName(sessProjectName);
+            const lr = await loadLayout(sessDesignId, userEmail, sessProp);
+            if ((lr as any).success) {
+              const layout = (lr as any).layout;
+              if (layout?.name) {
+                setProjectName(layout.name);
+                setOriginalProjectName(layout.name);
+              }
+              const data = layout?.data || {};
+              if (data.panels && Array.isArray(data.panels)) {
+                const deepCopiedPanels = data.panels.map((p: any) => JSON.parse(JSON.stringify(p)));
+                loadProjectPanels(deepCopiedPanels);
+              }
+            } else {
+              console.log('⚠️ Failed to load layout from DB in session fallback:', lr);
+            }
         }
       } catch {}
+      })();
     }
-  }, [location.state, loadProjectPanels]);
+  }, [location.state, loadProjectPanels, projectCode, setProjectName]);
   
   // Calculate revision number for the project
   const calculateRevisionNumber = async (baseProjectName: string, isEditMode: boolean = false, currentDesignName?: string) => {
@@ -439,21 +445,42 @@ const ProjPanels: React.FC = () => {
       
       if (isEditMode && effectiveEditingDesignId) {
         console.log('✅ Taking EDIT MODE path - updating existing design');
-        // EDIT MODE: Update existing design (same revision number)
-        // We need to get the original design to preserve its name and revision number
-        const designsResult = await getDesigns(userEmail);
-        if (designsResult.success && 'designs' in designsResult) {
-          const originalDesign = designsResult.designs?.find((design: any) => design.id === effectiveEditingDesignId);
-          if (originalDesign) {
-            // Keep the original project name (including revision number)
-            const originalProjectName = originalDesign.design_name;
-            console.log('📝 Updating design with original name:', originalProjectName);
-            
+        // If we are working under a property, update layout in public.design directly
+        if (projectCode && projectCode.trim() !== '') {
+          const nameToKeep = effectiveOriginalName || projectName || 'Untitled Project (rev0)';
+          const layoutData = {
+            layout_name: nameToKeep,
+            layout_data: {
+              projectName: nameToKeep,
+              projectCode: projectCode || '',
+              location: projectLocation || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppLocation') || '') : ''),
+              operator: operator || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppOperator') || '') : ''),
+              servicePartner: (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppServicePartner') || '') : ''),
+              panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+                ...panel,
+                displayNumber: getDisplayNumber(index),
+              })))
+            }
+          } as const;
+          const result = await updateLayout(effectiveEditingDesignId, userEmail, layoutData as any);
+          if ((result as any).success) {
+            setSaveMessage('✅ Project updated successfully!');
+            setProjectJustSaved(true);
+            try {
+              sessionStorage.removeItem('ppIsEditMode');
+              sessionStorage.removeItem('ppEditingDesignId');
+              sessionStorage.removeItem('ppProjectName');
+            } catch {}
+            return;
+          }
+          setSaveMessage('❌ Failed to update project: ' + ((result as any).message || 'Update failed'));
+        } else {
+          // Legacy path for non-property projects: fallback to old update
             const projectData = {
-              projectName: originalProjectName, // Preserve original name with revision
+            projectName: effectiveOriginalName || projectName || 'Untitled Project',
               panelType: 'Project',
               designData: {
-                projectName: originalProjectName,
+              projectName: effectiveOriginalName || projectName || 'Untitled Project',
                 projectCode: projectCode || '',
                 location: projectLocation || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppLocation') || '') : ''),
                 operator: operator || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppOperator') || '') : ''),
@@ -464,14 +491,10 @@ const ProjPanels: React.FC = () => {
                 })))
               }
             };
-
-            // Update existing design
             const result = await updateDesign(userEmail, effectiveEditingDesignId, projectData);
-            
             if (result.success) {
               setSaveMessage('✅ Project updated successfully!');
               setProjectJustSaved(true);
-              // Clear edit mode session storage after successful update
               try {
                 sessionStorage.removeItem('ppIsEditMode');
                 sessionStorage.removeItem('ppEditingDesignId');
@@ -480,33 +503,6 @@ const ProjPanels: React.FC = () => {
             } else {
               setSaveMessage('❌ Failed to update project: ' + result.message);
             }
-          } else {
-            console.log('⚠️ Original design not found, falling back to create new design');
-            // Fallback: Create new design instead of editing
-            setIsEditMode(false);
-            setEditingDesignId(null);
-            // Clear session storage
-            try {
-              sessionStorage.removeItem('ppEditingDesignId');
-              sessionStorage.removeItem('ppProjectName');
-            } catch {}
-            
-            // Continue to the else branch to create new design
-            finalProjectName = projectName || 'Untitled Project';
-          }
-        } else {
-          console.log('⚠️ Failed to load designs, falling back to create new design');
-          // Fallback: Create new design instead of editing
-          setIsEditMode(false);
-          setEditingDesignId(null);
-          // Clear session storage
-          try {
-            sessionStorage.removeItem('ppEditingDesignId');
-            sessionStorage.removeItem('ppProjectName');
-          } catch {}
-          
-          // Continue to the else branch to create new design
-          finalProjectName = projectName || 'Untitled Project';
         }
       }
       
@@ -518,8 +514,17 @@ const ProjPanels: React.FC = () => {
         const baseProjectName = finalProjectName.replace(/\s*\(rev\d+\)$/, '');
         console.log('🔍 Base project name (stripped):', baseProjectName);
         
-        // Check if we're updating a project that was just saved (same session)
-        const designsResult = await getDesigns(userEmail);
+        // If we have a property code, use property revisions to compute next revision name
+        const designsResult = projectCode
+          ? await (async () => {
+              const r = await listPropertyRevisions(userEmail, projectCode);
+              if (r && (r as any).success && (r as any).revisions) {
+                const mapped = (r as any).revisions.map((d: any) => ({ design_name: d.name }));
+                return { success: true, designs: mapped } as any;
+              }
+              return { success: false } as any;
+            })()
+          : await getDesigns(userEmail);
         if (designsResult.success && 'designs' in designsResult) {
           // First, check if we have a project name that already exists (indicating we're updating)
                       const existingDesignWithSameName = designsResult.designs?.find((design: any) => 
@@ -633,6 +638,23 @@ const ProjPanels: React.FC = () => {
           console.log('🔍 Can\'t get designs, defaulting to rev0. Final name:', finalProjectName);
         }
 
+        // Prefer saving into the property-based revisions table when we have a projectCode
+        let saveResult: any;
+        if (projectCode && projectCode.trim() !== '') {
+          const layoutPayload = {
+            layoutName: finalProjectName,
+            projectName: finalProjectName,
+            projectCode: projectCode || '',
+            location: projectLocation || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppLocation') || '') : ''),
+            operator: operator || (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppOperator') || '') : ''),
+            servicePartner: (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('ppServicePartner') || '') : ''),
+            panels: projPanels.map((panel, index) => JSON.parse(JSON.stringify({
+              ...panel,
+              displayNumber: getDisplayNumber(index),
+            })))
+          };
+          saveResult = await saveLayout(userEmail, layoutPayload as any, projectCode);
+        } else {
         const projectData = {
           projectName: finalProjectName,
           panelType: 'Project',
@@ -648,9 +670,9 @@ const ProjPanels: React.FC = () => {
             })))
           }
         };
-
-        // Save new project
-        const saveResult = await saveDesign(userEmail, projectData, projectLocation, operator);
+          // Fallback to legacy save if no property context
+          saveResult = await saveDesign(userEmail, projectData, projectLocation, operator);
+        }
         
         if (saveResult.success) {
           setSaveMessage('✅ Project saved successfully!');
@@ -659,7 +681,7 @@ const ProjPanels: React.FC = () => {
           setProjectName(finalProjectName);
           // After first save, switch to edit mode and persist the saved design ID so subsequent saves update rev0
           try {
-            const savedDesignId = (saveResult as any).designId;
+            const savedDesignId = (saveResult as any).designId || (saveResult as any).layoutId;
             if (savedDesignId) {
               setIsEditMode(true);
               setEditingDesignId(savedDesignId);
@@ -991,13 +1013,7 @@ const ProjPanels: React.FC = () => {
                   }}>
                     {item.quantity}
                   </span>
-                  <span style={{ 
-                    fontSize: 12, 
-                    color: THEME.textSecondary,
-                    fontStyle: 'italic'
-                  }}>
-                    (BOQ: {boqQuantities?.[mapTypeToCategory(item.type)] || 'Unlimited'})
-                  </span>
+                  {/* BOQ removed */}
                   </div>
                 
                 {/* Quantity display - Only shown in view mode */}
@@ -1208,10 +1224,10 @@ const ProjPanels: React.FC = () => {
               </div>
             )}
             
-            {/* View My Designs Button - appears after successful save */}
+            {/* Back to Properties Button - appears after successful save */}
             {projectJustSaved && (
               <button
-                onClick={() => navigate("/my-designs")}
+                onClick={() => navigate("/properties")}
                 style={{
                   padding: '12px 24px',
                   background: '#3498db',
@@ -1227,7 +1243,7 @@ const ProjPanels: React.FC = () => {
                   marginTop: 8,
                 }}
               >
-                📚 View My Designs
+                ← Back to Properties
               </button>
             )}
             

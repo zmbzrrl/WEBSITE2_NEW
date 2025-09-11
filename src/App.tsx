@@ -28,7 +28,6 @@ import React, { //tools box is REACT. Stuff inside are tools chosen to use in th
 
 // Main pages
 import Home from "./pages/Home";  // Welcome page - first thing users see
-import BOQ from "./pages/BOQ";    // Bill of Quantities page - project summary
 import ProjPanels from "./pages/ProjPanels";  // Cart/Project panels page
 import Layouts from "./pages/Layouts";        // Layout planning page
 
@@ -122,9 +121,7 @@ export const ProjectContext = createContext<{
   setOperator: React.Dispatch<React.SetStateAction<string>>,   // Function to update operator
   servicePartner?: string,       // Optional service partner name
   setServicePartner?: React.Dispatch<React.SetStateAction<string>>, // Update service partner
-  allowedPanelTypes: string[],   // BOQ-selected allowed panel categories for selector gating
-  setAllowedPanelTypes: React.Dispatch<React.SetStateAction<string[]>>, // Update allowed panel categories
-  boqQuantities: Record<string, number>, // BOQ quantities per category key (SP, TAG, IDPG, DP, EXT)
+  // BOQ removed: no allowedPanelTypes or boqQuantities
   setBoqQuantities: React.Dispatch<React.SetStateAction<Record<string, number>>>
 }>({ 
   // Default values - what the context starts with if nothing is set
@@ -138,9 +135,7 @@ export const ProjectContext = createContext<{
   setOperator: () => {}, // Function to update operator
   servicePartner: '',
   setServicePartner: () => {},
-  allowedPanelTypes: [],
-  setAllowedPanelTypes: () => {},
-  boqQuantities: {},
+  
   setBoqQuantities: () => {}
 });
 
@@ -212,8 +207,7 @@ const AppRoutes = () => { // defines all the different pages/URLs
         {/* Properties landing page after login */}
         <Route path="/properties" element={<PageTransition><Properties /></PageTransition>} />
         
-        {/* BOQ page - Bill of Quantities */}
-        <Route path="/boq" element={<PageTransition><BOQ /></PageTransition>} />
+        {/* BOQ removed */}
         
         {/* Panel type selection pages */}
         <Route path="/panel-type" element={<PageTransition><PanelTypeSelector /></PageTransition>} />
@@ -290,8 +284,7 @@ const App: React.FC = () => {
   const [location, setLocation] = useState('');        // 🗺️ Project location
   const [operator, setOperator] = useState('');        // 🏢 Project operator/service partner
   const [servicePartner, setServicePartner] = useState(''); // Service partner name
-  const [allowedPanelTypes, setAllowedPanelTypes] = useState<string[]>([]); // BOQ-selected panel categories
-  const [boqQuantities, setBoqQuantities] = useState<Record<string, number>>({}); // BOQ quantities per category
+  // BOQ removed: no selector gating or quantities
   const [isGuidelinesOpen, setIsGuidelinesOpen] = useState(false);
 
   return (
@@ -314,10 +307,8 @@ const App: React.FC = () => {
           setOperator,
           servicePartner,
           setServicePartner,
-          allowedPanelTypes,
-          setAllowedPanelTypes,
-          boqQuantities,
-          setBoqQuantities
+          
+          setBoqQuantities: () => {}
         }}>
           {/* ProjectSync keeps project data synchronized between contexts */}
           <ProjectSync />

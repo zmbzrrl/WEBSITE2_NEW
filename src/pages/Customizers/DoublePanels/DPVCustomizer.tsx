@@ -26,7 +26,6 @@ import logo from '../../../assets/logo.png';
 
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
-import QuantityDialog from '../../../components/QuantityDialog';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -610,7 +609,7 @@ const DPVCustomizer: React.FC = () => {
   };
 
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   
@@ -761,10 +760,10 @@ const DPVCustomizer: React.FC = () => {
     };
 
     const category = mapTypeToCategory(design.type);
-    const cap = (boqQuantities && (boqQuantities as any)[category]) || Infinity;
+    const cap = Infinity as number;
     const existingCount = projPanels.filter(p => mapTypeToCategory(p.type) === category).length;
     if (!(isEditMode && editPanelIndex !== undefined) && existingCount + 1 > cap) {
-      alert(`You have reached the BOQ limit for ${category}. Max: ${cap}`);
+      // No BOQ limit
       return;
     }
 
@@ -778,51 +777,21 @@ const DPVCustomizer: React.FC = () => {
 
       const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => (boqQuantities as any)[k] as number | undefined)
-            .filter((v): v is number => typeof v === 'number')
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = (boqQuantities as any)[cat];
-        return typeof cap === 'number' ? cap : undefined;
-      };
+      const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
 
       const cap = getCategoryCap(category);
       const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
       if (remaining !== undefined) {
         if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
+          // No BOQ limit
           return;
         }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
+        // No quantity dialog; add directly
       }
 
       addToCart(design);
     }
-  };
-
-  // Quantity dialog state
-  const [qtyOpen, setQtyOpen] = React.useState(false);
-  const [qtyRemaining, setQtyRemaining] = React.useState<number | undefined>(undefined);
-  const [pendingDesign, setPendingDesign] = React.useState<any | null>(null);
-  const [pendingCategory, setPendingCategory] = React.useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('DP');
-
-  const handleQtyConfirm = (qty: number) => {
-    if (!pendingDesign) return;
-    const finalDesign = { ...pendingDesign, quantity: qty };
-    addToCart(finalDesign);
-    setPendingDesign(null);
-    setQtyOpen(false);
   };
 
   // Filter icons by selected category
@@ -2156,13 +2125,6 @@ const DPVCustomizer: React.FC = () => {
         )}
 
       </Container>
-      <QuantityDialog
-        open={qtyOpen}
-        category={pendingCategory}
-        remaining={qtyRemaining}
-        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
-        onConfirm={handleQtyConfirm}
-      />
       
       {/* Custom Panel Approval Dialog */}
       <Dialog

@@ -39,7 +39,8 @@ import {
 } from '@mui/icons-material';
 
 // 🗂️ Import our database functions
-import { getDesigns, deleteDesign } from '../utils/database';
+import { deleteDesign } from '../utils/database';
+import { getAccessibleProperties, listPropertyRevisions } from '../utils/newDatabase';
 import { useCart } from '../contexts/CartContext';
 import { mockSendEmail } from '../utils/mockBackend';
 import { useContext } from 'react';
@@ -144,31 +145,43 @@ const MyDesigns: React.FC = () => {
     loadDesigns();
   }, []);
   
-  // 📋 Load all designs for the current user
+  // 📋 Load all designs/revisions for accessible properties
   const loadDesigns = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const result = await getDesigns(userEmail);
-      
-      if (result.success && result.designs) {
-        const transformedDesigns = result.designs.map((design: any) => ({
-          id: design.id,
-          projectName: design.design_name || design.user_projects?.project_name || 'Untitled Design',
-          panelType: design.panel_type,
-          createdAt: design.created_at,
-          lastModified: design.last_modified,
-          designData: design.design_data,
-          projectId: design.project_id
-        }));
-        
-        setDesigns(transformedDesigns);
-        organizeDesigns(transformedDesigns);
-        console.log(`📚 Loaded ${transformedDesigns.length} designs for ${userEmail}`);
-      } else {
-        setError('Failed to load designs');
+      const propsRes = await getAccessibleProperties(userEmail);
+      if (!propsRes.success) {
+        setError('Failed to load accessible properties');
+        setLoading(false);
+        return;
       }
+
+      const allPropIds = (propsRes.properties || []).map((p: any) => p.prop_id);
+      const collected: any[] = [];
+
+      for (const propId of allPropIds) {
+        const revRes = await listPropertyRevisions(userEmail, propId);
+        if (revRes.success && revRes.revisions) {
+          revRes.revisions.forEach((row: any) => {
+            collected.push({
+              id: row.id,
+              projectName: row.name || 'Untitled Design',
+              panelType: row.design_type === 'layout' ? 'Project' : row.design_type,
+              createdAt: row.created_at,
+              lastModified: row.last_modified,
+              designData: row.data,
+              projectId: row.project_id || null,
+              ownerEmail: row.user_email || ''
+            });
+          });
+        }
+      }
+
+      setDesigns(collected);
+      organizeDesigns(collected);
+      console.log(`📚 Loaded ${collected.length} designs across ${allPropIds.length} properties for ${userEmail}`);
     } catch (error) {
       console.error('Error loading designs:', error);
       setError('Failed to load designs');
@@ -374,6 +387,12 @@ const MyDesigns: React.FC = () => {
       console.error('Error deleting design:', error);
       setError('Failed to delete design');
     }
+  };
+
+  // 🔐 Permission helper: only the creator can edit/delete
+  const isOwner = (design: any) => {
+    const createdBy = design.ownerEmail || design.designData?.createdBy || '';
+    return (createdBy || '').toLowerCase() === (userEmail || '').toLowerCase();
   };
   
   // ✏️ Edit a design
@@ -785,22 +804,26 @@ const MyDesigns: React.FC = () => {
                                         >
                                           <VisibilityIcon />
                                         </IconButton>
-                                        <IconButton
-                      size="small"
-                      onClick={() => handleEditDesign(design)}
-                                          sx={{ color: '#27ae60' }}
-                                          title="Edit Design"
-                                        >
-                                          <EditIcon />
-                                        </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDeleteDesign(design.id)}
-                                          sx={{ color: '#e74c3c' }}
-                                          title="Delete Design"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                                        {isOwner(design) && (
+                                          <>
+                                            <IconButton
+                                              size="small"
+                                              onClick={() => handleEditDesign(design)}
+                                              sx={{ color: '#27ae60' }}
+                                              title="Edit Design"
+                                            >
+                                              <EditIcon />
+                                            </IconButton>
+                                            <IconButton
+                                              size="small"
+                                              onClick={() => handleDeleteDesign(design.id)}
+                                              sx={{ color: '#e74c3c' }}
+                                              title="Delete Design"
+                                            >
+                                              <DeleteIcon />
+                                            </IconButton>
+                                          </>
+                                        )}
                                       </Box>
                                     </ListItemSecondaryAction>
                                   </ListItem>

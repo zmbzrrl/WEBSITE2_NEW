@@ -122,17 +122,10 @@ export const getDesigns = async (email: string) => {
   try {
     console.log('📋 Getting designs from Supabase for:', email);
     
-    // Get all designs for this user with project information (using existing schema)
+    // Fetch all designs for this user (flat). If nested select is needed, add a DB-side view.
     const { data, error } = await supabase
       .from('user_designs')
-      .select(`
-        *,
-        user_projects (
-          id,
-          project_name,
-          project_description
-        )
-      `)
+      .select('*')
       .eq('user_email', email)
       .eq('is_active', true)
       .order('last_modified', { ascending: false });
@@ -237,21 +230,9 @@ export const getAllDesigns = async (filters?: {
     console.warn('⚠️ Falling back to joined query because view is missing or not accessible:', error);
     const { data: joined, error: joinError } = await supabase
       .from('user_designs')
-      .select(`
-        id,
-        design_name,
-        panel_type,
-        design_data,
-        created_at,
-        last_modified,
-        user_email,
-        user_projects (
-          project_name,
-          project_description
-        )
-      `)
+      .select('*')
       .eq('is_active', true)
-      .order('last_modified', { ascending });
+      .order('last_modified', { ascending: true });
 
     if (joinError) {
       console.error('❌ Error getting all designs via join fallback:', joinError);
@@ -274,11 +255,11 @@ export const getAllDesigns = async (filters?: {
         created_at: d.created_at,
         last_modified: d.last_modified,
         user_email: d.user_email,
-        project_name: d.user_projects?.project_name,
-        project_description: d.user_projects?.project_description,
-        location: (d.user_projects as any)?.location ?? dd.location ?? ddn.location ?? null,
-        operator: (d.user_projects as any)?.operator ?? dd.operator ?? ddn.operator ?? null,
-        service_partner: (d.user_projects as any)?.service_partner ?? dd.service_partner ?? ddn.service_partner ?? null
+        project_name: undefined,
+        project_description: undefined,
+        location: dd.location ?? ddn.location ?? null,
+        operator: dd.operator ?? ddn.operator ?? null,
+        service_partner: dd.service_partner ?? ddn.service_partner ?? null
       };
     });
 

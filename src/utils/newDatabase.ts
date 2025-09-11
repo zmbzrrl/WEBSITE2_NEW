@@ -8,6 +8,8 @@ const generateId = () => {
   return 'design_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 };
 
+// (no schema helper needed; using public tables)
+
 // List properties the requester can access via their UG (many-to-many)
 export const getAccessibleProperties = async (userEmail: string) => {
   try {
@@ -89,14 +91,15 @@ export const saveLayout = async (userEmail: string, layoutData: any, propId: str
       id: generateId(),
       user_email: userEmail,
       prop_id: propId,
-      layout_name: layoutData.layoutName,
-      layout_data: layoutData,
+      name: layoutData.layoutName,
+      data: layoutData,
+      design_type: 'layout',
       created_at: new Date().toISOString(),
       last_modified: new Date().toISOString(),
       is_active: true
-    };
+    } as const;
 
-    const { error } = await supabase.from('layouts').insert([layoutRecord]);
+    const { error } = await supabase.from('design').insert([layoutRecord]);
     if (error) return { success: false, error: 'db', message: 'Failed to save layout to database' };
 
     return { success: true, layoutId: layoutRecord.id, message: `Layout "${layoutData.layoutName}" saved successfully!` };
@@ -114,10 +117,11 @@ export const getLayouts = async (userEmail: string, propId: string) => {
     if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' };
 
     const { data, error } = await supabase
-      .from('layouts')
+      .from('design')
       .select('*')
       .eq('prop_id', propId)
       .eq('is_active', true)
+      .eq('design_type', 'layout')
       .order('created_at', { ascending: false });
 
     if (error) return { success: false, error: 'db', message: 'Failed to get layouts' };
@@ -255,16 +259,17 @@ export const loadLayout = async (layoutId: string, userEmail: string, propId: st
     if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' };
 
     const { data, error } = await supabase
-      .from('layouts')
+      .from('design')
       .select('*')
       .eq('id', layoutId)
       .eq('prop_id', propId)
       .eq('is_active', true)
+      .eq('design_type', 'layout')
       .single();
 
     if (error || !data) return { success: false, error: 'not_found', message: 'Layout not found' };
 
-    return { success: true, layout: data, message: `Layout "${data.layout_name}" loaded successfully!` };
+    return { success: true, layout: data, message: `Layout "${data.name}" loaded successfully!` };
   } catch (error) {
     return { success: false, error: 'unexpected', message: 'Failed to load layout' };
   }
@@ -365,26 +370,26 @@ export const createProperty = async (userEmail: string, propertyData: {
 
 // Helper: check property access and ownership for a layout
 export const getLayoutAccess = async (layoutId: string, requesterEmail: string) => {
-  // requester property
+  // requester
   const { data: requester, error: reqErr } = await supabase
     .from('users')
-    .select(`email, ug_id, ug!inner("UG_PropID", prop_id)`) 
+    .select('email, ug_id')
     .eq('email', requesterEmail)
     .maybeSingle();
   if (reqErr || !requester) return { success: false, error: 'Requester not found' } as const;
-  const requesterPropId = (requester as any).ug.prop_id as string;
 
-  // layout + owner property
+  // layout row
   const { data: layoutRow, error: layErr } = await supabase
-    .from('layouts')
-    .select(`id, user_email, layout_name, layout_data, is_active, users!inner(email, ug_id, ug!inner("UG_PropID", prop_id))`)
+    .from('design')
+    .select('id, user_email, prop_id, name, data, is_active')
     .eq('id', layoutId)
     .eq('is_active', true)
     .single();
   if (layErr || !layoutRow) return { success: false, error: 'Layout not found' } as const;
-  const ownerPropId = (layoutRow as any).users.ug.prop_id as string;
+
   const isOwner = (layoutRow as any).user_email === requesterEmail;
-  const sameProperty = ownerPropId === requesterPropId;
+  // Check property access via hasPropertyAccess
+  const sameProperty = await hasPropertyAccess(requesterEmail, (layoutRow as any).prop_id);
   return { success: true, isOwner, sameProperty, layout: layoutRow } as const;
 };
 
@@ -396,11 +401,11 @@ export const updateLayout = async (layoutId: string, userEmail: string, updates:
     if (!access.isOwner) return { success: false, error: 'forbidden', message: 'Only the owner can edit this layout' };
 
     const payload: any = { last_modified: new Date().toISOString() };
-    if (typeof updates.layout_name === 'string') payload.layout_name = updates.layout_name;
-    if (typeof updates.layout_data !== 'undefined') payload.layout_data = updates.layout_data;
+    if (typeof updates.layout_name === 'string') payload.name = updates.layout_name;
+    if (typeof updates.layout_data !== 'undefined') payload.data = updates.layout_data;
 
     const { error } = await supabase
-      .from('layouts')
+      .from('design')
       .update(payload)
       .eq('id', layoutId)
       .eq('user_email', userEmail)
@@ -421,7 +426,7 @@ export const deleteLayout = async (layoutId: string, userEmail: string) => {
     if (!access.isOwner) return { success: false, error: 'forbidden', message: 'Only the owner can delete this layout' };
 
     const { error } = await supabase
-      .from('layouts')
+      .from('design')
       .update({ is_active: false, last_modified: new Date().toISOString() })
       .eq('id', layoutId)
       .eq('user_email', userEmail)
@@ -441,15 +446,16 @@ export const createRevision = async (sourceLayoutId: string, userEmail: string, 
     if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' };
 
     const { data: source, error: srcErr } = await supabase
-      .from('layouts')
+      .from('design')
       .select('*')
       .eq('id', sourceLayoutId)
       .eq('prop_id', propId)
       .eq('is_active', true)
+      .eq('design_type', 'layout')
       .single();
     if (srcErr || !source) return { success: false, error: 'not_found', message: 'Source layout not found' };
 
-    const srcData: any = source.layout_data || {};
+    const srcData: any = (source as any).data || {};
     const nextRevision = (srcData.revisionNumber || 1) + 1;
     const newId = generateId();
 
@@ -457,18 +463,115 @@ export const createRevision = async (sourceLayoutId: string, userEmail: string, 
       id: newId,
       user_email: userEmail,
       prop_id: propId,
-      layout_name: newName || `${source.layout_name} (rev${nextRevision})`,
-      layout_data: { ...srcData, parentLayoutId: source.id, revisionNumber: nextRevision, lastRevisedFromEmail: source.user_email },
+      name: newName || `${(source as any).name} (rev${nextRevision})`,
+      data: { ...srcData, parentLayoutId: (source as any).id, revisionNumber: nextRevision, lastRevisedFromEmail: (source as any).user_email },
+      design_type: 'layout',
       created_at: new Date().toISOString(),
       last_modified: new Date().toISOString(),
       is_active: true
     };
 
-    const { error } = await supabase.from('layouts').insert([cloned]);
+    const { error } = await supabase.from('design').insert([cloned]);
     if (error) return { success: false, error: 'db', message: 'Failed to create revision' };
 
     return { success: true, layoutId: newId, message: 'Revision created' };
   } catch (e) {
     return { success: false, error: 'unexpected', message: 'Failed to create revision' };
+  }
+};
+
+// 📚 LIST ALL REVISIONS IN A PROPERTY (any UG member with access can view)
+export const listPropertyRevisions = async (userEmail: string, propId: string) => {
+  try {
+    const canAccess = await hasPropertyAccess(userEmail, propId);
+    if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' } as const;
+
+    const { data, error } = await supabase
+      .from('design')
+      .select('*')
+      .eq('prop_id', propId)
+      .eq('is_active', true)
+      .eq('design_type', 'layout')
+      .order('created_at', { ascending: false });
+
+    if (error) return { success: false, error: 'db', message: 'Failed to load revisions' } as const;
+    return { success: true, revisions: data || [], message: 'Revisions loaded' } as const;
+  } catch (e) {
+    return { success: false, error: 'unexpected', message: 'Failed to load revisions' } as const;
+  }
+};
+
+// 🔎 GET A DESIGN WITH PERMISSIONS (view for UG access; edit/delete for owner)
+export const getDesignWithPermissions = async (designId: string, requesterEmail: string) => {
+  try {
+    const { data: designRow, error } = await supabase
+      .from('design')
+      .select('*')
+      .eq('id', designId)
+      .eq('is_active', true)
+      .single();
+    if (error || !designRow) return { success: false, error: 'not_found', message: 'Design not found' } as const;
+
+    const canAccess = await hasPropertyAccess(requesterEmail, (designRow as any).prop_id as string);
+    if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' } as const;
+
+    const isOwner = (designRow as any).user_email === requesterEmail;
+    return { success: true, design: designRow, permissions: { canView: true, canEdit: isOwner, canDelete: isOwner, canCreateRevision: true } } as const;
+  } catch (e) {
+    return { success: false, error: 'unexpected', message: 'Failed to load design' } as const;
+  }
+};
+
+// 🧬 GET REVISION LINEAGE FOR A GIVEN DESIGN ID (includes original + descendants within property)
+export const getRevisionLineage = async (designId: string, requesterEmail: string) => {
+  try {
+    const base = await getDesignWithPermissions(designId, requesterEmail);
+    if (!base.success) return base as any;
+
+    const propId = (base.design as any).prop_id as string;
+    const { data: allDesigns, error } = await supabase
+      .from('design')
+      .select('*')
+      .eq('prop_id', propId)
+      .eq('is_active', true)
+      .eq('design_type', 'layout');
+    if (error) return { success: false, error: 'db', message: 'Failed to load lineage' } as const;
+
+    // Build lineage set by following parentLayoutId relationships in memory
+    const byId = new Map<string, any>();
+    (allDesigns || []).forEach((d: any) => byId.set(d.id, d));
+
+    // Find the root (walk up parentLayoutId if present)
+    let root: any = base.design;
+    const visitedUp = new Set<string>();
+    while (root && (root.data as any)?.parentLayoutId && !visitedUp.has(root.id)) {
+      visitedUp.add(root.id);
+      const parentId = (root.data as any).parentLayoutId as string;
+      const parent = byId.get(parentId);
+      if (!parent) break;
+      root = parent;
+    }
+
+    // Collect all descendants from root (simple BFS on parentLayoutId)
+    const lineage: any[] = [];
+    const queue: string[] = [root?.id || (base.design as any).id];
+    const visited = new Set<string>();
+    while (queue.length > 0) {
+      const currentId = queue.shift() as string;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+      const node = byId.get(currentId);
+      if (node) lineage.push(node);
+      (allDesigns || []).forEach((d: any) => {
+        const parentId = (d.data as any)?.parentLayoutId;
+        if (parentId === currentId) queue.push(d.id);
+      });
+    }
+
+    // Sort lineage by created_at ascending to show evolution
+    lineage.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    return { success: true, lineage } as const;
+  } catch (e) {
+    return { success: false, error: 'unexpected', message: 'Failed to load lineage' } as const;
   }
 };

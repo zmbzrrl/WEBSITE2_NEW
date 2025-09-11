@@ -18,7 +18,6 @@ import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
-import QuantityDialog from '../../../components/QuantityDialog';
 import { getIconColorName } from '../../../data/iconColors';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
@@ -607,7 +606,7 @@ const X2HCustomizer: React.FC = () => {
     '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   
@@ -771,10 +770,10 @@ const X2HCustomizer: React.FC = () => {
     };
 
     const category = mapTypeToCategory(design.type);
-    const cap = (boqQuantities && (boqQuantities as any)[category]) || Infinity;
+    const cap = Infinity as number;
     const existingCount = projPanels.filter(p => mapTypeToCategory(p.type) === category).length;
     if (!(isEditMode && editPanelIndex !== undefined) && existingCount + 1 > cap) {
-      alert(`You have reached the BOQ limit for ${category}. Max: ${cap}`);
+      // No BOQ limit
       return;
     }
 
@@ -788,33 +787,15 @@ const X2HCustomizer: React.FC = () => {
 
       const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => (boqQuantities as any)[k] as number | undefined)
-            .filter((v): v is number => typeof v === 'number')
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = (boqQuantities as any)[cat];
-        return typeof cap === 'number' ? cap : undefined;
-      };
-
-      const cap = getCategoryCap(category);
+      const cap = Infinity as number;
       const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
       if (remaining !== undefined) {
         if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
+          // No BOQ limit
           return;
         }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
+        // No quantity dialog; add directly
       }
 
       addToCart(design);
@@ -1883,13 +1864,6 @@ const X2HCustomizer: React.FC = () => {
           </div>
         )}
       </Container>
-      <QuantityDialog
-        open={qtyOpen}
-        category={pendingCategory}
-        remaining={qtyRemaining}
-        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
-        onConfirm={handleQtyConfirm}
-      />
     </Box>
   );
 };

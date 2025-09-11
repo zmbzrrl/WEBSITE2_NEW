@@ -11,7 +11,7 @@ DROP VIEW IF EXISTS public.designs_with_hierarchy CASCADE;
 DROP VIEW IF EXISTS public.designs_with_projects CASCADE;
 
 -- ===== 2) DROP TABLES (REVERSE DEP ORDER) =====
-DROP TABLE IF EXISTS public.layouts CASCADE;
+DROP TABLE IF EXISTS public.design CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 DROP TABLE IF EXISTS public.ug_property_access CASCADE;
 DROP TABLE IF EXISTS public.ug CASCADE;
@@ -64,13 +64,14 @@ CREATE TABLE IF NOT EXISTS public.users (
     is_active BOOLEAN DEFAULT true
 );
 
--- 3.5 LAYOUTS (belongs to users; property context)
-CREATE TABLE IF NOT EXISTS public.layouts (
+-- 3.5 DESIGN (unified: layouts and panel designs)
+CREATE TABLE IF NOT EXISTS public.design (
     id TEXT PRIMARY KEY,
     user_email TEXT REFERENCES public.users(email) ON DELETE CASCADE,
     prop_id TEXT REFERENCES public.property(prop_id) ON DELETE CASCADE,
-    layout_name TEXT NOT NULL,
-    layout_data JSONB NOT NULL,
+    name TEXT NOT NULL,
+    data JSONB NOT NULL,
+    design_type TEXT NOT NULL DEFAULT 'layout', -- e.g., 'layout', 'panel'
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
     is_active BOOLEAN DEFAULT true
@@ -82,14 +83,16 @@ CREATE INDEX IF NOT EXISTS idx_ug_prop_id ON public.ug(prop_id);
 CREATE INDEX IF NOT EXISTS idx_ug_ug ON public.ug(ug);
 CREATE INDEX IF NOT EXISTS idx_ug_ug_id ON public.ug(ug_id);
 CREATE INDEX IF NOT EXISTS idx_users_ug_id ON public.users(ug_id);
-CREATE INDEX IF NOT EXISTS idx_layouts_user_email ON public.layouts(user_email);
-CREATE INDEX IF NOT EXISTS idx_layouts_created_at ON public.layouts(created_at);
+CREATE INDEX IF NOT EXISTS idx_design_user_email ON public.design(user_email);
+CREATE INDEX IF NOT EXISTS idx_design_created_at ON public.design(created_at);
+CREATE INDEX IF NOT EXISTS idx_design_prop_id ON public.design(prop_id);
+CREATE INDEX IF NOT EXISTS idx_design_type ON public.design(design_type);
 
 -- ===== 5) RLS (DISABLE FOR DEV) =====
 ALTER TABLE public.property DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ug DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.layouts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.design DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ug_property_access DISABLE ROW LEVEL SECURITY;
 
 -- ===== 6) GRANTS =====
@@ -99,8 +102,8 @@ GRANT ALL ON public.ug TO anon;
 GRANT ALL ON public.ug TO authenticated;
 GRANT ALL ON public.users TO anon;
 GRANT ALL ON public.users TO authenticated;
-GRANT ALL ON public.layouts TO anon;
-GRANT ALL ON public.layouts TO authenticated;
+GRANT ALL ON public.design TO anon;
+GRANT ALL ON public.design TO authenticated;
 GRANT ALL ON public.ug_property_access TO anon;
 GRANT ALL ON public.ug_property_access TO authenticated;
 
@@ -137,9 +140,9 @@ INSERT INTO public.users (email, ug_id) VALUES
 ('admin@ihg.com', 'UG001_US-4020-5681')
 ON CONFLICT (email) DO NOTHING;
 
--- (Optional) seed for layouts — sample only
--- INSERT INTO public.layouts (id, user_email, prop_id, layout_name, layout_data)
--- VALUES ('LAYOUT-001', 'admin@marriott.com', 'AE-4020-5678', 'Bedroom Layout', '{}')
+-- (Optional) seed for design — sample only
+-- INSERT INTO public.design (id, user_email, prop_id, name, data, design_type)
+-- VALUES ('DESIGN-001', 'admin@marriott.com', 'AE-4020-5678', 'Bedroom Layout', '{}', 'layout')
 -- ON CONFLICT (id) DO NOTHING;
 
 -- ===== 8) VIEWS (OR REPLACE) =====
@@ -166,7 +169,7 @@ SELECT COUNT(*) as property_count FROM public.property;
 SELECT COUNT(*) as ug_count FROM public.ug;
 SELECT COUNT(*) as ug_access_links FROM public.ug_property_access;
 SELECT COUNT(*) as user_count FROM public.users;
-SELECT COUNT(*) as layout_count FROM public.layouts;
+SELECT COUNT(*) as design_count FROM public.design;
 
 SELECT 'Tables in public schema:' as info;
 SELECT table_name 

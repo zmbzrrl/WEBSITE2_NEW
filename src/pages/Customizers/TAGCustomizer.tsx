@@ -28,7 +28,6 @@ import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
 import LED from "../../assets/LED.png";
 import DISPLAY from "../../assets/icons/DISPLAY.png";
-import QuantityDialog from '../../components/QuantityDialog';
 // Load TAG panel preview images
 interface ImageModule { default: string }
 const tagPanelModules: Record<string, ImageModule> = import.meta.glob(
@@ -559,7 +558,7 @@ const TAGCustomizer: React.FC = () => {
     }
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Drag restriction preview state
@@ -886,12 +885,11 @@ const TAGCustomizer: React.FC = () => {
         if (cat === 'EXT') {
           const keys = ['X1H','X1V','X2H','X2V'] as const;
           const total = keys
-            .map(k => (boqQuantities as any)[k] as number | undefined)
-            .filter((v): v is number => typeof v === 'number')
+            .map(k => undefined)
             .reduce((a,b)=>a+b,0);
           return total;
         }
-        const cap = (boqQuantities as any)[cat];
+        const cap = undefined as any;
         return typeof cap === 'number' ? cap : undefined;
       };
 
@@ -2780,13 +2778,6 @@ const TAGCustomizer: React.FC = () => {
         {/* Custom Panel Dialog */}
 
       </Container>
-      <QuantityDialog
-        open={qtyOpen}
-        category={pendingCategory}
-        remaining={qtyRemaining}
-        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
-        onConfirm={handleQtyConfirm}
-      />
       
       {/* Custom Panel Approval Dialog */}
       <Dialog

@@ -22,7 +22,6 @@ import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
-import QuantityDialog from '../../../components/QuantityDialog';
 
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
@@ -530,7 +529,7 @@ const X2VCustomizer: React.FC = () => {
   };
 
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
 
@@ -764,12 +763,11 @@ const X2VCustomizer: React.FC = () => {
         if (cat === 'EXT') {
           const keys = ['X1H','X1V','X2H','X2V'] as const;
           const total = keys
-            .map(k => (boqQuantities as any)[k] as number | undefined)
-            .filter((v): v is number => typeof v === 'number')
+            .map(k => undefined)
             .reduce((a,b)=>a+b,0);
           return total;
         }
-        const cap = (boqQuantities as any)[cat];
+        const cap = undefined as any;
         return typeof cap === 'number' ? cap : undefined;
       };
 
@@ -2206,13 +2204,6 @@ const X2VCustomizer: React.FC = () => {
         )}
 
       </Container>
-      <QuantityDialog
-        open={qtyOpen}
-        category={pendingCategory}
-        remaining={qtyRemaining}
-        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
-        onConfirm={handleQtyConfirm}
-      />
       
       {/* Custom Panel Approval Dialog */}
       <Dialog

@@ -27,8 +27,6 @@ import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
 import logo from "../../assets/logo.png";
 import LED from "../../assets/LED.png";
-import QuantityDialog from '../../components/QuantityDialog';
-
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 import PanelDimensionSelector from '../../components/PanelDimensionSelector';
 import PanelModeSelector, { PanelMode } from '../../components/PanelModeSelector';
@@ -555,7 +553,7 @@ const SPCustomizer: React.FC = () => {
     }
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Drag restriction preview state
@@ -874,36 +872,30 @@ const SPCustomizer: React.FC = () => {
 
       const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => (boqQuantities as any)[k] as number | undefined)
-            .filter((v): v is number => typeof v === 'number')
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = (boqQuantities as any)[cat];
-        return typeof cap === 'number' ? cap : undefined;
-      };
+      const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
 
       const cap = getCategoryCap(category);
       const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
       if (remaining !== undefined) {
         if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
+          // No BOQ limit
           return;
         }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
+        // No quantity dialog; add directly
       }
 
       addToCart(design);
+      // If we are adding to an existing project, return to cart and preserve project edit context
+      if (isAddingToExistingProject) {
+        const preservedState = {
+          projectEditMode: true,
+          projectDesignId: (location.state as any)?.designId || (location.state as any)?.projectDesignId,
+          projectOriginalName: (location.state as any)?.projectData?.projectName || (location.state as any)?.projectOriginalName,
+          projectCreateNewRevision: false,
+        };
+        navigate('/cart', { state: preservedState });
+      }
     }
   };
 
@@ -2751,13 +2743,7 @@ const SPCustomizer: React.FC = () => {
         {/* Custom Panel Dialog */}
 
       </Container>
-      <QuantityDialog
-        open={qtyOpen}
-        category={pendingCategory}
-        remaining={qtyRemaining}
-        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
-        onConfirm={handleQtyConfirm}
-      />
+      {/* BOQ removed: QuantityDialog */}
       
       {/* Custom Panel Approval Dialog */}
       <Dialog

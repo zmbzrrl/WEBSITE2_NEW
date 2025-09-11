@@ -22,7 +22,6 @@ import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
-import QuantityDialog from '../../../components/QuantityDialog';
 import logo from '../../../assets/logo.png';
 
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
@@ -567,7 +566,7 @@ const X1VCustomizer: React.FC = () => {
   };
 
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Add swap and mirror state
@@ -748,33 +747,17 @@ const X1VCustomizer: React.FC = () => {
 
       const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => (boqQuantities as any)[k] as number | undefined)
-            .filter((v): v is number => typeof v === 'number')
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = (boqQuantities as any)[cat];
-        return typeof cap === 'number' ? cap : undefined;
-      };
+      const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
 
       const cap = getCategoryCap(category);
       const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
       if (remaining !== undefined) {
         if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
+          // No BOQ limit
           return;
         }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
+        // No quantity dialog; add directly
       }
 
       addToCart(design);
@@ -2235,13 +2218,6 @@ const X1VCustomizer: React.FC = () => {
         )}
 
       </Container>
-      <QuantityDialog
-        open={qtyOpen}
-        category={pendingCategory}
-        remaining={qtyRemaining}
-        onCancel={() => { setQtyOpen(false); setPendingDesign(null); }}
-        onConfirm={handleQtyConfirm}
-      />
       
       {/* Custom Panel Approval Dialog */}
       <Dialog

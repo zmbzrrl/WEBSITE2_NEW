@@ -37,6 +37,7 @@ import dpRt from '../assets/panels/GS_Double module_224x95.png';
 import { ProjectContext } from '../App';
 import { mockSendEmail } from '../utils/mockBackend';
 import { isAdminEmail } from '../utils/admin';
+import { supabase } from '../utils/supabaseClient';
  
 
 
@@ -637,6 +638,7 @@ const Home = () => {
   // Controls whether to show error message
   // false = no error, true = show error message
   const [showError, setShowError] = useState(false);
+  const [errorText, setErrorText] = useState('');
   
   
   
@@ -688,13 +690,33 @@ const Home = () => {
     
     if (!projectDetails.email) {
       setShowError(true);
+      setErrorText('Please enter a valid email address.');
       return;
     }
     
-    // Save email to localStorage
-    localStorage.setItem('userEmail', projectDetails.email);
-    
-    // Immediately route to Properties page after login
+    const normalizedEmail = projectDetails.email.trim().toLowerCase();
+
+    // Verify email exists in database (case-insensitive); if not, create a minimal user row
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('email')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!userRow) {
+      // Auto-create user with nullable ug_id
+      const { error: insertErr } = await supabase
+        .from('users')
+        .insert([{ email: normalizedEmail }]);
+      if (insertErr) {
+        setShowError(true);
+        setErrorText('Email not found. Please contact your administrator.');
+        return;
+      }
+    }
+
+    // Save normalized email and continue
+    localStorage.setItem('userEmail', normalizedEmail);
     navigate('/properties');
   };
 
@@ -936,7 +958,7 @@ const Home = () => {
                 
                 {showError && (
                   <ErrorMessage>
-                    Please enter a valid email address.
+                    {errorText || 'Please enter a valid email address.'}
                   </ErrorMessage>
                 )}
                 
@@ -1075,7 +1097,7 @@ const Home = () => {
               <Button
                 variant="contained"
                 color="primary"
-                onClick={() => navigate('/boq')}
+                onClick={() => navigate('/panel-type')}
                 sx={{
                   fontFamily: 'sans-serif',
                   fontWeight: 600,

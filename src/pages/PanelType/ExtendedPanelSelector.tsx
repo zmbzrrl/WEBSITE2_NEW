@@ -113,7 +113,7 @@ const ExtendedPanelSelector = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
-  const { projectName, projectCode, allowedPanelTypes, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const { projPanels } = useCart();
 
   useEffect(() => {
@@ -124,12 +124,7 @@ const ExtendedPanelSelector = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    // Guard: Only accessible if EXT was allowed in BOQ
-    if (!allowedPanelTypes || !allowedPanelTypes.includes('EXT')) {
-      navigate('/boq', { replace: true });
-    }
-  }, [allowedPanelTypes, navigate]);
+  // BOQ removed: no gating
 
   const usedEXT = useMemo(() => {
     return projPanels.reduce((sum, p) => {
@@ -142,22 +137,9 @@ const ExtendedPanelSelector = () => {
   }, [projPanels]);
 
   // Compute overall Extended cap as the sum of selected subtypes
-  const remainingEXT = useMemo(() => {
-    const capSum = ['X1H','X1V','X2H','X2V']
-      .map(k => (boqQuantities as any)?.[k] as number | undefined)
-      .filter((v): v is number => typeof v === 'number')
-      .reduce((a, b) => a + b, 0);
-    if (!capSum || isNaN(capSum)) return Infinity;
-    return Math.max(0, capSum - usedEXT);
-  }, [boqQuantities, usedEXT]);
+  const remainingEXT = useMemo(() => Infinity, [usedEXT]);
 
-  useEffect(() => {
-    // If EXT category is exhausted per BOQ, redirect back to main selector
-    const cap = boqQuantities && typeof boqQuantities['EXT'] === 'number' ? boqQuantities['EXT'] : undefined;
-    if (cap !== undefined && remainingEXT <= 0) {
-      navigate('/panel-type', { replace: true });
-    }
-  }, [remainingEXT, boqQuantities, navigate]);
+  // BOQ removed: no redirects
 
   
 
@@ -191,30 +173,14 @@ const ExtendedPanelSelector = () => {
   ];
 
   // Determine which extended subtypes are allowed from BOQ selections
-  const allowedEXTSubtypes = useMemo(() => {
-    return ['X1H','X1V','X2H','X2V'].filter(k => {
-      const cap = (boqQuantities as any)?.[k];
-      return typeof cap === 'number' && cap > 0;
-    });
-  }, [boqQuantities]);
+  const allowedEXTSubtypes = useMemo(() => ['X1H','X1V','X2H','X2V'], []);
 
   // Filter panels to only show selected subtypes
-  const filteredHorizontal = useMemo(() => horizontalPanels.filter(p => (allowedEXTSubtypes as string[]).includes(p.subtype)), [horizontalPanels, allowedEXTSubtypes]);
-  const filteredVertical = useMemo(() => verticalPanels.filter(p => (allowedEXTSubtypes as string[]).includes(p.subtype)), [verticalPanels, allowedEXTSubtypes]);
+  const filteredHorizontal = useMemo(() => horizontalPanels, [horizontalPanels]);
+  const filteredVertical = useMemo(() => verticalPanels, [verticalPanels]);
 
   // Per-subtype remaining function
-  const remainingForSubtype = (subtype: 'X1H' | 'X1V' | 'X2H' | 'X2V') => {
-    const cap = (boqQuantities as any)?.[subtype] as number | undefined;
-    if (typeof cap !== 'number') return undefined;
-    const used = projPanels.reduce((sum, p) => {
-      if (String(p.type).toUpperCase() === subtype) {
-        const qty = typeof p.quantity === 'number' && !isNaN(p.quantity) ? p.quantity : 1;
-        return sum + qty;
-      }
-      return sum;
-    }, 0);
-    return Math.max(0, cap - used);
-  };
+  const remainingForSubtype = (subtype: 'X1H' | 'X1V' | 'X2H' | 'X2V') => undefined;
 
   return (
     <Box
@@ -414,27 +380,7 @@ const ExtendedPanelSelector = () => {
                         p: 3,
                       }}
                     >
-                      {typeof remainingForSubtype(panel.subtype) === 'number' && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: 12,
-                            bottom: 12,
-                            px: 1.25,
-                            py: 0.5,
-                            borderRadius: 12,
-                            backgroundColor: '#ffffff',
-                            color: '#111827',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            letterSpacing: 0.3,
-                            border: '1px solid rgba(0,0,0,0.08)',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-                          }}
-                        >
-                          {remainingForSubtype(panel.subtype)} left
-                        </Box>
-                      )}
+                      {/* BOQ removed: no remaining badges */}
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}
@@ -512,27 +458,7 @@ const ExtendedPanelSelector = () => {
                         p: 3,
                       }}
                     >
-                      {typeof remainingForSubtype(panel.subtype) === 'number' && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: 12,
-                            bottom: 12,
-                            px: 1.25,
-                            py: 0.5,
-                            borderRadius: 12,
-                            backgroundColor: '#ffffff',
-                            color: '#111827',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            letterSpacing: 0.3,
-                            border: '1px solid rgba(0,0,0,0.08)',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-                          }}
-                        >
-                          {remainingForSubtype(panel.subtype)} left
-                        </Box>
-                      )}
+                      {/* BOQ removed: no remaining badges */}
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}

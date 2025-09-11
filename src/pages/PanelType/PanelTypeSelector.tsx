@@ -115,7 +115,7 @@ const PanelTypeSelector = () => {
   const location = useLocation();
   const theme = useTheme();
   const [showPanels] = useState(true);
-  const { projectName, projectCode, allowedPanelTypes, boqQuantities } = useContext(ProjectContext);
+  const { projectName, projectCode } = useContext(ProjectContext);
   const { projPanels } = useCart();
 
   // Check if we're in edit mode
@@ -231,95 +231,18 @@ const PanelTypeSelector = () => {
     return counts;
   }, [projPanels]);
 
-  const remainingByCategory = useMemo(() => {
-    const rem: Record<'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT', number | undefined> = { SP: undefined, TAG: undefined, IDPG: undefined, DP: undefined, EXT: undefined };
-    if (!boqQuantities) return rem;
+  const remainingByCategory = useMemo(() => ({ SP: undefined, TAG: undefined, IDPG: undefined, DP: undefined, EXT: undefined } as Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT', number | undefined>), [usedByCategory]);
 
-    // Sum usage across subtypes for Extended and treat cap as sum of X1H/X1V/X2H/X2V
-    const extendedCap = ['X1H','X1V','X2H','X2V']
-      .map(k => (boqQuantities as any)[k] as number | undefined)
-      .filter((v): v is number => typeof v === 'number')
-      .reduce((a, b) => a + b, 0);
+  // BOQ removed: no redirects or gating
 
-    (Object.keys(rem) as Array<keyof typeof rem>).forEach((key) => {
-      if (key === 'EXT') {
-        const cap = extendedCap;
-        if (typeof cap === 'number') {
-          const used = usedByCategory.EXT || 0;
-          rem[key] = Math.max(0, cap - used);
-        }
-        return;
-      }
-      const cap = boqQuantities[key as string] ?? undefined;
-      if (typeof cap === 'number') {
-        const used = usedByCategory[key as keyof typeof usedByCategory] || 0;
-        rem[key] = Math.max(0, cap - used);
-      }
-    });
-    return rem;
-  }, [boqQuantities, usedByCategory]);
-
-  // If BOQ not set, redirect to BOQ first (only for new projects)
-  useEffect(() => {
-    // Check if we're coming from BOQ page to avoid immediate redirect
-    const isComingFromBOQ = location.state?.fromBOQ;
-    
-    if (!allowedPanelTypes || allowedPanelTypes.length === 0) {
-      // Allow bypass if we're adding to an existing project (edit flow)
-      const isAddingToExistingProject = location.state?.isAddingToExistingProject;
-      if (!isAddingToExistingProject && !isComingFromBOQ) {
-        // Only redirect to BOQ if this is a new project (not edit mode) AND we have project details
-        // This prevents redirect on page refresh when user is already in the middle of designing
-        if (!isEditMode && (projectName || projectCode)) {
-          navigate('/boq', { replace: true });
-        }
-      }
-    }
-  }, [allowedPanelTypes, navigate, location.state, isEditMode, projectName, projectCode]);
-
-  // When bypassing BOQ (adding to an existing project or new revision), derive allowed panel types
-  // from existing BOQ quantities so we still gate/filter correctly.
-  const effectiveAllowedPanelTypes = useMemo(() => {
-    // If we have allowedPanelTypes from BOQ, use them
-    if (allowedPanelTypes && allowedPanelTypes.length > 0) {
-      console.log('Using allowedPanelTypes from BOQ:', allowedPanelTypes);
-      return allowedPanelTypes;
-    }
-    
-    // Only use bypass logic for adding to existing projects
-    const isAddingToExistingProject = location.state?.isAddingToExistingProject;
-    if (!isAddingToExistingProject) {
-      console.log('No allowedPanelTypes and not adding to existing project');
-      return allowedPanelTypes;
-    }
-    
-    if (!boqQuantities || Object.keys(boqQuantities).length === 0) {
-      console.log('No boqQuantities available for bypass');
-      return allowedPanelTypes;
-    }
-    
-    const allow: string[] = [];
-    if (typeof (boqQuantities as any)['SP'] === 'number' && (boqQuantities as any)['SP'] > 0) allow.push('SP');
-    if (typeof (boqQuantities as any)['TAG'] === 'number' && (boqQuantities as any)['TAG'] > 0) allow.push('TAG');
-    if (typeof (boqQuantities as any)['IDPG'] === 'number' && (boqQuantities as any)['IDPG'] > 0) allow.push('IDPG');
-    if (typeof (boqQuantities as any)['DP'] === 'number' && (boqQuantities as any)['DP'] > 0) allow.push('DP');
-    // If any extended subtype has a quantity, enable EXT
-    const extKeys = ['X1H','X1V','X2H','X2V'];
-    if (extKeys.some(k => typeof (boqQuantities as any)[k] === 'number' && (boqQuantities as any)[k] > 0)) {
-      allow.push('EXT');
-    }
-    console.log('Derived allowedPanelTypes from boqQuantities:', allow);
-    return allow;
-  }, [allowedPanelTypes, boqQuantities, location.state]);
+  const effectiveAllowedPanelTypes: string[] = useMemo(() => [], []);
 
   const panelTypes = useMemo(() => {
     console.log('effectiveAllowedPanelTypes:', effectiveAllowedPanelTypes);
     console.log('remainingByCategory:', remainingByCategory);
     
     // Start with allowed list (or all if none set)
-    const base = (!effectiveAllowedPanelTypes || effectiveAllowedPanelTypes.length === 0)
-      ? allPanelTypes
-      : allPanelTypes.filter(p => effectiveAllowedPanelTypes.includes(p.key as any));
+    const base = allPanelTypes;
     
     console.log('Base panelTypes after filtering:', base.map(p => p.name));
     
@@ -372,7 +295,7 @@ const PanelTypeSelector = () => {
           <Button
             variant="outlined"
             size="small"
-            onClick={() => navigate('/boq', { state: { editMode: true } })}
+            onClick={() => navigate('/properties')}
             sx={{
               color: 'rgba(255, 255, 255, 0.9)',
               borderColor: 'rgba(255, 255, 255, 0.3)',
@@ -386,7 +309,7 @@ const PanelTypeSelector = () => {
               },
             }}
           >
-            Edit BOQ
+            Properties
           </Button>
           <CartButton />
         </Box>
@@ -454,8 +377,12 @@ const PanelTypeSelector = () => {
                               editMode: false, // This is a new panel, not editing existing
                               projectData: editProjectData,
                               designId: editDesignId,
-                              isAddingToExistingProject: true // Flag to indicate we're adding to existing project
-                            }
+                              isAddingToExistingProject: true, // Flag to indicate we're adding to existing project
+                              // Preserve project edit context for return to /cart
+                              projectEditMode: true,
+                              projectDesignId: editDesignId,
+                              projectOriginalName: editProjectData?.projectName,
+                             }
                           });
                         } else {
                           // Normal navigation for new projects
@@ -471,27 +398,7 @@ const PanelTypeSelector = () => {
                         marginLeft: undefined,
                       }}
                     >
-                      {typeof (boqQuantities as any)?.[panel.key] === 'number' && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            left: 12,
-                            bottom: 12,
-                            px: 1.25,
-                            py: 0.5,
-                            borderRadius: 12,
-                            backgroundColor: '#ffffff',
-                            color: '#111827',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            letterSpacing: 0.3,
-                            border: '1px solid rgba(0,0,0,0.08)',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-                          }}
-                        >
-                          {Math.max(0, (remainingByCategory as any)?.[panel.key] ?? 0)} left
-                        </Box>
-                      )}
+                      {/* BOQ removed: no remaining badges */}
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}
