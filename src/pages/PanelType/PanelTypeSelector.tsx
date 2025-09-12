@@ -382,7 +382,7 @@ const PanelTypeSelector = () => {
                               projectEditMode: true,
                               projectDesignId: editDesignId,
                               projectOriginalName: editProjectData?.projectName,
-                             }
+                            }
                           });
                         } else {
                           // Normal navigation for new projects
