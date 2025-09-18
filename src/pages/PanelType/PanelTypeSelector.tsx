@@ -7,6 +7,9 @@ import {
   Box,
   Button,
   useTheme,
+  Chip,
+  IconButton,
+  TextField,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -19,6 +22,7 @@ import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 import { ProjectContext } from '../../App';
 import { useCart } from '../../contexts/CartContext';
+import { supabase } from '../../utils/supabaseClient';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -117,6 +121,17 @@ const PanelTypeSelector = () => {
   const [showPanels] = useState(true);
   const { projectName, projectCode } = useContext(ProjectContext);
   const { projPanels } = useCart();
+
+  // BOQ-integrated state
+  const importResults = location.state?.importResults as { project_ids?: string[] } | undefined;
+  const projectIds = (location.state?.projectIds as string[] | undefined) || importResults?.project_ids || [];
+  const [boqLoading, setBoqLoading] = useState(false);
+  const [boqError, setBoqError] = useState<string | null>(null);
+  const [boqData, setBoqData] = useState<Record<string, {
+    fixedTotal: number;
+    totalQuantity: number;
+    designs: { id: string; name: string; qty: number; projectName: string; panelType: string }[];
+  }>>({});
 
   // Check if we're in edit mode
   const isEditMode = location.state?.editMode || false;
@@ -221,6 +236,56 @@ const PanelTypeSelector = () => {
     return 'SP';
   };
 
+  // Load BOQ designs for provided projectIds (if any). If none, page behaves as before.
+  useEffect(() => {
+    const loadBOQ = async () => {
+      if (!projectIds || projectIds.length === 0) return;
+      try {
+        setBoqLoading(true);
+        setBoqError(null);
+        const { data, error } = await supabase
+          .schema('api')
+          .from('user_designs')
+          .select(`id, design_name, panel_type, project_id, design_data, user_projects!inner(project_name)`) 
+          .in('project_id', projectIds);
+        if (error) throw new Error(error.message);
+        const grouped: Record<string, {
+          fixedTotal: number;
+          totalQuantity: number;
+          designs: { id: string; name: string; qty: number; projectName: string; panelType: string }[];
+        }> = {};
+        (data || []).forEach((d: any) => {
+          const key = mapTypeToCategory(d.panel_type);
+          const qty = (d.design_data && typeof d.design_data.quantity !== 'undefined') ? (Number(d.design_data.quantity) || 0) : 0;
+          if (!grouped[key]) grouped[key] = { fixedTotal: 0, totalQuantity: 0, designs: [] };
+          grouped[key].designs.push({ id: d.id, name: d.design_name, qty, projectName: d.user_projects.project_name, panelType: d.panel_type });
+          grouped[key].fixedTotal += qty;
+          grouped[key].totalQuantity += qty;
+        });
+        setBoqData(grouped);
+      } catch (e: any) {
+        setBoqError(e?.message || 'Failed to load BOQ data');
+      } finally {
+        setBoqLoading(false);
+      }
+    };
+    loadBOQ();
+  }, [projectIds]);
+
+  // Allocation update (fixed totals)
+  const updateAlloc = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT', designId: string, newQty: number) => {
+    if (newQty < 0) return;
+    setBoqData(prev => {
+      const current = { ...(prev[cat] || { fixedTotal: 0, totalQuantity: 0, designs: [] }) };
+      const sumOther = current.designs.reduce((s, d) => s + (d.id === designId ? 0 : d.qty), 0);
+      const remaining = Math.max(0, current.fixedTotal - sumOther);
+      const clamped = Math.max(0, Math.min(newQty, remaining));
+      current.designs = current.designs.map(d => d.id === designId ? { ...d, qty: clamped } : d);
+      current.totalQuantity = current.designs.reduce((s, d) => s + d.qty, 0);
+      return { ...prev, [cat]: current };
+    });
+  };
+
   const usedByCategory = useMemo(() => {
     const counts: Record<'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT', number> = { SP: 0, TAG: 0, IDPG: 0, DP: 0, EXT: 0 };
     for (const item of projPanels) {
@@ -241,8 +306,9 @@ const PanelTypeSelector = () => {
     console.log('effectiveAllowedPanelTypes:', effectiveAllowedPanelTypes);
     console.log('remainingByCategory:', remainingByCategory);
     
-    // Start with allowed list (or all if none set)
-    const base = allPanelTypes;
+    // If BOQ loaded, only show categories present in BOQ; else show all
+    const presentKeys = new Set(Object.keys(boqData));
+    const base = presentKeys.size > 0 ? allPanelTypes.filter(p => presentKeys.has(p.key)) : allPanelTypes;
     
     console.log('Base panelTypes after filtering:', base.map(p => p.name));
     
@@ -461,6 +527,37 @@ const PanelTypeSelector = () => {
                       >
                         Select Panel
                       </Button>
+                      {/* BOQ allocation for this category if available */}
+                      {boqData[panel.key as 'SP'|'TAG'|'IDPG'|'DP'|'EXT'] && (
+                        <Box sx={{ mt: 2, width: '100%', maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.9)' }}>Quantity (allocations)</Typography>
+                            <Chip label={`${boqData[panel.key as any].totalQuantity} / ${boqData[panel.key as any].fixedTotal}`} size="small" color="primary" />
+                          </Box>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            {boqData[panel.key as any].designs.map(d => (
+                              <Box key={d.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.06)', p: 1, borderRadius: 1 }}>
+                                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', flex: 1 }}>{d.name}</Typography>
+                                <IconButton size="small" onClick={() => updateAlloc(panel.key as any, d.id, d.qty - 1)} disabled={d.qty <= 0}>
+                                  <span style={{ color: 'white' }}>-</span>
+                                </IconButton>
+                                <TextField 
+                                  value={d.qty}
+                                  onChange={(e) => updateAlloc(panel.key as any, d.id, parseInt(e.target.value) || 0)}
+                                  type="number"
+                                  size="small"
+                                  sx={{ width: 80 }}
+                                  inputProps={{ min: 0, style: { textAlign: 'center', color: 'white' } }}
+                                />
+                                <IconButton size="small" onClick={() => updateAlloc(panel.key as any, d.id, d.qty + 1)}>
+                                  <span style={{ color: 'white' }}>+</span>
+                                </IconButton>
+                                <Button variant="outlined" size="small" onClick={() => navigate(panel.path)} sx={{ ml: 1 }}>Design</Button>
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
                     </PanelContainer>
                   </StyledPanel>
                 </Grid>

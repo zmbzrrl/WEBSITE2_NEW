@@ -228,7 +228,6 @@ const InformationBox = ({
   setExtraComments,
   panelDesign,
   placedIcons,
-  ICON_COLOR_FILTERS,
   ralColors
 }: {
   backbox: string;
@@ -238,11 +237,9 @@ const InformationBox = ({
   setExtraComments: (v: string) => void;
   panelDesign: any;
   placedIcons: any[];
-  ICON_COLOR_FILTERS: { [key: string]: string };
   ralColors: any[];
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
-  const iconColorName = Object.keys(ICON_COLOR_FILTERS).find(color => color === panelDesign.iconColor);
   return (
     <Box sx={{ 
       width: 400,
@@ -376,14 +373,6 @@ const InformationBox = ({
               </Box>
               {/* Icon Color */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  borderRadius: 1.5, 
-                  background: 'auto',
-                  border: '2px solid #dee2e6',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
                   Icons: Auto-colored
                 </Typography>
@@ -600,14 +589,6 @@ const DPHCustomizer: React.FC = () => {
   const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
   const [pendingDesign, setPendingDesign] = useState<any | null>(null);
   const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('DP');
-  const ICON_COLOR_FILTERS: { [key: string]: string } = {
-    '#000000': 'brightness(0) saturate(100%)',
-    '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-    '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-    '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-    '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-    '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
-  };
   // Function to determine icon color based on background
   const getIconColorFilter = (backgroundColor: string): string => {
     // Convert hex to RGB for brightness calculation
@@ -620,7 +601,7 @@ const DPHCustomizer: React.FC = () => {
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
     
     // Use white for dark backgrounds, dark grey for light backgrounds
-    if (brightness < 128) {
+    if (brightness < 150) {
       // Dark background - use white icons
       return 'brightness(0) saturate(100%) invert(1)';
     } else {

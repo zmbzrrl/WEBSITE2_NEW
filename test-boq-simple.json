@@ -1,0 +1,12 @@
+{
+  "project_name": "Test Project",
+  "project_code": "TP-001",
+  "designs": [
+    { "panel_type": "SP", "design_name": "bedroom panel", "quantity": 2 },
+    { "panel_type": "SP", "design_name": "bathroom panel", "quantity": 1 },
+    { "panel_type": "SP", "design_name": "vanity panel", "quantity": 7 },
+    { "panel_type": "SP", "design_name": "entrance panel", "quantity": 1 },
+    { "panel_type": "SP", "design_name": "living panel", "quantity": 1 },
+    { "panel_type": "X2H", "design_name": "BSP", "quantity": 1 }
+  ]
+}

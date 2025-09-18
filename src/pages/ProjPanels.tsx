@@ -42,14 +42,6 @@ const getPanelTypeLabel = (type: string) => {
   }
 };
 
-const ICON_COLOR_FILTERS: { [key: string]: string } = {
-  '#000000': 'brightness(0) saturate(100%)',
-  '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-  '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-  '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-  '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-  '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
-};
 
 const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
   if (t === 'SP') return 'SP';
@@ -1135,7 +1127,6 @@ const ProjPanels: React.FC = () => {
                     panelDesign={item.panelDesign}
                     icons={item.icons}
                     ralColors={ralColors}
-                    ICON_COLOR_FILTERS={ICON_COLOR_FILTERS}
                     backbox={item.panelDesign?.backbox}
                     comments={item.panelDesign?.extraComments}
                   />
@@ -1251,12 +1242,7 @@ const ProjPanels: React.FC = () => {
             {isViewMode && (
               <button
                 onClick={() => {
-                  const cameFromAdmin = (location as any).state?.cameFromAdmin;
-                  if (cameFromAdmin) {
-                    navigate('/admin');
-                  } else {
-                    navigate('/my-designs');
-                  }
+                  navigate('/my-designs');
                 }}
                 style={{
                   padding: '14px 36px',

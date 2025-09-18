@@ -49,8 +49,9 @@ import IDPGCustomizer from "./pages/Customizers/IDPGCustomizer";       // IDPG p
 import MyDesigns from "./pages/MyDesigns";                             // My Designs page
 import PrintPreview from "./pages/PrintPreview";                       // Print Preview page
 import DatabaseTest from "./pages/DatabaseTest";                       // Database test page
-import AdminDashboard from "./pages/AdminDashboard";                    // Admin dashboard
 import Properties from "./pages/Properties";
+import BOQPage from "./pages/BOQPage";                                  // Admin BOQ page
+import UserBOQPage from "./pages/UserBOQPage";                          // User BOQ page
 import { isAdminEmail } from "./utils/admin";
 
 // Component imports
@@ -238,8 +239,9 @@ const AppRoutes = () => { // defines all the different pages/URLs
         {/* Print Preview page */}
         <Route path="/print-preview" element={<PageTransition><PrintPreview /></PageTransition>} />
         
-        {/* Admin dashboard */}
-        <Route path="/admin" element={<PageTransition><AdminGuard><AdminDashboard /></AdminGuard></PageTransition>} />
+        {/* BOQ pages */}
+        <Route path="/boq" element={<PageTransition><BOQPage /></PageTransition>} />
+        <Route path="/user-boq" element={<PageTransition><UserBOQPage /></PageTransition>} />
 
         {/* Database test page */}
         <Route path="/database-test" element={<PageTransition><DatabaseTest /></PageTransition>} />

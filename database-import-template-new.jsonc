@@ -1,0 +1,180 @@
+// Database import template with explanatory comments (JSONC).
+// Use this file for guidance. For actual import, use database-import-template-new.json (no comments) or remove comments from this file.
+
+
+
+//Provide a single JSON file with four top-level arrays: properties, user_groups, users, projects.
+//Under each project, add a designs array. Each design is its own entry:
+Use design_name for an explicit name, or revision_of to auto-create the next revision name like “Base (revN)”.
+Include panel_type (e.g., SP) and design_data (colors, icons, layout).
+Optionally include panel_configurations for per-panel metadata.
+If you have two different SP designs, list them as two separate designs entries. The importer will create two designs, not one SP.
+
+//“Please deliver one JSON file with four sections: properties, user_groups, users, and projects.”
+//“Under each project, add a designs array. Each item is a separate design.”
+//“Name each design using design_name. If it’s a new revision of an existing design, use revision_of instead and we’ll auto-name it as ‘(revN)’.”
+//“Set panel_type (like ‘SP’). You don’t need visuals yet; just put any feature flags (motion_sensor, proximity, etc.) in a features object.”
+//“For users, you can give just email and property_name; or omit users entirely. Avoid specifying ug/ug_id here.”
+//“Use the provided template files: database-import-template-new.json (upload) and database-import-template-new.jsonc (guide).”
+
+
+
+{
+  // Metadata about this import batch (informational only)
+  "import_metadata": {
+    "version": "2.0",
+    "created_at": "2024-01-15T10:00:00Z",
+    "description": "New hierarchy: Property → User Groups → Users → Projects → Designs",
+    "total_properties": 0,
+    "total_user_groups": 0,
+    "total_users": 0,
+    "total_projects": 0,
+    "total_designs": 0
+  },
+
+  // 1) Properties to create (top-level entities)
+  //    - region: geographic grouping
+  //    - property_name: display name used to associate user groups
+  "properties": [
+    {
+      "region": "Dubai",
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "region": "London",
+      "property_name": "Hilton London Tower Bridge"
+    }
+  ],
+
+  // 2) User Groups (UG) per property (OPTIONAL)
+  //    - You can omit this array entirely. The importer works without user groups.
+  //    - ug: short code for the group (e.g., UG001)
+  //    - property_name: helper field used to resolve which property this UG belongs to
+  // Note: prop_id below is SAMPLE ONLY. Keep it as an example; the importer uses property_name internally.
+  "user_groups": [
+    {
+      "ug": "UG001",
+      "prop_id": "property_1", // illustrative only
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "ug": "UG002",
+      "prop_id": "property_1",
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "ug": "UG001",
+      "prop_id": "property_2",
+      "property_name": "Hilton London Tower Bridge"
+    }
+  ],
+
+  // 3) Users (OPTIONAL)
+  //    - You can omit this array entirely; the importer works without users
+  //    - If included, use minimal entries like { email, property_name }
+  //    - Avoid specifying ug_id/ug; let your system handle group assignment later
+  "users": [
+    {
+      "email": "admin@marriott.com",
+      "ug_id": "UG001",
+      "ug": "UG001",
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "email": "manager@marriott.com",
+      "ug_id": "UG002",
+      "ug": "UG002",
+      "property_name": "Marriott Palm Jumeirah"
+    },
+    {
+      "email": "admin@hilton.com",
+      "ug_id": "UG001",
+      "ug": "UG001",
+      "property_name": "Hilton London Tower Bridge"
+    },
+    {
+      // Minimal user example (email-only, no group assigned yet)
+      "email": "jane@hotel.com"
+    }
+  ],
+
+  // 4) Projects and their designs
+  //    - user_email: owner for the project
+  //    - project_name: project label
+  //    - designs: array of designs inside the project
+  //      Each design supports either:
+  //        a) "design_name" — explicit name, or
+  //        b) "revision_of" — base name; importer auto-creates next name like "Base (revN)"
+  //      Visuals are optional now: you can omit design_data and pass a "features" object instead
+  //      panel_configurations: optional extra metadata per design
+  "projects": [
+    {
+      "user_email": "admin@marriott.com",
+      "project_name": "Palm Jumeirah Lobby Lighting",
+      "project_description": "Main lobby lighting control system",
+      "designs": [
+        {
+          // Base (initial) design seeded without visuals; features only (visuals chosen later in app)
+          "design_name": "Lobby SP Panel",
+          "panel_type": "SP",
+          "features": {
+            "motion_sensor": true,
+            "proximity": true,
+            "notes": "Seeded via import; visuals TBD"
+          },
+          "panel_configurations": [
+            {
+              "panel_index": 1,
+              "room_type": "Lobby",
+              "panel_data": {
+                "roomName": "Main Lobby",
+                "panelPosition": "Entrance Wall",
+                "customSettings": { "brightness": 80, "autoDim": true }
+              }
+            }
+          ]
+        },
+        {
+          // New revision: importer computes next revision name. Seed with features only.
+          // Example outcome: "Lobby SP Panel (rev1)" if base exists, otherwise "(rev0)"
+          "revision_of": "Lobby SP Panel",
+          "panel_type": "SP",
+          "features": { "motion_sensor": true, "proximity": false },
+          "panel_configurations": [
+            {
+              "panel_index": 2,
+              "room_type": "Lobby",
+              "panel_data": {
+                "roomName": "Main Lobby",
+                "panelPosition": "Entrance Wall",
+                "customSettings": { "brightness": 75, "autoDim": true }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "user_email": "admin@hilton.com",
+      "project_name": "Tower Bridge Guest Rooms",
+      "project_description": "Guest room lighting automation",
+      "designs": [
+        {
+          "design_name": "Guest Room IDPG Panel",
+          "panel_type": "IDPG",
+          "design_data": {
+            "panelType": "IDPG",
+            "backgroundColor": "#F5F5F5",
+            "iconColor": "#333333",
+            "textColor": "#000000",
+            "iconSize": "35px",
+            "icons": [ { "iconId": "G-1", "label": "Guest Services", "position": 1, "text": "SERVICE", "color": "#333333" } ],
+            "layout": { "rows": 1, "columns": 1, "spacing": "5px" }
+          }
+        }
+      ]
+    }
+  ]
+}
+
+

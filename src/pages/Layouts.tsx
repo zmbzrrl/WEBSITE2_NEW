@@ -7,6 +7,7 @@ import PanelPreview from "../components/PanelPreview";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from '../App';
 import { saveLayout, getUserHierarchy, getLayouts, loadLayout, createProperty, updateLayout, deleteLayout as deleteLayoutApi, createRevision, getAccessibleProperties } from "../utils/newDatabase";
+import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from "../utils/databaseImporterNew";
 
 const THEME = {
   primary: '#1b92d1',
@@ -136,6 +137,52 @@ const Layouts: React.FC = () => {
     propertyName: '',
     region: ''
   });
+  // JSON import state (for Create Property flow)
+  const [isImportingJson, setIsImportingJson] = useState(false);
+  const [importDragActive, setImportDragActive] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleImportFile = async (file: File) => {
+    if (!file || !file.name.toLowerCase().endsWith('.json')) {
+      setImportError('Please drop a .json file');
+      return;
+    }
+    setIsImportingJson(true);
+    setImportError(null);
+    try {
+      const jsonData = await loadJsonFromFile(file);
+      const validation = validateImportDataNew(jsonData as any);
+      if (!validation.valid) {
+        setImportError(`Validation failed: ${validation.errors.join(', ')}`);
+        return;
+      }
+      const results = await importDatabaseDataNew(jsonData as any);
+      if (!results.success || !results.results) {
+        setImportError(results.message || 'Import failed');
+        return;
+      }
+      setShowCreatePropertyDialog(false);
+      // Navigate to Panel Type Selector with BOQ context
+      navigate('/panel-type', { state: { importResults: results.results, projectIds: results.results.project_ids } });
+    } catch (e: any) {
+      setImportError(e?.message ? String(e.message) : 'Failed to import file');
+    } finally {
+      setIsImportingJson(false);
+      setImportDragActive(false);
+    }
+  };
+
+  const handleImportDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setImportDragActive(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) handleImportFile(file);
+  };
+  const handleImportDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setImportDragActive(true);
+  };
+  const handleImportDragLeave = () => setImportDragActive(false);
 
   // Property access/selection state
   const [accessibleProperties, setAccessibleProperties] = useState<Array<{ prop_id: string; property_name: string; region: string }>>([]);
@@ -1735,7 +1782,6 @@ const Layouts: React.FC = () => {
               cursor: isLoading ? 'not-allowed' : 'pointer',
               fontSize: 14,
               fontWeight: 500,
-              gap: 8,
               opacity: isLoading ? 0.7 : 1
             }}
           >
@@ -2010,64 +2056,35 @@ const Layouts: React.FC = () => {
                 Create New Property
               </h3>
               
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
-                  Project Code (REGION-NUMBER-NUMBER):
-                </label>
-                <input
-                  type="text"
-                  value={newProperty.projectCode}
-                  onChange={(e) => setNewProperty({...newProperty, projectCode: e.target.value.toUpperCase()})}
-                  placeholder="AE-4020-5678"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    fontSize: 14
-                  }}
-                />
-                <div style={{ fontSize: 12, color: '#666', marginTop: '4px' }}>
-                  Format: 2 letters, 4 numbers, 4 numbers (e.g., AE-4020-5678)
+              <div style={{ marginBottom: '12px', color: '#555' }}>
+                To create a property, drop your JSON file below.
+              </div>
+
+              {/* JSON Import Drop Zone */}
+              <div
+                onDrop={handleImportDrop}
+                onDragOver={handleImportDragOver}
+                onDragLeave={handleImportDragLeave}
+                style={{
+                  border: `2px dashed ${importDragActive ? '#1b92d1' : '#ddd'}`,
+                  borderRadius: 8,
+                  padding: '20px',
+                  background: importDragActive ? '#f0f8ff' : '#fafafa',
+                  marginBottom: '16px',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Drop JSON to seed property/projects</div>
+                <div style={{ fontSize: 13, color: '#666' }}>
+                  Drag and drop your <code>.json</code> import file here.
                 </div>
-              </div>
-              
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
-                  Property Name:
-                </label>
-                <input
-                  type="text"
-                  value={newProperty.propertyName}
-                  onChange={(e) => setNewProperty({...newProperty, propertyName: e.target.value})}
-                  placeholder="Marriott Palm Jumeirah"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    fontSize: 14
-                  }}
-                />
-              </div>
-              
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
-                  Region:
-                </label>
-                <input
-                  type="text"
-                  value={newProperty.region}
-                  onChange={(e) => setNewProperty({...newProperty, region: e.target.value})}
-                  placeholder="Dubai"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    fontSize: 14
-                  }}
-                />
+                {isImportingJson && (
+                  <div style={{ marginTop: 10, fontSize: 13, color: '#1b92d1' }}>Importing…</div>
+                )}
+                {importError && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: '#c0392b' }}>{importError}</div>
+                )}
               </div>
               
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
@@ -2083,22 +2100,7 @@ const Layouts: React.FC = () => {
                     fontSize: 14
                   }}
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateProperty}
-                  disabled={isSaving || !newProperty.projectCode || !newProperty.propertyName || !newProperty.region}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: isSaving ? '#ccc' : '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: isSaving ? 'not-allowed' : 'pointer',
-                    fontSize: 14
-                  }}
-                >
-                  {isSaving ? 'Creating...' : 'Create Property'}
+                  Close
                 </button>
               </div>
             </div>

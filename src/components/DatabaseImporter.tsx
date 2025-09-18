@@ -2,20 +2,26 @@
 // A React component for importing JSON data into the database
 
 import React, { useState } from 'react';
-import { importDatabaseData, loadJsonFromFile, validateImportData } from '../utils/databaseImporter';
+import { useNavigate } from 'react-router-dom';
+import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from '../utils/databaseImporterNew';
 
 interface ImportResults {
   success: boolean;
   message: string;
   results?: {
+    properties_created: number;
+    user_groups_created: number;
+    users_created: number;
     projects_created: number;
     designs_created: number;
     configurations_created: number;
     errors: string[];
+    project_ids: string[];
   };
 }
 
 const DatabaseImporter: React.FC = () => {
+  const navigate = useNavigate();
   const [isImporting, setIsImporting] = useState(false);
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -35,7 +41,7 @@ const DatabaseImporter: React.FC = () => {
     try {
       // Load and validate the JSON file
       const jsonData = await loadJsonFromFile(file);
-      const validation = validateImportData(jsonData);
+      const validation = validateImportDataNew(jsonData);
       
       if (!validation.valid) {
         setImportResults({
@@ -46,8 +52,20 @@ const DatabaseImporter: React.FC = () => {
       }
 
       // Import the data
-      const results = await importDatabaseData(jsonData);
+      const results = await importDatabaseDataNew(jsonData);
       setImportResults(results);
+
+      // If import successful, navigate to Panel Type Selector with BOQ context
+      if (results.success && results.results) {
+        setTimeout(() => {
+          navigate('/panel-type', {
+            state: {
+              importResults: results.results,
+              projectIds: results.results?.project_ids
+            }
+          });
+        }, 2000); // Give user time to see success message
+      }
 
     } catch (error) {
       setImportResults({
@@ -160,10 +178,19 @@ const DatabaseImporter: React.FC = () => {
           </h3>
           <p style={{ margin: '0 0 10px 0' }}>{importResults.message}</p>
           
+          {importResults.success && (
+            <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: '#007bff' }}>
+              📊 Redirecting to BOQ page in 2 seconds...
+            </p>
+          )}
+          
           {importResults.results && (
             <div style={{ marginTop: '10px' }}>
               <p><strong>Results:</strong></p>
               <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                <li>Properties created: {importResults.results.properties_created}</li>
+                <li>User groups created: {importResults.results.user_groups_created}</li>
+                <li>Users created: {importResults.results.users_created}</li>
                 <li>Projects created: {importResults.results.projects_created}</li>
                 <li>Designs created: {importResults.results.designs_created}</li>
                 <li>Configurations created: {importResults.results.configurations_created}</li>
@@ -188,9 +215,10 @@ const DatabaseImporter: React.FC = () => {
       <div style={{ marginTop: '30px', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
         <h3 style={{ margin: '0 0 10px 0' }}>📋 Instructions</h3>
         <ol style={{ margin: '0', paddingLeft: '20px' }}>
-          <li>Use the provided <code>database-import-template.json</code> as a starting point</li>
-          <li>Modify the JSON structure to match your data</li>
-          <li>Ensure all required fields are present (user_email, project_name, design_name, etc.)</li>
+          <li>Use <code>database-import-template-new.json</code> as a starting point</li>
+          <li>For a commented guide, open <code>database-import-template-new.jsonc</code> (do not upload the .jsonc)</li>
+          <li>Modify the JSON to match your data</li>
+          <li>Ensure required fields are present (e.g., user_email, project_name, and either design_name or revision_of)</li>
           <li>Upload the JSON file using the interface above</li>
           <li>Check the results and any error messages</li>
         </ol>

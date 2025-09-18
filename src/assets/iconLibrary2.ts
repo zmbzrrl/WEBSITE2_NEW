@@ -106,6 +106,7 @@ export const iconCategories = [
   "Guest Services",
   "Scenes",
   "General",
+  "Thermostat",
   "Sockets"
 ];
 

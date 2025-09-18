@@ -19,46 +19,10 @@
       "property_name": "Hilton London Tower Bridge"
     }
   ],
-  "user_groups": [
-    {
-      "ug": "UG001",
-      "prop_id": "property_1", // Reference to property (will be resolved during import)
-      "property_name": "Marriott Palm Jumeirah" // Helper field for reference
-    },
-    {
-      "ug": "UG002", 
-      "prop_id": "property_1",
-      "property_name": "Marriott Palm Jumeirah"
-    },
-    {
-      "ug": "UG001",
-      "prop_id": "property_2", 
-      "property_name": "Hilton London Tower Bridge"
-    }
-  ],
-  "users": [
-    {
-      "email": "admin@marriott.com",
-      "ug_id": "UG001", // References the 'ug' field directly
-      "ug": "UG001", // Helper field
-      "property_name": "Marriott Palm Jumeirah" // Helper field
-    },
-    {
-      "email": "manager@marriott.com",
-      "ug_id": "UG002",
-      "ug": "UG002",
-      "property_name": "Marriott Palm Jumeirah"
-    },
-    {
-      "email": "admin@hilton.com", 
-      "ug_id": "UG001",
-      "ug": "UG001",
-      "property_name": "Hilton London Tower Bridge"
-    }
-  ],
   "projects": [
     {
       "user_email": "admin@marriott.com",
+      "property_name": "Marriott Palm Jumeirah",
       "project_name": "Palm Jumeirah Lobby Lighting",
       "project_description": "Main lobby lighting control system",
       "designs": [
@@ -108,10 +72,36 @@
             }
           ]
         }
+        ,
+        {
+          "revision_of": "Lobby SP Panel",
+          "panel_type": "SP",
+          "design_data": {
+            "panelType": "SP",
+            "backgroundColor": "#FFFFFF",
+            "iconColor": "#1b92d1",
+            "textColor": "#333333",
+            "iconSize": "40px",
+            "icons": [],
+            "layout": { "rows": 2, "columns": 2, "spacing": "10px" }
+          },
+          "panel_configurations": [
+            {
+              "panel_index": 2,
+              "room_type": "Lobby",
+              "panel_data": {
+                "roomName": "Main Lobby",
+                "panelPosition": "Entrance Wall",
+                "customSettings": { "brightness": 75, "autoDim": true }
+              }
+            }
+          ]
+        }
       ]
     },
     {
       "user_email": "admin@hilton.com",
+      "property_name": "Hilton London Tower Bridge",
       "project_name": "Tower Bridge Guest Rooms",
       "project_description": "Guest room lighting automation",
       "designs": [

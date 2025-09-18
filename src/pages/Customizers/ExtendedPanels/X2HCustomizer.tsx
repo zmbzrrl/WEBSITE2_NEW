@@ -18,7 +18,6 @@ import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
-import { getIconColorName } from '../../../data/iconColors';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
 
@@ -220,7 +219,6 @@ const InformationBox = ({
   setExtraComments,
   panelDesign,
   placedIcons,
-  ICON_COLOR_FILTERS,
   ralColors,
   currentStep
 }: {
@@ -231,12 +229,10 @@ const InformationBox = ({
   setExtraComments: (v: string) => void;
   panelDesign: any;
   placedIcons: any[];
-  ICON_COLOR_FILTERS: { [key: string]: string };
   ralColors: any[];
   currentStep: number;
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
-  const iconColorName = Object.keys(ICON_COLOR_FILTERS).find(color => color === panelDesign.iconColor);
   return (
     <Box sx={{ 
       width: 400,
@@ -370,16 +366,8 @@ const InformationBox = ({
               </Box>
               {/* Icon Color */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  borderRadius: 1.5, 
-                  background: panelDesign.iconColor,
-                  border: '2px solid #dee2e6',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {getIconColorName(panelDesign.iconColor)}
+                  Icons: Auto-colored
                 </Typography>
               </Box>
               
@@ -550,7 +538,7 @@ const X2HCustomizer: React.FC = () => {
     backgroundColor: '',
     fonts: '',
     backlight: '',
-    iconColor: '#000000',
+    iconColor: 'auto',
     plasticColor: '',
     textColor: '#000000',
     fontSize: '12px',
@@ -596,14 +584,6 @@ const X2HCustomizer: React.FC = () => {
   const removePir = () => {
     setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
     setIconTexts(prev => ({ ...prev }));
-  };
-  const ICON_COLOR_FILTERS: { [key: string]: string } = {
-    '#000000': 'brightness(0) saturate(100%)',
-    '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-    '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-    '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-    '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-    '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode } = useContext(ProjectContext);
@@ -1030,7 +1010,7 @@ const X2HCustomizer: React.FC = () => {
                   zIndex: 1,
                 marginTop: isPIR ? '5px' : '0',
                 cursor: currentStep !== 4 ? 'move' : 'default',
-                  filter: !isPIR && icon?.category !== 'Sockets' ? ICON_COLOR_FILTERS[panelDesign.iconColor] : undefined,
+                  filter: !isPIR && icon?.category !== 'Sockets' ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                   transition: 'filter 0.2s',
                 }}
               />
@@ -1082,7 +1062,7 @@ const X2HCustomizer: React.FC = () => {
                       width: '100%',
                       textAlign: 'center',
                       fontSize: panelDesign.fontSize || '12px',
-                      color: panelDesign.iconColor || '#000000',
+                      color: panelDesign.backgroundColor ? (getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#ffffff' : '#2c2c2c') : '#000000',
                       fontFamily: panelDesign.fonts || undefined,
                       wordBreak: 'break-word',
                     }}>{text}</div>
@@ -1096,12 +1076,12 @@ const X2HCustomizer: React.FC = () => {
                         onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.backgroundColor ? (getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#ffffff' : '#2c2c2c') : '#000000', marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div
                         onClick={() => handleTextClick(index)}
-                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? (panelDesign.backgroundColor ? (getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#ffffff' : '#2c2c2c') : '#000000') : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                       >
                         {text || 'Add text'}
                       </div>
@@ -1619,31 +1599,10 @@ const X2HCustomizer: React.FC = () => {
                       fontSize: '13px',
                       letterSpacing: '0.3px'
                     }}>
-                      Icon Color
+                      Icon Color: Auto-colored based on background
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {Object.entries(ICON_COLOR_FILTERS).map(([color]) => (
-      <button
-                      key={color}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, iconColor: color }))}
-        style={{
-                            width: '36px',
-                            height: '36px',
-                        borderRadius: '50%',
-                        background: color,
-                            border: panelDesign.iconColor === color ? '3px solid #0056b3' : '2px solid #dee2e6',
-                        cursor: 'pointer',
-                        padding: 0,
-                        outline: 'none',
-                            boxShadow: panelDesign.iconColor === color ? '0 0 0 3px rgba(0, 86, 179, 0.2), 0 4px 12px rgba(0,0,0,0.15)' : '0 2px 6px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)',
-                            transition: 'all 0.2s ease',
-                            transform: panelDesign.iconColor === color ? 'scale(1.1)' : 'scale(1)',
-                      }}
-                    />
-                  ))}
                 </div>
               </div>
-              
             </div>
           </div>
 
@@ -1700,43 +1659,41 @@ const X2HCustomizer: React.FC = () => {
                 ))}
               </div>
             </div>
-          </div>
-
-            {/* Right side - Panel Template */}
-            <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-              <div
-                style={{
-              position: 'relative',
-              width: '900px', // updated to match new panel width
-              height: '320px', // keep height unchanged
-              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-              padding: '0',
-              border: '2px solid rgba(255, 255, 255, 0.2)',
-              borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-              borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-              boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              transition: 'all 0.3s ease',
-              margin: '0 auto',
-              fontFamily: panelDesign.fonts || undefined,
-                  }}
-          >
-                <div style={{ 
-              position: 'absolute',
-              top: '2px',
-              left: '2px',
-              right: '2px',
-              bottom: '2px',
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-              pointerEvents: 'none',
-                    zIndex: 1,
-            }} />
-            <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-              {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
-                </div>
+          {/* Right side - Panel Template */}
+          <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
+            <div
+              style={{
+                position: 'relative',
+                width: '900px', // updated to match new panel width
+                height: '320px', // keep height unchanged
+                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
+                padding: '0',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                borderTop: '3px solid rgba(255, 255, 255, 0.4)',
+                borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                transition: 'all 0.3s ease',
+                margin: '0 auto',
+                fontFamily: panelDesign.fonts || undefined,
+              }}
+            >
+              <div style={{ 
+                position: 'absolute',
+                top: '2px',
+                left: '2px',
+                right: '2px',
+                bottom: '2px',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }} />
+              <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+                {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
               </div>
-        </div>
+              </div>
+            </div>
           </div>
         )}
         {/* Step 4: Review Panel Details */}
@@ -1765,7 +1722,6 @@ const X2HCustomizer: React.FC = () => {
                   setExtraComments={setExtraComments}
                   panelDesign={panelDesign}
                   placedIcons={placedIcons}
-                  ICON_COLOR_FILTERS={ICON_COLOR_FILTERS}
                   ralColors={ralColors}
                   currentStep={currentStep}
                 />

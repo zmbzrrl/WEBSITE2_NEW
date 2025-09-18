@@ -9,7 +9,7 @@ import g2Icon from '../assets/icons/G-GuestServices/G2.png';
 import g3Icon from '../assets/icons/G-GuestServices/G3.png';
 import crIcon from '../assets/icons/CR.png';
 
-// Copy hexToRgba and ICON_COLOR_FILTERS from PanelPreview
+// Copy hexToRgba from PanelPreview
 const hexToRgba = (hex: string, alpha: number): string => {
   if (!hex) return `rgba(255, 255, 255, ${alpha})`;
   hex = hex.replace('#', '');
@@ -19,14 +19,6 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const ICON_COLOR_FILTERS: { [key: string]: string } = {
-  '#000000': 'brightness(0) saturate(100%)',
-  '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-  '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-  '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-  '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-  '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
-};
 
 // Guest Services icons mapping for IDPG
 const guestServicesIcons = {
@@ -48,7 +40,7 @@ const getIconColorFilter = (backgroundColor: string): string => {
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   
   // Use white for dark backgrounds, dark grey for light backgrounds
-  if (brightness < 128) {
+  if (brightness < 150) {
     // Dark background - use white icons
     return 'brightness(0) saturate(100%) invert(1)';
   } else {
@@ -116,10 +108,8 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
     }
   }, [panelDesign.fonts]);
 
-  // Compute a robust icon color filter: use explicit iconColor if provided, otherwise derive from background
-  const computedIconFilter = (panelDesign.iconColor && ICON_COLOR_FILTERS[panelDesign.iconColor])
-    ? ICON_COLOR_FILTERS[panelDesign.iconColor]
-    : getIconColorFilter(panelDesign.backgroundColor || '#ffffff');
+  // Use automatic icon color based on background
+  const computedIconFilter = getIconColorFilter(panelDesign.backgroundColor || '#ffffff');
 
   // Determine panel types for special handling
   const isDPH = type === 'DPH';

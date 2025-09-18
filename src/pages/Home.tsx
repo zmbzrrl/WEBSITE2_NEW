@@ -755,22 +755,20 @@ const Home = () => {
         setLocation(projectDetails.location);
         setOperator(projectDetails.operator);
         
-        // Shows the success page
-        setShowSuccess(true);
-        setCurrentStep('welcome');
+        // Navigate to BOQ page for quantity distribution
+        navigate('/user-boq');
       } else {
         console.error('Backend function failed:', result.error);
       }
     } catch (error) {
       console.error('Error calling backend function:', error);
       
-      // Still show success page even if email fails
+      // Still navigate to BOQ even if email fails
       setProjectName(projectDetails.projectName);
       setProjectCode(projectDetails.projectCode);
       setLocation(projectDetails.location);
       setOperator(projectDetails.operator);
-      setShowSuccess(true);
-      setCurrentStep('welcome');
+      navigate('/user-boq');
     }
   };
 
@@ -1032,7 +1030,7 @@ const Home = () => {
               {isAdmin && (
                 <Button
                   variant="outlined"
-                  onClick={() => navigate('/admin')}
+                  onClick={() => navigate('/properties')}
                   sx={{
                     fontFamily: 'sans-serif',
                     fontWeight: 500,

@@ -28,7 +28,7 @@ const getIconColorFromBackground = (backgroundColor: string): string => {
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   
   // Use white for dark backgrounds, dark grey for light backgrounds
-  if (brightness < 128) {
+  if (brightness < 150) {
     // Dark background - use white icons
     return 'White';
   } else {

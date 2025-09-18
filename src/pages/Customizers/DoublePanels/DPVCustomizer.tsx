@@ -579,14 +579,6 @@ const DPVCustomizer: React.FC = () => {
     setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
     setIconTexts(prev => ({ ...prev }));
   };
-  const ICON_COLOR_FILTERS: { [key: string]: string } = {
-    '#000000': 'brightness(0) saturate(100%)',
-    '#FFFFFF': 'brightness(0) saturate(100%) invert(1)',
-    '#808080': 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)',
-    '#FF0000': 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7464%) hue-rotate(0deg) brightness(113%) contrast(109%)',
-    '#0000FF': 'brightness(0) saturate(100%) invert(8%) sepia(100%) saturate(6495%) hue-rotate(247deg) brightness(98%) contrast(141%)',
-    '#008000': 'brightness(0) saturate(100%) invert(23%) sepia(98%) saturate(3025%) hue-rotate(101deg) brightness(94%) contrast(104%)',
-  };
   // Function to determine icon color based on background
   const getIconColorFilter = (backgroundColor: string): string => {
     // Convert hex to RGB for brightness calculation
@@ -599,7 +591,7 @@ const DPVCustomizer: React.FC = () => {
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
     
     // Use white for dark backgrounds, dark grey for light backgrounds
-    if (brightness < 128) {
+    if (brightness < 150) {
       // Dark background - use white icons
       return 'brightness(0) saturate(100%) invert(1)';
     } else {

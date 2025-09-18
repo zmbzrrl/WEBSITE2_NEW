@@ -30,6 +30,7 @@ export const saveDesign = async (email: string, designData: any, location?: stri
       const baseProjectName = projectName.replace(/\s*\(rev\d+\)$/, '');
       
       const { data: existingProjects, error: findError } = await supabase
+        .schema('api')
         .from('user_projects')
         .select('id, project_name')
         .eq('user_email', email)
@@ -46,6 +47,7 @@ export const saveDesign = async (email: string, designData: any, location?: stri
       // If no existing project found, create a new one
       if (!projectId) {
         const { data: projectData, error: projectError } = await supabase
+          .schema('api')
           .from('user_projects')
           .insert([{
             user_email: email,
@@ -72,6 +74,7 @@ export const saveDesign = async (email: string, designData: any, location?: stri
     
     // Create the design record
     const { data, error } = await supabase
+      .schema('api')
       .from('user_designs')
       .insert([{
         project_id: projectId,
@@ -124,6 +127,7 @@ export const getDesigns = async (email: string) => {
     
     // Fetch all designs for this user (flat). If nested select is needed, add a DB-side view.
     const { data, error } = await supabase
+      .schema('api')
       .from('user_designs')
       .select('*')
       .eq('user_email', email)
@@ -229,6 +233,7 @@ export const getAllDesigns = async (filters?: {
     // Fallback if the view doesn't exist: join user_designs with user_projects and filter client-side
     console.warn('⚠️ Falling back to joined query because view is missing or not accessible:', error);
     const { data: joined, error: joinError } = await supabase
+      .schema('api')
       .from('user_designs')
       .select('*')
       .eq('is_active', true)
@@ -324,6 +329,7 @@ export const deleteDesign = async (email: string, designId: string) => {
     
     // Delete the design (only if it belongs to the user)
     const { error } = await supabase
+      .schema('api')
       .from('user_designs')
       .delete()
       .eq('id', designId)
@@ -372,6 +378,7 @@ export const updateDesign = async (email: string, designId: string, updatedDesig
     
     // Update the design (only if it belongs to the user)
     const { data, error } = await supabase
+      .schema('api')
       .from('user_designs')
       .update({
         design_name: projectName,
@@ -463,6 +470,7 @@ export const testConnection = async () => {
     
     // Test 4: Try the actual table query
     const { count, error } = await supabase
+      .schema('api')
       .from('user_designs')
       .select('*', { count: 'exact', head: true });
 
@@ -506,6 +514,7 @@ export const testBasicConnection = async () => {
     
     // Use the shared client instead of direct API calls
     const { data, error } = await supabase
+      .schema('api')
       .from('user_projects')
       .select('count')
       .limit(1);

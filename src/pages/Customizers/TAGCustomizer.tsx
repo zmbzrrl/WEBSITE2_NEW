@@ -381,14 +381,6 @@ const InformationBox = ({
               </Box>
               {/* Icon Color */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  borderRadius: 1.5, 
-                  background: 'auto',
-                  border: '2px solid #dee2e6',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
                   Icons & Text: Auto-colored
                 </Typography>
@@ -549,7 +541,7 @@ const TAGCustomizer: React.FC = () => {
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
     
     // Use white for dark backgrounds, dark grey for light backgrounds
-    if (brightness < 128) {
+    if (brightness < 150) {
       // Dark background - use white icons
       return 'brightness(0) saturate(100%) invert(1)';
     } else {
@@ -622,7 +614,7 @@ const TAGCustomizer: React.FC = () => {
   useEffect(() => {
     import("../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
-      // Hide PIR, Sockets, and Climate; include TAG so TAG-specific icons appear
+      // Hide PIR, Sockets, and Climate; include Thermostat (TAG icons) so TAG-specific icons appear
       setIconCategories(module.iconCategories.filter(cat => cat !== 'Sockets' && cat !== 'PIR' && cat !== 'Climate'));
     });
   }, []);
@@ -1532,7 +1524,7 @@ const TAGCustomizer: React.FC = () => {
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness < 128 ? '#ffffff' : '#2c2c2c';
+    return brightness < 150 ? '#ffffff' : '#2c2c2c';
   };
 
   // Check if an icon allows text input

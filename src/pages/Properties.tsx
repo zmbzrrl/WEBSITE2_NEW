@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { getAccessibleProperties, createProperty, listPropertyRevisions, getDesignWithPermissions, createRevision, deleteLayout } from '../utils/newDatabase';
 import { ProjectContext } from '../App';
+import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from '../utils/databaseImporterNew';
 
 const Properties: React.FC = () => {
   const navigate = useNavigate();
-  const { setProjectCode } = useContext(ProjectContext);
+  const { setProjectCode, setProjectName, setLocation, setOperator } = useContext(ProjectContext);
 
   const [properties, setProperties] = useState<Array<{ prop_id: string; property_name: string; region: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,45 @@ const Properties: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [newProperty, setNewProperty] = useState({ projectCode: '', propertyName: '', region: '' });
   const [saving, setSaving] = useState(false);
+  // JSON import UI state
+  const [dragActive, setDragActive] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    setImportError('');
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setImportError('Please drop a .json file');
+      return;
+    }
+    setImporting(true);
+    try {
+      const json = await loadJsonFromFile(file as any);
+      const v = validateImportDataNew(json as any);
+      if (!v.valid) { setImportError(`Validation failed: ${v.errors.join(', ')}`); setImporting(false); return; }
+      const res = await importDatabaseDataNew(json as any);
+      if (!res.success || !res.results) { setImportError(res.message || 'Import failed'); setImporting(false); return; }
+      if (!res.results.project_ids || res.results.project_ids.length === 0) {
+        const errs = (res.results as any).errors || [];
+        setImportError(`Import completed but no projects were created. ${errs.length ? `Errors: ${errs.join(' | ')}` : ''}`.trim());
+        setImporting(false);
+        return;
+      }
+      // Navigate to Panel Type Selector with BOQ context
+      navigate('/panel-type', { state: { importResults: res.results, projectIds: res.results.project_ids } });
+      setShowCreate(false);
+    } catch (err: any) {
+      setImportError(err?.message || 'Failed to import file');
+    } finally {
+      setImporting(false);
+    }
+  };
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setDragActive(true); };
+  const handleDragLeave = () => setDragActive(false);
 
   const parseNextRevisionName = (currentName?: string) => {
     const name = (currentName || 'Design').trim();
@@ -182,33 +222,7 @@ const Properties: React.FC = () => {
     } catch { return false; }
   };
 
-  const onCreateProperty = async () => {
-    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
-    if (!userEmail) {
-      setError('Please log in first.');
-      return;
-    }
-    const re = /^[A-Z]{2}-\d{4}-\d{4}$/;
-    if (!re.test(newProperty.projectCode.trim().toUpperCase())) {
-      setError('Project code must be like AE-4020-5678');
-      return;
-    }
-    setSaving(true);
-    const res = await createProperty(userEmail, {
-      projectCode: newProperty.projectCode.trim().toUpperCase(),
-      propertyName: newProperty.propertyName.trim(),
-      region: newProperty.region.trim()
-    });
-    console.log('createProperty result:', res);
-    setSaving(false);
-    if (!res.success) {
-      setError(res.message || 'Failed to create property');
-      return;
-    }
-    setShowCreate(false);
-    setNewProperty({ projectCode: '', propertyName: '', region: '' });
-    await load();
-  };
+  // Manual creation removed; data will be taken from JSON import only
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 24, position: 'relative' }}>
@@ -350,11 +364,8 @@ const Properties: React.FC = () => {
 
                       <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #e9ecef' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                          <div style={{ fontSize: 13, color: '#555' }}>Revisions</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ fontSize: 12, color: '#888' }}>
-                              {loadingProp[p.prop_id] ? 'Loading…' : `${(revisionsByProp[p.prop_id] || []).length} items`}
-                            </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ fontSize: 13, color: '#555' }}>Revisions</div>
                             <button
                               onClick={() => toggleExpanded(p.prop_id)}
                               title={expanded[p.prop_id] ? 'Hide revisions' : 'Show revisions'}
@@ -362,7 +373,7 @@ const Properties: React.FC = () => {
                               style={{
                                 padding: 0,
                                 background: 'transparent',
-                                color: '#ccc',
+                                color: '#888',
                                 border: 'none',
                                 cursor: 'pointer',
                                 transform: expanded[p.prop_id] ? 'rotate(90deg)' : 'rotate(0deg)',
@@ -373,6 +384,11 @@ const Properties: React.FC = () => {
                             >
                               ▶
                             </button>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ fontSize: 12, color: '#888' }}>
+                              {loadingProp[p.prop_id] ? 'Loading…' : `${(revisionsByProp[p.prop_id] || []).length} items`}
+                            </div>
                             {(!loadingProp[p.prop_id] && (revisionsByProp[p.prop_id] || []).length === 0) && (
                               <button
                                 onClick={() => startNewDesign(p.prop_id)}
@@ -469,34 +485,29 @@ const Properties: React.FC = () => {
       {showCreate && (
         <div style={{ position: 'fixed', inset: 0 as any, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', borderRadius: 8, padding: 20, width: '90%', maxWidth: 520 }}>
-            <h3 style={{ marginTop: 0 }}>Create Property</h3>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>Project Code (e.g., AE-4020-5678)</label>
-              <input value={newProperty.projectCode}
-                     onChange={(e) => setNewProperty({ ...newProperty, projectCode: e.target.value.toUpperCase() })}
-                     placeholder="AE-4020-5678"
-                     style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4 }} />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>Property Name</label>
-              <input value={newProperty.propertyName}
-                     onChange={(e) => setNewProperty({ ...newProperty, propertyName: e.target.value })}
-                     placeholder="Marriott Palm Jumeirah"
-                     style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4 }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>Region</label>
-              <input value={newProperty.region}
-                     onChange={(e) => setNewProperty({ ...newProperty, region: e.target.value })}
-                     placeholder="Dubai"
-                     style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4 }} />
+            <h3 style={{ marginTop: 0 }}>Create Property from JSON</h3>
+            {/* JSON Import Drop Zone */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              style={{
+                border: `2px dashed ${dragActive ? '#1b92d1' : '#ddd'}`,
+                borderRadius: 8,
+                padding: 16,
+                background: dragActive ? '#f0f8ff' : '#fafafa',
+                marginBottom: 12,
+                textAlign: 'center'
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Drop JSON to seed property/projects</div>
+              <div style={{ fontSize: 12, color: '#666' }}>Drag and drop a .json file here</div>
+              {importing && <div style={{ marginTop: 8, fontSize: 12, color: '#1b92d1' }}>Importing…</div>}
+              {importError && <div style={{ marginTop: 8, fontSize: 12, color: '#c0392b' }}>{importError}</div>}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={() => setShowCreate(false)}
-                      style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={onCreateProperty}
-                      disabled={saving}
-                      style={{ padding: '8px 12px', background: saving ? '#aaa' : '#28a745', color: '#fff', border: 'none', borderRadius: 4, cursor: saving ? 'not-allowed' : 'pointer' }}>{saving ? 'Creating…' : 'Create'}</button>
+                      style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' }}>Close</button>
             </div>
           </div>
         </div>

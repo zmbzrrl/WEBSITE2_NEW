@@ -10,7 +10,6 @@ interface PanelConfigurationSummaryProps {
     category?: string;
   }>;
   ralColors: RALColor[];
-  ICON_COLOR_FILTERS: { [key: string]: string };
   backbox?: string;
   comments?: string;
 }
@@ -19,12 +18,10 @@ const PanelConfigurationSummary: React.FC<PanelConfigurationSummaryProps> = ({
   panelDesign,
   icons,
   ralColors,
-  ICON_COLOR_FILTERS,
   backbox,
   comments,
 }) => {
   const selectedRALColor = ralColors.find(color => color.hex === panelDesign.backgroundColor);
-  const iconColorName = Object.keys(ICON_COLOR_FILTERS).find(color => color === panelDesign.iconColor);
 
   return (
     <Box sx={{
@@ -159,16 +156,8 @@ const PanelConfigurationSummary: React.FC<PanelConfigurationSummaryProps> = ({
               </Box>
               {/* Icon Color */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 1.5,
-                  background: panelDesign.iconColor,
-                  border: '2px solid #dee2e6',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                }} />
                 <Typography variant="body2" sx={{ color: '#2c3e50', fontSize: '14px', fontWeight: 500 }}>
-                  Icons: {iconColorName}
+                  Icons: Auto-colored
                 </Typography>
               </Box>
               {/* Text Color */}
