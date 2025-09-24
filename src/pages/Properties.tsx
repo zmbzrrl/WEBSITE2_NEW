@@ -64,8 +64,17 @@ const Properties: React.FC = () => {
       }
       // For "Create Property" flow, stay on Properties page and refresh the list
       console.log('✅ Import completed successfully, refreshing properties list');
-      await load(); // Reload the properties list to show the new property
+      
+      // Close the popup immediately to update UI
       setShowCreate(false);
+      
+      // Then refresh the properties list in background
+      try {
+        await load(); // Reload the properties list to show the new property
+      } catch (loadErr) {
+        console.warn('Failed to refresh properties list after import:', loadErr);
+        // Don't show error to user since import was successful
+      }
     } catch (err: any) {
       setImportError(err?.message || 'Failed to import file');
     } finally {
@@ -271,17 +280,30 @@ const Properties: React.FC = () => {
       const result = await deleteProperty(propertyToDelete.prop_id, user.email);
       
       if (result.success) {
-        // Refresh the properties list
-        await load();
+        // Close the modal first to update UI immediately
         setShowFinalConfirm(false);
         setPropertyToDelete(null);
         setConfirmationText('');
+        setDeletingProperty(false);
+        
+        // Immediately remove the deleted property from local state
+        setProperties(prevProperties => 
+          prevProperties.filter(p => p.prop_id !== propertyToDelete.prop_id)
+        );
+        
+        // Also refresh the properties list to ensure consistency
+        try {
+          await load();
+        } catch (loadErr) {
+          console.warn('Failed to refresh properties list:', loadErr);
+          // Don't show error to user since deletion was successful and we already updated local state
+        }
       } else {
         setError(result.message || 'Failed to permanently delete property');
+        setDeletingProperty(false);
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to permanently delete property');
-    } finally {
       setDeletingProperty(false);
     }
   };

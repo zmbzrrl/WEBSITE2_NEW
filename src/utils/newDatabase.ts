@@ -603,7 +603,7 @@ export const deleteProperty = async (propId: string, userEmail: string) => {
     // Start hard deletion process - PERMANENTLY remove all data
     // 1. Hard delete all designs in this property
     const { error: designErr } = await supabase
-      .from('design')
+      .from('user_designs')
       .delete()
       .eq('prop_id', propId)
       .eq('is_active', true);

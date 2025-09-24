@@ -1,5 +1,20 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from "react";
 
+const getPanelTypeLabel = (type: string) => {
+  switch (type) {
+    case "SP": return "Single Panel";
+    case "TAG": return "Thermostat";
+    case "DPH": return "Horizontal Double Panel";
+    case "DPV": return "Vertical Double Panel";
+    case "X2V": return "Extended Panel, Vertical, 2 Sockets";
+    case "X2H": return "Extended Panel, Horizontal, 2 Sockets";
+    case "X1H": return "Extended Panel, Horizontal, 1 Socket";
+    case "X1V": return "Extended Panel, Vertical, 1 Socket";
+    case "IDPG": return "Corridor Panel";
+    default: return "Panel";
+  }
+};
+
 interface CartItem {
   type: string;
   icons: Array<{
@@ -174,7 +189,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const addToCart = useCallback((item: CartItem): void => {
     setProjPanels((prev) => {
       const newItemQuantity = Math.max(1, item.quantity || 1);
-      const newKey = generateDesignKey(item);
+      
+      // Auto-populate panel name if not set (prioritize existing panelName, then fallback to panel type)
+      const panelName = item.panelName || getPanelTypeLabel(item.type);
+      
+      // Create the item with auto-populated data
+      const enhancedItem = {
+        ...item,
+        quantity: newItemQuantity,
+        panelName: panelName
+      };
+      
+      const newKey = generateDesignKey(enhancedItem);
       for (let i = 0; i < prev.length; i++) {
         const existing = prev[i];
         if (generateDesignKey(existing) === newKey) {
@@ -184,7 +210,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           return updated;
         }
       }
-      return [...prev, { ...item, quantity: newItemQuantity }];
+      return [...prev, enhancedItem];
     });
     setIsCounting(true);
   }, []);
@@ -232,10 +258,16 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     // First clear the cart completely
     setProjPanels([]);
     
-    // Then load new panels with deep copies
-    const copiedPanels = panels.map(panel => JSON.parse(JSON.stringify(panel)));
-    console.log('  Deep copied panels:', copiedPanels);
-    console.log('  Are they the same objects?', panels === copiedPanels);
+    // Then load new panels with deep copies and auto-populate panel names
+    const copiedPanels = panels.map(panel => {
+      const copied = JSON.parse(JSON.stringify(panel));
+      // Auto-populate panel name if not set
+      if (!copied.panelName) {
+        copied.panelName = getPanelTypeLabel(copied.type);
+      }
+      return copied;
+    });
+    console.log('  Deep copied panels with auto-populated names:', copiedPanels);
     
     // Use setTimeout to ensure the clear happens before the load
     setTimeout(() => {

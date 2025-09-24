@@ -134,6 +134,8 @@ const PanelTypeSelector = () => {
   // Check if we're in BOQ mode or standalone mode
   const hasBOQ = Array.isArray(projectIds) && projectIds.length > 0;
   const hasProjectCode = !!projectCode; // Check if we have a project code from context
+  // Always keep BOQ-aware mode active when projectIds exist
+  const hasBOQEffective = hasBOQ;
   
   console.log('PanelTypeSelector - hasBOQ:', hasBOQ);
   console.log('PanelTypeSelector - hasProjectCode:', hasProjectCode);
@@ -143,7 +145,7 @@ const PanelTypeSelector = () => {
   // Only redirect if we have neither BOQ nor project code
   const [redirecting, setRedirecting] = useState(false);
   useEffect(() => {
-    if (!hasBOQ && !hasProjectCode) {
+    if (!hasBOQEffective && !hasProjectCode) {
       console.log('PanelTypeSelector - No BOQ or project code, redirecting to properties');
       setRedirecting(true);
       navigate('/properties', { replace: true });
@@ -151,10 +153,10 @@ const PanelTypeSelector = () => {
       console.log('PanelTypeSelector - Has BOQ or project code, staying on page');
       setRedirecting(false);
     }
-  }, [hasBOQ, hasProjectCode, navigate]);
+  }, [hasBOQEffective, hasProjectCode, navigate]);
 
   // Prevent any UI from rendering until we have context or redirect happens
-  if ((!hasBOQ && !hasProjectCode) || redirecting) {
+  if ((!hasBOQEffective && !hasProjectCode) || redirecting) {
     return null;
   }
   const [boqLoading, setBoqLoading] = useState(false);
@@ -165,6 +167,7 @@ const PanelTypeSelector = () => {
     totalQuantity: number;
     designs: { id: string; name: string; qty: number; projectName: string; panelType: string; maxQty?: number }[];
   }>>({});
+  const [adjustedBoqData, setAdjustedBoqData] = useState<typeof boqData>({});
 
   // Check if we're in edit mode
   const isEditMode = location.state?.editMode || false;
@@ -272,7 +275,7 @@ const PanelTypeSelector = () => {
   // Load BOQ designs for provided projectIds (only in BOQ mode)
   useEffect(() => {
     const loadBOQ = async () => {
-      if (!hasBOQ || !projectIds || projectIds.length === 0) {
+      if (!hasBOQEffective || !projectIds || projectIds.length === 0) {
         setBoqFetched(true); // Mark as fetched even if no BOQ data
         return;
       }
@@ -281,7 +284,7 @@ const PanelTypeSelector = () => {
         setBoqError(null);
         const { data, error } = await supabase
           .from('user_designs')
-          .select(`id, design_name, panel_type, prop_id, design_data, property!inner(property_name)`) 
+          .select('id, design_name, panel_type, prop_id, design_data')
           .in('prop_id', projectIds);
         if (error) throw new Error(error.message);
         const grouped: Record<string, {
@@ -294,7 +297,7 @@ const PanelTypeSelector = () => {
           const qty = (d.design_data && typeof d.design_data.quantity !== 'undefined') ? (Number(d.design_data.quantity) || 0) : 0;
           const maxQty = (d.design_data && typeof d.design_data.maxQuantity !== 'undefined') ? (Number(d.design_data.maxQuantity) || undefined) : undefined;
           if (!grouped[key]) grouped[key] = { fixedTotal: 0, totalQuantity: 0, designs: [] };
-          grouped[key].designs.push({ id: d.id, name: d.design_name, qty, projectName: d.property.property_name, panelType: d.panel_type, maxQty });
+          grouped[key].designs.push({ id: d.id, name: d.design_name, qty, projectName: '', panelType: d.panel_type, maxQty });
           grouped[key].fixedTotal += qty;
           grouped[key].totalQuantity += qty;
         });
@@ -307,7 +310,38 @@ const PanelTypeSelector = () => {
       }
     };
     loadBOQ();
-  }, [hasBOQ, projectIds]);
+  }, [hasBOQEffective, projectIds]);
+
+  // Subtract already designed panels (from current project cart) from BOQ allocations per design
+  useEffect(() => {
+    if (!hasBOQEffective) { setAdjustedBoqData(boqData); return; }
+    const lower = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
+    const countsByCategoryAndName: Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT', Record<string, number>> = {
+      SP: {}, TAG: {}, IDPG: {}, DP: {}, EXT: {}
+    };
+    // Tally used quantities from current projPanels by category and panelName (best-available key)
+    for (const panel of projPanels) {
+      const cat = mapTypeToCategory(panel.type);
+      const nameKey = lower((panel as any).panelName || '');
+      const qty = (typeof panel.quantity === 'number' && !isNaN(panel.quantity)) ? panel.quantity : 1;
+      if (!nameKey) continue;
+      countsByCategoryAndName[cat][nameKey] = (countsByCategoryAndName[cat][nameKey] || 0) + qty;
+    }
+    // Build adjusted BOQ data with per-design remaining quantities
+    const next: typeof boqData = {};
+    for (const [catKey, entry] of Object.entries(boqData)) {
+      const cat = catKey as 'SP'|'TAG'|'IDPG'|'DP'|'EXT';
+      const usedMap = countsByCategoryAndName[cat] || {};
+      const designs = (entry.designs || []).map(d => {
+        const used = usedMap[lower(d.name)] || 0;
+        const remaining = Math.max(0, (typeof d.qty === 'number' ? d.qty : 0) - used);
+        return { ...d, qty: remaining };
+      }).filter(d => d.qty > 0); // hide fully completed designs
+      const totalQuantity = designs.reduce((s, d) => s + d.qty, 0);
+      next[cat] = { fixedTotal: entry.fixedTotal, totalQuantity, designs };
+    }
+    setAdjustedBoqData(next);
+  }, [boqData, projPanels, hasBOQEffective]);
 
   // Allocation update (fixed totals)
   const updateAlloc = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT', designId: string, newQty: number) => {
@@ -344,13 +378,14 @@ const PanelTypeSelector = () => {
   const panelTypes = useMemo(() => {
     console.log('effectiveAllowedPanelTypes:', effectiveAllowedPanelTypes);
     console.log('remainingByCategory:', remainingByCategory);
+    console.log('boqData keys:', Object.keys(boqData));
+    console.log('adjustedBoqData keys:', Object.keys(adjustedBoqData));
     
-    // If BOQ loaded, only show categories present in BOQ; else show all
-    const presentKeys = new Set(Object.keys(boqData));
-    // Only show panels from BOQ import; if no BOQ present or no keys, show none
-    const base = hasBOQ && presentKeys.size > 0
-      ? allPanelTypes.filter(p => presentKeys.has(p.key))
-      : [];
+    // If BOQ mode is active, only show categories present in BOQ; else show all
+    const presentKeys = new Set(Object.keys(adjustedBoqData));
+    const base = hasBOQEffective
+      ? (presentKeys.size > 0 ? allPanelTypes.filter(p => presentKeys.has(p.key)) : [])
+      : allPanelTypes;
     
     console.log('Base panelTypes after filtering:', base.map(p => p.name));
     
@@ -365,11 +400,11 @@ const PanelTypeSelector = () => {
     
     console.log('Final panelTypes:', final.map(p => p.name));
     return final;
-  }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory, hasBOQ, boqData]);
+  }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory, hasBOQEffective, adjustedBoqData]);
 
   // If BOQ not fetched yet, show loading state (prevents plain selector flash)
   // Only show loading if we're in BOQ mode and haven't fetched BOQ data yet
-  if (hasBOQ && !boqFetched) {
+  if (hasBOQEffective && !boqFetched) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)' }}>
         <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.9)' }}>
@@ -470,7 +505,7 @@ const PanelTypeSelector = () => {
           <ProgressBar />
         </ProgressContainer>
 
-        {hasBOQ && showPanels && panelTypes.length > 0 && (
+        {(showPanels && panelTypes.length > 0) && (
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -545,7 +580,7 @@ const PanelTypeSelector = () => {
                         size="large"
                         className="panel-button"
                         onClick={() => {
-                          if (hasBOQ) {
+                          if (hasBOQEffective) {
                             navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults } });
                           } else {
                             navigate(panel.path);
@@ -569,14 +604,14 @@ const PanelTypeSelector = () => {
                         Select Panel
                       </Button>
                       {/* BOQ allocation for this category if available */}
-                      {boqData[panel.key as 'SP'|'TAG'|'IDPG'|'DP'|'EXT'] && (
+                      {hasBOQEffective && adjustedBoqData[panel.key as 'SP'|'TAG'|'IDPG'|'DP'|'EXT'] && (
                         <Box sx={{ mt: 2, width: '100%', maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-                            <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.9)' }}>Quantity (allocations)</Typography>
-                            <Chip label={`${boqData[panel.key as any].totalQuantity} / ${boqData[panel.key as any].fixedTotal}`} size="small" color="primary" />
+                            <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.9)' }}>Quantity (remaining / imported)</Typography>
+                            <Chip label={`${adjustedBoqData[panel.key as any].totalQuantity} / ${adjustedBoqData[panel.key as any].fixedTotal}`} size="small" color="primary" />
                           </Box>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            {boqData[panel.key as any].designs.map(d => {
+                            {adjustedBoqData[panel.key as any].designs.map(d => {
                               const atMax = typeof d.maxQty === 'number' && d.qty >= d.maxQty;
                               return (
                                 <Box
@@ -644,7 +679,7 @@ const PanelTypeSelector = () => {
                                   <Button 
                                     variant="outlined" 
                                     size="small" 
-                                    onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults } })}
+                                    onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults, selectedDesignId: d.id, selectedDesignName: d.name } })}
                                     sx={{ 
                                       ml: 'auto',
                                       color: '#0d47a1',
@@ -667,7 +702,7 @@ const PanelTypeSelector = () => {
             </Grid>
           </motion.div>
         )}
-        {hasBOQ && boqFetched && panelTypes.length === 0 && (
+        {hasBOQEffective && boqFetched && panelTypes.length === 0 && (
           <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.9)', mt: 6 }}>
             <Typography>No panel designs were found in the imported JSON for this selection.</Typography>
           </Box>

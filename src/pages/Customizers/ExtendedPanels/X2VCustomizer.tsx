@@ -6,6 +6,21 @@ import { useCart } from '../../../contexts/CartContext';
 
 import '../Customizer.css';
 
+const getPanelTypeLabel = (type: string) => {
+  switch (type) {
+    case "SP": return "Single Panel";
+    case "TAG": return "Thermostat";
+    case "DPH": return "Horizontal Double Panel";
+    case "DPV": return "Vertical Double Panel";
+    case "X2V": return "Extended Panel, Vertical, 2 Sockets";
+    case "X2H": return "Extended Panel, Horizontal, 2 Sockets";
+    case "X1H": return "Extended Panel, Horizontal, 1 Socket";
+    case "X1V": return "Extended Panel, Vertical, 1 Socket";
+    case "IDPG": return "Corridor Panel";
+    default: return "Panel";
+  }
+};
+
 import CartButton from '../../../components/CartButton';
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -1294,7 +1309,7 @@ const X2VCustomizer: React.FC = () => {
 
 
 
-  const { addToCart, updatePanel, projPanels } = cartContext;
+  const { addToCart, updatePanel, projPanels, loadProjectPanels } = cartContext;
 
 
 
@@ -1574,7 +1589,14 @@ const X2VCustomizer: React.FC = () => {
 
 
 
-      addToCart(design);
+      // Auto-populate panel name and quantity
+      const selectedDesignName = location.state?.selectedDesignName;
+      const enhancedDesign = {
+        ...design,
+        panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
+        quantity: 1 // Default quantity
+      };
+      loadProjectPanels([enhancedDesign]);
 
     }
 
@@ -1588,7 +1610,7 @@ const X2VCustomizer: React.FC = () => {
 
     const finalDesign = { ...pendingDesign, quantity: qty };
 
-    addToCart(finalDesign);
+    loadProjectPanels([finalDesign]);
 
     setPendingDesign(null);
 

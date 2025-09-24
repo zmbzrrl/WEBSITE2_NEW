@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
+
+const getPanelTypeLabel = (type: string) => {
+  switch (type) {
+    case "SP": return "Single Panel";
+    case "TAG": return "Thermostat";
+    case "DPH": return "Horizontal Double Panel";
+    case "DPV": return "Vertical Double Panel";
+    case "X2V": return "Extended Panel, Vertical, 2 Sockets";
+    case "X2H": return "Extended Panel, Horizontal, 2 Sockets";
+    case "X1H": return "Extended Panel, Horizontal, 1 Socket";
+    case "X1V": return "Extended Panel, Vertical, 1 Socket";
+    case "IDPG": return "Corridor Panel";
+    default: return "Panel";
+  }
+};
 import CartButton from "../../components/CartButton";
 // BOQ removed
 import { useNavigate, useLocation } from "react-router-dom";
@@ -298,7 +313,7 @@ const IDPGCustomizer = () => {
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const navigate = useNavigate();
-  const { addToCart, updatePanel, projPanels } = useCart();
+  const { addToCart, updatePanel, projPanels, loadProjectPanels } = useCart();
   const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
@@ -1059,14 +1074,21 @@ const IDPGCustomizer = () => {
         return;
       }
 
-      addToCart(design as any);
+      // Auto-populate panel name and quantity
+      const selectedDesignName = location.state?.selectedDesignName;
+      const enhancedDesign = {
+        ...design,
+        panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
+        quantity: 1 // Default quantity
+      };
+      loadProjectPanels([enhancedDesign as any]);
     }
   };
 
   const handleQtyConfirm = (qty: number) => {
     if (!pendingDesign) return;
     const finalDesign = { ...(pendingDesign as any), quantity: qty };
-    addToCart(finalDesign);
+    loadProjectPanels([finalDesign]);
     setPendingDesign(null);
     setQtyOpen(false);
   };
