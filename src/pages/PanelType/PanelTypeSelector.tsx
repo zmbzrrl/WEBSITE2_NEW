@@ -679,7 +679,7 @@ const PanelTypeSelector = () => {
                                   <Button 
                                     variant="outlined" 
                                     size="small" 
-                                    onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults, selectedDesignId: d.id, selectedDesignName: d.name } })}
+                                    onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults, selectedDesignId: d.id, selectedDesignName: d.name, selectedDesignQuantity: d.qty } })}
                                     sx={{ 
                                       ml: 'auto',
                                       color: '#0d47a1',

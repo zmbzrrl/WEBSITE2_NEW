@@ -894,10 +894,11 @@ const SPCustomizer: React.FC = () => {
 
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
+      const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const enhancedDesign = {
         ...design,
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: 1 // Default quantity
+        quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
       loadProjectPanels([enhancedDesign]);
       // If we are adding to an existing project, return to cart and preserve project edit context

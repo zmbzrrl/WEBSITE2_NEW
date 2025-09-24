@@ -921,73 +921,26 @@ const ProjPanels: React.FC = () => {
                   marginBottom: 12,
                 }}>
                   <span style={{ color: THEME.textSecondary, fontSize: 15, fontWeight: 500 }}>Name:</span>
-                  {editingNameIndex === index ? (
-                    // Edit mode for name
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      flex: 1,
-                    }}>
-                      <input
-                        type="text"
-                        value={editingNameValue}
-                        onChange={(e) => setEditingNameValue(e.target.value)}
-                        onKeyDown={(e) => handleNameKeyPress(e, index)}
-                        onBlur={() => handlePanelNameSave(index)}
-                        style={{
-                          background: '#fff',
-                          color: THEME.textPrimary,
-                          borderRadius: 6,
-                          fontWeight: 500,
-                          fontSize: 15,
-                          border: `2px solid ${THEME.primary}`,
-                          padding: '8px 12px',
-                          outline: 'none',
-                          flex: 1,
-                          maxWidth: 300,
-                        }}
-                        placeholder="Enter panel name..."
-                        autoFocus
-                      />
-                      <div style={{ fontSize: 12, color: THEME.textSecondary }}>
-                        Press Enter to save, Esc to cancel
-                      </div>
-                    </div>
-                  ) : (
-                    // Display mode for name
-                    <div 
-                      style={{
-                        background: '#f8f9fa',
-                        color: THEME.textPrimary,
-                        borderRadius: 6,
-                        fontWeight: 500,
-                        fontSize: 15,
-                        padding: '8px 12px',
-                        border: '1px solid #e9ecef',
-                        cursor: isViewMode ? 'default' : 'pointer',
-                        transition: 'all 0.2s ease',
-                        minWidth: 200,
-                        maxWidth: 300,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        pointerEvents: isViewMode ? 'none' : 'auto',
-                      }}
-                      onClick={!isViewMode ? () => handlePanelNameEdit(index) : undefined}
-                      onMouseEnter={!isViewMode ? (e) => {
-                        e.currentTarget.style.background = '#e9ecef';
-                        e.currentTarget.style.borderColor = THEME.primary;
-                      } : undefined}
-                      onMouseLeave={!isViewMode ? (e) => {
-                        e.currentTarget.style.background = '#f8f9fa';
-                        e.currentTarget.style.borderColor = '#e9ecef';
-                      } : undefined}
-                      title={!isViewMode ? (item.panelName ? `Click to edit: ${item.panelName}` : "Click to add panel name") : undefined}
-                    >
-                      {item.panelName || "Click to add panel name"}
-                    </div>
-                  )}
+                  <div 
+                    style={{
+                      background: '#f8f9fa',
+                      color: THEME.textPrimary,
+                      borderRadius: 6,
+                      fontWeight: 500,
+                      fontSize: 15,
+                      padding: '8px 12px',
+                      border: '1px solid #e9ecef',
+                      cursor: 'default',
+                      minWidth: 200,
+                      maxWidth: 300,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={item.panelName || "Panel name"}
+                  >
+                    {item.panelName || "Panel"}
+                  </div>
                 </div>
                 {/* Quantity display - Read-only BOQ quantity */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>

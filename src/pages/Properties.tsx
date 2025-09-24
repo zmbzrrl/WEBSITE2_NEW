@@ -70,7 +70,7 @@ const Properties: React.FC = () => {
       
       // Then refresh the properties list in background
       try {
-        await load(); // Reload the properties list to show the new property
+      await load(); // Reload the properties list to show the new property
       } catch (loadErr) {
         console.warn('Failed to refresh properties list after import:', loadErr);
         // Don't show error to user since import was successful
