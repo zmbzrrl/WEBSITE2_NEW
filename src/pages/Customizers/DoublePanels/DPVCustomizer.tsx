@@ -221,6 +221,7 @@ const InformationBox = ({
   backbox,
   setBackbox,
   backboxError,
+  setBackboxError,
   extraComments,
   setExtraComments,
   panelDesign,
@@ -230,6 +231,7 @@ const InformationBox = ({
   backbox: string;
   setBackbox: (v: string) => void;
   backboxError: string;
+  setBackboxError: (v: string) => void;
   extraComments: string;
   setExtraComments: (v: string) => void;
   panelDesign: any;

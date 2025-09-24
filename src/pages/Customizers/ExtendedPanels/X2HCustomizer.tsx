@@ -513,6 +513,27 @@ const X2HCustomizer: React.FC = () => {
   const cartContext = useCart();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Icon color filter function based on background brightness
+  const getIconColorFilter = (backgroundColor: string): string => {
+    // Convert hex to RGB for brightness calculation
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate brightness (0-255)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // Use white for dark backgrounds, dark grey for light backgrounds
+    if (brightness < 150) {
+      // Dark background - use white icons
+      return 'brightness(0) saturate(100%) invert(1)';
+    } else {
+      // Light background - use dark grey icons
+      return 'brightness(0) saturate(100%) invert(52%) sepia(0%) saturate(0%) hue-rotate(148deg) brightness(99%) contrast(91%)';
+    }
+  };
   const [icons, setIcons] = useState<Record<string, any>>({});
   const [iconCategories, setIconCategories] = useState<string[]>([]);
   const [selectedIcon, setSelectedIcon] = useState<IconOption | null>(null);

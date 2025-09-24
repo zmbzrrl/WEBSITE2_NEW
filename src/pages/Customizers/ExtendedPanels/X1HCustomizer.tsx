@@ -566,7 +566,7 @@ const X1VCustomizer: React.FC = () => {
   };
 
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Add swap and mirror state

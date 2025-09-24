@@ -169,12 +169,15 @@ const Properties: React.FC = () => {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('ppProjectCode', propId);
         console.log('Set sessionStorage ppProjectCode to:', propId);
+        // Set BOQ context to the selected property so the panel selector loads its designs
+        sessionStorage.setItem('boqProjectIds', JSON.stringify([propId]));
+        console.log('Set sessionStorage boqProjectIds to:', JSON.stringify([propId]));
       }
     } catch (error) {
       console.error('Error setting sessionStorage:', error);
     }
-    console.log('Navigating to /panel-type');
-    navigate('/panel-type');
+    console.log('Navigating to /panel-type with BOQ projectIds');
+    navigate('/panel-type', { state: { projectIds: [propId] } });
   };
 
   const handleCreateRevision = async (propId: string, designId: string, designName: string) => {

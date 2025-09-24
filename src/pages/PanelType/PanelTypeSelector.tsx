@@ -344,8 +344,10 @@ const PanelTypeSelector = () => {
     
     // If BOQ loaded, only show categories present in BOQ; else show all
     const presentKeys = new Set(Object.keys(boqData));
-    // Do NOT fall back to all panel types; only show when BOQ data has loaded
-    const base = presentKeys.size > 0 ? allPanelTypes.filter(p => presentKeys.has(p.key)) : [];
+    // Only show panels from BOQ import; if no BOQ present or no keys, show none
+    const base = hasBOQ && presentKeys.size > 0
+      ? allPanelTypes.filter(p => presentKeys.has(p.key))
+      : [];
     
     console.log('Base panelTypes after filtering:', base.map(p => p.name));
     
@@ -360,7 +362,7 @@ const PanelTypeSelector = () => {
     
     console.log('Final panelTypes:', final.map(p => p.name));
     return final;
-  }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory]);
+  }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory, hasBOQ, boqData]);
 
   // If BOQ not fetched yet, show loading state (prevents plain selector flash)
   // Only show loading if we're in BOQ mode and haven't fetched BOQ data yet
@@ -465,7 +467,7 @@ const PanelTypeSelector = () => {
           <ProgressBar />
         </ProgressContainer>
 
-        {hasBOQ && showPanels && (
+        {hasBOQ && showPanels && panelTypes.length > 0 && (
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -539,6 +541,13 @@ const PanelTypeSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
+                        onClick={() => {
+                          if (hasBOQ) {
+                            navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults } });
+                          } else {
+                            navigate(panel.path);
+                          }
+                        }}
                         sx={{
                           color: 'rgba(255, 255, 255, 0.7)',
                           textTransform: 'none',
@@ -600,6 +609,11 @@ const PanelTypeSelector = () => {
               ))}
             </Grid>
           </motion.div>
+        )}
+        {hasBOQ && boqFetched && panelTypes.length === 0 && (
+          <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.9)', mt: 6 }}>
+            <Typography>No panel designs were found in the imported JSON for this selection.</Typography>
+          </Box>
         )}
       </Container>
     </Box>

@@ -550,7 +550,7 @@ const TAGCustomizer: React.FC = () => {
     }
   };
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
-  const { projectName, projectCode } = useContext(ProjectContext);
+  const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Drag restriction preview state

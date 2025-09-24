@@ -58,7 +58,9 @@ interface ProjectContextType {
   setOperator: (operator: string) => void;
   servicePartner: string;
   setServicePartner: (partner: string) => void;
+  boqQuantities: any;
   setBoqQuantities: (quantities: any) => void;
+  setAllowedPanelTypes: (types: any) => void;
 }
 
 // Creates the context with default values
@@ -73,7 +75,9 @@ export const ProjectContext = React.createContext<ProjectContextType>({
   setOperator: () => {},
   servicePartner: '',
   setServicePartner: () => {},
-  setBoqQuantities: () => {}
+  boqQuantities: null,
+  setBoqQuantities: () => {},
+  setAllowedPanelTypes: () => {}
 });
 
 //                                        ===== PROJECT PROVIDER =====
@@ -85,6 +89,7 @@ const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [location, setLocation] = useState('');
   const [operator, setOperator] = useState('');
   const [servicePartner, setServicePartner] = useState('');
+  const [boqQuantities, setBoqQuantities] = useState(null);
 
   const value: ProjectContextType = {
     projectName,
@@ -97,7 +102,9 @@ const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setOperator,
     servicePartner,
     setServicePartner,
-    setBoqQuantities: () => {} // Add this to match the interface
+    boqQuantities,
+    setBoqQuantities,
+    setAllowedPanelTypes: () => {}
   };
 
   return (
