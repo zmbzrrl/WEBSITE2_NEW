@@ -13,7 +13,7 @@ const generateId = () => {
 // List properties the requester can access via their UG (many-to-many)
 export const getAccessibleProperties = async (userEmail: string) => {
   try {
-    // Single UG only
+    // Get user's UG ID
     const usersRes = await supabase
       .from('users')
       .select('email, ug_id')
@@ -22,32 +22,33 @@ export const getAccessibleProperties = async (userEmail: string) => {
 
     if (usersRes.error) return { success: false, error: 'db', properties: [] as any[] };
     const userRow = (usersRes.data && usersRes.data[0]) || null;
-    if (!userRow || !(userRow as any).ug_id) return { success: true, properties: [] };
+    if (!userRow) return { success: true, properties: [] };
 
-    const ugId = (userRow as any).ug_id as string;
+    const ugId = (userRow as any).ug_id as string | null;
+    if (!ugId) return { success: true, properties: [] };
 
-    // 2) Get prop_ids accessible to the user's UG
+    // Get access links for this UG
     const { data: links, error: linkErr } = await supabase
       .from('ug_property_access')
-      .select('prop_id')
+      .select('prop_id, ug_id, is_active')
       .eq('ug_id', ugId)
       .eq('is_active', true);
     if (linkErr) return { success: false, error: 'db', properties: [] as any[] };
 
-    const propIdSet = new Set<string>((links || []).map((r: any) => r.prop_id).filter(Boolean));
-    const propIds = Array.from(propIdSet);
+    const propIds = (links || []).map((r: any) => String(r.prop_id)).filter(Boolean);
     if (propIds.length === 0) return { success: true, properties: [] };
 
-    // 3) Fetch properties by IN list
+    // Fetch properties by id
     const { data: props, error: propErr } = await supabase
       .from('property')
-      .select('prop_id, property_name, region')
+      .select('prop_id, property_name, region, is_active')
       .in('prop_id', propIds)
       .eq('is_active', true)
       .order('region', { ascending: true });
     if (propErr) return { success: false, error: 'db', properties: [] as any[] };
 
-    return { success: true, properties: props || [] };
+    const mapped = (props || []).map((p: any) => ({ prop_id: p.prop_id, property_name: p.property_name, region: p.region }));
+    return { success: true, properties: mapped };
   } catch {
     return { success: false, error: 'unexpected', properties: [] as any[] };
   }
@@ -138,8 +139,8 @@ export const getUserHierarchy = async (userEmail: string) => {
     console.log('👤 Getting user hierarchy for:', userEmail);
 
     // 1) Base user
-    const { data: usersArr, error: userErr } = await supabase
-      .from('users')
+  const { data: usersArr, error: userErr } = await supabase
+    .from('users')
       .select('email, ug_id')
       .eq('email', userEmail)
       .limit(1);
@@ -152,30 +153,30 @@ export const getUserHierarchy = async (userEmail: string) => {
     const ugIdList = (user as any).ug_id ? [(user as any).ug_id as string] : [];
 
     // 3) Details for UGs
-    const { data: ugDetails } = ugIdList.length > 0 ? await supabase
-      .from('ug')
-      .select('UG_PropID, ug, prop_id')
-      .in('UG_PropID', ugIdList) : { data: [] as any[] } as any;
+  const { data: ugDetails } = ugIdList.length > 0 ? await supabase
+    .from('ug')
+    .select('id, ug, prop_id')
+    .in('id', ugIdList) : { data: [] as any[] } as any;
 
     // 4) Accessible properties via UGs
-    const { data: ugProps } = ugIdList.length > 0 ? await supabase
-      .from('ug_property_access')
+  const { data: ugProps } = ugIdList.length > 0 ? await supabase
+    .from('ug_property_access')
       .select('ug_id, prop_id')
       .in('ug_id', ugIdList)
       .eq('is_active', true) : { data: [] as any[] } as any;
     const propIds = Array.from(new Set<string>((ugProps || []).map((r: any) => r.prop_id)));
-    const { data: props } = propIds.length > 0 ? await supabase
-      .from('property')
-      .select('prop_id, property_name, region')
-      .in('prop_id', propIds) : { data: [] as any[] } as any;
+  const { data: props } = propIds.length > 0 ? await supabase
+    .from('property')
+    .select('prop_id, property_name, region')
+    .in('prop_id', propIds) : { data: [] as any[] } as any;
 
     return {
       success: true,
       user: {
         email: (user as any).email,
         ugIds: ugIdList,
-        groups: ugDetails || [],
-        accessibleProperties: props || []
+        groups: (ugDetails || []).map((g: any) => ({ UG_PropID: g.id, ug: g.ug, prop_id: g.prop_id })),
+        accessibleProperties: (props || []).map((p: any) => ({ prop_id: p.prop_id, property_name: p.property_name, region: p.region }))
       },
       message: 'User hierarchy retrieved successfully!'
     } as const;
@@ -203,9 +204,10 @@ export const getAllProperties = async () => {
       };
     }
 
+    const mapped = (data || []).map((p: any) => ({ prop_id: p.prop_id, property_name: p.property_name, region: p.region, is_active: p.is_active }));
     return {
       success: true,
-      properties: data || [],
+      properties: mapped,
       message: 'Properties retrieved successfully!'
     };
   } catch (error) {

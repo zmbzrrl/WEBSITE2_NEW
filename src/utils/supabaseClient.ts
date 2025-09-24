@@ -5,8 +5,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // 🔑 SUPABASE CONFIGURATION (ENVIRONMENT VARIABLES)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://pygpeqxuedvyzuocdnpt.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5Z3BlcXh1ZWR2eXp1b2NkbnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDQ2NDEsImV4cCI6MjA3MDQyMDY0MX0.oWbvIjxuX_NcZSe9qxLGW5-zl9VIGs3ZC5z3AZpqAz8';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mrlylobdobgchbuvyqqv.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ybHlsb2Jkb2JnY2hidXZ5cXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1Njc4MTksImV4cCI6MjA3NDE0MzgxOX0.0DbMXqIM_Rx9vXgG_c6HapDGk0Cy1luo5LtDI1S2Tr8';
 
 // 🏪 Create a single, shared database connection
 export const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -14,9 +14,6 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: false,
     persistSession: false,
     detectSessionInUrl: false
-  },
-  db: {
-    schema: 'public'
   }
 });
 

@@ -163,6 +163,10 @@ const Layouts: React.FC = () => {
       }
       setShowCreatePropertyDialog(false);
       // Navigate to Panel Type Selector with BOQ context
+      try {
+        sessionStorage.setItem('boqProjectIds', JSON.stringify(results.results.project_ids || []));
+        sessionStorage.setItem('boqImportResults', JSON.stringify(results.results));
+      } catch {}
       navigate('/panel-type', { state: { importResults: results.results, projectIds: results.results.project_ids } });
     } catch (e: any) {
       setImportError(e?.message ? String(e.message) : 'Failed to import file');

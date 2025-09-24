@@ -1276,7 +1276,16 @@ const X2HCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel/extended');
+                // Prefer going back in history; fallback to BOQ-aware selector using session storage
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  const projectIdsStr = typeof window !== 'undefined' ? sessionStorage.getItem('boqProjectIds') : null;
+                  const projectIds = projectIdsStr ? JSON.parse(projectIdsStr) : [];
+                  const importResultsStr = typeof window !== 'undefined' ? sessionStorage.getItem('boqImportResults') : null;
+                  const importResults = importResultsStr ? JSON.parse(importResultsStr) : undefined;
+                  navigate('/panel-type', { state: { projectIds, importResults } });
+                }
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }

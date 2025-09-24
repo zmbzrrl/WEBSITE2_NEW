@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { getAccessibleProperties, createProperty, listPropertyRevisions, getDesignWithPermissions, createRevision, deleteLayout } from '../utils/newDatabase';
 import { ProjectContext } from '../App';
+import { useUser } from '../contexts/UserContext';
 import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from '../utils/databaseImporterNew';
 
 const Properties: React.FC = () => {
   const navigate = useNavigate();
   const { setProjectCode, setProjectName, setLocation, setOperator } = useContext(ProjectContext);
+  const { user } = useUser();
 
   const [properties, setProperties] = useState<Array<{ prop_id: string; property_name: string; region: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,9 @@ const Properties: React.FC = () => {
       const json = await loadJsonFromFile(file as any);
       const v = validateImportDataNew(json as any);
       if (!v.valid) { setImportError(`Validation failed: ${v.errors.join(', ')}`); setImporting(false); return; }
-      const res = await importDatabaseDataNew(json as any);
+      // Add user email to the JSON data for import
+      const jsonWithUser = { ...json, user_email: user?.email };
+      const res = await importDatabaseDataNew(jsonWithUser as any);
       if (!res.success || !res.results) { setImportError(res.message || 'Import failed'); setImporting(false); return; }
       if (!res.results.project_ids || res.results.project_ids.length === 0) {
         const errs = (res.results as any).errors || [];
@@ -51,8 +55,9 @@ const Properties: React.FC = () => {
         setImporting(false);
         return;
       }
-      // Navigate to Panel Type Selector with BOQ context
-      navigate('/panel-type', { state: { importResults: res.results, projectIds: res.results.project_ids } });
+      // For "Create Property" flow, stay on Properties page and refresh the list
+      console.log('✅ Import completed successfully, refreshing properties list');
+      await load(); // Reload the properties list to show the new property
       setShowCreate(false);
     } catch (err: any) {
       setImportError(err?.message || 'Failed to import file');
@@ -78,15 +83,14 @@ const Properties: React.FC = () => {
   };
 
   const load = async () => {
-    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
-    if (!userEmail) {
+    if (!user?.email) {
       setError('Please log in first.');
       setLoading(false);
       return;
     }
     setLoading(true);
     setError('');
-    const res = await getAccessibleProperties(userEmail);
+    const res = await getAccessibleProperties(user.email);
     console.log('getAccessibleProperties result:', res);
     if (res.success) {
       const props = res.properties || [];
@@ -107,7 +111,7 @@ const Properties: React.FC = () => {
       setLoadingProp(props.reduce((acc: Record<string, boolean>, p: any) => { acc[p.prop_id] = true; return acc; }, {}));
       for (const p of props) {
         try {
-          const revs = await listPropertyRevisions(userEmail, p.prop_id);
+          const revs = await listPropertyRevisions(user?.email, p.prop_id);
           if (revs.success) {
             nextRevisions[p.prop_id] = (revs.revisions || []).map((row: any) => ({
               id: row.id,
@@ -135,7 +139,7 @@ const Properties: React.FC = () => {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [user]);
 
   const toggleExpanded = (propId: string) => {
     setExpanded(prev => ({ ...prev, [propId]: !prev[propId] }));
@@ -159,17 +163,22 @@ const Properties: React.FC = () => {
   };
 
   const startNewDesign = (propId: string) => {
+    console.log('Starting new design for property:', propId);
     setProjectCode(propId);
     try {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('ppProjectCode', propId);
+        console.log('Set sessionStorage ppProjectCode to:', propId);
       }
-    } catch {}
+    } catch (error) {
+      console.error('Error setting sessionStorage:', error);
+    }
+    console.log('Navigating to /panel-type');
     navigate('/panel-type');
   };
 
   const handleCreateRevision = async (propId: string, designId: string, designName: string) => {
-    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
+    const userEmail = user?.email || null;
     if (!userEmail) { setError('Please log in first.'); return; }
     const newName = parseNextRevisionName(designName);
     setRowBusy(prev => ({ ...prev, [designId]: 'creating' }));
@@ -205,7 +214,7 @@ const Properties: React.FC = () => {
   };
 
   const handleDeleteDesign = async (designId: string) => {
-    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
+    const userEmail = user?.email || null;
     if (!userEmail) { setError('Please log in first.'); return; }
     setRowBusy(prev => ({ ...prev, [designId]: 'deleting' }));
     const res = await deleteLayout(designId, userEmail);
@@ -215,7 +224,7 @@ const Properties: React.FC = () => {
   };
 
   const canEditDelete = async (designId: string): Promise<boolean> => {
-    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : '';
+    const userEmail = user?.email || '';
     try {
       const res = await getDesignWithPermissions(designId, userEmail || '');
       return !!(res.success && res.permissions?.canEdit);
@@ -426,7 +435,7 @@ const Properties: React.FC = () => {
                                   <div style={{ fontSize: 11, color: '#888' }}>Updated: {new Date(d.lastModified).toLocaleString()}</div>
                                 </div>
                                 {(() => {
-                                  const currentUserEmail = (typeof window !== 'undefined' ? localStorage.getItem('userEmail') : '') || '';
+                                  const currentUserEmail = user?.email || '';
                                   const isOwner = currentUserEmail && currentUserEmail === d.ownerEmail;
                                   const busy = rowBusy[d.id];
                                   return (
@@ -517,3 +526,4 @@ const Properties: React.FC = () => {
 };
 
 export default Properties;
+

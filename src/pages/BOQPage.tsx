@@ -36,12 +36,13 @@ import { supabase } from '../utils/supabaseClient';
 
 interface BOQData {
   panelType: string;
-  totalQuantity: number; // current allocated total (sum of design quantities)
-  fixedTotal: number; // fixed imported total for this type
+  totalQuantity: number; // current allocated total (sum of design allocations)
+  fixedTotal: number; // fixed imported total for this type (sum of max quantities)
   designs: {
     designId: string;
     designName: string;
-    quantity: number;
+    quantity: number; // allocated quantity (editable)
+    maxQuantity: number; // max quantity (read-only)
     projectName: string;
   }[];
 }
@@ -88,7 +89,6 @@ const BOQPage: React.FC = () => {
 
       // Fetch designs for the imported projects
       const { data: designs, error: designsError } = await supabase
-        .schema('api')
         .from('user_designs')
         .select(`
           id,
@@ -109,9 +109,15 @@ const BOQPage: React.FC = () => {
 
       designs?.forEach((design: any) => {
         const panelType = design.panel_type;
-        const importedQty = (design.design_data && typeof design.design_data.quantity !== 'undefined') 
-          ? Math.max(0, Number(design.design_data.quantity) || 0)
-          : 0;
+        // Pull allocated and max from import if present
+        const allocatedQty = (design.design_data && typeof design.design_data.allocatedQuantity !== 'undefined')
+          ? Math.max(0, Number(design.design_data.allocatedQuantity) || 0)
+          : ((design.design_data && typeof design.design_data.quantity !== 'undefined')
+            ? Math.max(0, Number(design.design_data.quantity) || 0)
+            : 0);
+        const maxQty = (design.design_data && typeof design.design_data.maxQuantity !== 'undefined')
+          ? Math.max(0, Number(design.design_data.maxQuantity) || 0)
+          : allocatedQty; // fallback so UI stays consistent
         
         if (!panelTypeMap.has(panelType)) {
           panelTypeMap.set(panelType, {
@@ -126,11 +132,12 @@ const BOQPage: React.FC = () => {
         boqItem.designs.push({
           designId: design.id,
           designName: design.design_name,
-          quantity: importedQty,
+          quantity: Math.min(allocatedQty, maxQty),
+          maxQuantity: maxQty,
           projectName: design.user_projects.project_name
         });
-        boqItem.totalQuantity += importedQty;
-        boqItem.fixedTotal += importedQty;
+        boqItem.totalQuantity += Math.min(allocatedQty, maxQty);
+        boqItem.fixedTotal += maxQty;
       });
 
       // Convert to array and sort by panel type
@@ -152,12 +159,10 @@ const BOQPage: React.FC = () => {
     setBoqData(prevData => 
       prevData.map(panelData => {
         if (panelData.panelType === panelType) {
-          // Enforce fixed total: cap the new quantity by remaining capacity
+          // Enforce per-design cap: allocated must not exceed that design's maxQuantity
           const currentDesign = panelData.designs.find(d => d.designId === designId);
           if (!currentDesign) return panelData;
-          const sumOther = panelData.designs.reduce((sum, d) => sum + (d.designId === designId ? 0 : d.quantity), 0);
-          const remaining = Math.max(0, panelData.fixedTotal - sumOther);
-          const clamped = Math.max(0, Math.min(newQuantity, remaining));
+          const clamped = Math.max(0, Math.min(newQuantity, currentDesign.maxQuantity));
 
           const updatedDesigns = panelData.designs.map(design => (
             design.designId === designId ? { ...design, quantity: clamped } : design
@@ -323,9 +328,10 @@ const BOQPage: React.FC = () => {
                   <TableRow>
                     <TableCell>Design Name</TableCell>
                     <TableCell>Project</TableCell>
-                    <TableCell align="center" sx={{ minWidth: 200 }}>
+                    <TableCell align="center">Max Quantity</TableCell>
+                    <TableCell align="center" sx={{ minWidth: 220 }}>
                       <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
-                        <Typography variant="subtitle2">Quantity (allocations)</Typography>
+                        <Typography variant="subtitle2">Allocated Quantity</Typography>
                         <Chip 
                           label={`Total: ${panelData.totalQuantity} / ${panelData.fixedTotal}`} 
                           size="small" 
@@ -349,6 +355,15 @@ const BOQPage: React.FC = () => {
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
+                        <TextField
+                          value={design.maxQuantity}
+                          type="number"
+                          size="small"
+                          sx={{ width: 100 }}
+                          inputProps={{ readOnly: true, style: { textAlign: 'center', fontWeight: 600 } }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
                         <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
                           <IconButton
                             size="small"
@@ -365,12 +380,13 @@ const BOQPage: React.FC = () => {
                             }}
                             type="number"
                             size="small"
-                            sx={{ width: 80 }}
+                            sx={{ width: 100 }}
                             inputProps={{ min: 0, style: { textAlign: 'center' } }}
                           />
                           <IconButton
                             size="small"
                             onClick={() => updateQuantity(panelData.panelType, design.designId, design.quantity + 1)}
+                            disabled={design.quantity >= design.maxQuantity}
                           >
                             <AddIcon />
                           </IconButton>
@@ -383,8 +399,17 @@ const BOQPage: React.FC = () => {
                   <TableRow sx={{ backgroundColor: 'grey.50' }}>
                     <TableCell colSpan={2}>
                       <Typography variant="subtitle1" fontWeight="bold">
-                        Total Quantity (fixed)
+                        Totals
                       </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <TextField
+                        value={`${panelData.fixedTotal}`}
+                        type="text"
+                        size="small"
+                        sx={{ width: 100 }}
+                        inputProps={{ readOnly: true, style: { textAlign: 'center', fontWeight: 700 } }}
+                      />
                     </TableCell>
                     <TableCell align="center">
                       <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
@@ -395,7 +420,7 @@ const BOQPage: React.FC = () => {
                           <RemoveIcon />
                         </IconButton>
                         <TextField
-                          value={`${panelData.totalQuantity} / ${panelData.fixedTotal}`}
+                          value={`${panelData.totalQuantity}`}
                           type="text"
                           size="small"
                           sx={{ width: 140 }}

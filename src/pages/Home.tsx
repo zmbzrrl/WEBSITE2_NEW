@@ -35,6 +35,7 @@ import dpRt from '../assets/panels/GS_Double module_224x95.png';
 // ProjectContext = shared storage that any component can access
 // This stores project information (name, code) that's used across the app
 import { ProjectContext } from '../App';
+import { useUser } from '../contexts/UserContext';
 import { mockSendEmail } from '../utils/mockBackend';
 import { isAdminEmail } from '../utils/admin';
 import { supabase } from '../utils/supabaseClient';
@@ -619,6 +620,7 @@ const Home = () => {
   // Gets functions from ProjectContext (shared storage)
   // These functions can update project data that other components can see
   const { setProjectName, setProjectCode, setLocation, setOperator } = useContext(ProjectContext);
+  const { setUser } = useUser();
   
   // ===== STATE MANAGEMENT =====
   // These are like "memory boxes" that store data that can change
@@ -696,28 +698,57 @@ const Home = () => {
     
     const normalizedEmail = projectDetails.email.trim().toLowerCase();
 
-    // Verify email exists in database (case-insensitive); if not, create a minimal user row
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('email')
-      .ilike('email', normalizedEmail)
-      .maybeSingle();
+    try {
+      // Check if this is an admin email first
+      if (isAdminEmail(normalizedEmail)) {
+        // Admin users can bypass database check
+        setUser({ email: normalizedEmail, ugId: 'admin' });
+        
+        // Save to localStorage for persistence
+        try {
+          localStorage.setItem('userEmail', normalizedEmail);
+          localStorage.setItem('userUgId', 'admin');
+        } catch (error) {
+          console.warn('Could not save user data to localStorage:', error);
+        }
+        
+        // Redirect admin users directly to feedback page
+        navigate('/admin/feedback');
+        return;
+      }
 
-    if (!userRow) {
-      // Auto-create user with nullable ug_id
-      const { error: insertErr } = await supabase
-        .from('users')
-        .insert([{ email: normalizedEmail }]);
-      if (insertErr) {
+      // For regular users, check if user exists in database
+      const { data: userData, error: userError } = await supabase
+        .schema('public')
+      .from('users')
+        .select('email, ug_id')
+        .eq('email', normalizedEmail)
+        .eq('is_active', true)
+        .single();
+
+      if (userError || !userData) {
         setShowError(true);
         setErrorText('Email not found. Please contact your administrator.');
         return;
       }
-    }
 
-    // Save normalized email and continue
+      // Set user context with their actual UG ID
+      setUser({ email: normalizedEmail, ugId: userData.ug_id });
+      
+      // Also save to localStorage for persistence across page refreshes
+      try {
     localStorage.setItem('userEmail', normalizedEmail);
+        localStorage.setItem('userUgId', userData.ug_id || '');
+      } catch (error) {
+        console.warn('Could not save user data to localStorage:', error);
+      }
+      
     navigate('/properties');
+    } catch (error) {
+      console.error('Login error:', error);
+      setShowError(true);
+      setErrorText('Login failed. Please try again.');
+    }
   };
 
   // ===== HANDLE START DESIGNING =====

@@ -25,12 +25,21 @@ export const saveDesign = async (email: string, designData: any, location?: stri
       operator: operator || designData.operator
     };
     
+    // Ensure user exists (satisfy FK on public.user_projects.user_email)
+    try {
+      await supabase
+        .from('users')
+        .upsert([{ email }], { onConflict: 'email' })
+        .then(() => null as unknown as void, () => null as unknown as void);
+    } catch (e) {
+      console.warn('⚠️ Could not upsert user before project creation (continuing):', e);
+    }
+
     if (!projectId) {
       // Try to find existing project with the same base name (without revision)
       const baseProjectName = projectName.replace(/\s*\(rev\d+\)$/, '');
       
       const { data: existingProjects, error: findError } = await supabase
-        .schema('api')
         .from('user_projects')
         .select('id, project_name')
         .eq('user_email', email)
@@ -44,37 +53,48 @@ export const saveDesign = async (email: string, designData: any, location?: stri
         console.log('✅ Found existing project:', existingProjects[0].project_name);
       }
       
-      // If no existing project found, create a new one
+      // If no existing project found, try exact match then insert (no upsert needed)
       if (!projectId) {
-        const { data: projectData, error: projectError } = await supabase
-          .schema('api')
+        const { data: exactExisting, error: exactFindErr } = await supabase
           .from('user_projects')
-          .insert([{
-            user_email: email,
-            project_name: baseProjectName, // Use base name without revision
-            project_description: designData.projectDescription || 'Panel customizer project'
-            // Note: location, operator, service_partner fields will be added later when database is updated
-          }])
-          .select()
-          .single();
+          .select('id, project_name')
+          .eq('user_email', email)
+          .eq('project_name', baseProjectName)
+          .maybeSingle();
 
-        if (projectError) {
-          console.error('❌ Error creating project:', projectError);
-          return {
-            success: false,
-            error: projectError.message,
-            message: 'Failed to create project'
-          };
+        if (!exactFindErr && exactExisting && (exactExisting as any).id) {
+          projectId = (exactExisting as any).id as string;
+          console.log('✅ Reusing existing project:', (exactExisting as any).project_name);
+        } else {
+          const { data: projectData, error: projectError } = await supabase
+            .from('user_projects')
+            .insert([
+              {
+                user_email: email,
+                project_name: baseProjectName,
+                project_description: designData.projectDescription || 'Panel customizer project'
+              }
+            ])
+            .select()
+            .single();
+
+          if (projectError) {
+            console.error('❌ Error creating project:', projectError);
+            return {
+              success: false,
+              error: projectError.message,
+              message: 'Failed to create project'
+            };
+          }
+
+          projectId = projectData.id;
+          console.log('✅ Created new project:', baseProjectName);
         }
-        
-        projectId = projectData.id;
-        console.log('✅ Created new project:', baseProjectName);
       }
     }
     
     // Create the design record
     const { data, error } = await supabase
-      .schema('api')
       .from('user_designs')
       .insert([{
         project_id: projectId,
@@ -127,7 +147,6 @@ export const getDesigns = async (email: string) => {
     
     // Fetch all designs for this user (flat). If nested select is needed, add a DB-side view.
     const { data, error } = await supabase
-      .schema('api')
       .from('user_designs')
       .select('*')
       .eq('user_email', email)
@@ -233,7 +252,6 @@ export const getAllDesigns = async (filters?: {
     // Fallback if the view doesn't exist: join user_designs with user_projects and filter client-side
     console.warn('⚠️ Falling back to joined query because view is missing or not accessible:', error);
     const { data: joined, error: joinError } = await supabase
-      .schema('api')
       .from('user_designs')
       .select('*')
       .eq('is_active', true)
@@ -329,7 +347,6 @@ export const deleteDesign = async (email: string, designId: string) => {
     
     // Delete the design (only if it belongs to the user)
     const { error } = await supabase
-      .schema('api')
       .from('user_designs')
       .delete()
       .eq('id', designId)
@@ -378,7 +395,6 @@ export const updateDesign = async (email: string, designId: string, updatedDesig
     
     // Update the design (only if it belongs to the user)
     const { data, error } = await supabase
-      .schema('api')
       .from('user_designs')
       .update({
         design_name: projectName,
@@ -470,7 +486,6 @@ export const testConnection = async () => {
     
     // Test 4: Try the actual table query
     const { count, error } = await supabase
-      .schema('api')
       .from('user_designs')
       .select('*', { count: 'exact', head: true });
 
@@ -514,7 +529,6 @@ export const testBasicConnection = async () => {
     
     // Use the shared client instead of direct API calls
     const { data, error } = await supabase
-      .schema('api')
       .from('user_projects')
       .select('count')
       .limit(1);

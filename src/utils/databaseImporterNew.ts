@@ -111,6 +111,301 @@ interface ImportDataNew {
   projects?: ImportProject[];
 }
 
+// 🔎 Detect colleague-provided proposal format
+const isColleagueProposalFormat = (data: any): boolean => {
+  try {
+    return !!(
+      data &&
+      typeof data === 'object' &&
+      typeof data['Property name'] === 'string' &&
+      Array.isArray(data['Panel Designs'])
+    );
+  } catch {
+    return false;
+  }
+};
+
+// 🗺️ Map external panel codes to internal panel_type values
+const mapPanelCodeToPanelType = (panelCode: string | undefined): string => {
+  const code = (panelCode || '').trim().toUpperCase();
+  if (!code) return 'Unknown';
+  // Explicit known mappings
+  if (code === 'IDPG') return 'IDPG';
+  if (code.startsWith('GS')) return 'SP';
+  if (code.startsWith('TAG')) return 'TAG';
+  if (code.startsWith('X1H')) return 'X1H';
+  if (code.startsWith('X1V')) return 'X1V';
+  if (code.startsWith('X2H')) return 'X2H';
+  if (code.startsWith('X2V')) return 'X2V';
+  if (code.startsWith('DPH')) return 'DPH';
+  if (code.startsWith('DPV')) return 'DPV';
+  // Fallback: use the code as-is so nothing is lost
+  return code;
+};
+
+// 🔄 Transform colleague format → extended schema used by importer
+const transformColleagueProposalToExtended = (data: any): ImportDataNew => {
+  const propertyName = data['Property name'] || 'Unnamed Property';
+  const projectCode = data['Property code'] || null;
+  const region = data['Region'] || 'UNKNOWN';
+  const panelDesigns: any[] = Array.isArray(data['Panel Designs']) ? data['Panel Designs'] : [];
+
+  const designs = panelDesigns.map((d: any) => {
+    const designName = d['Panel Name'] || d['DesignId'] || 'Unnamed Design';
+    const panelType = mapPanelCodeToPanelType(d['Panel Code']);
+
+    // Collect all fields to avoid data loss
+    const featureFlags: Record<string, any> = {};
+    Object.keys(d || {}).forEach((key) => {
+      if (
+        key !== 'Panel Name' &&
+        key !== 'Panel Code' &&
+        key !== 'DesignId' &&
+        key !== 'Allocated Quantity' &&
+        key !== 'Max Quantity'
+      ) {
+        featureFlags[key] = d[key];
+      }
+    });
+
+    const allocatedQty = d['Allocated Quantity'];
+    const maxQty = d['Max Quantity'];
+
+    const design_data = {
+      panelType,
+      originalPanelCode: d['Panel Code'],
+      allocatedQuantity: typeof allocatedQty === 'number' ? allocatedQty : Number(allocatedQty) || undefined,
+      maxQuantity: typeof maxQty === 'number' ? maxQty : Number(maxQty) || undefined,
+      features: featureFlags
+    } as Record<string, any>;
+
+    return {
+      design_name: designName,
+      panel_type: panelType,
+      design_data
+    } as ImportDesign;
+  });
+
+  const transformed: ImportDataNew = {
+    import_metadata: {
+      version: 'colleague-proposal-1.0',
+      created_at: new Date().toISOString(),
+      description: `Imported from colleague proposal for ${propertyName}`,
+      total_properties: 1,
+      total_user_groups: 0,
+      total_users: 0,
+      total_projects: 1,
+      total_designs: designs.length
+    },
+    properties: [
+      {
+        region,
+        property_name: propertyName
+      }
+    ],
+    projects: [
+      {
+        project_name: propertyName,
+        project_description: projectCode,
+        property_name: propertyName,
+        designs
+      }
+    ]
+  };
+
+  return transformed;
+};
+
+// 🧭 Direct import of colleague proposal format (no intermediate transformation)
+const importColleagueProposalData = async (raw: any) => {
+  console.log('🔍 Starting colleague proposal import...', raw);
+  const results = {
+    properties_created: 0,
+    user_groups_created: 0,
+    users_created: 0,
+    projects_created: 0,
+    designs_created: 0,
+    configurations_created: 0,
+    errors: [] as string[],
+    project_ids: [] as string[]
+  };
+
+  try {
+    const propertyName = raw['Property name'] || 'Unnamed Property';
+    const propertyCode = raw['Property code'] || null;
+    const region = raw['Region'] || 'UNKNOWN';
+    const panelDesigns: any[] = Array.isArray(raw['Panel Designs']) ? raw['Panel Designs'] : [];
+
+    // Resolve importing user email for UG assignment/visibility
+    let importUserEmail: string | null = null;
+    try { importUserEmail = (raw.user_email && String(raw.user_email)) || null; } catch {}
+    if (!importUserEmail) {
+      try { importUserEmail = (localStorage.getItem('import_user_email') || localStorage.getItem('user_email') || '').trim() || null; } catch {}
+    }
+    if (!importUserEmail) {
+      try { importUserEmail = (import.meta as any)?.env?.VITE_IMPORT_USER_EMAIL || null; } catch {}
+    }
+    console.log('👤 Import user email resolved:', importUserEmail);
+
+    // Create property (try api.property first, then fallback to public.property)
+    let propertyId: string | null = null;
+    try {
+        const now = new Date().toISOString();
+        const publicPayload: any = {
+          prop_id: propertyCode || `PROP_${Date.now()}`,
+          property_name: propertyName,
+          region,
+          created_at: now,
+          last_modified: now,
+          is_active: true
+        };
+        // Check if property already exists
+        const { data: existingProperty } = await supabase
+          .from('property')
+          .select('prop_id, property_name')
+          .eq('prop_id', publicPayload.prop_id)
+          .limit(1);
+
+        const isRevision = existingProperty && existingProperty[0];
+
+        const { data: property, error: propertyError } = await supabase
+          .from('property')
+          .upsert([publicPayload], { onConflict: 'prop_id' })
+          .select()
+          .single();
+      if (propertyError) throw propertyError;
+      propertyId = ((property as any).prop_id || null) as string | null;
+      
+      if (isRevision) {
+        results.revisions_created = (results.revisions_created || 0) + 1;
+      } else {
+        results.properties_created++;
+      }
+    } catch (e: any) {
+      results.errors.push(`Property error: ${e.message || String(e)}`);
+    }
+
+    // No need for separate project table - property acts as project container
+    // Use property ID directly for designs
+    const propId = propertyId;
+    results.projects_created++;
+    if (propId) results.project_ids.push(propId);
+
+    // Grant the importing user's UG access to this property
+    console.log('🔍 Checking UG linking conditions...', { propId, importUserEmail });
+    if (propId && importUserEmail) {
+      try {
+        console.log('🔗 Linking property to user UG...', { propId, importUserEmail });
+        
+        // Get the user's current UG
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('ug_id')
+          .eq('email', importUserEmail)
+          .single();
+        
+        if (userError || !userData) {
+          console.error('❌ Could not find user:', userError);
+          results.errors.push(`Could not find user: ${userError?.message || 'User not found'}`);
+          return results;
+        }
+
+        const userUgId = userData.ug_id;
+        console.log('👤 User UG ID:', userUgId);
+
+        // Create UG ↔ Property access link
+        const { error: accessError } = await supabase
+          .from('ug_property_access')
+          .upsert([{ ug_id: userUgId, prop_id: propId, is_active: true }], { onConflict: 'ug_id,prop_id' });
+
+        if (accessError) {
+          console.error('❌ Could not create property access:', accessError);
+          results.errors.push(`Could not create property access: ${accessError.message}`);
+        } else {
+          console.log('✅ Property access granted successfully');
+        }
+
+      } catch (e: any) {
+        console.error('❌ User/UG assignment error:', e);
+        results.errors.push(`User/UG assignment error: ${e.message || String(e)}`);
+      }
+    }
+
+    // Create designs directly from colleague rows
+    if (propId) {
+      for (const d of panelDesigns) {
+        try {
+          const designName = d['Panel Name'] || d['DesignId'] || 'Unnamed Design';
+          const panelCode = d['Panel Code'];
+          // Normalize to app panel categories used by BOQ (SP, TAG, IDPG, DP*, X*)
+          const normalized = mapPanelCodeToPanelType(typeof panelCode === 'string' ? panelCode : '');
+          const panelType = normalized;
+
+          const allocatedQty = d['Allocated Quantity'];
+          const maxQty = d['Max Quantity'];
+
+          const design_data: any = {
+            sourceFormat: 'colleague-proposal-1.0',
+            originalRow: d,
+            region,
+            propertyName,
+            propertyCode,
+            allocatedQuantity: typeof allocatedQty === 'number' ? allocatedQty : Number(allocatedQty) || undefined,
+            maxQuantity: typeof maxQty === 'number' ? maxQty : Number(maxQty) || undefined
+          };
+
+          // BOQ page expects design_data.quantity for initial totals
+          if (typeof allocatedQty !== 'undefined') {
+            const q = typeof allocatedQty === 'number' ? allocatedQty : Number(allocatedQty);
+            if (!isNaN(q)) {
+              design_data.quantity = q;
+            }
+          }
+
+          // Check if this property already has designs (for revision logic)
+          const { data: existingDesigns } = await supabase
+            .from('user_designs')
+            .select('revision_number')
+            .eq('prop_id', propId)
+            .order('revision_number', { ascending: false })
+            .limit(1);
+          
+          const nextRevisionNumber = existingDesigns && existingDesigns[0] 
+            ? (existingDesigns[0].revision_number || 0) + 1 
+            : 1;
+
+          const { error: designError } = await supabase
+            .from('user_designs')
+            .insert([
+              {
+                prop_id: propId,
+                user_email: importUserEmail || null,
+                design_name: designName,
+                panel_type: panelType,
+                design_data,
+                revision_number: nextRevisionNumber
+              }
+            ]);
+          if (designError) {
+            console.error('Design insert error:', designError);
+            throw designError;
+          }
+          results.designs_created++;
+    } catch (e: any) {
+      console.error('Design creation error:', e);
+      results.errors.push(`Design error: ${e.message || String(e)}`);
+    }
+      }
+    }
+
+    } catch (e: any) {
+      console.error('Unexpected import error:', e);
+      results.errors.push(`Unexpected import error: ${e.message || String(e)}`);
+    }
+
+  return results;
+};
+
 // 🚀 MAIN IMPORT FUNCTION FOR NEW STRUCTURE
 export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
   success: boolean;
@@ -127,6 +422,17 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
   };
 }> => {
   try {
+    // Dedicated direct import path for colleague proposal format
+    if (isColleagueProposalFormat(jsonData)) {
+      const results = await importColleagueProposalData(jsonData);
+      return {
+        success: results.errors.length === 0,
+        message: results.errors.length === 0
+          ? `Import completed! Created ${results.properties_created} properties, ${results.projects_created} projects, ${results.designs_created} designs`
+          : `Import completed with errors: ${results.errors.length}`,
+        results
+      };
+    }
     console.log('📥 Starting new database import...');
     const usersCount = Array.isArray((jsonData as any).users) ? (jsonData as any).users.length : 0;
     if ((jsonData as any).properties) {
@@ -151,7 +457,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
     for (const propertyData of ((jsonData as any).properties || [])) {
       try {
         const { data: property, error: propertyError } = await supabase
-          .schema('api')
           .from('property')
           .insert([{
             region: propertyData.region,
@@ -186,7 +491,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
         const compositeId = `${ugData.ug}_${propertyId.substring(0, 8)}`;
 
         const { data: ug, error: ugError } = await supabase
-          .schema('api')
           .from('ug')
           .insert([{
             id: compositeId,
@@ -222,8 +526,7 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
           const defaultUGCode = 'UG_DEFAULT';
 
           // Ensure default UG exists for this property
-          const { data: existingUG, error: fetchUgErr } = await supabase
-            .schema('api')
+        const { data: existingUG, error: fetchUgErr } = await supabase
             .from('ug')
             .select('id, ug')
             .eq('prop_id', propertyId)
@@ -238,7 +541,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
           if (!existingUG) {
             const compositeId = `${defaultUGCode}_${propertyId.substring(0, 8)}`;
             const { error: createUgErr } = await supabase
-              .schema('api')
               .from('ug')
               .insert([{ id: compositeId, ug: defaultUGCode, prop_id: propertyId }]);
             if (createUgErr) {
@@ -258,7 +560,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
         }
 
         const { data: user, error: userError } = await supabase
-          .schema('api')
           .from('users')
           .insert([userInsert])
           .select()
@@ -287,7 +588,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
           project_description: minimal.project_code ? `code: ${minimal.project_code}` : null,
         };
         const { data: project, error: projectError } = await supabase
-          .schema('api')
           .from('user_projects')
           .insert([projectInsert])
           .select()
@@ -303,7 +603,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
         for (const d of minimal.designs) {
           try {
             const { data: design, error: designError } = await supabase
-              .schema('api')
               .from('user_designs')
               .insert([{
                 project_id: project.id,
@@ -343,7 +642,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
         try {
           if (projectData.user_email && projectData.user_email.trim().length > 0) {
             const { error: upsertUserErr } = await supabase
-              .schema('api')
               .from('users')
               .upsert([{ email: projectData.user_email }], { onConflict: 'email' });
             if (upsertUserErr) {
@@ -376,7 +674,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
           projectInsert.prop_id = resolvedPropId;
         }
         const { data: project, error: projectError } = await supabase
-          .schema('api')
           .from('user_projects')
           .insert([projectInsert])
           .select()
@@ -392,7 +689,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
 
         // Load existing design names for this project to compute next revision numbers
         const existingNamesRes = await supabase
-          .schema('api')
           .from('user_designs')
           .select('design_name')
           .eq('project_id', project.id);
@@ -437,7 +733,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
             };
 
             const { data: design, error: designError } = await supabase
-              .schema('api')
               .from('user_designs')
               .insert([{
                 project_id: project.id,
@@ -464,7 +759,6 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
               for (const configData of designData.panel_configurations) {
                 try {
                   const { error: configError } = await supabase
-                    .schema('api')
                     .from('panel_configurations')
                     .insert([{
                       design_id: design.id,
@@ -525,6 +819,16 @@ export const importDatabaseDataNew = async (jsonData: ImportDataNew): Promise<{
 // 🧪 VALIDATE NEW IMPORT DATA
 export const validateImportDataNew = (data: any): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
+
+  // Accept colleague proposal by converting on-the-fly for validation only
+  if (isColleagueProposalFormat(data)) {
+    try {
+      data = transformColleagueProposalToExtended(data);
+    } catch (e) {
+      errors.push('Failed to transform colleague proposal format');
+      return { valid: false, errors };
+    }
+  }
 
   // Minimal schema support: allow { project_name, project_code?, designs:[{panel_type, quantity}] }
   const looksMinimal = !!data && typeof data === 'object' && data.project_name && Array.isArray(data.designs) && data.designs.every((d: any) => d && d.panel_type && typeof d.quantity === 'number' && d.design_name);

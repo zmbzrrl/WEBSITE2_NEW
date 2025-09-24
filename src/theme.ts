@@ -15,7 +15,7 @@ const theme = createTheme({
       contrastText: '#ffffff',
     },
     background: {
-      default: '#ffffff',
+      default: 'transparent',
       paper: '#f5f5f5',
     },
     text: {
@@ -56,6 +56,14 @@ const theme = createTheme({
     },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          background: 'linear-gradient(135deg, #2c3e50 0%, #4a5568 100%)',
+          minHeight: '100vh',
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {

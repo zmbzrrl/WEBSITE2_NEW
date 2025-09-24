@@ -1633,7 +1633,15 @@ const SPCustomizer: React.FC = () => {
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel-type');
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  const idsStr = typeof window !== 'undefined' ? sessionStorage.getItem('boqProjectIds') : null;
+                  const projectIds = idsStr ? JSON.parse(idsStr) : [];
+                  const resStr = typeof window !== 'undefined' ? sessionStorage.getItem('boqImportResults') : null;
+                  const importResults = resStr ? JSON.parse(resStr) : undefined;
+                  navigate('/panel-type', { state: { projectIds, importResults } });
+                }
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }

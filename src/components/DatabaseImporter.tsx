@@ -4,6 +4,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from '../utils/databaseImporterNew';
+import { supabase } from '../utils/supabaseClient';
+import { useUser } from '../contexts/UserContext';
 
 interface ImportResults {
   success: boolean;
@@ -26,6 +28,8 @@ const DatabaseImporter: React.FC = () => {
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
+  const { user } = useUser();
+
   const handleFileImport = async (file: File) => {
     if (!file.name.endsWith('.json')) {
       setImportResults({
@@ -39,8 +43,29 @@ const DatabaseImporter: React.FC = () => {
     setImportResults(null);
 
     try {
-      // Load and validate the JSON file
+      // Load JSON
       const jsonData = await loadJsonFromFile(file);
+
+      // Prefer app UserContext email; fallback to auth/env
+      try {
+        let email: string | undefined | null = user?.email;
+        if (!email) {
+          const { data } = await supabase.auth.getUser();
+          email = data?.user?.email;
+        }
+        if (!email) {
+          const session = await supabase.auth.getSession();
+          email = session?.data?.session?.user?.email;
+        }
+        if (!email) {
+          try { email = (import.meta as any)?.env?.VITE_IMPORT_USER_EMAIL; } catch {}
+        }
+        if (email) {
+          (jsonData as any).user_email = email;
+        }
+      } catch {}
+
+      // Validate
       const validation = validateImportDataNew(jsonData);
       
       if (!validation.valid) {
@@ -58,6 +83,10 @@ const DatabaseImporter: React.FC = () => {
       // If import successful, navigate to Panel Type Selector with BOQ context
       if (results.success && results.results) {
         setTimeout(() => {
+          try {
+            sessionStorage.setItem('boqProjectIds', JSON.stringify(results.results?.project_ids || []));
+            sessionStorage.setItem('boqImportResults', JSON.stringify(results.results));
+          } catch {}
           navigate('/panel-type', {
             state: {
               importResults: results.results,
@@ -218,7 +247,8 @@ const DatabaseImporter: React.FC = () => {
           <li>Use <code>database-import-template-new.json</code> as a starting point</li>
           <li>For a commented guide, open <code>database-import-template-new.jsonc</code> (do not upload the .jsonc)</li>
           <li>Modify the JSON to match your data</li>
-          <li>Ensure required fields are present (e.g., user_email, project_name, and either design_name or revision_of)</li>
+          <li>Ensure required fields are present (e.g., project_name, and either design_name or revision_of)</li>
+          <li>Your signed-in email will be used automatically for access assignment</li>
           <li>Upload the JSON file using the interface above</li>
           <li>Check the results and any error messages</li>
         </ol>

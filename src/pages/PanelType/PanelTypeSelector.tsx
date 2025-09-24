@@ -10,6 +10,7 @@ import {
   Chip,
   IconButton,
   TextField,
+  CircularProgress,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -123,9 +124,41 @@ const PanelTypeSelector = () => {
   const { projPanels } = useCart();
 
   // BOQ-integrated state
-  const importResults = location.state?.importResults as { project_ids?: string[] } | undefined;
-  const projectIds = (location.state?.projectIds as string[] | undefined) || importResults?.project_ids || [];
+  const importResults = (location.state?.importResults as { project_ids?: string[] } | undefined) || (() => {
+    try { return JSON.parse(sessionStorage.getItem('boqImportResults') || 'null'); } catch { return undefined; }
+  })();
+  const projectIds = (location.state?.projectIds as string[] | undefined) 
+    || (importResults?.project_ids as string[] | undefined)
+    || (() => { try { return JSON.parse(sessionStorage.getItem('boqProjectIds') || '[]'); } catch { return []; } })();
+
+  // Check if we're in BOQ mode or standalone mode
+  const hasBOQ = Array.isArray(projectIds) && projectIds.length > 0;
+  const hasProjectCode = !!projectCode; // Check if we have a project code from context
+  
+  console.log('PanelTypeSelector - hasBOQ:', hasBOQ);
+  console.log('PanelTypeSelector - hasProjectCode:', hasProjectCode);
+  console.log('PanelTypeSelector - projectIds:', projectIds);
+  console.log('PanelTypeSelector - projectCode:', projectCode);
+
+  // Only redirect if we have neither BOQ nor project code
+  const [redirecting, setRedirecting] = useState(false);
+  useEffect(() => {
+    if (!hasBOQ && !hasProjectCode) {
+      console.log('PanelTypeSelector - No BOQ or project code, redirecting to properties');
+      setRedirecting(true);
+      navigate('/properties', { replace: true });
+    } else {
+      console.log('PanelTypeSelector - Has BOQ or project code, staying on page');
+      setRedirecting(false);
+    }
+  }, [hasBOQ, hasProjectCode, navigate]);
+
+  // Prevent any UI from rendering until we have context or redirect happens
+  if ((!hasBOQ && !hasProjectCode) || redirecting) {
+    return null;
+  }
   const [boqLoading, setBoqLoading] = useState(false);
+  const [boqFetched, setBoqFetched] = useState(false);
   const [boqError, setBoqError] = useState<string | null>(null);
   const [boqData, setBoqData] = useState<Record<string, {
     fixedTotal: number;
@@ -236,18 +269,20 @@ const PanelTypeSelector = () => {
     return 'SP';
   };
 
-  // Load BOQ designs for provided projectIds (if any). If none, page behaves as before.
+  // Load BOQ designs for provided projectIds (only in BOQ mode)
   useEffect(() => {
     const loadBOQ = async () => {
-      if (!projectIds || projectIds.length === 0) return;
+      if (!hasBOQ || !projectIds || projectIds.length === 0) {
+        setBoqFetched(true); // Mark as fetched even if no BOQ data
+        return;
+      }
       try {
         setBoqLoading(true);
         setBoqError(null);
         const { data, error } = await supabase
-          .schema('api')
           .from('user_designs')
-          .select(`id, design_name, panel_type, project_id, design_data, user_projects!inner(project_name)`) 
-          .in('project_id', projectIds);
+          .select(`id, design_name, panel_type, prop_id, design_data, property!inner(property_name)`) 
+          .in('prop_id', projectIds);
         if (error) throw new Error(error.message);
         const grouped: Record<string, {
           fixedTotal: number;
@@ -258,7 +293,7 @@ const PanelTypeSelector = () => {
           const key = mapTypeToCategory(d.panel_type);
           const qty = (d.design_data && typeof d.design_data.quantity !== 'undefined') ? (Number(d.design_data.quantity) || 0) : 0;
           if (!grouped[key]) grouped[key] = { fixedTotal: 0, totalQuantity: 0, designs: [] };
-          grouped[key].designs.push({ id: d.id, name: d.design_name, qty, projectName: d.user_projects.project_name, panelType: d.panel_type });
+          grouped[key].designs.push({ id: d.id, name: d.design_name, qty, projectName: d.property.property_name, panelType: d.panel_type });
           grouped[key].fixedTotal += qty;
           grouped[key].totalQuantity += qty;
         });
@@ -267,10 +302,11 @@ const PanelTypeSelector = () => {
         setBoqError(e?.message || 'Failed to load BOQ data');
       } finally {
         setBoqLoading(false);
+        setBoqFetched(true);
       }
     };
     loadBOQ();
-  }, [projectIds]);
+  }, [hasBOQ, projectIds]);
 
   // Allocation update (fixed totals)
   const updateAlloc = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT', designId: string, newQty: number) => {
@@ -308,7 +344,8 @@ const PanelTypeSelector = () => {
     
     // If BOQ loaded, only show categories present in BOQ; else show all
     const presentKeys = new Set(Object.keys(boqData));
-    const base = presentKeys.size > 0 ? allPanelTypes.filter(p => presentKeys.has(p.key)) : allPanelTypes;
+    // Do NOT fall back to all panel types; only show when BOQ data has loaded
+    const base = presentKeys.size > 0 ? allPanelTypes.filter(p => presentKeys.has(p.key)) : [];
     
     console.log('Base panelTypes after filtering:', base.map(p => p.name));
     
@@ -324,6 +361,19 @@ const PanelTypeSelector = () => {
     console.log('Final panelTypes:', final.map(p => p.name));
     return final;
   }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory]);
+
+  // If BOQ not fetched yet, show loading state (prevents plain selector flash)
+  // Only show loading if we're in BOQ mode and haven't fetched BOQ data yet
+  if (hasBOQ && !boqFetched) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)' }}>
+        <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.9)' }}>
+          <CircularProgress thickness={4} size={48} sx={{ color: '#ffffff', mb: 2 }} />
+          <Typography sx={{ letterSpacing: 0.5 }}>Loading project panels...</Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -415,7 +465,7 @@ const PanelTypeSelector = () => {
           <ProgressBar />
         </ProgressContainer>
 
-        {showPanels && (
+        {hasBOQ && showPanels && (
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -434,29 +484,8 @@ const PanelTypeSelector = () => {
                 >
                   <StyledPanel variants={itemVariants}>
                     <PanelContainer
-                      onClick={() => {
-                        if (isEditMode) {
-                          // If we're in edit mode, we're adding a NEW panel to an existing project
-                          // Don't pass edit mode state since this is a new panel, not editing existing
-                          navigate(panel.path, {
-                            state: {
-                              editMode: false, // This is a new panel, not editing existing
-                              projectData: editProjectData,
-                              designId: editDesignId,
-                              isAddingToExistingProject: true, // Flag to indicate we're adding to existing project
-                              // Preserve project edit context for return to /cart
-                              projectEditMode: true,
-                              projectDesignId: editDesignId,
-                              projectOriginalName: editProjectData?.projectName,
-                            }
-                          });
-                        } else {
-                          // Normal navigation for new projects
-                          navigate(panel.path);
-                        }
-                      }}
                       sx={{
-                        cursor: 'pointer',
+                        cursor: 'default',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -552,7 +581,14 @@ const PanelTypeSelector = () => {
                                 <IconButton size="small" onClick={() => updateAlloc(panel.key as any, d.id, d.qty + 1)}>
                                   <span style={{ color: 'white' }}>+</span>
                                 </IconButton>
-                                <Button variant="outlined" size="small" onClick={() => navigate(panel.path)} sx={{ ml: 1 }}>Design</Button>
+                                <Button 
+                                  variant="outlined" 
+                                  size="small" 
+                                  onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults } })} 
+                                  sx={{ ml: 1 }}
+                                >
+                                  Design
+                                </Button>
                               </Box>
                             ))}
                           </Box>
