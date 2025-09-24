@@ -1504,7 +1504,7 @@ const X2VCustomizer: React.FC = () => {
 
       updatePanel(editPanelIndex, design);
 
-      navigate('/cart'); // Go back to cart after updating
+    navigate('/proj-panels'); // Return to project panels after updating
 
     } else {
 

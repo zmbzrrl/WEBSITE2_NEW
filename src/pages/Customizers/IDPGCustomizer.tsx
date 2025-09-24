@@ -1033,7 +1033,7 @@ const IDPGCustomizer = () => {
     if (isEditMode && editPanelIndex !== undefined) {
       // Update existing panel
       updatePanel(editPanelIndex, design);
-      navigate('/cart'); // Go back to cart after updating
+    navigate('/proj-panels'); // Return to project panels after updating
     } else {
       // Add new panel with quantity prompt constrained by BOQ remaining
       const category = mapTypeToCategory(design.type);

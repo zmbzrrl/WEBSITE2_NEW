@@ -857,7 +857,7 @@ const SPCustomizer: React.FC = () => {
         projectCreateNewRevision: location.state.projectCreateNewRevision
       } : {};
       
-      navigate('/cart', { state: preservedState }); // Go back to cart after updating
+      navigate('/proj-panels'); // Return to project panels after updating
     } else {
       // Add new panel with quantity prompt constrained by BOQ remaining
       const category = mapTypeToCategory(design.type);
@@ -886,7 +886,7 @@ const SPCustomizer: React.FC = () => {
           projectOriginalName: (location.state as any)?.projectData?.projectName || (location.state as any)?.projectOriginalName,
           projectCreateNewRevision: false,
         };
-        navigate('/cart', { state: preservedState });
+        navigate('/proj-panels');
       }
     }
   };

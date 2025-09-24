@@ -206,19 +206,19 @@ const Properties: React.FC = () => {
         sessionStorage.setItem('ppProjectCode', propId);
         sessionStorage.setItem('ppIsEditMode', 'true');
         sessionStorage.setItem('ppEditingDesignId', design.id);
-        if (design?.name) sessionStorage.setItem('ppProjectName', design.name);
+        const resolvedName = design?.name || design?.design_name;
+        if (resolvedName) sessionStorage.setItem('ppProjectName', resolvedName);
       }
     } catch {}
-    navigate('/cart', {
+    const designData = design?.data || design?.design_data || {};
+    navigate('/proj-panels', {
       state: {
-        projectEditMode: true,
-        projectDesignId: design.id,
-        projectOriginalName: design.name,
-        projectCreateNewRevision: false,
+        editMode: true,
+        designId: design.id,
         projectData: {
-          projectName: design.name,
+          projectName: (design?.name || design?.design_name || 'Project Design'),
           projectCode: propId,
-          panels: (design?.data?.panels && Array.isArray(design.data.panels)) ? design.data.panels : []
+          panels: (designData?.panels && Array.isArray(designData.panels)) ? designData.panels : []
         }
       }
     });
