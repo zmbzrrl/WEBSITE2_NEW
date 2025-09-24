@@ -245,6 +245,12 @@ const importColleagueProposalData = async (raw: any) => {
     if (!importUserEmail) {
       try { importUserEmail = (import.meta as any)?.env?.VITE_IMPORT_USER_EMAIL || null; } catch {}
     }
+    
+    // CRITICAL: User email is required for import - fail if not available
+    if (!importUserEmail) {
+      throw new Error('User email is required for import. Please ensure you are logged in and the import data contains user_email field.');
+    }
+    
     console.log('👤 Import user email resolved:', importUserEmail);
 
     // Create property (try api.property first, then fallback to public.property)

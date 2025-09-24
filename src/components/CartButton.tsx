@@ -15,7 +15,7 @@ const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true })
   const handleViewPanels = async () => {
     const userEmail = localStorage.getItem('userEmail');
     if (!userEmail) {
-      navigate("/cart");
+      navigate("/proj-panels");
       return;
     }
     const result = await getDesigns(userEmail);
@@ -28,7 +28,7 @@ const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true })
         loadProjectPanels(deepCopiedPanels);
       }
     }
-    navigate("/cart");
+    navigate("/proj-panels");
   };
 
   return (

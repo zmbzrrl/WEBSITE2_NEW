@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
-import { getAccessibleProperties, createProperty, listPropertyRevisions, getDesignWithPermissions, createRevision, deleteLayout } from '../utils/newDatabase';
+import { getAccessibleProperties, createProperty, listPropertyRevisions, getDesignWithPermissions, createRevision, deleteLayout, deleteProperty } from '../utils/newDatabase';
 import { ProjectContext } from '../App';
 import { useUser } from '../contexts/UserContext';
 import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from '../utils/databaseImporterNew';
@@ -21,6 +21,13 @@ const Properties: React.FC = () => {
   const [filterText, setFilterText] = useState('');
   const [regionFilter, setRegionFilter] = useState<string>('All');
   const [sortKey, setSortKey] = useState<string>('name_asc');
+  
+  // Property deletion state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+  const [propertyToDelete, setPropertyToDelete] = useState<{ prop_id: string; property_name: string; region: string } | null>(null);
+  const [deletingProperty, setDeletingProperty] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
 
   const [showCreate, setShowCreate] = useState(false);
   const [newProperty, setNewProperty] = useState({ projectCode: '', propertyName: '', region: '' });
@@ -115,12 +122,12 @@ const Properties: React.FC = () => {
           if (revs.success) {
             nextRevisions[p.prop_id] = (revs.revisions || []).map((row: any) => ({
               id: row.id,
-              name: row.name,
+              name: row.name || row.design_name,
               createdAt: row.created_at,
               lastModified: row.last_modified,
               ownerEmail: row.user_email,
               propId: row.prop_id,
-              data: row.data
+              data: row.data || row.design_data
             }));
           } else {
             nextRevisions[p.prop_id] = [];
@@ -152,10 +159,11 @@ const Properties: React.FC = () => {
 
   const viewRevision = (propId: string, design: any) => {
     setProjectCode(propId);
-    const panelConfigs = (design?.data?.panels && Array.isArray(design.data.panels)) ? design.data.panels : [];
+    const designData = design?.data || design?.design_data || {};
+    const panelConfigs = (designData?.panels && Array.isArray(designData.panels)) ? designData.panels : [];
     const state = {
       panelConfigs,
-      projectName: design?.name || 'Project Design',
+      projectName: design?.name || design?.design_name || 'Project Design',
       projectCode: propId,
       revision: undefined
     } as any;
@@ -232,6 +240,58 @@ const Properties: React.FC = () => {
       const res = await getDesignWithPermissions(designId, userEmail || '');
       return !!(res.success && res.permissions?.canEdit);
     } catch { return false; }
+  };
+
+  const handleDeleteProperty = (property: { prop_id: string; property_name: string; region: string }) => {
+    setPropertyToDelete(property);
+    setShowDeleteConfirm(true);
+    setConfirmationText('');
+  };
+
+  const proceedToFinalConfirmation = () => {
+    if (!propertyToDelete) return;
+    setShowDeleteConfirm(false);
+    setShowFinalConfirm(true);
+  };
+
+  const confirmDeleteProperty = async () => {
+    if (!propertyToDelete || !user?.email) return;
+    
+    // Check if user typed the confirmation text correctly
+    const expectedText = `DELETE ${propertyToDelete.property_name}`;
+    if (confirmationText !== expectedText) {
+      setError('Please type the exact confirmation text to proceed');
+      return;
+    }
+    
+    setDeletingProperty(true);
+    setError('');
+    
+    try {
+      const result = await deleteProperty(propertyToDelete.prop_id, user.email);
+      
+      if (result.success) {
+        // Refresh the properties list
+        await load();
+        setShowFinalConfirm(false);
+        setPropertyToDelete(null);
+        setConfirmationText('');
+      } else {
+        setError(result.message || 'Failed to permanently delete property');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to permanently delete property');
+    } finally {
+      setDeletingProperty(false);
+    }
+  };
+
+  const cancelDeleteProperty = () => {
+    setShowDeleteConfirm(false);
+    setShowFinalConfirm(false);
+    setPropertyToDelete(null);
+    setConfirmationText('');
+    setError('');
   };
 
   // Manual creation removed; data will be taken from JSON import only
@@ -370,7 +430,25 @@ const Properties: React.FC = () => {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                         <div style={{ fontSize: 16, fontWeight: 600 }}>{p.property_name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ fontSize: 12, color: '#666' }}>{p.region}</div>
+                          <button
+                            onClick={() => handleDeleteProperty(p)}
+                            title="Delete property"
+                            style={{
+                              padding: '4px 8px',
+                              background: '#e74c3c',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 4,
+                              cursor: 'pointer',
+                              fontSize: 11,
+                              fontWeight: 500
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                       <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{p.prop_id}</div>
 
@@ -520,6 +598,135 @@ const Properties: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={() => setShowCreate(false)}
                       style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* First Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0 as any, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: '90%', maxWidth: 500 }}>
+            <h3 style={{ marginTop: 0, color: '#e74c3c' }}>⚠️ Delete Property</h3>
+            <p style={{ marginBottom: 16, lineHeight: 1.5 }}>
+              Are you sure you want to permanently delete <strong>{propertyToDelete?.property_name}</strong>?
+            </p>
+            <div style={{ background: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: 6, padding: 12, marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#856404' }}>
+                <strong>Warning:</strong> This will permanently delete:
+              </p>
+              <ul style={{ margin: '8px 0 0 0', paddingLeft: 20, fontSize: 14, color: '#856404' }}>
+                <li>All designs and revisions in this property</li>
+                <li>All access permissions for this property</li>
+                <li>The property itself</li>
+              </ul>
+              <p style={{ margin: '8px 0 0 0', fontSize: 14, color: '#856404' }}>
+                <strong>This action cannot be undone and will remove all data from the database.</strong>
+              </p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button 
+                onClick={cancelDeleteProperty}
+                style={{ 
+                  padding: '10px 16px', 
+                  background: '#f5f5f5', 
+                  border: '1px solid #ddd', 
+                  borderRadius: 4, 
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={proceedToFinalConfirmation}
+                style={{ 
+                  padding: '10px 16px', 
+                  background: '#e74c3c', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: 4, 
+                  cursor: 'pointer'
+                }}
+              >
+                Continue to Final Confirmation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Final Confirmation Dialog */}
+      {showFinalConfirm && (
+        <div style={{ position: 'fixed', inset: 0 as any, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: '90%', maxWidth: 500 }}>
+            <h3 style={{ marginTop: 0, color: '#c0392b' }}>🔥 FINAL CONFIRMATION</h3>
+            <p style={{ marginBottom: 16, lineHeight: 1.5 }}>
+              You are about to <strong>permanently delete</strong> <strong>{propertyToDelete?.property_name}</strong> from the database.
+            </p>
+            <div style={{ background: '#f8d7da', border: '1px solid #f5c6cb', borderRadius: 6, padding: 12, marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#721c24' }}>
+                <strong>⚠️ CRITICAL WARNING:</strong> This action will:
+              </p>
+              <ul style={{ margin: '8px 0 0 0', paddingLeft: 20, fontSize: 14, color: '#721c24' }}>
+                <li><strong>Permanently remove</strong> all designs and revisions</li>
+                <li><strong>Permanently remove</strong> all access permissions</li>
+                <li><strong>Permanently remove</strong> the property from database</li>
+                <li><strong>Cannot be undone</strong> - no recovery possible</li>
+              </ul>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: 14, fontWeight: 600 }}>
+                To confirm deletion, type: <strong>DELETE {propertyToDelete?.property_name}</strong>
+              </p>
+              <input
+                type="text"
+                value={confirmationText}
+                onChange={(e) => setConfirmationText(e.target.value)}
+                placeholder={`Type: DELETE ${propertyToDelete?.property_name}`}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: 4,
+                  fontSize: 14
+                }}
+              />
+            </div>
+            {error && (
+              <div style={{ background: '#fdecea', color: '#611a15', border: '1px solid #f5c2c0', padding: '8px 12px', borderRadius: 4, marginBottom: 16, fontSize: 14 }}>
+                {error}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button 
+                onClick={cancelDeleteProperty}
+                disabled={deletingProperty}
+                style={{ 
+                  padding: '10px 16px', 
+                  background: '#f5f5f5', 
+                  border: '1px solid #ddd', 
+                  borderRadius: 4, 
+                  cursor: deletingProperty ? 'not-allowed' : 'pointer',
+                  opacity: deletingProperty ? 0.6 : 1
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeleteProperty}
+                disabled={deletingProperty || confirmationText !== `DELETE ${propertyToDelete?.property_name}`}
+                style={{ 
+                  padding: '10px 16px', 
+                  background: deletingProperty ? '#c96b63' : (confirmationText === `DELETE ${propertyToDelete?.property_name}` ? '#c0392b' : '#bdc3c7'), 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: 4, 
+                  cursor: (deletingProperty || confirmationText !== `DELETE ${propertyToDelete?.property_name}`) ? 'not-allowed' : 'pointer',
+                  opacity: (deletingProperty || confirmationText !== `DELETE ${propertyToDelete?.property_name}`) ? 0.8 : 1
+                }}
+              >
+                {deletingProperty ? 'Deleting...' : 'PERMANENTLY DELETE'}
+              </button>
             </div>
           </div>
         </div>

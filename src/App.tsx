@@ -188,6 +188,9 @@ const AppRoutes = () => {
         
         {/* Panel Type Selector - BOQ page for quantity distribution */}
         <Route path="/panel-type" element={<PageTransition><PanelTypeSelector /></PageTransition>} />
+        {/* Panel category selectors */}
+        <Route path="/panel/double" element={<PageTransition><DoublePanelSelector /></PageTransition>} />
+        <Route path="/panel/extended" element={<PageTransition><ExtendedPanelSelector /></PageTransition>} />
         
         {/* BOQ page - shows Bill of Quantities */}
         <Route path="/boq" element={<PageTransition><BOQPage /></PageTransition>} />
@@ -197,6 +200,17 @@ const AppRoutes = () => {
         
         {/* My Designs page - shows user's saved designs */}
         <Route path="/my-designs" element={<PageTransition><MyDesigns /></PageTransition>} />
+
+        {/* Customizer routes */}
+        <Route path="/customizer/sp" element={<PageTransition><SPCustomizer /></PageTransition>} />
+        <Route path="/customizer/dph" element={<PageTransition><DPHCustomizer /></PageTransition>} />
+        <Route path="/customizer/dpv" element={<PageTransition><DPVCustomizer /></PageTransition>} />
+        <Route path="/customizer/x1h" element={<PageTransition><X1HCustomizer /></PageTransition>} />
+        <Route path="/customizer/x2h" element={<PageTransition><X2HCustomizer /></PageTransition>} />
+        <Route path="/customizer/x2v" element={<PageTransition><X2VCustomizer /></PageTransition>} />
+        <Route path="/customizer/x1v" element={<PageTransition><X1VCustomizer /></PageTransition>} />
+        <Route path="/customizer/tag" element={<PageTransition><TAGCustomizer /></PageTransition>} />
+        <Route path="/customizer/idpg" element={<PageTransition><IDPGCustomizer /></PageTransition>} />
         
         {/* Layouts page - shows different panel layouts */}
         <Route path="/layouts" element={<PageTransition><Layouts /></PageTransition>} />

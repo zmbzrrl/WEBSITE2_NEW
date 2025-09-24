@@ -163,7 +163,7 @@ const PanelTypeSelector = () => {
   const [boqData, setBoqData] = useState<Record<string, {
     fixedTotal: number;
     totalQuantity: number;
-    designs: { id: string; name: string; qty: number; projectName: string; panelType: string }[];
+    designs: { id: string; name: string; qty: number; projectName: string; panelType: string; maxQty?: number }[];
   }>>({});
 
   // Check if we're in edit mode
@@ -243,7 +243,7 @@ const PanelTypeSelector = () => {
     {
       name: "Corridor Panel",
       image: IDPG,
-      path: "/panel/idpg",
+      path: "/customizer/idpg",
       key: 'IDPG',
     },
     {
@@ -287,13 +287,14 @@ const PanelTypeSelector = () => {
         const grouped: Record<string, {
           fixedTotal: number;
           totalQuantity: number;
-          designs: { id: string; name: string; qty: number; projectName: string; panelType: string }[];
+          designs: { id: string; name: string; qty: number; projectName: string; panelType: string; maxQty?: number }[];
         }> = {};
         (data || []).forEach((d: any) => {
           const key = mapTypeToCategory(d.panel_type);
           const qty = (d.design_data && typeof d.design_data.quantity !== 'undefined') ? (Number(d.design_data.quantity) || 0) : 0;
+          const maxQty = (d.design_data && typeof d.design_data.maxQuantity !== 'undefined') ? (Number(d.design_data.maxQuantity) || undefined) : undefined;
           if (!grouped[key]) grouped[key] = { fixedTotal: 0, totalQuantity: 0, designs: [] };
-          grouped[key].designs.push({ id: d.id, name: d.design_name, qty, projectName: d.property.property_name, panelType: d.panel_type });
+          grouped[key].designs.push({ id: d.id, name: d.design_name, qty, projectName: d.property.property_name, panelType: d.panel_type, maxQty });
           grouped[key].fixedTotal += qty;
           grouped[key].totalQuantity += qty;
         });
@@ -312,10 +313,12 @@ const PanelTypeSelector = () => {
   const updateAlloc = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT', designId: string, newQty: number) => {
     if (newQty < 0) return;
     setBoqData(prev => {
-      const current = { ...(prev[cat] || { fixedTotal: 0, totalQuantity: 0, designs: [] }) };
+      const current = { ...(prev[cat] || { fixedTotal: 0, totalQuantity: 0, designs: [] }) } as typeof prev[typeof cat];
+      const target = (current.designs || []).find(d => d.id === designId);
+      const perDesignMax = typeof target?.maxQty === 'number' && !isNaN(target.maxQty) ? target.maxQty : Number.POSITIVE_INFINITY;
       const sumOther = current.designs.reduce((s, d) => s + (d.id === designId ? 0 : d.qty), 0);
       const remaining = Math.max(0, current.fixedTotal - sumOther);
-      const clamped = Math.max(0, Math.min(newQty, remaining));
+      const clamped = Math.max(0, Math.min(newQty, remaining, perDesignMax));
       current.designs = current.designs.map(d => d.id === designId ? { ...d, qty: clamped } : d);
       current.totalQuantity = current.designs.reduce((s, d) => s + d.qty, 0);
       return { ...prev, [cat]: current };
@@ -573,33 +576,87 @@ const PanelTypeSelector = () => {
                             <Chip label={`${boqData[panel.key as any].totalQuantity} / ${boqData[panel.key as any].fixedTotal}`} size="small" color="primary" />
                           </Box>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            {boqData[panel.key as any].designs.map(d => (
-                              <Box key={d.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.06)', p: 1, borderRadius: 1 }}>
-                                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', flex: 1 }}>{d.name}</Typography>
+                            {boqData[panel.key as any].designs.map(d => {
+                              const atMax = typeof d.maxQty === 'number' && d.qty >= d.maxQty;
+                              return (
+                                <Box
+                                  key={d.id}
+                                  sx={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    background: 'rgba(255,255,255,0.06)',
+                                    p: 1,
+                                    borderRadius: 1
+                                  }}
+                                >
+                                  <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                      color: 'rgba(255,255,255,0.9)', 
+                                      flex: 1, 
+                                      minWidth: 160,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    {d.name}
+                                  </Typography>
+                                  <Chip
+                                    label={`Max: ${typeof d.maxQty === 'number' ? d.maxQty : '-'}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ color: 'rgba(255,255,255,0.9)', borderColor: 'rgba(255,255,255,0.3)' }}
+                                  />
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <IconButton size="small" onClick={() => updateAlloc(panel.key as any, d.id, d.qty - 1)} disabled={d.qty <= 0}>
                                   <span style={{ color: 'white' }}>-</span>
                                 </IconButton>
                                 <TextField 
                                   value={d.qty}
-                                  onChange={(e) => updateAlloc(panel.key as any, d.id, parseInt(e.target.value) || 0)}
+                                      onChange={(e) => {
+                                        const v = parseInt(e.target.value);
+                                        updateAlloc(panel.key as any, d.id, isNaN(v) ? 0 : v);
+                                      }}
                                   type="number"
                                   size="small"
-                                  sx={{ width: 80 }}
-                                  inputProps={{ min: 0, style: { textAlign: 'center', color: 'white' } }}
-                                />
-                                <IconButton size="small" onClick={() => updateAlloc(panel.key as any, d.id, d.qty + 1)}>
-                                  <span style={{ color: 'white' }}>+</span>
+                                      sx={{ 
+                                        width: 80,
+                                        '& input': { 
+                                          textAlign: 'center', 
+                                          padding: '6px 10px',
+                                          color: 'white',
+                                        },
+                                        '& input[type=number]': { MozAppearance: 'textfield' },
+                                        '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 }
+                                      }}
+                                      inputProps={{ 
+                                        min: 0, 
+                                        max: typeof d.maxQty === 'number' ? d.maxQty : undefined
+                                      }}
+                                    />
+                                    <IconButton size="small" onClick={() => updateAlloc(panel.key as any, d.id, d.qty + 1)} disabled={atMax}>
+                                      <span style={{ color: atMax ? 'rgba(255,255,255,0.4)' : 'white' }}>+</span>
                                 </IconButton>
-                                <Button 
-                                  variant="outlined" 
-                                  size="small" 
-                                  onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults } })} 
-                                  sx={{ ml: 1 }}
-                                >
+                                  </Box>
+                                  <Button 
+                                    variant="outlined" 
+                                    size="small" 
+                                    onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults } })}
+                                    sx={{ 
+                                      ml: 'auto',
+                                      color: '#0d47a1',
+                                      borderColor: '#0d47a1',
+                                      '&:hover': { color: '#0b3c91', borderColor: '#0b3c91', backgroundColor: 'transparent' }
+                                    }}
+                                  >
                                   Design
                                 </Button>
                               </Box>
-                            ))}
+                              );
+                            })}
                           </Box>
                         </Box>
                       )}

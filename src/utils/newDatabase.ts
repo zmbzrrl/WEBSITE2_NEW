@@ -88,22 +88,22 @@ export const saveLayout = async (userEmail: string, layoutData: any, propId: str
       return { success: false, error: 'forbidden', message: 'You do not have access to this property' };
     }
 
-    const layoutRecord = {
-      id: generateId(),
+    // Insert into user_designs for property-scoped revisions
+    const insertPayload: any = {
       user_email: userEmail,
       prop_id: propId,
-      name: layoutData.layoutName,
-      data: layoutData,
-      design_type: 'layout',
-      created_at: new Date().toISOString(),
-      last_modified: new Date().toISOString(),
-      is_active: true
-    } as const;
-
-    const { error } = await supabase.from('design').insert([layoutRecord]);
+      design_name: layoutData.layoutName,
+      panel_type: 'Project',
+      design_data: layoutData
+    };
+    const { data, error } = await supabase
+      .from('user_designs')
+      .insert([insertPayload])
+      .select('id')
+      .single();
     if (error) return { success: false, error: 'db', message: 'Failed to save layout to database' };
 
-    return { success: true, layoutId: layoutRecord.id, message: `Layout "${layoutData.layoutName}" saved successfully!` };
+    return { success: true, layoutId: (data as any)?.id, message: `Layout "${layoutData.layoutName}" saved successfully!` };
   } catch (error) {
     return { success: false, error: 'unexpected', message: 'Failed to save layout' };
   }
@@ -118,11 +118,10 @@ export const getLayouts = async (userEmail: string, propId: string) => {
     if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' };
 
     const { data, error } = await supabase
-      .from('design')
+      .from('user_designs')
       .select('*')
       .eq('prop_id', propId)
-      .eq('is_active', true)
-      .eq('design_type', 'layout')
+      .eq('panel_type', 'Project')
       .order('created_at', { ascending: false });
 
     if (error) return { success: false, error: 'db', message: 'Failed to get layouts' };
@@ -398,20 +397,16 @@ export const getLayoutAccess = async (layoutId: string, requesterEmail: string) 
 // Update layout (owner only)
 export const updateLayout = async (layoutId: string, userEmail: string, updates: { layout_name?: string; layout_data?: any; }) => {
   try {
-    const access = await getLayoutAccess(layoutId, userEmail);
-    if (!access.success) return { success: false, error: access.error, message: 'Layout not found' };
-    if (!access.isOwner) return { success: false, error: 'forbidden', message: 'Only the owner can edit this layout' };
-
-    const payload: any = { last_modified: new Date().toISOString() };
-    if (typeof updates.layout_name === 'string') payload.name = updates.layout_name;
-    if (typeof updates.layout_data !== 'undefined') payload.data = updates.layout_data;
+    // Update directly in user_designs; enforce ownership by user_email
+    const payload: any = {};
+    if (typeof updates.layout_name === 'string') payload.design_name = updates.layout_name;
+    if (typeof updates.layout_data !== 'undefined') payload.design_data = updates.layout_data;
 
     const { error } = await supabase
-      .from('design')
+      .from('user_designs')
       .update(payload)
       .eq('id', layoutId)
-      .eq('user_email', userEmail)
-      .eq('is_active', true);
+      .eq('user_email', userEmail);
 
     if (error) return { success: false, error: 'db', message: 'Failed to update layout' };
     return { success: true, message: 'Layout updated successfully' };
@@ -489,15 +484,15 @@ export const listPropertyRevisions = async (userEmail: string, propId: string) =
     if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' } as const;
 
     const { data, error } = await supabase
-      .from('design')
+      .from('user_designs')
       .select('*')
       .eq('prop_id', propId)
-      .eq('is_active', true)
-      .eq('design_type', 'layout')
+      .eq('panel_type', 'Project')
       .order('created_at', { ascending: false });
 
     if (error) return { success: false, error: 'db', message: 'Failed to load revisions' } as const;
-    return { success: true, revisions: data || [], message: 'Revisions loaded' } as const;
+    const shaped = (data || []).map((d: any) => ({ ...d, name: d.design_name }));
+    return { success: true, revisions: shaped, message: 'Revisions loaded' } as const;
   } catch (e) {
     return { success: false, error: 'unexpected', message: 'Failed to load revisions' } as const;
   }
@@ -575,5 +570,73 @@ export const getRevisionLineage = async (designId: string, requesterEmail: strin
     return { success: true, lineage } as const;
   } catch (e) {
     return { success: false, error: 'unexpected', message: 'Failed to load lineage' } as const;
+  }
+};
+
+// 🗑️ DELETE PROPERTY FUNCTION - Deletes a property and all related data
+export const deleteProperty = async (propId: string, userEmail: string) => {
+  try {
+    console.log('🗑️ Deleting property:', propId);
+
+    // Verify user has access to this property
+    const canAccess = await hasPropertyAccess(userEmail, propId);
+    if (!canAccess) {
+      return { success: false, error: 'forbidden', message: 'You do not have access to this property' };
+    }
+
+    // Get user's UG ID to check if they can delete (could be restricted to property creators)
+    const { data: usersArr, error: userErr } = await supabase
+      .from('users')
+      .select('email, ug_id')
+      .eq('email', userEmail)
+      .limit(1);
+    
+    if (userErr || !usersArr || usersArr.length === 0) {
+      return { success: false, error: 'user_not_found', message: 'User not found' };
+    }
+
+    // Start hard deletion process - PERMANENTLY remove all data
+    // 1. Hard delete all designs in this property
+    const { error: designErr } = await supabase
+      .from('design')
+      .delete()
+      .eq('prop_id', propId)
+      .eq('is_active', true);
+
+    if (designErr) {
+      console.error('❌ Error permanently deleting designs:', designErr);
+      return { success: false, error: 'db', message: 'Failed to permanently delete designs' };
+    }
+
+    // 2. Hard delete all UG access permissions for this property
+    const { error: accessErr } = await supabase
+      .from('ug_property_access')
+      .delete()
+      .eq('prop_id', propId)
+      .eq('is_active', true);
+
+    if (accessErr) {
+      console.error('❌ Error permanently removing access permissions:', accessErr);
+      return { success: false, error: 'db', message: 'Failed to permanently remove access permissions' };
+    }
+
+    // 3. Hard delete the property itself
+    const { error: propErr } = await supabase
+      .from('property')
+      .delete()
+      .eq('prop_id', propId)
+      .eq('is_active', true);
+
+    if (propErr) {
+      console.error('❌ Error permanently deleting property:', propErr);
+      return { success: false, error: 'db', message: 'Failed to permanently delete property' };
+    }
+
+    console.log('✅ Property and all related data permanently deleted');
+    return { success: true, message: 'Property permanently deleted from database' };
+
+  } catch (error) {
+    console.error('❌ Unexpected error deleting property:', error);
+    return { success: false, error: 'unexpected', message: 'Failed to delete property' };
   }
 };
