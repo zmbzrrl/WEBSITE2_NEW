@@ -511,7 +511,20 @@ const Properties: React.FC = () => {
                             <div key={d.id} style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 6, padding: 10 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                                 <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: 14, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+                                    <span style={{
+                                      fontSize: 11,
+                                      padding: '2px 6px',
+                                      borderRadius: 10,
+                                      border: '1px solid',
+                                      borderColor: (d?.data?.isEdited ? '#1e7e34' : '#6c757d'),
+                                      color: (d?.data?.isEdited ? '#1e7e34' : '#6c757d'),
+                                      background: 'transparent'
+                                    }}>
+                                      {d?.data?.isEdited ? 'Edited' : 'Unedited'}
+                                    </span>
+                                  </div>
                                   <div style={{ fontSize: 11, color: '#888' }}>Owner: {d.ownerEmail}</div>
                                   <div style={{ fontSize: 11, color: '#888' }}>Updated: {new Date(d.lastModified).toLocaleString()}</div>
                                 </div>

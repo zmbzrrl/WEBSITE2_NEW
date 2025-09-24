@@ -400,7 +400,7 @@ export const updateLayout = async (layoutId: string, userEmail: string, updates:
     // Update directly in user_designs; enforce ownership by user_email
     const payload: any = {};
     if (typeof updates.layout_name === 'string') payload.design_name = updates.layout_name;
-    if (typeof updates.layout_data !== 'undefined') payload.design_data = updates.layout_data;
+    if (typeof updates.layout_data !== 'undefined') payload.design_data = { ...(updates.layout_data || {}), isEdited: true };
 
     const { error } = await supabase
       .from('user_designs')
@@ -418,21 +418,25 @@ export const updateLayout = async (layoutId: string, userEmail: string, updates:
 // Delete layout (owner only) - soft delete
 export const deleteLayout = async (layoutId: string, userEmail: string) => {
   try {
-    const access = await getLayoutAccess(layoutId, userEmail);
-    if (!access.success) return { success: false, error: access.error, message: 'Layout not found' };
-    if (!access.isOwner) return { success: false, error: 'forbidden', message: 'Only the owner can delete this layout' };
+    // Ownership check in user_designs
+    const { data: row, error: rowErr } = await supabase
+      .from('user_designs')
+      .select('id, user_email')
+      .eq('id', layoutId)
+      .maybeSingle();
+    if (rowErr || !row) return { success: false, error: 'not_found', message: 'Layout not found' } as const;
+    if ((row as any).user_email !== userEmail) return { success: false, error: 'forbidden', message: 'Only the owner can delete this layout' } as const;
 
     const { error } = await supabase
-      .from('design')
-      .update({ is_active: false, last_modified: new Date().toISOString() })
+      .from('user_designs')
+      .delete()
       .eq('id', layoutId)
-      .eq('user_email', userEmail)
-      .eq('is_active', true);
+      .eq('user_email', userEmail);
 
-    if (error) return { success: false, error: 'db', message: 'Failed to delete layout' };
-    return { success: true, message: 'Layout deleted' };
+    if (error) return { success: false, error: 'db', message: 'Failed to delete layout' } as const;
+    return { success: true, message: 'Layout deleted' } as const;
   } catch (e) {
-    return { success: false, error: 'unexpected', message: 'Failed to delete layout' };
+    return { success: false, error: 'unexpected', message: 'Failed to delete layout' } as const;
   }
 };
 
@@ -442,36 +446,37 @@ export const createRevision = async (sourceLayoutId: string, userEmail: string, 
     const canAccess = await hasPropertyAccess(userEmail, propId);
     if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' };
 
+    // Read from user_designs
     const { data: source, error: srcErr } = await supabase
-      .from('design')
+      .from('user_designs')
       .select('*')
       .eq('id', sourceLayoutId)
       .eq('prop_id', propId)
-      .eq('is_active', true)
-      .eq('design_type', 'layout')
       .single();
-    if (srcErr || !source) return { success: false, error: 'not_found', message: 'Source layout not found' };
+    if (srcErr || !source) return { success: false, error: 'not_found', message: 'Source design not found' };
 
-    const srcData: any = (source as any).data || {};
-    const nextRevision = (srcData.revisionNumber || 1) + 1;
-    const newId = generateId();
+    const srcData: any = (source as any).design_data || {};
+    const baseName: string = (source as any).design_name || 'Project Design';
+    const currentRev = typeof srcData.revisionNumber === 'number' ? srcData.revisionNumber : -1;
+    const nextRevision = currentRev + 1;
+    const finalName = newName || `${baseName.replace(/\s*\(rev\d+\)$/, '')} (rev${nextRevision})`;
 
-    const cloned = {
-      id: newId,
+    const cloned: any = {
       user_email: userEmail,
       prop_id: propId,
-      name: newName || `${(source as any).name} (rev${nextRevision})`,
-      data: { ...srcData, parentLayoutId: (source as any).id, revisionNumber: nextRevision, lastRevisedFromEmail: (source as any).user_email },
-      design_type: 'layout',
-      created_at: new Date().toISOString(),
-      last_modified: new Date().toISOString(),
-      is_active: true
+      design_name: finalName,
+      panel_type: (source as any).panel_type || 'Project',
+      design_data: { ...srcData, parentLayoutId: (source as any).id, revisionNumber: nextRevision, lastRevisedFromEmail: (source as any).user_email, isEdited: false }
     };
 
-    const { error } = await supabase.from('design').insert([cloned]);
+    const { data: inserted, error } = await supabase
+      .from('user_designs')
+      .insert([cloned])
+      .select('id')
+      .single();
     if (error) return { success: false, error: 'db', message: 'Failed to create revision' };
 
-    return { success: true, layoutId: newId, message: 'Revision created' };
+    return { success: true, layoutId: (inserted as any)?.id, message: 'Revision created' };
   } catch (e) {
     return { success: false, error: 'unexpected', message: 'Failed to create revision' };
   }
