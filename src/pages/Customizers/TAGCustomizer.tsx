@@ -904,41 +904,41 @@ const TAGCustomizer: React.FC = () => {
           // If no existing panel found, add as new
           addToCart(enhancedDesign);
         }
-      } else {
-        // Add new panel with quantity prompt constrained by BOQ remaining
-        const category = mapTypeToCategory(design.type);
+    } else {
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
 
-        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-        const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-          if (!boqQuantities) return undefined;
-          if (cat === 'EXT') {
-            const keys = ['X1H','X1V','X2H','X2V'] as const;
-            const total = keys
-              .map(k => undefined)
-              .reduce((a,b)=>a+b,0);
-            return total;
-          }
-          const cap = undefined as any;
-          return typeof cap === 'number' ? cap : undefined;
-        };
+      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+        if (!boqQuantities) return undefined;
+        if (cat === 'EXT') {
+          const keys = ['X1H','X1V','X2H','X2V'] as const;
+          const total = keys
+            .map(k => undefined)
+            .reduce((a,b)=>a+b,0);
+          return total;
+        }
+        const cap = undefined as any;
+        return typeof cap === 'number' ? cap : undefined;
+      };
 
-        const cap = getCategoryCap(category);
-        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
-        if (remaining !== undefined) {
-          if (remaining <= 0) {
-            alert(`You have reached the BOQ limit for ${category}.`);
-            return;
-          }
-          setPendingDesign(design);
-          setPendingCategory(category);
-          setQtyRemaining(remaining);
-          setQtyOpen(true);
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          alert(`You have reached the BOQ limit for ${category}.`);
           return;
         }
+        setPendingDesign(design);
+        setPendingCategory(category);
+        setQtyRemaining(remaining);
+        setQtyOpen(true);
+        return;
+      }
 
-        addToCart(enhancedDesign);
+      addToCart(enhancedDesign);
         setPanelAddedToProject(true); // Mark panel as added to project
       }
     }

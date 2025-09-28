@@ -895,26 +895,26 @@ const SPCustomizer: React.FC = () => {
           // If no existing panel found, add as new
           addToCart(enhancedDesign);
         }
-      } else {
-        // Add new panel with quantity prompt constrained by BOQ remaining
-        const category = mapTypeToCategory(design.type);
+    } else {
+      // Add new panel with quantity prompt constrained by BOQ remaining
+      const category = mapTypeToCategory(design.type);
 
-        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-        const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
+      const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
 
-        const cap = getCategoryCap(category);
-        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+      const cap = getCategoryCap(category);
+      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
-        if (remaining !== undefined) {
-          if (remaining <= 0) {
-            // No BOQ limit
-            return;
-          }
-          // No quantity dialog; add directly
+      if (remaining !== undefined) {
+        if (remaining <= 0) {
+          // No BOQ limit
+          return;
         }
+        // No quantity dialog; add directly
+      }
 
-        addToCart(enhancedDesign);
+      addToCart(enhancedDesign);
         setPanelAddedToProject(true); // Mark panel as added to project
       }
       

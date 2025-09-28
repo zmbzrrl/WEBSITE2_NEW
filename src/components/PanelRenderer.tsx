@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { ralColors } from '../data/ralColors';
 import { getIconColorName } from '../data/iconColors';
 import { allIcons } from '../assets/iconLibrary';
+import DISPLAY from '../assets/icons/DISPLAY.png';
+import FAN from '../assets/icons/FAN.png';
 import { getPanelLayoutConfig, PanelLayoutConfig } from '../data/panelLayoutConfig';
 import g18Icon from '../assets/icons/G-GuestServices/G18.png';
 import g1Icon from '../assets/icons/G-GuestServices/G1.png';
@@ -128,8 +130,14 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
   
   // Get dimension-specific icon positions for SP/TAG panels
   let dimensionIconPositions = iconPositions;
-  if ((isSP || isTAG) && panelDesign.spConfig && config.dimensionConfigs) {
+  if (isSP && panelDesign.spConfig && config.dimensionConfigs) {
     const { dimension } = panelDesign.spConfig;
+    if (config.dimensionConfigs[dimension] && config.dimensionConfigs[dimension].iconPositions) {
+      dimensionIconPositions = config.dimensionConfigs[dimension].iconPositions;
+    }
+  }
+  if (isTAG && panelDesign.tagConfig && config.dimensionConfigs) {
+    const { dimension } = panelDesign.tagConfig;
     if (config.dimensionConfigs[dimension] && config.dimensionConfigs[dimension].iconPositions) {
       dimensionIconPositions = config.dimensionConfigs[dimension].iconPositions;
     }
@@ -158,14 +166,27 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
     }
   }
   
-  // For SP/TAG panels, calculate dimensions based on configuration
-  if ((isSP || isTAG) && panelDesign.spConfig) {
+  // For SP panels, calculate dimensions based on configuration
+  if (isSP && panelDesign.spConfig) {
     const { dimension } = panelDesign.spConfig;
     if (config.dimensionConfigs && config.dimensionConfigs[dimension]) {
       dimensions = {
         width: config.dimensionConfigs[dimension].width,
         height: config.dimensionConfigs[dimension].height
       };
+    }
+  }
+  
+  // For TAG panels, calculate dimensions based on configuration
+  if (isTAG && panelDesign.tagConfig) {
+    const { dimension } = panelDesign.tagConfig;
+    console.log('🔍 TAG Panel dimension:', dimension);
+    if (config.dimensionConfigs && config.dimensionConfigs[dimension]) {
+      dimensions = {
+        width: config.dimensionConfigs[dimension].width,
+        height: config.dimensionConfigs[dimension].height
+      };
+      console.log('🔍 TAG Panel using dimension config:', config.dimensionConfigs[dimension]);
     }
   }
 
@@ -235,7 +256,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
         style={{
           position: 'relative',
           width: isDPH ? '640px' : dimensions.width,
-          height: isTAG ? (parseInt(dimensions.height) - 5) + 'px' : dimensions.height,
+          height: dimensions.height,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
           padding: '0',
           border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -256,25 +277,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
           }
         }}
       >
-        {/* TAG DISPLAY overlay */}
-        {isTAG && (
-          <img
-            src={(allIcons as any).DISPLAY?.src || '/src/assets/icons/DISPLAY.png'}
-            alt="DISPLAY"
-            style={{
-              position: 'absolute',
-              top: '90px',
-              left: '45%',
-              transform: 'translateX(-50%)',
-              width: '220px',
-              height: '50px',
-              objectFit: 'contain',
-              filter: computedIconFilter,
-              pointerEvents: 'none',
-              zIndex: 2,
-            }}
-          />
-        )}
+        {/* TAG DISPLAY overlay - removed to avoid conflicts with forced icon logic */}
         <div style={{
             position: 'absolute',
             top: '2px',
@@ -288,13 +291,46 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
               background: 'none',
             }
         }} />
-        {(isDPH ? Array.from({ length: 18 }) : (dimensionIconPositions || iconPositions)).map((_, index) => {
-            const pos = (dimensionIconPositions || iconPositions)[index];
-            const icon = icons.find((i) => i.position === index);
+        {(isDPH ? Array.from({ length: 18 }) : (isTAG ? Array.from({ length: 12 }) : (dimensionIconPositions || iconPositions))).map((_, index) => {
+            let pos = (dimensionIconPositions || iconPositions)[index];
+            
+            // Debug logging for TAG panels
+            if (isTAG && index < 3) {
+              console.log(`🔍 TAG Position ${index}:`, {
+                pos,
+                dimensionIconPositions: dimensionIconPositions?.[index],
+                iconPositions: iconPositions?.[index]
+              });
+            }
+            
+            // For TAG panels, provide fallback positions for the 4th row (positions 9-11)
+            if (isTAG && !pos && index >= 9) {
+              if (index === 9) pos = { top: '313px', left: '33px' };
+              else if (index === 10) pos = { top: '313px', left: '136px' };
+              else if (index === 11) pos = { top: '313px', left: '233px' };
+            }
+            
+            // Final fallback
+            if (!pos) pos = { top: '0px', left: '0px' };
+            let icon = icons.find((i) => i.position === index);
+            let forceIcon = null;
+            // TAG panels always have DISPLAY icon in position 0 (top-left)
+            if (isTAG && index === 0) {
+              forceIcon = {
+                src: DISPLAY,
+                label: 'DISPLAY',
+                iconId: 'DISPLAY',
+                category: 'TAG',
+                position: index,
+                text: 'DISPLAY',
+              };
+            }
+            
             const isPIR = icon?.category === 'PIR';
             const text = (iconTexts && iconTexts[index]) || icon?.text;
-            const hasIcon = icon && icon.src;
-            const iconSize = getIconSize(icon);
+            const hasIcon = (icon && icon.src) || forceIcon;
+            const iconSize = getIconSize(forceIcon || icon);
+            
             const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
             const adjustedFontSize = text ? calculateFontSize(text, parseInt(isDPH ? '640' : dimensions.width) / 6, baseFontSize) : baseFontSize;
             
@@ -356,10 +392,36 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
               }
             }
             
-            // TAG: lower rows 2 and 3 (indices 3-8) by 30px
-            if (isTAG && adjustedPos && adjustedPos.top && index >= 3 && index <= 8) {
-              const topValue = parseInt(adjustedPos.top);
-              adjustedPos = { ...adjustedPos, top: (topValue + 30) + 'px' } as any;
+            // Apply per-row offsets for SP and TAG panels (same as PanelPreview)
+            if (isSP || isTAG) {
+              const baseTop = parseInt((adjustedPos as any).top || '0', 10);
+              const rowIndex = Math.floor(index / 3);
+              
+              // Apply per-row offsets based on dimension
+              let perRowOffset = 0;
+              if (isSP && panelDesign.spConfig) {
+                const { dimension } = panelDesign.spConfig;
+                if (dimension === 'tall') {
+                  perRowOffset = (rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0);
+                }
+                // Move rows 2 and 3 down by 10px
+                const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 10 : 0;
+                perRowOffset += lowerRowsOffset;
+              }
+              
+              if (isTAG && panelDesign.tagConfig) {
+                const { dimension } = panelDesign.tagConfig;
+                if (dimension === 'tall') {
+                  perRowOffset = (rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0);
+                }
+                // Lower rows 2 and 3 by 30px
+                const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
+                perRowOffset += lowerRowsOffset;
+              }
+              
+              if (perRowOffset !== 0) {
+                adjustedPos = { ...adjustedPos, top: (baseTop + perRowOffset) + 'px' } as any;
+              }
             }
             
             return (
@@ -377,17 +439,17 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
                 zIndex: 2,
                 }}
               >
-                {hasIcon && (
+                {hasIcon && (forceIcon || icon) && (
                     <img
-                      src={icon.src}
-                      alt={icon.label}
+                      src={(forceIcon || icon)!.src}
+                      alt={(forceIcon || icon)!.label}
                       style={{
                     width: iconSize,
                     height: iconSize,
                         objectFit: 'contain',
                     marginBottom: iconLayout?.spacing || '5px',
                     marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                        filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
+                        filter: !isPIR && (forceIcon || icon)?.category !== 'Sockets' ? computedIconFilter : undefined,
                         transition: 'filter 0.2s',
                       }}
                     />

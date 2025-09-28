@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { ralColors } from '../data/ralColors';
 import { getIconColorName } from '../data/iconColors';
 import { allIcons } from '../assets/iconLibrary';
+import DISPLAY from '../assets/icons/DISPLAY.png';
+import FAN from '../assets/icons/FAN.png';
 import { getPanelLayoutConfig, PanelLayoutConfig } from '../data/panelLayoutConfig';
 import g18Icon from '../assets/icons/G-GuestServices/G18.png';
 import g1Icon from '../assets/icons/G-GuestServices/G1.png';
@@ -292,7 +294,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         {/* TAG DISPLAY overlay */}
         {isTAG && (
           <img
-            src={(allIcons as any).DISPLAY?.src || '/src/assets/icons/DISPLAY.png'}
+            src={DISPLAY}
             alt="DISPLAY"
             style={{
               position: 'absolute',
@@ -1233,7 +1235,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
         {/* TAG DISPLAY overlay */}
         {isTAG && (
           <img
-            src={(allIcons as any).DISPLAY?.src || '/src/assets/icons/DISPLAY.png'}
+            src={DISPLAY}
             alt="DISPLAY"
             style={{
               position: 'absolute',
@@ -1257,30 +1259,30 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
           height: '100%', 
           transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` 
         }}>
-          {(dimensionIconPositions || iconPositions).map((pos, index) => {
+          {(isTAG ? Array.from({ length: 12 }) : (dimensionIconPositions || iconPositions || [])).map((_, index) => {
+            let pos = (dimensionIconPositions || iconPositions || [])[index];
+            
+            // For TAG panels, provide fallback positions for the 4th row (positions 9-11)
+            if (isTAG && !pos && index >= 9) {
+              if (index === 9) pos = { top: '313px', left: '33px' };
+              else if (index === 10) pos = { top: '313px', left: '136px' };
+              else if (index === 11) pos = { top: '313px', left: '233px' };
+            }
+            
+            // Final fallback
+            if (!pos) pos = { top: '0px', left: '0px' };
             let icon = icons.find((i) => i.position === index);
             let forceIcon = null;
-            
-            // TAG panel special handling - force specific icons in specific positions
-            if (isTAG) {
-              // Cell 4: always DISPLAY
-              if (index === 4) {
-                forceIcon = {
-                  src: (allIcons as any).DISPLAY?.src || '/src/assets/icons/DISPLAY.png',
-                  label: 'DISPLAY',
-                  iconId: 'DISPLAY',
-                  category: 'TAG',
-                };
-              }
-              // Cells 6,7,8: always FAN
-              if (index === 6 || index === 7 || index === 8) {
-                forceIcon = {
-                  src: (allIcons as any).FAN?.src || '/src/assets/icons/FAN.png',
-                  label: 'FAN',
-                  iconId: 'FAN',
-                  category: 'TAG',
-                };
-              }
+            // TAG panels always have DISPLAY icon in position 0 (top-left)
+            if (isTAG && index === 0) {
+              forceIcon = {
+                src: DISPLAY,
+                label: 'DISPLAY',
+                iconId: 'DISPLAY',
+                category: 'TAG',
+                position: index,
+                text: 'DISPLAY',
+              };
             }
             
             const isPIR = icon?.category === 'PIR';
@@ -1336,30 +1338,17 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
                   zIndex: 2,
                 }}
               >
-                {forceIcon ? (
+                {hasIcon && (forceIcon || icon) && (
                   <img
-                    src={forceIcon.src}
-                    alt={forceIcon.label}
-                    style={{
-                      width: iconSize,
-                      height: iconSize,
-                      objectFit: 'contain',
-                      marginBottom: iconLayout?.spacing || '5px',
-                      filter: computedIconFilter,
-                      transition: 'filter 0.2s',
-                    }}
-                  />
-                ) : hasIcon && (
-                  <img
-                    src={icon.src}
-                    alt={icon.label}
+                    src={(forceIcon || icon)!.src}
+                    alt={(forceIcon || icon)!.label}
                     style={{
                       width: iconSize,
                       height: iconSize,
                       objectFit: 'contain',
                       marginBottom: iconLayout?.spacing || '5px',
                       marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                      filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
+                      filter: !isPIR && (forceIcon || icon)?.category !== 'Sockets' ? computedIconFilter : undefined,
                       transition: 'filter 0.2s',
                     }}
                   />
