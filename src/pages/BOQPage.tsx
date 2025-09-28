@@ -94,15 +94,30 @@ const BOQPage: React.FC = () => {
           id,
           design_name,
           panel_type,
-          project_id,
-          design_data,
-          user_projects!inner(project_name)
+          prop_id,
+          design_data
         `)
-        .in('project_id', projectIds);
+        .in('prop_id', projectIds);
 
       if (designsError) {
         throw new Error(`Failed to load designs: ${designsError.message}`);
       }
+
+      // Fetch property names separately (projectIds are actually property IDs)
+      const { data: properties, error: propertiesError } = await supabase
+        .from('property')
+        .select('prop_id, property_name')
+        .in('prop_id', projectIds);
+
+      if (propertiesError) {
+        throw new Error(`Failed to load properties: ${propertiesError.message}`);
+      }
+
+      // Create a map of prop_id to property_name
+      const propertyMap = new Map<string, string>();
+      properties?.forEach((property: any) => {
+        propertyMap.set(property.prop_id, property.property_name);
+      });
 
       // Group designs by panel type
       const panelTypeMap = new Map<string, BOQData>();
@@ -134,7 +149,7 @@ const BOQPage: React.FC = () => {
           designName: design.design_name,
           quantity: Math.min(allocatedQty, maxQty),
           maxQuantity: maxQty,
-          projectName: design.user_projects.project_name
+          projectName: propertyMap.get(design.prop_id) || 'Unknown Property'
         });
         boqItem.totalQuantity += Math.min(allocatedQty, maxQty);
         boqItem.fixedTotal += maxQty;

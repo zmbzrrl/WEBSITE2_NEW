@@ -36,6 +36,7 @@ const Properties: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
+  const [importSuccess, setImportSuccess] = useState<{ projectIds: string[]; results: any } | null>(null);
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -62,15 +63,19 @@ const Properties: React.FC = () => {
         setImporting(false);
         return;
       }
-      // For "Create Property" flow, stay on Properties page and refresh the list
-      console.log('✅ Import completed successfully, refreshing properties list');
+      // Show success popup with options
+      console.log('✅ Import completed successfully');
+      setImportSuccess({
+        projectIds: res.results.project_ids || [],
+        results: res.results
+      });
       
-      // Close the popup immediately to update UI
+      // Close the create dialog
       setShowCreate(false);
       
-      // Then refresh the properties list in background
+      // Refresh the properties list in background
       try {
-      await load(); // Reload the properties list to show the new property
+        await load(); // Reload the properties list to show the new property
       } catch (loadErr) {
         console.warn('Failed to refresh properties list after import:', loadErr);
         // Don't show error to user since import was successful
@@ -761,6 +766,75 @@ const Properties: React.FC = () => {
                 }}
               >
                 {deletingProperty ? 'Deleting...' : 'PERMANENTLY DELETE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Success Popup */}
+      {importSuccess && (
+        <div style={{ position: 'fixed', inset: 0 as any, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: '90%', maxWidth: 500, textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', color: '#155724' }}>
+              Import Successful!
+            </h3>
+            <p style={{ margin: '0 0 20px 0', fontWeight: 'bold', fontSize: '18px', color: '#155724' }}>
+              Property imported successfully !
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
+              <button
+                onClick={() => {
+                  // Set project code in context and session storage (same as New Design flow)
+                  const propId = importSuccess.projectIds[0]; // Use first property ID
+                  setProjectCode(propId);
+                  try {
+                    sessionStorage.setItem('ppProjectCode', propId);
+                    sessionStorage.setItem('boqProjectIds', JSON.stringify(importSuccess.projectIds));
+                    sessionStorage.setItem('boqImportResults', JSON.stringify(importSuccess.results));
+                  } catch {}
+                  navigate('/panel-type', {
+                    state: {
+                      projectIds: importSuccess.projectIds
+                    }
+                  });
+                }}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
+              >
+                Start Designing
+              </button>
+              
+              <button
+                onClick={() => setImportSuccess(null)}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#545b62'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+              >
+                OK
               </button>
             </div>
           </div>

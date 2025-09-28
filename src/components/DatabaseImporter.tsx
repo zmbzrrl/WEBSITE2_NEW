@@ -80,22 +80,6 @@ const DatabaseImporter: React.FC = () => {
       const results = await importDatabaseDataNew(jsonData);
       setImportResults(results);
 
-      // If import successful, navigate to Panel Type Selector with BOQ context
-      if (results.success && results.results) {
-        setTimeout(() => {
-          try {
-            sessionStorage.setItem('boqProjectIds', JSON.stringify(results.results?.project_ids || []));
-            sessionStorage.setItem('boqImportResults', JSON.stringify(results.results));
-          } catch {}
-          navigate('/panel-type', {
-            state: {
-              importResults: results.results,
-              projectIds: results.results?.project_ids
-            }
-          });
-        }, 2000); // Give user time to see success message
-      }
-
     } catch (error) {
       setImportResults({
         success: false,
@@ -205,12 +189,68 @@ const DatabaseImporter: React.FC = () => {
           <h3 style={{ margin: '0 0 10px 0' }}>
             {importResults.success ? '✅ Import Successful!' : '❌ Import Failed'}
           </h3>
-          <p style={{ margin: '0 0 10px 0' }}>{importResults.message}</p>
           
           {importResults.success && (
-            <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: '#007bff' }}>
-              📊 Redirecting to BOQ page in 2 seconds...
-            </p>
+            <>
+              <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '18px' }}>
+                Property imported successfully !
+              </p>
+              
+              <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('boqProjectIds', JSON.stringify(importResults.results?.project_ids || []));
+                      sessionStorage.setItem('boqImportResults', JSON.stringify(importResults.results));
+                    } catch {}
+                    navigate('/boq', {
+                      state: {
+                        importResults: importResults.results,
+                        projectIds: importResults.results?.project_ids
+                      }
+                    });
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
+                >
+                  Start Designing
+                </button>
+                
+                <button
+                  onClick={() => setImportResults(null)}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#545b62'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+                >
+                  OK
+                </button>
+              </div>
+            </>
+          )}
+          
+          {!importResults.success && (
+            <p style={{ margin: '0 0 10px 0' }}>{importResults.message}</p>
           )}
           
           {importResults.results && (
