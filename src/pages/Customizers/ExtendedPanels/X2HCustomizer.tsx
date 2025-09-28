@@ -1,6 +1,7 @@
 // Import necessary libraries and components
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from '../../../contexts/CartContext';
+import { supabase } from '../../../utils/supabaseClient';
 import '../Customizer.css';
 
 const getPanelTypeLabel = (type: string) => {
@@ -435,20 +436,7 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Backbox Details *
             </Typography>
-            {currentStep === 4 ? (
-              <div style={{
-                width: '100%',
-                padding: '10px 12px',
-                marginBottom: '8px',
-                border: backboxError ? '1px solid red' : '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057'
-              }}>
-                {backbox || 'No backbox selected'}
-              </div>
-            ) : (
-              <select
+            <select
                 value={backbox}
                 onChange={e => {
                   setBackbox(e.target.value);
@@ -462,7 +450,6 @@ const InformationBox = ({
                 <option value="Backbox 4">Backbox 4</option>
                 <option value="Backbox 5">Backbox 5</option>
               </select>
-            )}
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
           <Box sx={{ 
@@ -476,27 +463,12 @@ const InformationBox = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#1a1f2c', fontSize: '15px' }}>
               Comments
             </Typography>
-            {currentStep === 4 ? (
-              <div style={{
-                width: '100%',
-                minHeight: '48px',
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#495057',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {extraComments?.trim() ? extraComments : 'none'}
-              </div>
-            ) : (
-              <textarea
-                value={extraComments}
-                onChange={e => setExtraComments(e.target.value)}
-                placeholder="Enter any additional comments..."
-                style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
-            )}
+            <textarea
+              value={extraComments}
+              onChange={e => setExtraComments(e.target.value)}
+              placeholder="Enter any additional comments..."
+              style={{ width: '100%', minHeight: '48px', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+            />
           </Box>
         </Box>
       </Box>
@@ -558,7 +530,7 @@ const X2HCustomizer: React.FC = () => {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<number | null>(null);
   const iconNames = Array.from(new Set(placedIcons.map(icon => icon.iconId)));
-  const [currentStep, setCurrentStep] = useState(2); // 2, 3, or 4
+  const [currentStep, setCurrentStep] = useState(2); // 2 or 3
   const [panelDesign, setPanelDesign] = useState<{
     backgroundColor: string;
     fonts: string;
@@ -591,6 +563,10 @@ const X2HCustomizer: React.FC = () => {
   
   // Track if panel has been added to project for button text change
   const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
+  
+  // Custom panel component state
+  const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
+  const [showCustomPanelDialog, setShowCustomPanelDialog] = useState(false);
   
   // Icon size conversion function (mm to px)
   const convertIconSize = (size: string): string => {
@@ -637,7 +613,7 @@ const X2HCustomizer: React.FC = () => {
   console.log('RENDER', { backbox, extraComments });
 
   useEffect(() => {
-    import("../../../assets/iconLibrary").then((module) => {
+    import("../../../assets/iconLibrary2").then((module) => {
       setIcons(module.default);
       setIconCategories(module.iconCategories.filter(cat => cat !== 'TAG' && cat !== 'Climate'));
     });
@@ -1035,7 +1011,7 @@ const X2HCustomizer: React.FC = () => {
           zIndex: 2,
         }}
         onDragOver={e => { e.preventDefault(); }}
-        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
+        onDrop={e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
         >
           {icon && (
             <div
@@ -1046,8 +1022,8 @@ const X2HCustomizer: React.FC = () => {
               <img
                 src={icon.src}
                 alt={icon.label}
-                draggable={currentStep !== 4}
-                onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, icon)}
                 style={{
                 width: containerSize,
                 height: containerSize,
@@ -1056,12 +1032,11 @@ const X2HCustomizer: React.FC = () => {
                 position: 'relative',
                   zIndex: 1,
                 marginTop: isPIR ? '5px' : '0',
-                cursor: currentStep !== 4 ? 'move' : 'default',
+                cursor: 'move',
                   filter: !isPIR && icon?.category !== 'Sockets' ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
                   transition: 'filter 0.2s',
                 }}
               />
-              {currentStep !== 4 && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleDeleteIcon(icon.id); }}
                 style={{
@@ -1093,7 +1068,6 @@ const X2HCustomizer: React.FC = () => {
               >
                 ×
               </button>
-          )}
             </div>
           )}
         {/* Text field always below the icon */}
@@ -1103,17 +1077,6 @@ const X2HCustomizer: React.FC = () => {
                   <div style={{ fontSize: '18px', color: '#bbb', fontWeight: 600, padding: '16px 0' }}>
                     drop socket
                   </div>
-                ) : currentStep === 4 ? (
-                  text && (
-                    <div style={{
-                      width: '100%',
-                      textAlign: 'center',
-                      fontSize: panelDesign.fontSize || '12px',
-                      color: panelDesign.backgroundColor ? (getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#ffffff' : '#2c2c2c') : '#000000',
-                      fontFamily: panelDesign.fonts || undefined,
-                      wordBreak: 'break-word',
-                    }}>{text}</div>
-                  )
                 ) : (
                   <>
                     {isEditing ? (
@@ -1145,7 +1108,6 @@ const X2HCustomizer: React.FC = () => {
     { step: 1, label: 'Select Panel\nType' },
     { step: 2, label: 'Configure Panel\nLayout' },
     { step: 3, label: 'Select Panel\nDesign' },
-    { step: 4, label: 'Review Panel\nDetails' },
   ];
   const activeStep = currentStep - 1; // 0-based index
 
@@ -1340,15 +1302,12 @@ const X2HCustomizer: React.FC = () => {
           >
             Back
           </Button>
-          {currentStep !== 4 && (
           <Button
             variant="contained"
-            disabled={currentStep === 4}
-            onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
+            onClick={() => setCurrentStep((s) => Math.min(3, s + 1))}
           >
             Next
           </Button>
-          )}
         </Box>
 
         {/* Icon List: Only visible on step 2 */}
@@ -1752,95 +1711,7 @@ const X2HCustomizer: React.FC = () => {
             </div>
           </div>
         )}
-        {/* Step 4: Review Panel Details */}
-        {currentStep === 4 && (
-          <div style={{ pointerEvents: 'none', userSelect: 'none', cursor: 'default' }}>
-            {/* Information Box and Panel Template side by side */}
-            <div style={{ 
-              marginTop: "60px", 
-              marginBottom: "40px",
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'flex-start',
-              gap: '40px',
-              flexWrap: 'wrap'
-            }}>
-              {/* Information Box */}
-              <div style={{ flex: '0 0 auto' }}>
-                <InformationBox
-                  backbox={backbox}
-                  setBackbox={v => {
-                    setBackbox(v);
-                    if (backboxError) setBackboxError('');
-                  }}
-                  backboxError={backboxError}
-                  extraComments={extraComments}
-                  setExtraComments={setExtraComments}
-                  panelDesign={panelDesign}
-                  placedIcons={placedIcons}
-                  ralColors={ralColors}
-                  currentStep={currentStep}
-                />
-              </div>
-              
-              {/* Panel Template */}
-              <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-                <div
-                  style={{
-                    position: 'relative',
-                    width: '900px', // updated to match new panel width
-                    height: '320px',
-                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    padding: '0',
-                    border: '2px solid rgba(255, 255, 255, 0.2)',
-                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    transition: 'all 0.3s ease',
-                    margin: '0 auto',
-                    fontFamily: panelDesign.fonts || undefined,
-                    }}
-                >
-                  <div style={{ 
-                    position: 'absolute',
-                    top: '2px',
-                    left: '2px',
-                    right: '2px',
-                    bottom: '2px',
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                    pointerEvents: 'none',
-                      zIndex: 1,
-                  }} />
-                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
-                    {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
-                    </div>
-                  </div>
-                
-                {/* Add to Project Button positioned under the panel template */}
-                <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }} style={{ pointerEvents: 'auto' }}>
-            <StyledButton
-              variant="contained"
-              onClick={handleAddToCart}
-              sx={{
-                backgroundColor: '#1a1f2c',
-                color: '#ffffff',
-                '&:hover': {
-                  backgroundColor: '#2c3e50',
-                },
-              }}
-            >
-                    {isEditMode ? 'Update Panel' : 
-                     panelAddedToProject ? 'Replace Design' :
-                     'Add Panel to Project'}
-            </StyledButton>
-        </Box>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Panel Template: Only visible for step 2 (step 4 has its own template) */}
+        {/* Panel Template: Only visible for step 2 */}
         {currentStep === 2 && (
           <div style={{ marginBottom: "20px", display: 'flex', justifyContent: 'center' }}>
             <div
@@ -1877,6 +1748,413 @@ const X2HCustomizer: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Add Panel to Project Button - Only visible on step 3 */}
+        {currentStep === 3 && (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            flexDirection: 'column',
+            gap: 2,
+            mt: 4,
+            mb: 4
+          }}>
+            <StyledButton
+              variant="contained"
+              onClick={handleAddToCart}
+              sx={{
+                backgroundColor: '#1a1f2c',
+                color: '#ffffff',
+                '&:hover': {
+                  backgroundColor: '#2c3e50',
+                },
+              }}
+            >
+              {isEditMode ? 'Update Panel' : 
+               panelAddedToProject ? 'Replace Design' :
+               'Add Panel to Project'}
+            </StyledButton>
+            
+            <div style={{ textAlign: 'center' }}>
+              {/* Custom Panel Description - Only visible when Create Custom Panel button is shown */}
+              {!showCustomPanelComponent && (
+                <div style={{
+                  color: '#000000',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold',
+                  marginTop: '30px',
+                  marginBottom: '8px',
+                  textAlign: 'center'
+                }}>
+                  Want different icons, icon sizes, font sizes, typography?
+                </div>
+              )}
+              
+              {/* Create Custom Panel Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (showCustomPanelComponent) {
+                    // Reset to default state when switching to standard panel
+                    setPanelDesign({
+                      ...panelDesign,
+                      fontSize: '12px',
+                      iconSize: '14mm',
+                      fonts: 'Myriad Pro SemiBold SemiCondensed'
+                    });
+                    setFontSearch('Myriad Pro SemiBold SemiCondensed');
+                    setExtraComments('');
+                    setShowCustomPanelComponent(false);
+                  } else {
+                    setShowCustomPanelComponent(true);
+                  }
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #6f42c1 0%, #8e44ad 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  letterSpacing: '0.5px',
+                  fontWeight: 'bold',
+                  marginTop: '-15px'
+                }}
+              >
+                {showCustomPanelComponent ? 'Design Standard Panel' : 'Create Custom Panel'}
+              </button>
+            </div>
+          </Box>
+        )}
+        
+        {/* Custom Panel Component - Separate Section */}
+        {showCustomPanelComponent && (
+          <div style={{ 
+            marginTop: '40px',
+            maxWidth: '1400px',
+            margin: '40px auto 0 auto',
+            padding: '0 40px'
+          }}>
+            <div style={{ 
+              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+              padding: '32px',
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+              border: '1px solid #e9ecef',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Subtle background pattern */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, #6f42c1 0%, #8e44ad 50%, #6f42c1 100%)',
+                borderRadius: '16px 16px 0 0'
+              }} />
+              
+              <h3 style={{
+                margin: '0 0 28px 0',
+                fontSize: '22px',
+                fontWeight: '600',
+                color: '#1a1f2c',
+                textAlign: 'center',
+                letterSpacing: '0.5px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>
+                Custom Panel Options
+              </h3>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '24px',
+                marginBottom: '32px'
+              }}>
+                {/* Font Selection */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #6f42c1 0%, #8e44ad 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Font Selection
+                  </div>
+                  <TextField
+                    fullWidth
+                    value={fontSearch}
+                    onChange={(e) => setFontSearch(e.target.value)}
+                    placeholder="Search fonts..."
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        fontSize: '14px',
+                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Font Size Selection */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #6f42c1 0%, #8e44ad 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Font Size
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {['8px', '9px', '10px', '11px', '12px', '14px', '16px', '18px'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, fontSize: size })}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          border: panelDesign.fontSize === size ? '2px solid #6f42c1' : '2px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: panelDesign.fontSize === size ? '#6f42c1' : '#fff',
+                          color: panelDesign.fontSize === size ? '#fff' : '#1a1f2c',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(111,66,193,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Icon Size Selection */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #6f42c1 0%, #8e44ad 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Icon Size
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {['10mm', '12mm', '14mm', '16mm', '18mm', '20mm'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setPanelDesign({ ...panelDesign, iconSize: size })}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          border: panelDesign.iconSize === size ? '2px solid #6f42c1' : '2px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: panelDesign.iconSize === size ? '#6f42c1' : '#fff',
+                          color: panelDesign.iconSize === size ? '#fff' : '#1a1f2c',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(111,66,193,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Icon Upload */}
+                <div style={{ 
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    marginBottom: '16px', 
+                    color: '#1a1f2c',
+                    fontSize: '15px',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '4px',
+                      height: '16px',
+                      background: 'linear-gradient(180deg, #6f42c1 0%, #8e44ad 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    Custom Icon Upload
+                  </div>
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.svg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        console.log('Custom icon uploaded:', file.name);
+                        // Handle custom icon upload
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Submit Custom Panel Button */}
+              <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomPanelDialog(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '12px 32px',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    letterSpacing: '0.5px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 12px rgba(40,167,69,0.3)'
+                  }}
+                >
+                  Submit Custom Panel Request
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Panel Dialog */}
+        <Dialog
+          open={showCustomPanelDialog}
+          onClose={() => setShowCustomPanelDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ 
+            fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+            fontWeight: 600,
+            fontSize: '1.2rem',
+            color: '#1a1f2c',
+            pb: 1
+          }}>
+            Custom Panel Design Request
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 2,
+              pt: 1
+            }}>
+              <Typography sx={{ 
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                lineHeight: 1.6,
+                color: '#495057'
+              }}>
+                Your custom panel request has been submitted successfully! Our design team will review your specifications and get back to you within 2-3 business days.
+              </Typography>
+              <Typography sx={{ 
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                lineHeight: 1.6,
+                color: '#6c757d',
+                fontSize: '0.9rem'
+              }}>
+                You will receive an email confirmation with your request details and a reference number for tracking.
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ p: 2, pt: 1 }}>
+            <Button 
+              onClick={() => setShowCustomPanelDialog(false)}
+              variant="contained"
+              sx={{
+                backgroundColor: '#6f42c1',
+                '&:hover': { backgroundColor: '#5a32a3' }
+              }}
+            >
+              Okay
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );

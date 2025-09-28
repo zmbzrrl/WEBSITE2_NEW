@@ -1,6 +1,7 @@
 // Import necessary libraries and components
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
+import { supabase } from "../../utils/supabaseClient";
 import "./Customizer.css";
 
 const getPanelTypeLabel = (type: string) => {
@@ -726,6 +727,54 @@ const SPCustomizer: React.FC = () => {
     }
   }, [isEditMode, editPanelData]);
 
+  // Check for Motion flag and automatically place PIR icon if needed
+  useEffect(() => {
+    const checkMotionFlag = async () => {
+      const motionFlagData = location.state?.motionFlagData;
+      
+      if (motionFlagData?.hasMotionFlag && !isEditMode && icons && Object.keys(icons).length > 0) {
+        console.log('🔍 Motion flag data received:', motionFlagData);
+        
+        try {
+          // Get PIR icon from icon library
+          const pirIcon = (icons as any)['PIR'];
+          console.log('🔍 PIR icon from library:', pirIcon);
+          
+          if (pirIcon) {
+            const pirPos = getPirIndex();
+            console.log('🔍 PIR position calculated:', pirPos);
+            console.log('🔍 Current placed icons before PIR placement:', placedIcons);
+            
+            // Check if PIR is already placed
+            const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+            
+            if (!hasPIR && !placedIcons.some(icon => icon.position === pirPos)) {
+              const newPir = {
+                id: Date.now(),
+                iconId: 'PIR',
+                src: pirIcon.src || '',
+                label: 'PIR',
+                position: pirPos,
+                category: 'PIR'
+              } as any;
+              
+              console.log('✅ Automatically placing PIR icon at position:', pirPos);
+              setPlacedIcons(prev => [...prev, newPir]);
+            } else {
+              console.log('⚠️ PIR already exists or position occupied, skipping auto-placement');
+            }
+          } else {
+            console.log('❌ PIR icon not found in icon library');
+          }
+        } catch (error) {
+          console.error('Error placing PIR icon:', error);
+        }
+      }
+    };
+    
+    checkMotionFlag();
+  }, [location.state?.motionFlagData, isEditMode, icons, placedIcons]);
+
   if (!cartContext) {
     throw new Error("CartContext must be used within a CartProvider");
   }
@@ -825,12 +874,17 @@ const SPCustomizer: React.FC = () => {
     setPlacedIcons((prev) => prev.filter((icon) => icon.id !== id));
   };
 
-  const handleAddToCart = (): void => {
+  const handleAddToCart = async (): Promise<void> => {
+    console.log('🚀 handleAddToCart called!');
+    
     // Check if backbox details are provided
     if (!backbox.trim()) {
+      console.log('❌ Backbox not provided, returning early');
       setBackboxError('Please provide backbox details before adding the panel to your project.');
       return;
     }
+    
+    console.log('✅ Backbox provided, continuing...');
 
     const design: Design & { panelDesign: typeof panelDesign & { spConfig?: { dimension: string } } } = {
       type: "SP",
@@ -881,7 +935,7 @@ const SPCustomizer: React.FC = () => {
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const enhancedDesign = {
         ...design,
-        panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
+        panelName: selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
 
@@ -1536,33 +1590,13 @@ const SPCustomizer: React.FC = () => {
   // Track if panel has been added to project for button text change
   const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
 
-  // PIR helpers (toggle-controlled motion sensor)
-  const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+  // PIR helper function for Motion flag-based placement
   const getPirIndex = (): number => {
     const totalSlots = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
       ? dimensionConfigs[dimensionKey].iconPositions.length
       : (iconPositions || []).length;
     if (totalSlots >= 12 || dimensionKey === 'tall') return 10; // tall panels
     return 7; // standard/wide panels
-  };
-  const addPir = () => {
-    if (hasPIR) return;
-    const pirPos = getPirIndex();
-    if (placedIcons.some(icon => icon.position === pirPos)) return;
-    const pirIcon = (icons as any)['PIR'];
-    const newPir = {
-      id: Date.now(),
-      iconId: 'PIR',
-      src: pirIcon?.src || '',
-      label: 'PIR',
-      position: pirPos,
-      category: 'PIR'
-    } as any;
-    setPlacedIcons(prev => [...prev, newPir]);
-  };
-  const removePir = () => {
-    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
-    setIconTexts(prev => ({ ...prev }));
   };
 
   // Derive active dimensions and positions by selected key (fallback to defaults)
@@ -1757,26 +1791,7 @@ const SPCustomizer: React.FC = () => {
                   {category}
                 </button>
               ))}
-              {/* PIR toggle next to categories */}
-              <button
-                type="button"
-                onClick={() => (hasPIR ? removePir() : addPir())}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#1976d2',
-                  cursor: 'pointer',
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  fontSize: '14px',
-                  letterSpacing: '0.5px',
-                  fontWeight: 'bold'
-                }}
-                title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-              >
-                {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-              </button>
+          {/* PIR icon placement is now controlled by Motion flag in design data */}
             </div>
             <div style={{ 
                   display: 'grid',

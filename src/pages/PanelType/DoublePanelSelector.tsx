@@ -304,9 +304,11 @@ const DoublePanelSelector = () => {
                 >
                   <StyledPanel variants={itemVariants}>
                     <PanelContainer
-                      onClick={() => navigate(panel.path)}
+                      onClick={() => {
+                        // Disabled - users should only use Design buttons
+                      }}
                       sx={{
-                        cursor: 'pointer',
+                        cursor: 'default',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -341,8 +343,12 @@ const DoublePanelSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
+                        disabled={true}
+                        onClick={() => {
+                          // Disabled - users should only use Design buttons
+                        }}
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.7)',
+                          color: 'rgba(255, 255, 255, 0.3)',
                           textTransform: 'none',
                           fontWeight: 400,
                           letterSpacing: '0.5px',
@@ -350,9 +356,13 @@ const DoublePanelSelector = () => {
                           transform: 'translateY(10px)',
                           transition: 'all 0.3s ease',
                           fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                          cursor: 'not-allowed',
                           '&:hover': {
-                            color: 'rgba(255, 255, 255, 1)',
+                            color: 'rgba(255, 255, 255, 0.3)',
                             backgroundColor: 'transparent',
+                          },
+                          '&.Mui-disabled': {
+                            color: 'rgba(255, 255, 255, 0.3)',
                           },
                         }}
                       >

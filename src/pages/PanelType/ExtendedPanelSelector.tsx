@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
   Typography,
@@ -23,6 +23,7 @@ import CartButton from "../../components/CartButton";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ProjectContext } from '../../App';
 import { useCart } from '../../contexts/CartContext';
+import { supabase } from '../../utils/supabaseClient';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -111,10 +112,28 @@ const itemVariants = {
 
 const ExtendedPanelSelector = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
   const { projectName, projectCode } = useContext(ProjectContext);
   const { projPanels } = useCart();
+
+  // BOQ data loading
+  const [boqData, setBoqData] = useState<Record<string, any>>({});
+  const [boqLoading, setBoqLoading] = useState(false);
+  const [boqFetched, setBoqFetched] = useState(false);
+  const [boqError, setBoqError] = useState<string | null>(null);
+
+  // Get project IDs from location state or session storage
+  const projectIds = location.state?.projectIds || (() => {
+    try { return JSON.parse(sessionStorage.getItem('boqProjectIds') || '[]'); } catch { return []; }
+  })();
+
+  const importResults = location.state?.importResults || (() => {
+    try { return JSON.parse(sessionStorage.getItem('boqImportResults') || 'null'); } catch { return undefined; }
+  })();
+
+  const hasBOQEffective = (projectIds && projectIds.length > 0) || !!importResults;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -124,7 +143,53 @@ const ExtendedPanelSelector = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // BOQ removed: no gating
+  // Load BOQ data
+  useEffect(() => {
+    const loadBOQ = async () => {
+      if (!hasBOQEffective || !projectIds || projectIds.length === 0) {
+        setBoqFetched(true);
+        return;
+      }
+      try {
+        setBoqLoading(true);
+        setBoqError(null);
+        const { data, error } = await supabase
+          .from('user_designs')
+          .select('id, design_name, panel_type, prop_id, design_data')
+          .in('prop_id', projectIds);
+        if (error) throw new Error(error.message);
+        
+        // Group by panel type and extract allowed subtypes
+        const allowedSubtypes = new Set<string>();
+        (data || []).forEach((d: any) => {
+          if (d.panel_type && d.panel_type.startsWith('X')) {
+            allowedSubtypes.add(d.panel_type);
+          }
+          
+          // Check if this design requires panel type selection (from import flags)
+          if (d.design_data && d.design_data.requiresPanelTypeSelection) {
+            if (d.design_data.availablePanelTypes) {
+              // Add the special marker for ambiguous cases
+              if (d.design_data.availablePanelTypes.includes('X1H') && d.design_data.availablePanelTypes.includes('X1V')) {
+                allowedSubtypes.add('X1H_X1V');
+              }
+              if (d.design_data.availablePanelTypes.includes('X2H') && d.design_data.availablePanelTypes.includes('X2V')) {
+                allowedSubtypes.add('X2H_X2V');
+              }
+            }
+          }
+        });
+        
+        setBoqData({ allowedSubtypes: Array.from(allowedSubtypes) });
+      } catch (e: any) {
+        setBoqError(e?.message || 'Failed to load BOQ data');
+      } finally {
+        setBoqLoading(false);
+        setBoqFetched(true);
+      }
+    };
+    loadBOQ();
+  }, [hasBOQEffective, projectIds]);
 
   const usedEXT = useMemo(() => {
     return projPanels.reduce((sum, p) => {
@@ -173,14 +238,53 @@ const ExtendedPanelSelector = () => {
   ];
 
   // Determine which extended subtypes are allowed from BOQ selections
-  const allowedEXTSubtypes = useMemo(() => ['X1H','X1V','X2H','X2V'], []);
+  const allowedEXTSubtypes = useMemo(() => {
+    if (!hasBOQEffective || !boqData.allowedSubtypes) {
+      return ['X1H','X1V','X2H','X2V']; // Show all if no BOQ data
+    }
+    
+    // Special logic: if X2H_X2V is in the data, show both X2H and X2V
+    // This happens when Extended 2-socket is true
+    const subtypes = new Set<string>();
+    boqData.allowedSubtypes.forEach((subtype: string) => {
+      if (subtype === 'X2H_X2V') {
+        subtypes.add('X2H');
+        subtypes.add('X2V');
+      } else if (subtype === 'X1H_X1V') {
+        subtypes.add('X1H');
+        subtypes.add('X1V');
+      } else {
+        subtypes.add(subtype);
+      }
+    });
+    
+    return Array.from(subtypes);
+  }, [hasBOQEffective, boqData]);
 
   // Filter panels to only show selected subtypes
-  const filteredHorizontal = useMemo(() => horizontalPanels, [horizontalPanels]);
-  const filteredVertical = useMemo(() => verticalPanels, [verticalPanels]);
+  const filteredHorizontal = useMemo(() => 
+    horizontalPanels.filter(panel => allowedEXTSubtypes.includes(panel.subtype)), 
+    [allowedEXTSubtypes]
+  );
+  const filteredVertical = useMemo(() => 
+    verticalPanels.filter(panel => allowedEXTSubtypes.includes(panel.subtype)), 
+    [allowedEXTSubtypes]
+  );
 
   // Per-subtype remaining function
   const remainingForSubtype = (subtype: 'X1H' | 'X1V' | 'X2H' | 'X2V') => undefined;
+
+  // Show loading state if BOQ data is being fetched
+  if (hasBOQEffective && !boqFetched) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)' }}>
+        <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.9)' }}>
+          <LinearProgress sx={{ width: 200, mb: 2 }} />
+          <Typography sx={{ letterSpacing: 0.5 }}>Loading extended panel options...</Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -341,24 +445,47 @@ const ExtendedPanelSelector = () => {
             animate="visible"
             style={{ width: '100%' }}
           >
-            {/* Horizontal Panels Section */}
-            <Box sx={{ mt: 6, mb: 2 }}>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  color: '#2d3748',
-                  fontWeight: 700,
-                  fontSize: 24,
-                  letterSpacing: 1,
-                  textAlign: 'left',
-                  mb: 0.5,
-                }}
-              >
-                Horizontal Panels
-              </Typography>
-              <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
-            </Box>
+            {/* Show message if no extended panels are available */}
+            {hasBOQEffective && filteredHorizontal.length === 0 && filteredVertical.length === 0 && (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <Typography sx={{ 
+                  color: 'rgba(255,255,255,0.9)', 
+                  fontSize: 18, 
+                  mb: 2,
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                }}>
+                  No extended panels available for this project
+                </Typography>
+                <Typography sx={{ 
+                  color: 'rgba(255,255,255,0.7)', 
+                  fontSize: 14,
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                }}>
+                  Only the extended panel types specified in your import are shown
+                </Typography>
+              </Box>
+            )}
+
+            {filteredHorizontal.length > 0 && (
+              <>
+                {/* Horizontal Panels Section */}
+                <Box sx={{ mt: 6, mb: 2 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      color: '#2d3748',
+                      fontWeight: 700,
+                      fontSize: 24,
+                      letterSpacing: 1,
+                      textAlign: 'left',
+                      mb: 0.5,
+                    }}
+                  >
+                    Horizontal Panels
+                  </Typography>
+                  <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
+                </Box>
             <Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
               {filteredHorizontal.map((panel) => (
                 <Grid
@@ -397,6 +524,7 @@ const ExtendedPanelSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
+                        onClick={() => navigate(panel.path)}
                         sx={{
                           color: 'rgba(255, 255, 255, 0.7)',
                           textTransform: 'none',
@@ -419,25 +547,30 @@ const ExtendedPanelSelector = () => {
                 </Grid>
               ))}
             </Grid>
-            {/* Vertical Panels Section */}
-            <Box sx={{ mt: 6, mb: 2 }}>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  color: '#2d3748',
-                  fontWeight: 700,
-                  fontSize: 24,
-                  letterSpacing: 1,
-                  textAlign: 'left',
-                  mb: 0.5,
-                }}
-              >
-                Vertical Panels
-              </Typography>
-              <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
-            </Box>
-            <Grid container spacing={4} justifyContent="center">
+              </>
+            )}
+
+            {filteredVertical.length > 0 && (
+              <>
+                {/* Vertical Panels Section */}
+                <Box sx={{ mt: 6, mb: 2 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                      color: '#2d3748',
+                      fontWeight: 700,
+                      fontSize: 24,
+                      letterSpacing: 1,
+                      textAlign: 'left',
+                      mb: 0.5,
+                    }}
+                  >
+                    Vertical Panels
+                  </Typography>
+                  <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
+                </Box>
+                <Grid container spacing={4} justifyContent="center">
               {filteredVertical.map((panel) => (
                 <Grid
                   key={panel.name}
@@ -475,6 +608,7 @@ const ExtendedPanelSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
+                        onClick={() => navigate(panel.path)}
                         sx={{
                           color: 'rgba(255, 255, 255, 0.7)',
                           textTransform: 'none',
@@ -496,7 +630,9 @@ const ExtendedPanelSelector = () => {
                   </StyledPanel>
                 </Grid>
               ))}
-            </Grid>
+                </Grid>
+              </>
+            )}
           </motion.div>
         )}
       </Container>

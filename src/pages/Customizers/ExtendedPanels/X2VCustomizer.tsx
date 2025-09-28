@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 
 import { useCart } from '../../../contexts/CartContext';
+import { supabase } from '../../../utils/supabaseClient';
 
 import '../Customizer.css';
 
@@ -2020,7 +2021,7 @@ const X2VCustomizer: React.FC = () => {
 
         onDragOver={e => { e.preventDefault(); }}
 
-        onDrop={currentStep === 4 ? undefined : e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
+        onDrop={e => { e.preventDefault(); const data = e.dataTransfer.getData('text/plain'); handleDrop(index, data); }}
 
         >
 
@@ -2042,9 +2043,9 @@ const X2VCustomizer: React.FC = () => {
 
                 alt={icon.label}
 
-                draggable={currentStep !== 4}
+                draggable={true}
 
-                onDragStart={currentStep !== 4 ? (e) => handleDragStart(e, icon) : undefined}
+                onDragStart={(e) => handleDragStart(e, icon)}
 
                 style={{
 
@@ -2062,7 +2063,7 @@ const X2VCustomizer: React.FC = () => {
 
                 marginTop: isPIR ? '5px' : '0',
 
-                cursor: currentStep !== 4 ? 'move' : 'default',
+                cursor: 'move',
 
                   filter: !isPIR && icon?.category !== 'Sockets' ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
 

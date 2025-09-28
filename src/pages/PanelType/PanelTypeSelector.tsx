@@ -11,6 +11,7 @@ import {
   IconButton,
   TextField,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -168,6 +169,8 @@ const PanelTypeSelector = () => {
     designs: { id: string; name: string; qty: number; projectName: string; panelType: string; maxQty?: number }[];
   }>>({});
   const [adjustedBoqData, setAdjustedBoqData] = useState<typeof boqData>({});
+  const [motionFlags, setMotionFlags] = useState<Record<string, boolean>>({});
+  const [proximityFlags, setProximityFlags] = useState<Record<string, boolean>>({});
 
   // Check if we're in edit mode
   const isEditMode = location.state?.editMode || false;
@@ -368,6 +371,47 @@ const PanelTypeSelector = () => {
     }
     return counts;
   }, [projPanels]);
+
+  // Load Motion flags for all designs
+  useEffect(() => {
+    const loadMotionFlags = async () => {
+      if (!hasBOQEffective || !projectIds || projectIds.length === 0) {
+        return;
+      }
+
+      try {
+        const { data: designs, error } = await supabase
+          .from('user_designs')
+          .select('id, design_data')
+          .in('prop_id', projectIds);
+
+        if (error) throw error;
+
+        const motionFlagsMap: Record<string, boolean> = {};
+        const proximityFlagsMap: Record<string, boolean> = {};
+        designs?.forEach((design: any) => {
+          const motionFlag = design.design_data?.originalRow?.Motion || design.design_data?.features?.Motion;
+          const proximityFlag = design.design_data?.originalRow?.Proximity || design.design_data?.features?.Proximity;
+          
+          if (motionFlag === true) {
+            motionFlagsMap[design.id] = true;
+          }
+          if (proximityFlag === true) {
+            proximityFlagsMap[design.id] = true;
+          }
+        });
+
+        setMotionFlags(motionFlagsMap);
+        setProximityFlags(proximityFlagsMap);
+        console.log('🔍 Loaded motion flags:', motionFlagsMap);
+        console.log('🔍 Loaded proximity flags:', proximityFlagsMap);
+      } catch (error) {
+        console.error('Error loading motion flags:', error);
+      }
+    };
+
+    loadMotionFlags();
+  }, [hasBOQEffective, projectIds]);
 
   const remainingByCategory = useMemo(() => ({ SP: undefined, TAG: undefined, IDPG: undefined, DP: undefined, EXT: undefined } as Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT', number | undefined>), [usedByCategory]);
 
@@ -579,15 +623,12 @@ const PanelTypeSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
+                        disabled={true}
                         onClick={() => {
-                          if (hasBOQEffective) {
-                            navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults } });
-                          } else {
-                            navigate(panel.path);
-                          }
+                          // Disabled - users should only use Design buttons
                         }}
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.7)',
+                          color: 'rgba(255, 255, 255, 0.3)',
                           textTransform: 'none',
                           fontWeight: 400,
                           letterSpacing: '0.5px',
@@ -595,9 +636,13 @@ const PanelTypeSelector = () => {
                           transform: 'translateY(10px)',
                           transition: 'all 0.3s ease',
                           fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                          cursor: 'not-allowed',
                           '&:hover': {
-                            color: 'rgba(255, 255, 255, 1)',
+                            color: 'rgba(255, 255, 255, 0.3)',
                             backgroundColor: 'transparent',
+                          },
+                          '&.Mui-disabled': {
+                            color: 'rgba(255, 255, 255, 0.3)',
                           },
                         }}
                       >
@@ -607,7 +652,7 @@ const PanelTypeSelector = () => {
                       {hasBOQEffective && adjustedBoqData[panel.key as 'SP'|'TAG'|'IDPG'|'DP'|'EXT'] && (
                         <Box sx={{ mt: 2, width: '100%', maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-                            <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.9)' }}>Quantity (remaining / imported)</Typography>
+                            <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.9)' }}>Quantity</Typography>
                             <Chip label={`${adjustedBoqData[panel.key as any].totalQuantity} / ${adjustedBoqData[panel.key as any].fixedTotal}`} size="small" color="primary" />
                           </Box>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -626,19 +671,62 @@ const PanelTypeSelector = () => {
                                     borderRadius: 1
                                   }}
                                 >
-                                  <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                      color: 'rgba(255,255,255,0.9)', 
-                                      flex: 1, 
-                                      minWidth: 160,
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                  >
-                                    {d.name}
-                                  </Typography>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 160 }}>
+                                    <Typography
+                                      variant="body2" 
+                                      sx={{ 
+                                        color: 'rgba(255,255,255,0.9)', 
+                                        flex: 1,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      {d.name}
+                                    </Typography>
+                                    {motionFlags[d.id] && (
+                                      <Tooltip title="Motion sensor will be automatically added">
+                                        <Box
+                                          sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: '50%',
+                                            backgroundColor: '#4caf50',
+                                            color: 'white',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            flexShrink: 0
+                                          }}
+                                        >
+                                          PIR
+                                        </Box>
+                                      </Tooltip>
+                                    )}
+                                    {proximityFlags[d.id] && (
+                                      <Tooltip title="Proximity sensor will be automatically added">
+                                        <Box
+                                          sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: '50%',
+                                            backgroundColor: '#ff9800',
+                                            color: 'white',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            flexShrink: 0
+                                          }}
+                                        >
+                                          PROX
+                                        </Box>
+                                      </Tooltip>
+                                    )}
+                                  </Box>
                                   <Chip
                                     label={`Max: ${typeof d.maxQty === 'number' ? d.maxQty : '-'}`}
                                     size="small"
@@ -679,7 +767,45 @@ const PanelTypeSelector = () => {
                                   <Button 
                                     variant="outlined" 
                                     size="small" 
-                                    onClick={() => navigate(panel.path, { state: { fromBOQ: true, projectIds, importResults, selectedDesignId: d.id, selectedDesignName: d.name, selectedDesignQuantity: d.qty } })}
+                                    onClick={async () => {
+                                      // Check Motion flag and prepare PIR icon data if needed
+                                      let motionFlagData = null;
+                                      try {
+                                        const { data: designData, error } = await supabase
+                                          .from('user_designs')
+                                          .select('design_data')
+                                          .eq('id', d.id)
+                                          .single();
+                                        
+                                        if (designData && !error) {
+                                          const motionFlag = designData.design_data?.originalRow?.Motion || designData.design_data?.features?.Motion;
+                                          console.log('🔍 Motion flag check for design:', d.name, 'Motion:', motionFlag);
+                                          
+                                          if (motionFlag === true) {
+                                            motionFlagData = {
+                                              hasMotionFlag: true,
+                                              designId: d.id,
+                                              panelType: panel.key
+                                            };
+                                            console.log('✅ Motion flag is true - will place PIR icon automatically');
+                                          }
+                                        }
+                                      } catch (error) {
+                                        console.error('Error checking Motion flag:', error);
+                                      }
+                                      
+                                      navigate(panel.path, { 
+                                        state: { 
+                                          fromBOQ: true, 
+                                          projectIds, 
+                                          importResults, 
+                                          selectedDesignId: d.id, 
+                                          selectedDesignName: d.name, 
+                                          selectedDesignQuantity: d.qty,
+                                          motionFlagData
+                                        } 
+                                      });
+                                    }}
                                     sx={{ 
                                       ml: 'auto',
                                       color: '#0d47a1',

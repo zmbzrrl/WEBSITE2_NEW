@@ -1,6 +1,7 @@
 // Import necessary libraries and components
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
+import { supabase } from "../../utils/supabaseClient";
 import "./Customizer.css";
 
 const getPanelTypeLabel = (type: string) => {
@@ -734,6 +735,57 @@ const TAGCustomizer: React.FC = () => {
       setCurrentStep(3);
     }
   }, [isEditMode, editPanelData]);
+
+  // Check for Motion flag and automatically place PIR icon if needed
+  useEffect(() => {
+    const checkMotionFlag = async () => {
+      if (!isEditMode && location.state?.motionFlagData?.hasMotionFlag) {
+        try {
+          console.log('🔍 TAG Customizer: Motion flag detected, placing PIR icon automatically');
+          
+          // Check if PIR icon already exists
+          const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+          
+          if (!hasPIR && !placedIcons.some(icon => icon.position === 7)) {
+            // Get PIR icon from icon library
+            const pirIcon = (icons as any)['PIR'];
+            console.log('🔍 PIR icon from library:', pirIcon);
+            
+            if (pirIcon) {
+              const pirPos = 7; // TAG panels always use position 7 for PIR
+              console.log('🔍 PIR position for TAG:', pirPos);
+              console.log('🔍 Current placed icons:', placedIcons);
+              
+              // Only place PIR if the position is not already occupied
+              if (!placedIcons.some(icon => icon.position === pirPos)) {
+                const newPir = {
+                  id: Date.now(),
+                  iconId: 'PIR',
+                  src: pirIcon.src || '',
+                  label: 'PIR',
+                  position: pirPos,
+                  category: 'PIR'
+                } as any;
+                
+                console.log('✅ Automatically placing PIR icon at position:', pirPos);
+                setPlacedIcons(prev => [...prev, newPir]);
+              } else {
+                console.log('⚠️ Position 7 already occupied, skipping PIR placement');
+              }
+            } else {
+              console.log('❌ PIR icon not found in icon library');
+            }
+          } else {
+            console.log('⚠️ PIR already exists or position occupied, skipping auto-placement');
+          }
+        } catch (error) {
+          console.error('Error placing PIR icon:', error);
+        }
+      }
+    };
+    
+    checkMotionFlag();
+  }, [location.state?.motionFlagData, isEditMode, icons, placedIcons]);
 
   if (!cartContext) {
     throw new Error("CartContext must be used within a CartProvider");
@@ -1521,33 +1573,9 @@ const TAGCustomizer: React.FC = () => {
   // Mode feature removed for TAG; default behavior is icons with text
   const panelMode = 'icons_text' as const;
 
-  // PIR helpers (toggle-controlled motion sensor)
-  const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
+  // PIR helpers (position calculation only - placement controlled by Motion flag)
   const getPirIndex = (): number => {
-    const totalSlots = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
-      ? dimensionConfigs[dimensionKey].iconPositions.length
-      : (iconPositions || []).length;
-    if (totalSlots >= 12 || dimensionKey === 'tall') return 10; // tall panels
-    return 7; // standard/wide panels
-  };
-  const addPir = () => {
-    if (hasPIR) return;
-    const pirPos = getPirIndex();
-    if (placedIcons.some(icon => icon.position === pirPos)) return;
-    const pirIcon = (icons as any)['PIR'];
-    const newPir = {
-      id: Date.now(),
-      iconId: 'PIR',
-      src: pirIcon?.src || '',
-      label: 'PIR',
-      position: pirPos,
-      category: 'PIR'
-    } as any;
-    setPlacedIcons(prev => [...prev, newPir]);
-  };
-  const removePir = () => {
-    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
-    setIconTexts(prev => ({ ...prev }));
+    return 7; // TAG panels always use position 7 for PIR
   };
 
   // Derive active dimensions and positions by selected key (fallback to defaults)
@@ -1724,26 +1752,7 @@ const TAGCustomizer: React.FC = () => {
                   {category}
                 </button>
               ))}
-              {/* PIR toggle next to categories */}
-              <button
-                type="button"
-                onClick={() => (hasPIR ? removePir() : addPir())}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#1976d2',
-                  cursor: 'pointer',
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  fontSize: '14px',
-                  letterSpacing: '0.5px',
-                  fontWeight: 'bold'
-                }}
-                title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-              >
-                {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-              </button>
+              {/* PIR icon placement is now controlled by Motion flag in design data */}
             </div>
             <div style={{ 
                   display: 'grid',

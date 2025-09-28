@@ -126,12 +126,36 @@ const isColleagueProposalFormat = (data: any): boolean => {
 };
 
 // 🗺️ Map external panel codes to internal panel_type values
-const mapPanelCodeToPanelType = (panelCode: string | undefined): string => {
+const mapPanelCodeToPanelType = (panelCode: string | undefined, panelData?: any): string => {
   const code = (panelCode || '').trim().toUpperCase();
   if (!code) return 'Unknown';
-  // Explicit known mappings
+  
+  // Special handling for GS codes with extended socket flags
+  if (code.startsWith('GS')) {
+    const extended1Socket = panelData?.['Extended 1-socket'];
+    const extended2Socket = panelData?.['Extended 2-socket'];
+    
+    // Convert to boolean if needed
+    const ext1 = extended1Socket === true || extended1Socket === 'true' || extended1Socket === 1;
+    const ext2 = extended2Socket === true || extended2Socket === 'true' || extended2Socket === 1;
+    
+    if (ext1 && ext2) {
+      // Both extended sockets - default to X2H, but user should choose
+      return 'X2H_X2V'; // Special marker for user selection
+    } else if (ext1) {
+      // Extended 1-socket only - default to X1H, but user should choose
+      return 'X1H_X1V'; // Special marker for user selection
+    } else if (ext2) {
+      // Extended 2-socket only - default to X2H, but user should choose
+      return 'X2H_X2V'; // Special marker for user selection
+    } else {
+      // No extended sockets - standard SP
+      return 'SP';
+    }
+  }
+  
+  // Explicit known mappings for other codes
   if (code === 'IDPG') return 'IDPG';
-  if (code.startsWith('GS')) return 'SP';
   if (code.startsWith('TAG')) return 'TAG';
   if (code.startsWith('X1H')) return 'X1H';
   if (code.startsWith('X1V')) return 'X1V';
@@ -143,6 +167,23 @@ const mapPanelCodeToPanelType = (panelCode: string | undefined): string => {
   return code;
 };
 
+// 🎯 Handle panel type selection for ambiguous cases
+const handleAmbiguousPanelType = (panelType: string, panelData: any): string => {
+  if (panelType === 'X1H_X1V') {
+    // Default to X1H, but could be changed by user later
+    // You could add UI logic here to prompt user for selection
+    console.log('⚠️ Panel requires user selection: X1H or X1V for panel:', panelData['Panel Name']);
+    return 'X1H'; // Default choice
+  }
+  if (panelType === 'X2H_X2V') {
+    // Default to X2H, but could be changed by user later
+    // You could add UI logic here to prompt user for selection
+    console.log('⚠️ Panel requires user selection: X2H or X2V for panel:', panelData['Panel Name']);
+    return 'X2H'; // Default choice
+  }
+  return panelType;
+};
+
 // 🔄 Transform colleague format → extended schema used by importer
 const transformColleagueProposalToExtended = (data: any): ImportDataNew => {
   const propertyName = data['Property name'] || 'Unnamed Property';
@@ -152,7 +193,8 @@ const transformColleagueProposalToExtended = (data: any): ImportDataNew => {
 
   const designs = panelDesigns.map((d: any) => {
     const designName = d['Panel Name'] || d['DesignId'] || 'Unnamed Design';
-    const panelType = mapPanelCodeToPanelType(d['Panel Code']);
+    const mappedType = mapPanelCodeToPanelType(d['Panel Code'], d);
+    const panelType = handleAmbiguousPanelType(mappedType, d);
 
     // Collect all fields to avoid data loss
     const featureFlags: Record<string, any> = {};
@@ -282,9 +324,7 @@ const importColleagueProposalData = async (raw: any) => {
       if (propertyError) throw propertyError;
       propertyId = ((property as any).prop_id || null) as string | null;
       
-      if (isRevision) {
-        results.revisions_created = (results.revisions_created || 0) + 1;
-      } else {
+      if (!isRevision) {
         results.properties_created++;
       }
     } catch (e: any) {
@@ -344,8 +384,8 @@ const importColleagueProposalData = async (raw: any) => {
           const designName = d['Panel Name'] || d['DesignId'] || 'Unnamed Design';
           const panelCode = d['Panel Code'];
           // Normalize to app panel categories used by BOQ (SP, TAG, IDPG, DP*, X*)
-          const normalized = mapPanelCodeToPanelType(typeof panelCode === 'string' ? panelCode : '');
-          const panelType = normalized;
+          const normalized = mapPanelCodeToPanelType(typeof panelCode === 'string' ? panelCode : '', d);
+          const panelType = handleAmbiguousPanelType(normalized, d);
 
           const allocatedQty = d['Allocated Quantity'];
           const maxQty = d['Max Quantity'];
@@ -359,6 +399,17 @@ const importColleagueProposalData = async (raw: any) => {
             allocatedQuantity: typeof allocatedQty === 'number' ? allocatedQty : Number(allocatedQty) || undefined,
             maxQuantity: typeof maxQty === 'number' ? maxQty : Number(maxQty) || undefined
           };
+
+          // Store ambiguous panel type information for UI selection
+          if (normalized === 'X1H_X1V') {
+            design_data.requiresPanelTypeSelection = true;
+            design_data.availablePanelTypes = ['X1H', 'X1V'];
+            design_data.defaultPanelType = 'X1H';
+          } else if (normalized === 'X2H_X2V') {
+            design_data.requiresPanelTypeSelection = true;
+            design_data.availablePanelTypes = ['X2H', 'X2V'];
+            design_data.defaultPanelType = 'X2H';
+          }
 
           // BOQ page expects design_data.quantity for initial totals
           if (typeof allocatedQty !== 'undefined') {

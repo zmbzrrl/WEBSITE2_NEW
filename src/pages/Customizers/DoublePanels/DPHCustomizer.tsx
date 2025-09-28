@@ -1,6 +1,7 @@
 // Import necessary libraries and components
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from '../../../contexts/CartContext';
+import { supabase } from '../../../utils/supabaseClient';
 import '../Customizer.css';
 
 const getPanelTypeLabel = (type: string) => {
