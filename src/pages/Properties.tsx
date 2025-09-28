@@ -36,7 +36,7 @@ const Properties: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
-  const [importSuccess, setImportSuccess] = useState<{ projectIds: string[]; results: any } | null>(null);
+  const [importSuccess, setImportSuccess] = useState<{ projectIds: string[]; results: any; propertyProjectNames: string[]; propertyProjectCodes: string[] } | null>(null);
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -65,9 +65,31 @@ const Properties: React.FC = () => {
       }
       // Show success popup with options
       console.log('✅ Import completed successfully');
+      // Extract property/project names and codes from the original JSON
+      let propertyProjectNames: string[] = [];
+      let propertyProjectCodes: string[] = [];
+      const jsonData = json as any; // Type assertion for flexible JSON structure
+      
+      if (jsonData.properties && Array.isArray(jsonData.properties)) {
+        propertyProjectNames = jsonData.properties.map((p: any) => p.property_name).filter(Boolean);
+        propertyProjectCodes = jsonData.properties.map((p: any) => p.property_code || p.property_id).filter(Boolean);
+      } else if (jsonData.project_name) {
+        propertyProjectNames = [jsonData.project_name];
+        propertyProjectCodes = [jsonData.project_code || jsonData.project_id || ''];
+      } else if (jsonData.projects && Array.isArray(jsonData.projects)) {
+        propertyProjectNames = jsonData.projects.map((p: any) => p.project_name).filter(Boolean);
+        propertyProjectCodes = jsonData.projects.map((p: any) => p.project_code || p.project_id).filter(Boolean);
+      } else if (jsonData['Property name']) {
+        // Handle colleague proposal format
+        propertyProjectNames = [jsonData['Property name']];
+        propertyProjectCodes = [jsonData['Property code'] || ''];
+      }
+      
       setImportSuccess({
         projectIds: res.results.project_ids || [],
-        results: res.results
+        results: res.results,
+        propertyProjectNames,
+        propertyProjectCodes
       });
       
       // Close the create dialog
@@ -781,23 +803,42 @@ const Properties: React.FC = () => {
               Import Successful!
             </h3>
             <p style={{ margin: '0 0 20px 0', fontWeight: 'bold', fontSize: '18px', color: '#155724' }}>
-              Property imported successfully !
+              {importSuccess.propertyProjectNames.length > 0 
+                ? `${importSuccess.propertyProjectNames.join(', ')} imported successfully !`
+                : 'Property imported successfully !'
+              }
             </p>
             
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
               <button
                 onClick={() => {
-                  // Set project code in context and session storage (same as New Design flow)
-                  const propId = importSuccess.projectIds[0]; // Use first property ID
-                  setProjectCode(propId);
+                  // Set project code and name in context and session storage (same as New Design flow)
+                  const propId = importSuccess.projectIds[0]; // Database property ID (for internal use)
+                  const projectName = importSuccess.propertyProjectNames[0] || 'Imported Project'; // Use first property name
+                  const projectCode = importSuccess.propertyProjectCodes[0] || propId; // Use property code from JSON, fallback to DB ID
+                  
+                  console.log('🔍 Import Success Debug:');
+                  console.log('  importSuccess.propertyProjectCodes:', importSuccess.propertyProjectCodes);
+                  console.log('  importSuccess.propertyProjectNames:', importSuccess.propertyProjectNames);
+                  console.log('  propId (DB ID):', propId);
+                  console.log('  projectName:', projectName);
+                  console.log('  projectCode:', projectCode);
+                  
+                  setProjectCode(projectCode); // Use the property code from JSON, not the DB ID
+                  setProjectName(projectName);
+                  
                   try {
-                    sessionStorage.setItem('ppProjectCode', propId);
+                    sessionStorage.setItem('ppProjectCode', projectCode);
+                    sessionStorage.setItem('ppProjectName', projectName);
                     sessionStorage.setItem('boqProjectIds', JSON.stringify(importSuccess.projectIds));
                     sessionStorage.setItem('boqImportResults', JSON.stringify(importSuccess.results));
+                    console.log('  Saved to sessionStorage - ppProjectCode:', projectCode, 'ppProjectName:', projectName);
                   } catch {}
                   navigate('/panel-type', {
                     state: {
-                      projectIds: importSuccess.projectIds
+                      projectIds: importSuccess.projectIds,
+                      projectName: projectName,
+                      projectCode: projectCode
                     }
                   });
                 }}

@@ -554,6 +554,9 @@ const X1VCustomizer: React.FC = () => {
   const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
   const [fontSearchFocused, setFontSearchFocused] = useState(false);
   
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
+  
   // PIR helpers (toggle-controlled motion sensor)
   const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
   const getPirIndex = (): number => {
@@ -783,7 +786,7 @@ const X1VCustomizer: React.FC = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign]);
+      addToCart(enhancedDesign);
     }
   };
 
@@ -1685,7 +1688,9 @@ const X1VCustomizer: React.FC = () => {
                 fontWeight: '600'
               }}
             >
-              {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+              {isEditMode ? 'Update Panel' : 
+               panelAddedToProject ? 'Replace Design' :
+               'Add Panel to Project'}
             </StyledButton>
             
             <div style={{ textAlign: 'center' }}>

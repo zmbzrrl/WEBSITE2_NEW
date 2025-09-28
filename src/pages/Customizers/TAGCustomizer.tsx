@@ -542,7 +542,8 @@ const TAGCustomizer: React.FC = () => {
   const [pendingDesign, setPendingDesign] = useState<any | null>(null);
   const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('TAG');
   
-
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
 
   // Function to determine icon color based on background
   const getIconColorFilter = (backgroundColor: string): string => {
@@ -872,6 +873,8 @@ const TAGCustomizer: React.FC = () => {
         loadProjectPanels([design]);
       }
       
+      setPanelAddedToProject(true); // Mark panel as added/updated in project
+      
       // Preserve the project-level edit state when navigating back
       const preservedState = location.state?.projectEditMode !== undefined ? {
         projectEditMode: location.state.projectEditMode,
@@ -882,39 +885,6 @@ const TAGCustomizer: React.FC = () => {
       
       navigate('/proj-panels'); // Return to project panels after updating
     } else {
-      // Add new panel with quantity prompt constrained by BOQ remaining
-      const category = mapTypeToCategory(design.type);
-
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
-
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => undefined)
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = undefined as any;
-        return typeof cap === 'number' ? cap : undefined;
-      };
-
-      const cap = getCategoryCap(category);
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
-
-      if (remaining !== undefined) {
-        if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
-          return;
-        }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
-      }
-
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
@@ -923,7 +893,54 @@ const TAGCustomizer: React.FC = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign]);
+
+      if (panelAddedToProject) {
+        // Replace existing panel with same name
+        const existingPanelIndex = projPanels.findIndex(panel => panel.panelName === enhancedDesign.panelName);
+        if (existingPanelIndex !== -1) {
+          // Replace the existing panel
+          updatePanel(existingPanelIndex, enhancedDesign);
+        } else {
+          // If no existing panel found, add as new
+          addToCart(enhancedDesign);
+        }
+      } else {
+        // Add new panel with quantity prompt constrained by BOQ remaining
+        const category = mapTypeToCategory(design.type);
+
+        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+        const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+          if (!boqQuantities) return undefined;
+          if (cat === 'EXT') {
+            const keys = ['X1H','X1V','X2H','X2V'] as const;
+            const total = keys
+              .map(k => undefined)
+              .reduce((a,b)=>a+b,0);
+            return total;
+          }
+          const cap = undefined as any;
+          return typeof cap === 'number' ? cap : undefined;
+        };
+
+        const cap = getCategoryCap(category);
+        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+        if (remaining !== undefined) {
+          if (remaining <= 0) {
+            alert(`You have reached the BOQ limit for ${category}.`);
+            return;
+          }
+          setPendingDesign(design);
+          setPendingCategory(category);
+          setQtyRemaining(remaining);
+          setQtyOpen(true);
+          return;
+        }
+
+        addToCart(enhancedDesign);
+        setPanelAddedToProject(true); // Mark panel as added to project
+      }
     }
   };
 
@@ -2093,6 +2110,7 @@ const TAGCustomizer: React.FC = () => {
             >
                       {isEditMode ? 'Update Panel' : 
                        isCreateNewRevision ? 'Create New Revision' :
+                       panelAddedToProject ? 'Replace Design' :
                        'Add Panel to Project'}
             </StyledButton>
                       

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, Button, Typography, Paper, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -9,10 +9,11 @@ import PanelRenderer from '../components/PanelRenderer';
 import logoImage from '../assets/logo.png';
 import { getIconColorName } from '../data/iconColors';
 import { ralColors } from '../data/ralColors';
-import page2Svg from '../assets/pdf/2.svg';
-import page3Svg from '../assets/pdf/3.svg';
-import page4Svg from '../assets/pdf/4.svg';
-import page13Svg from '../assets/pdf/13.svg';
+import page2Png from '../assets/pdf/2.png';
+import page3Png from '../assets/pdf/3.png';
+import page4Png from '../assets/pdf/4.png';
+import page13Png from '../assets/pdf/13.png';
+import { ProjectContext } from '../App';
 
 // Function to determine icon color based on background (similar to customizers)
 const getIconColorFromBackground = (backgroundColor: string): string => {
@@ -43,11 +44,47 @@ const hexToRal = (hex: string): string => {
   const normalized = hex.toLowerCase();
   const match = ralColors.find((c: any) => (c.hex || '').toLowerCase() === normalized);
   if (match) {
-    // Prefer code (e.g., RAL 9003) and include name
+    // Format as RAL code (e.g., RAL 9003)
     const code = match.code || match.name || normalized;
-    return code;
+    return `RAL ${code}`;
   }
   return hex; // fallback to hex string
+};
+
+// Helper function to get panel details
+const getPanelDetails = (config: PanelConfig) => {
+  const { panelDesign, type, name } = config;
+  
+  // Get background color with RAL code
+  const backgroundColor = panelDesign?.backgroundColor || '';
+  const backgroundRal = hexToRal(backgroundColor);
+  
+  // Get icon color
+  const iconColor = panelDesign?.iconColor || '';
+  const iconColorName = iconColor ? getIconColorFromBackground(iconColor) : 'N/A';
+  
+  // Get plastic housing color (derived from icon color)
+  const plasticColor = iconColorName === 'White' ? 'White' : 'Black';
+  
+  // Get fonts
+  const fonts = panelDesign?.fonts || 'Default';
+  
+  // Get panel type
+  const panelType = type || 'Standard';
+  
+  // Get backbox (assuming standard for now)
+  const backbox = 'Standard';
+  
+  return {
+    panelName: name || 'Panel',
+    backgroundColor: backgroundRal || backgroundColor || 'N/A',
+    fonts: fonts,
+    backlight: 'White LED',
+    iconColor: iconColorName,
+    plasticColor: plasticColor,
+    panelType: panelType,
+    backbox: backbox
+  };
 };
 
 // Styled components for print-optimized layout
@@ -294,18 +331,85 @@ const PanelGrid = styled(Box)(({ theme }) => ({
 // Individual panel container
 const PanelContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
+  flexDirection: 'row', // Changed to row to accommodate panel and details side by side
+  alignItems: 'flex-start',
   justifyContent: 'center',
   minHeight: '100mm', // Reduced minimum height
   maxHeight: '200mm', // Added maximum height constraint
   padding: '3mm', // Reduced padding
+  gap: '10mm', // Add gap between panel and details
   
   '@media print': {
     padding: '2mm',
     minHeight: '60mm',
     maxHeight: 'none', // Remove max height constraint for print
-    height: '100%'
+    height: '100%',
+    gap: '8mm'
+  }
+}));
+
+// Panel details container
+const PanelDetailsContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  justifyContent: 'flex-start',
+  minWidth: '120mm',
+  maxWidth: '150mm',
+  padding: '5mm',
+  
+  '@media print': {
+    padding: '3mm',
+    minWidth: '100mm',
+    maxWidth: '120mm'
+  }
+}));
+
+// Panel visual container
+const PanelVisualContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: 1,
+  minWidth: '80mm',
+  
+  '@media print': {
+    minWidth: '70mm'
+  }
+}));
+
+// Detail row component
+const DetailRow = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  marginBottom: theme.spacing(1),
+  width: '100%',
+  
+  '@media print': {
+    marginBottom: '2px'
+  }
+}));
+
+const DetailLabel = styled(Typography)(({ theme }) => ({
+  fontSize: '0.7rem',
+  fontWeight: 'bold',
+  color: '#666',
+  marginBottom: '1px',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+  
+  '@media print': {
+    fontSize: '0.6rem'
+  }
+}));
+
+const DetailValue = styled(Typography)(({ theme }) => ({
+  fontSize: '0.8rem',
+  color: '#333',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+  
+  '@media print': {
+    fontSize: '0.7rem'
   }
 }));
 
@@ -376,6 +480,70 @@ const ActionButtons = styled(Box)(({ theme }) => ({
   }
 }));
 
+// Text sections for static pages
+const TextSection = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  padding: '4mm',
+  fontSize: '0.7rem',
+  lineHeight: '1.3',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+  color: '#333',
+  
+  '@media print': {
+    fontSize: '0.6rem',
+    padding: '3mm',
+  }
+}));
+
+const TopLeftText = styled(TextSection)(({ theme }) => ({
+  top: '70px',
+  left: '30px',
+  width: '45%',
+  maxWidth: '90mm',
+}));
+
+const TopRightText = styled(TextSection)(({ theme }) => ({
+  top: '70px',
+  right: '0',
+  width: '45%',
+  maxWidth: '90mm',
+}));
+
+const BottomRightText = styled(TextSection)(({ theme }) => ({
+  bottom: '100px',
+  right: '0',
+  width: '45%',
+  maxWidth: '90mm',
+}));
+
+const TextTitle = styled(Typography)(({ theme }) => ({
+  fontWeight: 'bold',
+  fontSize: '0.8rem',
+  marginBottom: '4mm',
+  color: '#1b92d1',
+  fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+  
+  '@media print': {
+    fontSize: '0.7rem',
+    marginBottom: '3mm',
+  }
+}));
+
+const TextList = styled(Box)(({ theme }) => ({
+  '& ul': {
+    margin: 0,
+    paddingLeft: '4mm',
+  },
+  '& li': {
+    marginBottom: '2mm',
+    fontSize: 'inherit',
+    fontFamily: 'inherit',
+  },
+  '& li:last-child': {
+    marginBottom: 0,
+  }
+}));
+
 interface PanelConfig {
   icons: Array<{
     src: string;
@@ -421,6 +589,7 @@ interface PrintPreviewProps {
 const PrintPreview: React.FC<PrintPreviewProps> = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { projectName: contextProjectName, projectCode: contextProjectCode } = useContext(ProjectContext);
   const [panelConfigs, setPanelConfigs] = useState<PanelConfig[]>([]);
   const [projectName, setProjectName] = useState<string>('');
   const [projectCode, setProjectCode] = useState<string>('');
@@ -458,20 +627,33 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
     // Get panel data from router state or URL params
     const state = location.state as any;
     
+    console.log('🔍 PrintPreview Debug:');
+    console.log('  state:', state);
+    console.log('  contextProjectName:', contextProjectName);
+    console.log('  contextProjectCode:', contextProjectCode);
+    
     if (state?.panelConfig) {
       // Single panel
-      const projectName = state.projectName || 'Panel Design';
+      const projectName = state.projectName || contextProjectName || 'Panel Design';
+      // Use contextProjectCode if state.projectCode is not provided
+      const projectCode = state.projectCode || (contextProjectCode && contextProjectCode.trim() !== '' ? contextProjectCode : 'PRJ-001');
+      console.log('  Single panel - projectName:', projectName, 'projectCode:', projectCode);
+      console.log('  state.projectCode:', state.projectCode, 'contextProjectCode:', contextProjectCode);
       setPanelConfigs([state.panelConfig]);
       setProjectName(projectName);
-      setProjectCode(state.projectCode || 'PRJ-001');
+      setProjectCode(projectCode);
       setRoomType(state.roomType || 'General');
       setRevision(state.revision || extractRevisionFromProjectName(projectName));
     } else if (state?.panelConfigs) {
       // Multiple panels
-      const projectName = state.projectName || 'Project Design';
+      const projectName = state.projectName || contextProjectName || 'Project Design';
+      // Use contextProjectCode if state.projectCode is not provided
+      const projectCode = state.projectCode || (contextProjectCode && contextProjectCode.trim() !== '' ? contextProjectCode : 'PRJ-001');
+      console.log('  Multiple panels - projectName:', projectName, 'projectCode:', projectCode);
+      console.log('  state.projectCode:', state.projectCode, 'contextProjectCode:', contextProjectCode);
       setPanelConfigs(state.panelConfigs);
       setProjectName(projectName);
-      setProjectCode(state.projectCode || 'PRJ-001');
+      setProjectCode(projectCode);
       setRoomType(state.roomType || 'General');
       setRevision(state.revision || extractRevisionFromProjectName(projectName));
     } else {
@@ -482,9 +664,12 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
         try {
           const config = JSON.parse(decodeURIComponent(configParam));
           setPanelConfigs(Array.isArray(config) ? config : [config]);
-          const projectName = urlParams.get('project') || 'Panel Design';
+          const projectName = urlParams.get('project') || contextProjectName || 'Panel Design';
+          const projectCode = urlParams.get('projectCode') || (contextProjectCode && contextProjectCode.trim() !== '' ? contextProjectCode : 'PRJ-001');
+          console.log('  URL params - projectName:', projectName, 'projectCode:', projectCode);
+          console.log('  urlParams.projectCode:', urlParams.get('projectCode'), 'contextProjectCode:', contextProjectCode);
           setProjectName(projectName);
-          setProjectCode(urlParams.get('projectCode') || 'PRJ-001');
+          setProjectCode(projectCode);
           setRoomType(urlParams.get('roomType') || 'General');
           setRevision(urlParams.get('revision') || extractRevisionFromProjectName(projectName));
         } catch (error) {
@@ -549,7 +734,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 
   const panelPages = groupPanelsIntoPages(panelConfigs);
   const totalPanels = panelConfigs.length;
-  const staticMiddleSvgs: string[] = [page2Svg, page3Svg, page4Svg];
+  const staticMiddleSvgs: string[] = [page2Png, page3Png, page4Png];
   const totalPages = 1 /* cover */ + staticMiddleSvgs.length /* pages 2-4 */ + panelPages.length /* panel pages */ + 1 /* last page 13.svg */;
   const currentDate = new Date().toLocaleDateString();
 
@@ -991,9 +1176,52 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              padding: '10mm'
+              padding: '10mm',
+              position: 'relative'
             }}>
               <img src={svgSrc} alt={`Page ${2 + idx}`} style={{ width: '100%', height: 'auto', clipPath: 'inset(12.7mm 0 12.7mm 0)', backgroundColor: 'transparent' }} />
+              
+              {/* Add text overlays for page 3 (index 1) */}
+              {idx === 1 && (
+                <>
+                  <TopLeftText>
+                    <TextTitle>Serigraphic Print</TextTitle>
+                    <TextList>
+                      <ul>
+                        <li>Handcrafted and Copyright protected Icons</li>
+                        <li>Icons can depict actual FFandE</li>
+                        <li>700+ RAL colors are available</li>
+                        <li>Customize panel prints with patterns from FFandE</li>
+                        <li>Text can be set in different languages</li>
+                        <li>Font can be changed to meet brand standards</li>
+                      </ul>
+                    </TextList>
+                  </TopLeftText>
+                  
+                  <TopRightText>
+                    <TextTitle>Glass</TextTitle>
+                    <TextList>
+                      <ul>
+                        <li>4mm tempered glass</li>
+                        <li>resistant against scratches and breaking</li>
+                        <li>extra clear - low iron content to avoid blue/green hue</li>
+                        <li>chamfered edges create a more elegant look</li>
+                      </ul>
+                    </TextList>
+                  </TopRightText>
+                  
+                  <BottomRightText>
+                    <TextTitle>Electronics in plastic housing</TextTitle>
+                    <TextList>
+                      <ul>
+                        <li>backlit icons to increase readability</li>
+                        <li>black or white plastic housing for the electronics</li>
+                        <li>LED's temperature 6000k</li>
+                      </ul>
+                    </TextList>
+                  </BottomRightText>
+                </>
+              )}
             </Box>
           </A4Page>
         ))}
@@ -1027,37 +1255,80 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             </CompactHeader>
 
             <PanelGrid>
-              {pagePanels.map((config, panelIndex) => (
-                <PanelContainer key={panelIndex}>
-                  <Typography 
-                    variant="subtitle2" 
-                    sx={{ 
-                      mb: 1, 
-                      fontWeight: 'bold',
-                      textAlign: 'center',
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    {config.name || `Panel ${pageIndex * 2 + panelIndex + 1}`}
-                  </Typography>
+              {pagePanels.map((config, panelIndex) => {
+                const details = getPanelDetails(config);
+                return (
+                  <PanelContainer key={panelIndex}>
+                    <PanelVisualContainer>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'flex-start', 
+                        alignItems: 'flex-start',
+                        width: '100%',
+                        transform: 'scale(0.715) translate(100px, 70px)',
+                        transformOrigin: 'top left'
+                      }}>
+                        <PanelRenderer
+                          icons={config.icons}
+                          panelDesign={config.panelDesign}
+                          iconTexts={config.iconTexts}
+                          type={config.type}
+                        />
+                      </Box>
+                    </PanelVisualContainer>
 
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'flex-start', 
-                    alignItems: 'flex-start',
-                    width: '100%',
-                    transform: 'scale(0.55)',
-                    transformOrigin: 'top left'
-                  }}>
-                    <PanelRenderer
-                      icons={config.icons}
-                      panelDesign={config.panelDesign}
-                      iconTexts={config.iconTexts}
-                      type={config.type}
-                    />
-                  </Box>
-                </PanelContainer>
-              ))}
+                    <PanelDetailsContainer>
+                      <DetailRow>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <DetailValue sx={{ 
+                            color: '#1b92d1', 
+                            fontWeight: 700,
+                            fontSize: 'inherit'
+                          }}>
+                            {panelIndex + 1})
+                          </DetailValue>
+                          <DetailValue>{details.panelName}</DetailValue>
+                        </Box>
+                      </DetailRow>
+                      
+                      <DetailRow>
+                        <DetailLabel>Background Color:</DetailLabel>
+                        <DetailValue>{details.backgroundColor}</DetailValue>
+                      </DetailRow>
+                      
+                      <DetailRow>
+                        <DetailLabel>Fonts:</DetailLabel>
+                        <DetailValue>{details.fonts}</DetailValue>
+                      </DetailRow>
+                      
+                      <DetailRow>
+                        <DetailLabel>Backlight of the Icons:</DetailLabel>
+                        <DetailValue>{details.backlight}</DetailValue>
+                      </DetailRow>
+                      
+                      <DetailRow>
+                        <DetailLabel>Color of the Icons:</DetailLabel>
+                        <DetailValue>{details.iconColor}</DetailValue>
+                      </DetailRow>
+                      
+                      <DetailRow>
+                        <DetailLabel>Color of the Plastic Housing:</DetailLabel>
+                        <DetailValue>{details.plasticColor}</DetailValue>
+                      </DetailRow>
+                      
+                      <DetailRow>
+                        <DetailLabel>Panel Type:</DetailLabel>
+                        <DetailValue>{details.panelType}</DetailValue>
+                      </DetailRow>
+                      
+                      <DetailRow>
+                        <DetailLabel>Backbox:</DetailLabel>
+                        <DetailValue>{details.backbox}</DetailValue>
+                      </DetailRow>
+                    </PanelDetailsContainer>
+                  </PanelContainer>
+                );
+              })}
             </PanelGrid>
           </A4Page>
         ))}
@@ -1095,7 +1366,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             alignItems: 'center',
             padding: '10mm'
           }}>
-            <img src={page13Svg} alt={`Page ${totalPages}`} style={{ width: '100%', height: 'auto', clipPath: 'inset(12.7mm 0 12.7mm 0)', backgroundColor: 'transparent' }} />
+            <img src={page13Png} alt={`Page ${totalPages}`} style={{ width: '100%', height: 'auto', clipPath: 'inset(12.7mm 0 0 0)', backgroundColor: 'transparent', marginTop: '-45px' }} />
           </Box>
         </A4Page>
       </PrintContent>

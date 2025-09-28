@@ -91,6 +91,23 @@ const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [servicePartner, setServicePartner] = useState('');
   const [boqQuantities, setBoqQuantities] = useState(null);
 
+  // Persist project context changes to localStorage
+  useEffect(() => {
+    if (projectName) localStorage.setItem('projectName', projectName);
+  }, [projectName]);
+
+  useEffect(() => {
+    if (projectCode) localStorage.setItem('projectCode', projectCode);
+  }, [projectCode]);
+
+  useEffect(() => {
+    if (location) localStorage.setItem('location', location);
+  }, [location]);
+
+  useEffect(() => {
+    if (operator) localStorage.setItem('operator', operator);
+  }, [operator]);
+
   const value: ProjectContextType = {
     projectName,
     setProjectName,

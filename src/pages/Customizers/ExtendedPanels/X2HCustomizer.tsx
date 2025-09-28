@@ -589,6 +589,9 @@ const X2HCustomizer: React.FC = () => {
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
   
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
+  
   // Icon size conversion function (mm to px)
   const convertIconSize = (size: string): string => {
     if (size === '14mm') return '47px'; // 14mm = 47px (95mm panel = 320px, so 14mm = 47px)
@@ -822,7 +825,7 @@ const X2HCustomizer: React.FC = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign]);
+      addToCart(enhancedDesign);
     }
   };
 
@@ -1828,7 +1831,9 @@ const X2HCustomizer: React.FC = () => {
                 },
               }}
             >
-                    {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+                    {isEditMode ? 'Update Panel' : 
+                     panelAddedToProject ? 'Replace Design' :
+                     'Add Panel to Project'}
             </StyledButton>
         </Box>
               </div>

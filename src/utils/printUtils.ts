@@ -60,12 +60,18 @@ export const navigateToPrintPreview = (
 export const navigateToPrintPreviewMultiple = (
   navigate: NavigateFunction,
   panelConfigs: PanelConfig[],
-  projectName?: string
+  projectName?: string,
+  projectCode?: string,
+  roomType?: string,
+  revision?: string
 ) => {
   navigate('/print-preview', {
     state: {
       panelConfigs,
-      projectName: projectName || 'Project Design'
+      projectName: projectName || 'Project Design',
+      projectCode: projectCode || 'PRJ-001',
+      roomType: roomType || 'General',
+      revision: revision || 'Rev0'
     }
   });
 };

@@ -317,6 +317,9 @@ const IDPGCustomizer = () => {
   const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
+  
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
   const [panelDesign, setPanelDesign] = useState({
     backgroundColor: '#FFFFFF',
     iconColor: 'auto',
@@ -1048,32 +1051,9 @@ const IDPGCustomizer = () => {
     if (isEditMode && editPanelIndex !== undefined) {
       // Update existing panel
       updatePanel(editPanelIndex, design);
-    navigate('/proj-panels'); // Return to project panels after updating
+      setPanelAddedToProject(true); // Mark panel as added/updated in project
+      navigate('/proj-panels'); // Return to project panels after updating
     } else {
-      // Add new panel with quantity prompt constrained by BOQ remaining
-      const category = mapTypeToCategory(design.type);
-
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
-
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        return undefined;
-      };
-
-      const cap = getCategoryCap(category);
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
-
-      if (remaining !== undefined) {
-        if (remaining <= 0) {
-          // BOQ removed
-          return;
-        }
-        setPendingDesign(design as any);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
-      }
-
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
@@ -1082,7 +1062,45 @@ const IDPGCustomizer = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign as any]);
+
+      if (panelAddedToProject) {
+        // Replace existing panel with same name
+        const existingPanelIndex = projPanels.findIndex(panel => panel.panelName === enhancedDesign.panelName);
+        if (existingPanelIndex !== -1) {
+          // Replace the existing panel
+          updatePanel(existingPanelIndex, enhancedDesign as any);
+        } else {
+          // If no existing panel found, add as new
+          addToCart(enhancedDesign as any);
+        }
+      } else {
+        // Add new panel with quantity prompt constrained by BOQ remaining
+        const category = mapTypeToCategory(design.type);
+
+        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+        const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+          return undefined;
+        };
+
+        const cap = getCategoryCap(category);
+        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+        if (remaining !== undefined) {
+          if (remaining <= 0) {
+            // BOQ removed
+            return;
+          }
+          setPendingDesign(design as any);
+          setPendingCategory(category);
+          setQtyRemaining(remaining);
+          setQtyOpen(true);
+          return;
+        }
+
+        addToCart(enhancedDesign as any);
+        setPanelAddedToProject(true); // Mark panel as added to project
+      }
     }
   };
 
@@ -1731,7 +1749,7 @@ const IDPGCustomizer = () => {
           onClick={handleAddToCart}
           sx={{ backgroundColor: '#1a1f2c', color: '#ffffff', '&:hover': { backgroundColor: '#2c3e50' } }}
         >
-          Add Panel to Project
+          {panelAddedToProject ? 'Replace Design' : 'Add Panel to Project'}
         </Button>
       </Box>
     </Container>

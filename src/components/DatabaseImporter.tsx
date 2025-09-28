@@ -1,11 +1,12 @@
 // 📥 DATABASE IMPORTER COMPONENT
 // A React component for importing JSON data into the database
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from '../utils/databaseImporterNew';
 import { supabase } from '../utils/supabaseClient';
 import { useUser } from '../contexts/UserContext';
+import { ProjectContext } from '../App';
 
 interface ImportResults {
   success: boolean;
@@ -20,6 +21,8 @@ interface ImportResults {
     errors: string[];
     project_ids: string[];
   };
+  propertyProjectNames?: string[];
+  propertyProjectCodes?: string[];
 }
 
 const DatabaseImporter: React.FC = () => {
@@ -29,6 +32,7 @@ const DatabaseImporter: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
 
   const { user } = useUser();
+  const { setProjectName, setProjectCode } = useContext(ProjectContext);
 
   const handleFileImport = async (file: File) => {
     if (!file.name.endsWith('.json')) {
@@ -78,7 +82,42 @@ const DatabaseImporter: React.FC = () => {
 
       // Import the data
       const results = await importDatabaseDataNew(jsonData);
-      setImportResults(results);
+      
+      // Extract property/project names and codes from the original JSON
+      let propertyProjectNames: string[] = [];
+      let propertyProjectCodes: string[] = [];
+      
+      if (jsonData.properties && Array.isArray(jsonData.properties)) {
+        propertyProjectNames = jsonData.properties.map((p: any) => p.property_name).filter(Boolean);
+        propertyProjectCodes = jsonData.properties.map((p: any) => p.property_code || p.property_id).filter(Boolean);
+      } else if (jsonData.project_name) {
+        propertyProjectNames = [jsonData.project_name];
+        propertyProjectCodes = [jsonData.project_code || jsonData.project_id || ''];
+      } else if (jsonData.projects && Array.isArray(jsonData.projects)) {
+        propertyProjectNames = jsonData.projects.map((p: any) => p.project_name).filter(Boolean);
+        propertyProjectCodes = jsonData.projects.map((p: any) => p.project_code || p.project_id).filter(Boolean);
+      } else if (jsonData['Property name']) {
+        // Handle colleague proposal format
+        propertyProjectNames = [jsonData['Property name']];
+        propertyProjectCodes = [jsonData['Property code'] || ''];
+      }
+      
+      // Add property names and codes to results
+      const resultsWithNames = {
+        ...results,
+        propertyProjectNames,
+        propertyProjectCodes
+      };
+      
+      setImportResults(resultsWithNames);
+      
+      // Set project context if we have project information
+      if (propertyProjectNames.length > 0 && propertyProjectCodes.length > 0) {
+        // Use the first project for the context
+        setProjectName(propertyProjectNames[0]);
+        setProjectCode(propertyProjectCodes[0]);
+        console.log('🔧 Set project context after import:', propertyProjectNames[0], propertyProjectCodes[0]);
+      }
 
     } catch (error) {
       setImportResults({
@@ -193,7 +232,10 @@ const DatabaseImporter: React.FC = () => {
           {importResults.success && (
             <>
               <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '18px' }}>
-                Property imported successfully !
+                {importResults.propertyProjectNames && importResults.propertyProjectNames.length > 0 
+                  ? `${importResults.propertyProjectNames.join(', ')} imported successfully !`
+                  : 'Property imported successfully !'
+                }
               </p>
               
               <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>

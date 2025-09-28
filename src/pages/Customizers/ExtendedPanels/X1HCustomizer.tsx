@@ -554,6 +554,9 @@ const X1VCustomizer: React.FC = () => {
   const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
   const [fontSearchFocused, setFontSearchFocused] = useState(false);
   
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
+  
   // PIR helpers (toggle-controlled motion sensor)
   const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
   const getPirIndex = (): number => {
@@ -755,41 +758,9 @@ const X1VCustomizer: React.FC = () => {
     if (isEditMode && editPanelIndex !== undefined) {
       // Update existing panel
       updatePanel(editPanelIndex, design);
-    navigate('/proj-panels'); // Return to project panels after updating
+      setPanelAddedToProject(true); // Mark panel as added/updated in project
+      navigate('/proj-panels'); // Return to project panels after updating
     } else {
-      // Add new panel with quantity prompt constrained by BOQ remaining
-      const category = mapTypeToCategory(design.type);
-
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
-
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => undefined)
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = undefined as any;
-        return typeof cap === 'number' ? cap : undefined;
-      };
-
-      const cap = getCategoryCap(category);
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
-
-      if (remaining !== undefined) {
-        if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
-          return;
-        }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
-      }
-
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
@@ -798,7 +769,54 @@ const X1VCustomizer: React.FC = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign]);
+
+      if (panelAddedToProject) {
+        // Replace existing panel with same name
+        const existingPanelIndex = projPanels.findIndex(panel => panel.panelName === enhancedDesign.panelName);
+        if (existingPanelIndex !== -1) {
+          // Replace the existing panel
+          updatePanel(existingPanelIndex, enhancedDesign);
+        } else {
+          // If no existing panel found, add as new
+          addToCart(enhancedDesign);
+        }
+      } else {
+        // Add new panel with quantity prompt constrained by BOQ remaining
+        const category = mapTypeToCategory(design.type);
+
+        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+        const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+          if (!boqQuantities) return undefined;
+          if (cat === 'EXT') {
+            const keys = ['X1H','X1V','X2H','X2V'] as const;
+            const total = keys
+              .map(k => undefined)
+              .reduce((a,b)=>a+b,0);
+            return total;
+          }
+          const cap = undefined as any;
+          return typeof cap === 'number' ? cap : undefined;
+        };
+
+        const cap = getCategoryCap(category);
+        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+        if (remaining !== undefined) {
+          if (remaining <= 0) {
+            alert(`You have reached the BOQ limit for ${category}.`);
+            return;
+          }
+          setPendingDesign(design);
+          setPendingCategory(category);
+          setQtyRemaining(remaining);
+          setQtyOpen(true);
+          return;
+        }
+
+        addToCart(enhancedDesign);
+        setPanelAddedToProject(true); // Mark panel as added to project
+      }
     }
   };
 
@@ -1700,7 +1718,9 @@ const X1VCustomizer: React.FC = () => {
                 fontWeight: '600'
               }}
             >
-              {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+              {isEditMode ? 'Update Panel' : 
+               panelAddedToProject ? 'Replace Design' :
+               'Add Panel to Project'}
             </StyledButton>
             
             <div style={{ textAlign: 'center' }}>

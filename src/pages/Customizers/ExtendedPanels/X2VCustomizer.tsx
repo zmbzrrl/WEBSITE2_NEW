@@ -1152,6 +1152,9 @@ const X2VCustomizer: React.FC = () => {
   const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
 
   const [fontSearchFocused, setFontSearchFocused] = useState(false);
+  
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
 
   
 
@@ -1597,7 +1600,7 @@ const X2VCustomizer: React.FC = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign]);
+      addToCart(enhancedDesign);
 
     }
 
@@ -3229,7 +3232,9 @@ const X2VCustomizer: React.FC = () => {
 
             >
 
-              {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+              {isEditMode ? 'Update Panel' : 
+               panelAddedToProject ? 'Replace Design' :
+               'Add Panel to Project'}
 
             </StyledButton>
 

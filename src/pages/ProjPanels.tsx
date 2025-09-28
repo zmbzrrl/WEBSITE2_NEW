@@ -1108,9 +1108,9 @@ const ProjPanels: React.FC = () => {
                      panelDesign: panel.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' },
                      iconTexts: {},
                      type: panel.type,
-                     name: `Panel ${index + 1}`
+                     name: panel.panelName || `Panel ${index + 1}`
                    }));
-                  navigateToPrintPreviewMultiple(navigate, panelConfigs, projectName || 'Project');
+                  navigateToPrintPreviewMultiple(navigate, panelConfigs, projectName || 'Project', projectCode);
                 }}
                 style={{
                   padding: '12px 28px',

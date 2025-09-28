@@ -548,6 +548,9 @@ const DPVCustomizer: React.FC = () => {
   const [fontSearchTerm, setFontSearchTerm] = useState('Myriad Pro SemiBold SemiCondensed');
   const [fontSearchFocused, setFontSearchFocused] = useState(false);
   
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
+  
   // Google Fonts list
   const googleFonts = [
     'Myriad Pro SemiBold SemiCondensed', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Source Sans Pro', 'Montserrat', 'Raleway', 'Ubuntu', 'Nunito', 'Inter',
@@ -779,26 +782,9 @@ const DPVCustomizer: React.FC = () => {
     if (isEditMode && editPanelIndex !== undefined) {
       // Update existing panel
       updatePanel(editPanelIndex, design);
-    navigate('/proj-panels'); // Return to project panels after updating
+      setPanelAddedToProject(true); // Mark panel as added/updated in project
+      navigate('/proj-panels'); // Return to project panels after updating
     } else {
-      // Add new panel with quantity dialog constrained by BOQ remaining
-      const category = mapTypeToCategory(design.type);
-
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
-
-      const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
-
-      const cap = getCategoryCap(category);
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
-
-      if (remaining !== undefined) {
-        if (remaining <= 0) {
-          // No BOQ limit
-          return;
-        }
-        // No quantity dialog; add directly
-      }
-
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
@@ -807,7 +793,39 @@ const DPVCustomizer: React.FC = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign]);
+
+      if (panelAddedToProject) {
+        // Replace existing panel with same name
+        const existingPanelIndex = projPanels.findIndex(panel => panel.panelName === enhancedDesign.panelName);
+        if (existingPanelIndex !== -1) {
+          // Replace the existing panel
+          updatePanel(existingPanelIndex, enhancedDesign);
+        } else {
+          // If no existing panel found, add as new
+          addToCart(enhancedDesign);
+        }
+      } else {
+        // Add new panel with quantity dialog constrained by BOQ remaining
+        const category = mapTypeToCategory(design.type);
+
+        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+        const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
+
+        const cap = getCategoryCap(category);
+        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+        if (remaining !== undefined) {
+          if (remaining <= 0) {
+            // No BOQ limit
+            return;
+          }
+          // No quantity dialog; add directly
+        }
+
+        addToCart(enhancedDesign);
+        setPanelAddedToProject(true); // Mark panel as added to project
+      }
     }
   };
 
@@ -1594,7 +1612,9 @@ const DPVCustomizer: React.FC = () => {
                     }
                   }}
                 >
-                  {isEditMode ? 'Update Panel' : 'Add Panel to Project'}
+                  {isEditMode ? 'Update Panel' : 
+                   panelAddedToProject ? 'Replace Design' :
+                   'Add Panel to Project'}
                 </StyledButton>
                 
                 {/* Custom Panel Description - Only visible when Create Custom Panel button is shown */}

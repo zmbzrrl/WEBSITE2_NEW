@@ -864,6 +864,8 @@ const SPCustomizer: React.FC = () => {
         loadProjectPanels([design]);
       }
       
+      setPanelAddedToProject(true); // Mark panel as added/updated in project
+      
       // Preserve the project-level edit state when navigating back
       const preservedState = location.state?.projectEditMode !== undefined ? {
         projectEditMode: location.state.projectEditMode,
@@ -874,24 +876,6 @@ const SPCustomizer: React.FC = () => {
       
       navigate('/proj-panels'); // Return to project panels after updating
     } else {
-      // Add new panel with quantity prompt constrained by BOQ remaining
-      const category = mapTypeToCategory(design.type);
-
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
-
-      const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
-
-      const cap = getCategoryCap(category);
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
-
-      if (remaining !== undefined) {
-        if (remaining <= 0) {
-          // No BOQ limit
-          return;
-        }
-        // No quantity dialog; add directly
-      }
-
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
@@ -900,7 +884,40 @@ const SPCustomizer: React.FC = () => {
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity // Use BOQ allocated quantity
       };
-      loadProjectPanels([enhancedDesign]);
+
+      if (panelAddedToProject) {
+        // Replace existing panel with same name
+        const existingPanelIndex = projPanels.findIndex(panel => panel.panelName === enhancedDesign.panelName);
+        if (existingPanelIndex !== -1) {
+          // Replace the existing panel
+          updatePanel(existingPanelIndex, enhancedDesign);
+        } else {
+          // If no existing panel found, add as new
+          addToCart(enhancedDesign);
+        }
+      } else {
+        // Add new panel with quantity prompt constrained by BOQ remaining
+        const category = mapTypeToCategory(design.type);
+
+        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+
+        const getCategoryCap = (_cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => undefined;
+
+        const cap = getCategoryCap(category);
+        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+
+        if (remaining !== undefined) {
+          if (remaining <= 0) {
+            // No BOQ limit
+            return;
+          }
+          // No quantity dialog; add directly
+        }
+
+        addToCart(enhancedDesign);
+        setPanelAddedToProject(true); // Mark panel as added to project
+      }
+      
       // If we are adding to an existing project, return to cart and preserve project edit context
       if (isAddingToExistingProject) {
         const preservedState = {
@@ -1515,6 +1532,9 @@ const SPCustomizer: React.FC = () => {
   const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
   const [dimensionKey, setDimensionKey] = useState<string>('standard');
   const [panelMode, setPanelMode] = useState<PanelMode>('icons_text');
+  
+  // Track if panel has been added to project for button text change
+  const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
 
   // PIR helpers (toggle-controlled motion sensor)
   const hasPIR = placedIcons.some(icon => icon.category === 'PIR');
@@ -2066,6 +2086,7 @@ const SPCustomizer: React.FC = () => {
             >
                       {isEditMode ? 'Update Panel' : 
                        isCreateNewRevision ? 'Create New Revision' :
+                       panelAddedToProject ? 'Replace Design' :
                        'Add Panel to Project'}
             </StyledButton>
                       

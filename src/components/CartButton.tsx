@@ -9,8 +9,11 @@ interface CartButtonProps {
 }
 
 const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true }) => {
-  const { projCount, isCounting, loadProjectPanels } = useCart();
+  const { projPanels, isCounting, loadProjectPanels } = useCart();
   const navigate = useNavigate();
+  
+  // Calculate number of unique designs instead of total quantity
+  const designCount = projPanels.length;
 
   const handleViewPanels = async () => {
     const userEmail = localStorage.getItem('userEmail');
@@ -37,7 +40,7 @@ const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true })
       style={{ position: "relative", ...style }}
     >
       {showLabel && "View Project Panels"}
-      {projCount > 0 && (
+      {designCount > 0 && (
         <span
           style={{
             position: "absolute",
@@ -59,7 +62,7 @@ const CartButton: React.FC<CartButtonProps> = ({ style = {}, showLabel = true })
             zIndex: 10,
           }}
         >
-          {projCount}
+          {designCount}
         </span>
       )}
     </button>
