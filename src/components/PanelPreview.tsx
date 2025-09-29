@@ -127,6 +127,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
   const isSP = type === 'SP';
   const isIDPG = type === 'IDPG';
 
+  // Global feature flags (persisted in panelDesign by customizers)
+  const proximityEnabled = (panelDesign as any)?.features?.Proximity === true || (panelDesign as any)?.Proximity === true;
+
   // Get layout configuration for this panel type
   const config = getPanelLayoutConfig(type);
   const { gridLayout, iconLayout, bigIconLayout, textLayout, specialLayouts, iconPositions } = config;
@@ -309,6 +312,39 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({ icons, panelDesign, iconTex
               zIndex: 2,
             }}
           />
+        )}
+        {/* Proximity indicators overlay */}
+        {proximityEnabled && (
+          <>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '18px',
+                right: '62px',
+                width: '9px',
+                height: '9px',
+                borderRadius: '50%',
+                backgroundColor: '#ff9800',
+                filter: computedIconFilter,
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                zIndex: 10
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '18px',
+                right: '32px',
+                width: '9px',
+                height: '9px',
+                borderRadius: '50%',
+                backgroundColor: '#ff9800',
+                filter: computedIconFilter,
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                zIndex: 10
+              }}
+            />
+          </>
         )}
         <div style={{
             position: 'absolute',

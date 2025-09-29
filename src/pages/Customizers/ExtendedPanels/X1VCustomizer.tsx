@@ -249,6 +249,20 @@ const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+// Compute icon color filter based on background for proper contrast
+const getIconColorFilter = (backgroundColor: string): string => {
+  if (!backgroundColor) return 'none';
+  // Simple luminance check to decide whether to invert icons
+  const hex = backgroundColor.replace('#', '');
+  if (hex.length !== 6) return 'none';
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  // If background is dark, invert the icon (make it light)
+  return luminance < 0.5 ? 'brightness(0) saturate(100%) invert(1)' : 'none';
+};
+
 // Move InformationBox to the top level, before SPCustomizer
 const InformationBox = ({
   backbox,
@@ -782,10 +796,12 @@ const X1VCustomizer: React.FC = () => {
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
+      const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity // Use BOQ allocated quantity
+        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
       };
       addToCart(enhancedDesign);
     }
@@ -1235,6 +1251,42 @@ const X1VCustomizer: React.FC = () => {
     }
   }, [panelDesign.fonts]);
 
+  // Check for Proximity flag and set state for visual indicators
+  const [showProximityIndicators, setShowProximityIndicators] = useState(false);
+  
+  useEffect(() => {
+    const checkProximityFlag = async () => {
+      if (!isEditMode && location.state?.selectedDesignId) {
+        try {
+          const { data: designData, error } = await supabase
+            .from('user_designs')
+            .select('design_data')
+            .eq('id', location.state.selectedDesignId)
+            .single();
+          
+          if (designData && !error) {
+            const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
+            console.log('🔍 X1V Proximity flag check:', proximityFlag);
+            
+            if (proximityFlag === true) {
+              console.log('✅ Proximity flag is true - showing proximity indicators');
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            } else {
+              console.log('❌ Proximity flag is false - no proximity indicators');
+              setShowProximityIndicators(false);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: false }, Proximity: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking proximity flag:', error);
+        }
+      }
+    };
+    
+    checkProximityFlag();
+  }, [location.state?.selectedDesignId, isEditMode]);
+
   // Only destructure config once, and use iconPositions from config
   const config = getPanelLayoutConfig('X1V');
   const { dimensions, iconLayout, textLayout, specialLayouts, iconPositions } = config;
@@ -1471,6 +1523,40 @@ const X1VCustomizer: React.FC = () => {
               fontFamily: panelDesign.fonts || undefined,
             }}
           >
+            {/* Proximity indicators - two small circles in bottom right */}
+            {showProximityIndicators && (
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '18px',
+                    right: '62px',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ff9800',
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                    zIndex: 10
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '18px',
+                    right: '32px',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ff9800',
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                    zIndex: 10
+                  }}
+                />
+              </>
+            )}
+            
             <div style={{ 
               position: 'absolute',
               top: '2px',
@@ -1771,6 +1857,40 @@ const X1VCustomizer: React.FC = () => {
               fontFamily: panelDesign.fonts || undefined,
                   }}
           >
+                {/* Proximity indicators - two small circles in bottom right */}
+                {showProximityIndicators && (
+                  <>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '18px',
+                        right: '62px',
+                        width: '9px',
+                        height: '9px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ff9800',
+                        filter: getIconColorFilter(panelDesign.backgroundColor),
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                        zIndex: 10
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '18px',
+                        right: '32px',
+                        width: '9px',
+                        height: '9px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ff9800',
+                        filter: getIconColorFilter(panelDesign.backgroundColor),
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                        zIndex: 10
+                      }}
+                    />
+                  </>
+                )}
+                
                 <div style={{ 
               position: 'absolute',
               top: '2px',

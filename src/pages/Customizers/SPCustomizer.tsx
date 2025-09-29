@@ -775,6 +775,43 @@ const SPCustomizer: React.FC = () => {
     checkMotionFlag();
   }, [location.state?.motionFlagData, isEditMode, icons, placedIcons]);
 
+  // Check for Proximity flag and set state for visual indicators
+  const [showProximityIndicators, setShowProximityIndicators] = useState(false);
+  
+  useEffect(() => {
+    const checkProximityFlag = async () => {
+      if (!isEditMode && location.state?.selectedDesignId) {
+        try {
+          const { data: designData, error } = await supabase
+            .from('user_designs')
+            .select('design_data')
+            .eq('id', location.state.selectedDesignId)
+            .single();
+          
+          if (designData && !error) {
+            const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
+            console.log('🔍 Proximity flag check:', proximityFlag);
+            
+            if (proximityFlag === true) {
+              console.log('✅ Proximity flag is true - showing proximity indicators');
+              setShowProximityIndicators(true);
+              // Persist in panelDesign for previews and saved design
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            } else {
+              console.log('❌ Proximity flag is false - no proximity indicators');
+              setShowProximityIndicators(false);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: false }, Proximity: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking proximity flag:', error);
+        }
+      }
+    };
+    
+    checkProximityFlag();
+  }, [location.state?.selectedDesignId, isEditMode]);
+
   if (!cartContext) {
     throw new Error("CartContext must be used within a CartProvider");
   }
@@ -933,10 +970,12 @@ const SPCustomizer: React.FC = () => {
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
+      const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
         panelName: selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity // Use BOQ allocated quantity
+        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
       };
 
       if (panelAddedToProject) {
@@ -1856,6 +1895,40 @@ const SPCustomizer: React.FC = () => {
                     fontFamily: panelDesign.fonts || undefined,
                   }}
                 >
+                  {/* Proximity indicators - two small circles in bottom right */}
+                  {showProximityIndicators && (
+                    <>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '18px',
+                          right: '62px',
+                          width: '9px',
+                          height: '9px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ff9800',
+                          filter: getIconColorFilter(panelDesign.backgroundColor),
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                          zIndex: 10
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '18px',
+                          right: '32px',
+                          width: '9px',
+                          height: '9px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ff9800',
+                          filter: getIconColorFilter(panelDesign.backgroundColor),
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                          zIndex: 10
+                        }}
+                      />
+                    </>
+                  )}
+                  
                   <div style={{ 
                     position: 'absolute',
                     top: '2px',
@@ -2053,6 +2126,39 @@ const SPCustomizer: React.FC = () => {
                     fontFamily: panelDesign.fonts || undefined,
                     }}
                 >
+                  {/* Proximity indicators - two small circles in bottom right */}
+                  {showProximityIndicators && (
+                    <>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '18px',
+                          right: '62px',
+                          width: '9px',
+                          height: '9px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ff9800',
+                          filter: getIconColorFilter(panelDesign.backgroundColor),
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                          zIndex: 10
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '18px',
+                          right: '32px',
+                          width: '9px',
+                          height: '9px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ff9800',
+                          filter: getIconColorFilter(panelDesign.backgroundColor),
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                          zIndex: 10
+                        }}
+                      />
+                    </>
+                  )}
                   <div style={{ 
                     position: 'absolute',
                     top: '2px',

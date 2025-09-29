@@ -290,6 +290,17 @@ const getIconColorFilter = (backgroundColor: string): string => {
   }
 };
 
+// Determine text color based on background using the same brightness logic
+const getTextColorFromBackground = (backgroundColor: string): string => {
+  const hex = (backgroundColor || '').replace('#', '');
+  if (!hex) return '#333333';
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness < 150 ? '#FFFFFF' : '#333333';
+};
+
 const IDPGCustomizer = () => {
   const theme = useTheme();
   const location = useLocation();
@@ -374,6 +385,43 @@ const IDPGCustomizer = () => {
     });
   }, []);
 
+  // Check for Proximity flag and set state for visual indicators
+  const [showProximityIndicators, setShowProximityIndicators] = useState(false);
+  useEffect(() => {
+    const checkProximityFlag = async () => {
+      if (!isEditMode && location.state?.selectedDesignId) {
+        try {
+          const { data: designData, error } = await supabase
+            .from('user_designs')
+            .select('design_data')
+            .eq('id', location.state.selectedDesignId)
+            .single();
+          if (designData && !error) {
+            const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
+            if (proximityFlag === true) {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            } else {
+              setShowProximityIndicators(false);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: false }, Proximity: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking proximity flag:', error);
+        }
+      }
+    };
+    checkProximityFlag();
+  }, [location.state?.selectedDesignId, isEditMode]);
+
+  // Initialize from flags passed via navigation (override UI checkboxes)
+  useEffect(() => {
+    const rn = location.state?.roomNumberFlag;
+    const cr = location.state?.cardReaderFlag;
+    if (typeof rn === 'boolean') setRoomNumber(rn);
+    if (typeof cr === 'boolean') setCardReader(cr);
+  }, [location.state?.roomNumberFlag, location.state?.cardReaderFlag]);
+
   // Load existing panel data if in edit mode
   useEffect(() => {
     if (isEditMode && editPanelData) {
@@ -413,6 +461,7 @@ const IDPGCustomizer = () => {
 
   // Render panel based on checkbox combinations
   const renderPanelTemplate = () => {
+    const computedTextColor = getTextColorFromBackground(panelDesign.backgroundColor);
     // No card reader and no room number - Square template with status
     if (!cardReader && !roomNumber) {
       if (statusMode === 'icons') {
@@ -512,7 +561,7 @@ const IDPGCustomizer = () => {
             width: "100%",
             height: "8px",
             background: "transparent",
-            border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
+            border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
             margin: "auto 0",
           }} />
@@ -568,7 +617,7 @@ const IDPGCustomizer = () => {
               size="small"
               sx={{
                 '& .MuiInput-root': {
-                  color: panelDesign.textColor,
+                  color: computedTextColor,
                   fontSize: '48px',
                   fontWeight: 'bold',
                   fontFamily: panelDesign.fonts || undefined,
@@ -589,7 +638,7 @@ const IDPGCustomizer = () => {
                   padding: '12px 16px',
                   backgroundColor: 'transparent',
                   border: 'none',
-                  color: panelDesign.textColor,
+                  color: computedTextColor,
                 },
                 '& .MuiInputBase-input::placeholder': {
                   color: 'rgba(120, 120, 120, 0.85)',
@@ -605,7 +654,7 @@ const IDPGCustomizer = () => {
                   fontWeight: 'bold',
                   backgroundColor: 'transparent',
                   border: 'none',
-                  color: panelDesign.textColor,
+                  color: computedTextColor,
                 }
               }}
             />
@@ -670,7 +719,7 @@ const IDPGCustomizer = () => {
             width: "100%",
             height: "8px",
             background: "transparent",
-            border: `2px solid ${panelDesign.iconColor}`,
+            border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
             margin: "10px 0",
           }} />
@@ -767,7 +816,7 @@ const IDPGCustomizer = () => {
             width: "100%",
             height: "8px",
             background: "transparent",
-            border: `2px solid ${panelDesign.iconColor}`,
+            border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
             marginBottom: "20px",
           }} />
@@ -840,7 +889,7 @@ const IDPGCustomizer = () => {
                 size="small"
                 sx={{
                   '& .MuiInput-root': {
-                    color: panelDesign.textColor,
+                    color: computedTextColor,
                     fontSize: '48px',
                     fontWeight: 'bold',
                     fontFamily: panelDesign.fonts || undefined,
@@ -852,7 +901,7 @@ const IDPGCustomizer = () => {
                     '&:after': {
                       borderBottom: 'none',
                     },
-                    '&:hover:not(.Mui-disabled):before': {
+                    '&:hover': {
                       borderBottom: 'none',
                     },
                   },
@@ -861,7 +910,7 @@ const IDPGCustomizer = () => {
                     padding: '12px 16px',
                     backgroundColor: 'transparent',
                     border: 'none',
-                    color: panelDesign.textColor,
+                    color: computedTextColor,
                   },
                   '& .MuiInputBase-input::placeholder': {
                     color: 'rgba(120, 120, 120, 0.85)',
@@ -877,72 +926,72 @@ const IDPGCustomizer = () => {
                     fontWeight: 'bold',
                     backgroundColor: 'transparent',
                     border: 'none',
-                    color: panelDesign.textColor,
+                    color: computedTextColor,
                   }
                 }}
               />
             </div>
-          
+            
           {statusMode === 'icons' ? (
             /* Two icon fields replacing the bar */
-          <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            height: "60px",
-            margin: "10px 0",
-            gap: "20px",
-          }}>
-            {/* Left icon */}
             <div style={{
-              flex: "1",
               display: "flex",
+              justifyContent: "space-between",
               alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(255, 255, 255, 0.05)",
-              borderRadius: "8px",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              height: "100%",
+              height: "60px",
+              margin: "10px 0",
+              gap: "20px",
             }}>
-              <img 
-                src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
-                alt="Icon 1" 
-                style={{
-                  width: panelDesign.iconSize,
-                  height: panelDesign.iconSize,
-                  filter: getIconColorFilter(panelDesign.backgroundColor),
-                }}
-              />
+              {/* Left icon */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+              }}>
+                <img 
+                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  alt="Icon 1" 
+                  style={{
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                  }}
+                />
+              </div>
+              {/* Right icon */}
+              <div style={{
+                flex: "1",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                height: "100%",
+              }}>
+                <img 
+                  src={guestServicesIcons[rightIcon]} 
+                  alt="Icon 2" 
+                  style={{
+                    width: panelDesign.iconSize,
+                    height: panelDesign.iconSize,
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                  }}
+                />
+              </div>
             </div>
-            {/* Right icon */}
-            <div style={{
-              flex: "1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(255, 255, 255, 0.05)",
-              borderRadius: "8px",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              height: "100%",
-            }}>
-              <img 
-                src={guestServicesIcons[rightIcon]} 
-                alt="Icon 2" 
-                style={{
-                  width: panelDesign.iconSize,
-                  height: panelDesign.iconSize,
-                  filter: getIconColorFilter(panelDesign.backgroundColor),
-                }}
-              />
-            </div>
-          </div>
           ) : (
             /* Status bar right below the number */
             <div style={{
               width: "100%",
               height: "8px",
               background: "transparent",
-              border: `2px solid ${panelDesign.iconColor}`,
+              border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
               borderRadius: "4px",
               marginBottom: "20px",
             }} />
@@ -956,12 +1005,12 @@ const IDPGCustomizer = () => {
             flex: "1",
             }}>
               <img 
-              src={g18Icon} 
-              alt="G18 Icon" 
+                src={g18Icon} 
+                alt="G18 Icon" 
                 style={{
-                width: panelDesign.iconSize,
+                  width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
-                filter: getIconColorFilter(panelDesign.backgroundColor),
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -973,12 +1022,12 @@ const IDPGCustomizer = () => {
               paddingBottom: "10px",
             }}>
               <img 
-              src={crIcon} 
-              alt="CR Icon" 
+                src={crIcon} 
+                alt="CR Icon" 
                 style={{
-                width: panelDesign.iconSize,
-                height: panelDesign.iconSize,
-                filter: getIconColorFilter(panelDesign.backgroundColor),
+                  width: panelDesign.iconSize,
+                  height: panelDesign.iconSize,
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
@@ -994,7 +1043,7 @@ const IDPGCustomizer = () => {
         justifyContent: "center",
         width: "100%",
         height: "100%",
-        color: panelDesign.textColor,
+        color: computedTextColor,
         fontSize: panelDesign.fontSize,
         fontFamily: panelDesign.fonts || undefined,
         fontWeight: "500",
@@ -1057,10 +1106,12 @@ const IDPGCustomizer = () => {
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
+      const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity // Use BOQ allocated quantity
+        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
       };
 
       if (panelAddedToProject) {
@@ -1219,8 +1270,8 @@ const IDPGCustomizer = () => {
           >
             Panel Configuration
           </Typography>
-          
-          {/* Panel Features Section */}
+
+          {/* Only Status Type remains interactive; CR and RN are driven by flags */}
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -1229,36 +1280,18 @@ const IDPGCustomizer = () => {
             alignItems: 'center',
             marginBottom: 2,
           }}>
-            <StyledFormControlLabel
-              control={
-                <StyledCheckbox
-                  checked={cardReader}
-                  onChange={(e) => setCardReader(e.target.checked)}
-                />
-              }
-              label="Card Reader"
-            />
-            <StyledFormControlLabel
-              control={
-                <StyledCheckbox
-                  checked={roomNumber}
-                  onChange={(e) => setRoomNumber(e.target.checked)}
-                />
-              }
-              label="Room Number"
-            />
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <Typography
+              <Typography
                 variant="subtitle2"
-              sx={{
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontWeight: 500,
-                fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                sx={{
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: 500,
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                   fontSize: '14px',
-              }}
-            >
+                }}
+              >
                 Status Type
-            </Typography>
+              </Typography>
               <button
                 onClick={() => {
                   setStatusMode(statusMode === 'bar' ? 'icons' : 'bar');
@@ -1274,7 +1307,7 @@ const IDPGCustomizer = () => {
                   fontWeight: 'bold',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                   minWidth: '120px',
                 }}
                 onMouseEnter={(e) => {
@@ -1292,48 +1325,45 @@ const IDPGCustomizer = () => {
               </button>
             </Box>
           </Box>
-          
-          {/* Guest Services Icons Section - Only show when Status Icons is selected */}
+
+          {/* Guest Services Icons only shown for Status Icons */}
           {statusMode === 'icons' && (
             <Box sx={{
               borderTop: '1px solid rgba(255, 255, 255, 0.1)',
               paddingTop: 2,
               marginTop: 2,
             }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontWeight: 500,
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: 500,
                   marginBottom: 1,
-                    textAlign: 'center',
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                  textAlign: 'center',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                   fontSize: '14px',
-                  }}
-                >
+                }}
+              >
                 Guest Services Icons
-                </Typography>
-              
-              {/* Minimal Icon Selector */}
+              </Typography>
+
               <Box sx={{ 
                 display: 'flex', 
                 justifyContent: 'center',
                 alignItems: 'center',
                 gap: 3,
               }}>
-                
-                {/* Left Icon */}
                 <Box sx={{ textAlign: 'center' }}>
-                <Typography
-                  sx={{
+                  <Typography
+                    sx={{
                       color: 'rgba(255, 255, 255, 0.7)',
                       fontSize: '12px',
                       marginBottom: '8px',
-                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  }}
-                >
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                    }}
+                  >
                     Left
-                </Typography>
+                  </Typography>
                   <Box sx={{
                     display: 'flex',
                     gap: 1,
@@ -1342,7 +1372,7 @@ const IDPGCustomizer = () => {
                       <Box
                         key={opt}
                         onClick={() => setSelectedIcon1(opt)}
-                    sx={{
+                        sx={{
                           width: '40px',
                           height: '40px',
                           display: 'flex',
@@ -1358,36 +1388,35 @@ const IDPGCustomizer = () => {
                             background: 'rgba(255, 255, 255, 0.05)',
                           }
                         }}
-                    >
-                      <img 
+                      >
+                        <img 
                           src={guestServicesIcons[opt as keyof typeof guestServicesIcons]} 
                           alt={opt} 
-                        style={{
-                            width: "24px",
-                            height: "24px",
+                          style={{
+                            width: '24px',
+                            height: '24px',
                             filter: getIconColorFilter(panelDesign.backgroundColor),
                           }}
                         />
                       </Box>
-                ))}
-              </Box>
+                    ))}
+                  </Box>
                 </Box>
-                
-                {/* Right Icon */}
+
                 <Box sx={{ textAlign: 'center' }}>
-          <Typography
-            sx={{
+                  <Typography
+                    sx={{
                       color: 'rgba(255, 255, 255, 0.5)',
                       fontSize: '12px',
                       marginBottom: '8px',
-              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-            }}
-          >
+                      fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                    }}
+                  >
                     Right (G3)
-          </Typography>
+                  </Typography>
                   <Box sx={{
                     width: '40px',
-                  height: '40px',
+                    height: '40px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1400,8 +1429,8 @@ const IDPGCustomizer = () => {
                       src={guestServicesIcons[rightIcon]} 
                       alt={rightIcon} 
                       style={{
-                        width: "24px",
-                        height: "24px",
+                        width: '24px',
+                        height: '24px',
                         filter: getIconColorFilter(panelDesign.backgroundColor),
                       }}
                     />

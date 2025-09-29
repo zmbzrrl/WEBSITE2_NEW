@@ -1523,84 +1523,20 @@ const X2VCustomizer: React.FC = () => {
 
       updatePanel(editPanelIndex, design);
 
-    navigate('/proj-panels'); // Return to project panels after updating
+      navigate('/proj-panels'); // Return to project panels after updating
 
     } else {
 
-      // Add new panel with quantity prompt constrained by BOQ remaining
-
-      const category = mapTypeToCategory(design.type);
-
-
-
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
-
-
-
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-
-        if (!boqQuantities) return undefined;
-
-        if (cat === 'EXT') {
-
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-
-          const total = keys
-
-            .map(k => undefined)
-
-            .reduce((a,b)=>a+b,0);
-
-          return total;
-
-        }
-
-        const cap = undefined as any;
-
-        return typeof cap === 'number' ? cap : undefined;
-
-      };
-
-
-
-      const cap = getCategoryCap(category);
-
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
-
-
-
-      if (remaining !== undefined) {
-
-        if (remaining <= 0) {
-
-          alert(`You have reached the BOQ limit for ${category}.`);
-
-          return;
-
-        }
-
-        setPendingDesign(design);
-
-        setPendingCategory(category);
-
-        setQtyRemaining(remaining);
-
-        setQtyOpen(true);
-
-        return;
-
-      }
-
-
-
-      // Auto-populate panel name and quantity
+      // Add new panel
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
+      const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
-        panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity // Use BOQ allocated quantity
-      };
+        panelName: selectedDesignName || getPanelTypeLabel(design.type),
+        quantity: selectedDesignQuantity,
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
+      } as any;
       addToCart(enhancedDesign);
 
     }
@@ -2391,6 +2327,54 @@ const X2VCustomizer: React.FC = () => {
 
 
 
+  // Check for Proximity flag and set state for visual indicators
+  const [showProximityIndicators, setShowProximityIndicators] = useState(false);
+  useEffect(() => {
+    const checkProximityFlag = async () => {
+      const selectedDesignId = location.state?.selectedDesignId;
+      const proxFromState = location.state?.proximityFlag === true;
+      if (proxFromState) {
+        setShowProximityIndicators(true);
+        setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+        return;
+      }
+      if (!isEditMode && selectedDesignId) {
+        try {
+          const { data: designData, error } = await supabase
+            .from('user_designs')
+            .select('design_data')
+            .eq('id', selectedDesignId)
+            .single();
+          if (designData && !error) {
+            const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
+            if (proximityFlag === true) {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            } else {
+              setShowProximityIndicators(false);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: false }, Proximity: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking proximity flag:', error);
+        }
+      } else if (!isEditMode) {
+        try {
+          if (selectedDesignId) {
+            const stored = sessionStorage.getItem(`boqProximity:${selectedDesignId}`);
+            if (stored === 'true') {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            }
+          }
+        } catch {}
+      }
+    };
+    checkProximityFlag();
+  }, [location.state?.selectedDesignId, isEditMode]);
+
+
+
   return (
 
     <Box
@@ -2815,6 +2799,13 @@ const X2VCustomizer: React.FC = () => {
 
             }} />
 
+            {/* Proximity indicators overlay */}
+            {showProximityIndicators && (
+              <>
+                <div style={{ position: 'absolute', bottom: '14px', right: '58px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                <div style={{ position: 'absolute', bottom: '14px', right: '28px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+              </>
+            )}
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
 
               {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
@@ -3419,6 +3410,13 @@ const X2VCustomizer: React.FC = () => {
 
             }} />
 
+            {/* Proximity indicators overlay */}
+            {showProximityIndicators && (
+              <>
+                <div style={{ position: 'absolute', bottom: '14px', right: '58px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                <div style={{ position: 'absolute', bottom: '14px', right: '28px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+              </>
+            )}
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
 
               {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}

@@ -5,7 +5,7 @@ import { styled } from '@mui/material/styles';
 import PrintIcon from '@mui/icons-material/Print';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import InfoIcon from '@mui/icons-material/Info';
-import PanelRenderer from '../components/PanelRenderer';
+import PanelPreview from '../components/PanelPreview';
 import logoImage from '../assets/logo.png';
 import { getIconColorName } from '../data/iconColors';
 import { ralColors } from '../data/ralColors';
@@ -1268,7 +1268,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         transform: 'scale(0.715) translate(100px, 70px)',
                         transformOrigin: 'top left'
                       }}>
-                        <PanelRenderer
+                        <PanelPreview
                           icons={config.icons}
                           panelDesign={config.panelDesign}
                           iconTexts={config.iconTexts}

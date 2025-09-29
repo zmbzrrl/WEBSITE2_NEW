@@ -942,23 +942,89 @@ const ProjPanels: React.FC = () => {
                     {item.panelName || "Panel"}
                   </div>
                 </div>
-                {/* Quantity display - Read-only BOQ quantity */}
+                {/* Quantity with editable Allocated and read-only Max Allowed */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
                     <span style={{ color: THEME.textSecondary, fontSize: 15 }}>Quantity:</span>
-                  <span style={{ 
-                    fontSize: 18, 
-                    fontWeight: 600, 
-                    minWidth: 24, 
-                    textAlign: 'center',
-                    color: THEME.textPrimary,
-                    background: '#f8f9fa',
-                    padding: '4px 12px',
-                    borderRadius: 6,
-                    border: '1px solid #e9ecef'
-                  }}>
-                    {item.quantity}
-                  </span>
-                  {/* BOQ removed */}
+                    {/* Allocated (editable) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        onClick={() => {
+                          const maxAllowed = typeof (item as any).maxQuantity === 'number' ? (item as any).maxQuantity : Number.POSITIVE_INFINITY;
+                          const next = Math.max(0, Math.min((item.quantity || 0) - 1, maxAllowed));
+                          updateQuantity(index, next);
+                        }}
+                        disabled={(item.quantity || 0) <= 0 || isViewMode}
+                        style={{
+                          background: '#eef7ff',
+                          border: '1px solid #d6e9ff',
+                          borderRadius: 6,
+                          width: 28,
+                          height: 28,
+                          cursor: isViewMode ? 'not-allowed' : 'pointer',
+                          color: '#1b92d1'
+                        }}
+                        title="Decrease allocated"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const raw = parseInt(e.target.value);
+                          const val = isNaN(raw) ? 0 : raw;
+                          const maxAllowed = typeof (item as any).maxQuantity === 'number' ? (item as any).maxQuantity : Number.POSITIVE_INFINITY;
+                          const clamped = Math.max(0, Math.min(val, maxAllowed));
+                          updateQuantity(index, clamped);
+                        }}
+                        readOnly={isViewMode}
+                        style={{
+                          width: 70,
+                          textAlign: 'center',
+                          fontSize: 16,
+                          fontWeight: 600,
+                          color: THEME.textPrimary,
+                          background: '#f8f9fa',
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          border: '1px solid #e9ecef'
+                        }}
+                        min={0}
+                        max={typeof (item as any).maxQuantity === 'number' ? (item as any).maxQuantity : undefined}
+                      />
+                      <button
+                        onClick={() => {
+                          const maxAllowed = typeof (item as any).maxQuantity === 'number' ? (item as any).maxQuantity : Number.POSITIVE_INFINITY;
+                          const next = Math.max(0, Math.min((item.quantity || 0) + 1, maxAllowed));
+                          updateQuantity(index, next);
+                        }}
+                        disabled={isViewMode || (typeof (item as any).maxQuantity === 'number' && (item.quantity || 0) >= (item as any).maxQuantity)}
+                        style={{
+                          background: '#eef7ff',
+                          border: '1px solid #d6e9ff',
+                          borderRadius: 6,
+                          width: 28,
+                          height: 28,
+                          cursor: isViewMode ? 'not-allowed' : 'pointer',
+                          color: '#1b92d1'
+                        }}
+                        title="Increase allocated"
+                      >
+                        +
+                      </button>
+                    </div>
+                    {/* Max Allowed (read-only) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 12,
+                        color: THEME.textSecondary,
+                        background: '#fff4e6',
+                        border: '1px solid #ffe0bf',
+                        padding: '4px 10px',
+                        borderRadius: 999,
+                        fontWeight: 600
+                      }}>Max allowed: {typeof (item as any).maxQuantity === 'number' ? (item as any).maxQuantity : '-'}</span>
+                    </div>
                   </div>
                 
                 {/* Quantity display - Only shown in view mode */}

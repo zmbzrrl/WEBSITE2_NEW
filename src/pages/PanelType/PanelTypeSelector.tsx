@@ -171,6 +171,8 @@ const PanelTypeSelector = () => {
   const [adjustedBoqData, setAdjustedBoqData] = useState<typeof boqData>({});
   const [motionFlags, setMotionFlags] = useState<Record<string, boolean>>({});
   const [proximityFlags, setProximityFlags] = useState<Record<string, boolean>>({});
+  const [roomNumberFlags, setRoomNumberFlags] = useState<Record<string, boolean>>({});
+  const [cardReaderFlags, setCardReaderFlags] = useState<Record<string, boolean>>({});
 
   // Check if we're in edit mode
   const isEditMode = location.state?.editMode || false;
@@ -372,9 +374,9 @@ const PanelTypeSelector = () => {
     return counts;
   }, [projPanels]);
 
-  // Load Motion flags for all designs
+  // Load Motion/Proximity/IDPG flags for all designs
   useEffect(() => {
-    const loadMotionFlags = async () => {
+    const loadFlags = async () => {
       if (!hasBOQEffective || !projectIds || projectIds.length === 0) {
         return;
       }
@@ -389,9 +391,41 @@ const PanelTypeSelector = () => {
 
         const motionFlagsMap: Record<string, boolean> = {};
         const proximityFlagsMap: Record<string, boolean> = {};
+        const roomNumberFlagsMap: Record<string, boolean> = {};
+        const cardReaderFlagsMap: Record<string, boolean> = {};
+        const toBool = (v: any): boolean => {
+          if (typeof v === 'boolean') return v;
+          if (typeof v === 'string') {
+            const s = v.trim().toLowerCase();
+            return s === 'true' || s === 'yes' || s === 'y' || s === '1';
+          }
+          if (typeof v === 'number') return v === 1;
+          return false;
+        };
+
         designs?.forEach((design: any) => {
-          const motionFlag = design.design_data?.originalRow?.Motion || design.design_data?.features?.Motion;
-          const proximityFlag = design.design_data?.originalRow?.Proximity || design.design_data?.features?.Proximity;
+          const or = design.design_data?.originalRow || {};
+          const feat = design.design_data?.features || {};
+          const pd = design.design_data?.panelDesign || {};
+
+          const motionFlag = toBool(or.Motion) || toBool(feat.Motion);
+          const proximityFlag = toBool(or.Proximity) || toBool(feat.Proximity);
+          const roomNumberFlag = (
+            toBool(or.RoomNumber) ||
+            toBool(or['Room Number']) ||
+            toBool(feat.RoomNumber) ||
+            toBool(feat['Room Number']) ||
+            toBool(pd?.idpgConfig?.roomNumber)
+          );
+          const cardReaderFlag = (
+            toBool(or.CardReader) ||
+            toBool(or['Card reader']) ||
+            toBool(or['Card Reader']) ||
+            toBool(feat.CardReader) ||
+            toBool(feat['Card reader']) ||
+            toBool(feat['Card Reader']) ||
+            toBool(pd?.idpgConfig?.cardReader)
+          );
           
           if (motionFlag === true) {
             motionFlagsMap[design.id] = true;
@@ -399,18 +433,28 @@ const PanelTypeSelector = () => {
           if (proximityFlag === true) {
             proximityFlagsMap[design.id] = true;
           }
+          if (roomNumberFlag === true) {
+            roomNumberFlagsMap[design.id] = true;
+          }
+          if (cardReaderFlag === true) {
+            cardReaderFlagsMap[design.id] = true;
+          }
         });
 
         setMotionFlags(motionFlagsMap);
         setProximityFlags(proximityFlagsMap);
+        setRoomNumberFlags(roomNumberFlagsMap);
+        setCardReaderFlags(cardReaderFlagsMap);
         console.log('🔍 Loaded motion flags:', motionFlagsMap);
         console.log('🔍 Loaded proximity flags:', proximityFlagsMap);
+        console.log('🔍 Loaded room number flags:', roomNumberFlagsMap);
+        console.log('🔍 Loaded card reader flags:', cardReaderFlagsMap);
       } catch (error) {
         console.error('Error loading motion flags:', error);
       }
     };
 
-    loadMotionFlags();
+    loadFlags();
   }, [hasBOQEffective, projectIds]);
 
   const remainingByCategory = useMemo(() => ({ SP: undefined, TAG: undefined, IDPG: undefined, DP: undefined, EXT: undefined } as Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT', number | undefined>), [usedByCategory]);
@@ -726,6 +770,48 @@ const PanelTypeSelector = () => {
                                         </Box>
                                       </Tooltip>
                                     )}
+                                    {roomNumberFlags[d.id] && (
+                                      <Tooltip title="Room Number configured">
+                                        <Box
+                                          sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: '50%',
+                                            backgroundColor: '#2196f3',
+                                            color: 'white',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            flexShrink: 0
+                                          }}
+                                        >
+                                          RN
+                                        </Box>
+                                      </Tooltip>
+                                    )}
+                                    {cardReaderFlags[d.id] && (
+                                      <Tooltip title="Card reader configured">
+                                        <Box
+                                          sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: '50%',
+                                            backgroundColor: '#9c27b0',
+                                            color: 'white',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            flexShrink: 0
+                                          }}
+                                        >
+                                          CR
+                                        </Box>
+                                      </Tooltip>
+                                    )}
                                   </Box>
                                   <Chip
                                     label={`Max: ${typeof d.maxQty === 'number' ? d.maxQty : '-'}`}
@@ -768,8 +854,9 @@ const PanelTypeSelector = () => {
                                     variant="outlined" 
                                     size="small" 
                                     onClick={async () => {
-                                      // Check Motion flag and prepare PIR icon data if needed
+                                      // Check Motion/Proximity flags and prepare state for downstream customizers
                                       let motionFlagData = null;
+                                      let proximityFlag = false;
                                       try {
                                         const { data: designData, error } = await supabase
                                           .from('user_designs')
@@ -779,7 +866,9 @@ const PanelTypeSelector = () => {
                                         
                                         if (designData && !error) {
                                           const motionFlag = designData.design_data?.originalRow?.Motion || designData.design_data?.features?.Motion;
+                                          const proxFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
                                           console.log('🔍 Motion flag check for design:', d.name, 'Motion:', motionFlag);
+                                          console.log('🔍 Proximity flag check for design:', d.name, 'Proximity:', proxFlag);
                                           
                                           if (motionFlag === true) {
                                             motionFlagData = {
@@ -788,6 +877,13 @@ const PanelTypeSelector = () => {
                                               panelType: panel.key
                                             };
                                             console.log('✅ Motion flag is true - will place PIR icon automatically');
+                                          }
+                                          if (proxFlag === true) {
+                                            proximityFlag = true;
+                                            try { sessionStorage.setItem(`boqProximity:${d.id}`, 'true'); } catch {}
+                                            console.log('✅ Proximity flag is true - will show proximity indicators');
+                                          } else {
+                                            try { sessionStorage.removeItem(`boqProximity:${d.id}`); } catch {}
                                           }
                                         }
                                       } catch (error) {
@@ -802,7 +898,11 @@ const PanelTypeSelector = () => {
                                           selectedDesignId: d.id, 
                                           selectedDesignName: d.name, 
                                           selectedDesignQuantity: d.qty,
-                                          motionFlagData
+                                          selectedDesignMaxQuantity: typeof d.maxQty === 'number' ? d.maxQty : undefined,
+                                          motionFlagData,
+                                          proximityFlag,
+                                          roomNumberFlag: !!roomNumberFlags[d.id],
+                                          cardReaderFlag: !!cardReaderFlags[d.id]
                                         } 
                                       });
                                     }}

@@ -798,10 +798,12 @@ const DPHCustomizer: React.FC = () => {
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
+      const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity // Use BOQ allocated quantity
+        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
       };
 
       if (panelAddedToProject) {
@@ -1216,6 +1218,35 @@ const DPHCustomizer: React.FC = () => {
       loadGoogleFont(panelDesign.fonts);
     }
   }, [panelDesign.fonts]);
+
+  // Check for Proximity flag and set state for visual indicators
+  const [showProximityIndicators, setShowProximityIndicators] = useState(false);
+  useEffect(() => {
+    const checkProximityFlag = async () => {
+      if (!isEditMode && location.state?.selectedDesignId) {
+        try {
+          const { data: designData, error } = await supabase
+            .from('user_designs')
+            .select('design_data')
+            .eq('id', location.state.selectedDesignId)
+            .single();
+          if (designData && !error) {
+            const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
+            if (proximityFlag === true) {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            } else {
+              setShowProximityIndicators(false);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: false }, Proximity: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking proximity flag:', error);
+        }
+      }
+    };
+    checkProximityFlag();
+  }, [location.state?.selectedDesignId, isEditMode]);
 
   // Only destructure config once, then override iconPositions
   const config = getPanelLayoutConfig('SP');
@@ -1720,6 +1751,13 @@ const DPHCustomizer: React.FC = () => {
               fontFamily: panelDesign.fonts || undefined,
                   }}
           >
+            {/* Proximity indicators overlay */}
+            {showProximityIndicators && (
+              <>
+                <div style={{ position: 'absolute', bottom: '14px', right: '58px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                <div style={{ position: 'absolute', bottom: '14px', right: '28px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+              </>
+            )}
                 <div style={{ 
               position: 'absolute',
               top: '2px',

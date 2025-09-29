@@ -29,6 +29,10 @@ import {
   useTheme,
   TextField,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
@@ -796,10 +800,12 @@ const X2HCustomizer: React.FC = () => {
       // Auto-populate panel name and quantity
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
+      const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
         panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity // Use BOQ allocated quantity
+        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
       };
       addToCart(enhancedDesign);
     }
@@ -1195,6 +1201,53 @@ const X2HCustomizer: React.FC = () => {
     }
   }, [panelDesign.fonts]);
 
+  // Check for Proximity flag and set state for visual indicators
+  const [showProximityIndicators, setShowProximityIndicators] = useState(false);
+  useEffect(() => {
+    const checkProximityFlag = async () => {
+      const selectedDesignId = location.state?.selectedDesignId;
+      const proxFromState = location.state?.proximityFlag === true;
+      if (proxFromState) {
+        setShowProximityIndicators(true);
+        setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+        return;
+      }
+      if (!isEditMode && selectedDesignId) {
+        try {
+          const { data: designData, error } = await supabase
+            .from('user_designs')
+            .select('design_data')
+            .eq('id', selectedDesignId)
+            .single();
+          if (designData && !error) {
+            const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
+            if (proximityFlag === true) {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            } else {
+              setShowProximityIndicators(false);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: false }, Proximity: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking proximity flag:', error);
+        }
+      } else if (!isEditMode) {
+        // Fallback: sessionStorage set at navigation time
+        try {
+          if (selectedDesignId) {
+            const stored = sessionStorage.getItem(`boqProximity:${selectedDesignId}`);
+            if (stored === 'true') {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            }
+          }
+        } catch {}
+      }
+    };
+    checkProximityFlag();
+  }, [location.state?.selectedDesignId, isEditMode]);
+
   // Only destructure config once, then override iconPositions
   const config = getPanelLayoutConfig('X2H');
   console.log('X2H iconPositions length:', config.iconPositions?.length, config.iconPositions);
@@ -1335,25 +1388,7 @@ const X2HCustomizer: React.FC = () => {
               {category}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => (hasPIR ? removePir() : addPir())}
-            style={{
-              padding: '10px 16px',
-              borderRadius: '6px',
-              border: 'none',
-              background: 'transparent',
-              color: '#1976d2',
-              cursor: 'pointer',
-              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-              fontSize: '14px',
-              letterSpacing: '0.5px',
-              fontWeight: 'bold'
-            }}
-            title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-          >
-            {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-          </button>
+           {/* PIR toggle intentionally removed for extended panels */}
         </div>
             <div style={{ 
                   display: 'grid',
@@ -1694,6 +1729,13 @@ const X2HCustomizer: React.FC = () => {
                 fontFamily: panelDesign.fonts || undefined,
               }}
             >
+            {/* Proximity indicators overlay */}
+            {showProximityIndicators && (
+              <>
+                <div style={{ position: 'absolute', bottom: '14px', right: '58px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                <div style={{ position: 'absolute', bottom: '14px', right: '28px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+              </>
+            )}
               <div style={{ 
                 position: 'absolute',
                 top: '2px',
@@ -1704,6 +1746,13 @@ const X2HCustomizer: React.FC = () => {
                 pointerEvents: 'none',
                 zIndex: 1,
               }} />
+              {/* Proximity indicators overlay */}
+              {showProximityIndicators && (
+                <>
+                  <div style={{ position: 'absolute', bottom: '14px', right: '58px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                  <div style={{ position: 'absolute', bottom: '14px', right: '28px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                </>
+              )}
               <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
                 {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
               </div>
@@ -1742,6 +1791,13 @@ const X2HCustomizer: React.FC = () => {
                 pointerEvents: 'none',
                 zIndex: 1,
               }} />
+              {/* Proximity indicators overlay */}
+              {showProximityIndicators && (
+                <>
+                  <div style={{ position: 'absolute', bottom: '14px', right: '58px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                  <div style={{ position: 'absolute', bottom: '14px', right: '28px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                </>
+              )}
               <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
                 {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
                 </div>
