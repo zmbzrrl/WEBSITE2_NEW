@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { getAccessibleProperties, createProperty, listPropertyRevisions, getDesignWithPermissions, createRevision, deleteLayout, deleteProperty } from '../utils/newDatabase';
@@ -37,6 +37,11 @@ const Properties: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState<{ projectIds: string[]; results: any; propertyProjectNames: string[]; propertyProjectCodes: string[] } | null>(null);
+  // BOQ import on new revision
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingBOQImport, setPendingBOQImport] = useState(false);
+  const [showBoqImportModal, setShowBoqImportModal] = useState(false);
+  const [boqDragActive, setBoqDragActive] = useState(false);
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -233,7 +238,57 @@ const Properties: React.FC = () => {
     if (!res.success) { setError(res.message || 'Failed to create revision'); setRowBusy(prev => ({ ...prev, [designId]: undefined })); return; }
     await load();
     setRowBusy(prev => ({ ...prev, [designId]: undefined }));
+    // Open BOQ import modal directly
+    setShowBoqImportModal(true);
   };
+
+  // Handle BOQ JSON selection after creating a revision
+  const handleBOQFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    try { (e.target as any).value = null; } catch {}
+    if (!file) { setPendingBOQImport(false); return; }
+    await processBoqFile(file);
+  };
+
+  // Shared processor for chosen or dropped files
+  const processBoqFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.json')) { alert('Please select a .json file'); setPendingBOQImport(false); return; }
+    try {
+      const json = await loadJsonFromFile(file as any);
+      const v = validateImportDataNew(json as any);
+      if (!v.valid) { alert(`Validation failed: ${v.errors.join(', ')}`); setPendingBOQImport(false); return; }
+      const jsonWithUser = { ...(json as any), user_email: user?.email };
+      const res = await importDatabaseDataNew(jsonWithUser as any);
+      if (!res.success || !res.results) { alert(res.message || 'Import failed'); setPendingBOQImport(false); return; }
+      if (!res.results.project_ids || res.results.project_ids.length === 0) {
+        const errs = (res.results as any).errors || [];
+        alert(`Import completed but no projects were created. ${errs.length ? `Errors: ${errs.join(' | ')}` : ''}`);
+        setPendingBOQImport(false);
+        return;
+      }
+      try {
+        sessionStorage.setItem('boqProjectIds', JSON.stringify(res.results.project_ids));
+        sessionStorage.setItem('boqImportResults', JSON.stringify(res.results));
+      } catch {}
+      setShowBoqImportModal(false);
+      navigate('/panel-type', { state: { projectIds: res.results.project_ids } });
+    } catch (err: any) {
+      alert(err?.message || 'Failed to import file');
+    } finally {
+      setPendingBOQImport(false);
+    }
+  };
+
+  // Drag and drop handlers for BOQ modal
+  const handleBoqDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setBoqDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await processBoqFile(file);
+  };
+  const handleBoqDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setBoqDragActive(true); };
+  const handleBoqDragLeave = () => setBoqDragActive(false);
 
   const handleEditRevision = (propId: string, design: any) => {
     setProjectCode(propId);
@@ -881,6 +936,48 @@ const Properties: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* BOQ Import Modal for New Revision */}
+      {showBoqImportModal && (
+        <div style={{ position: 'fixed', inset: 0 as any, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: 8, padding: 20, width: '90%', maxWidth: 520 }}>
+            <h3 style={{ marginTop: 0 }}>Import BOQ JSON for New Revision</h3>
+            <div
+              onDrop={handleBoqDrop}
+              onDragOver={handleBoqDragOver}
+              onDragLeave={handleBoqDragLeave}
+              style={{
+                border: `2px dashed ${boqDragActive ? '#1b92d1' : '#ddd'}`,
+                borderRadius: 8,
+                padding: 16,
+                background: boqDragActive ? '#f0f8ff' : '#fafafa',
+                marginBottom: 12,
+                textAlign: 'center'
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Drop your BOQ .json here</div>
+              <div style={{ fontSize: 12, color: '#666' }}>or click the button below</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowBoqImportModal(false)}
+                      style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' }}>Skip</button>
+              <button onClick={() => { setPendingBOQImport(true); fileInputRef.current?.click(); }}
+                      style={{ padding: '8px 12px', background: '#1b92d1', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                {pendingBOQImport ? 'Opening…' : 'Choose BOQ JSON'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input for BOQ import on new revision */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleBOQFileSelected}
+        style={{ display: 'none' }}
+      />
     </div>
   );
 };

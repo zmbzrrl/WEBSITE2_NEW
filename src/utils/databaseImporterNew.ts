@@ -377,6 +377,34 @@ const importColleagueProposalData = async (raw: any) => {
       }
     }
 
+    // REPLACE MODE: Remove existing BOQ for this property before inserting new rows
+    if (propId) {
+      try {
+        // Fetch existing design ids to cascade delete panel configurations first
+        const { data: existing } = await supabase
+          .from('user_designs')
+          .select('id')
+          .eq('prop_id', propId);
+        const existingIds = (existing || []).map((r: any) => r.id);
+        if (existingIds.length > 0) {
+          // Delete related panel configurations
+          try {
+            await supabase
+              .from('panel_configurations')
+              .delete()
+              .in('design_id', existingIds);
+          } catch {}
+          // Delete designs
+          await supabase
+            .from('user_designs')
+            .delete()
+            .eq('prop_id', propId);
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to clear existing BOQ before import (continuing):', e);
+      }
+    }
+
     // Create designs directly from colleague rows
     if (propId) {
       for (const d of panelDesigns) {

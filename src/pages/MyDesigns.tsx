@@ -1,7 +1,7 @@
 // 📚 MY DESIGNS PAGE - Hierarchical Organization
 // Organized by: Location → Operator/Service Partner → Project Name + Code
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -45,6 +45,7 @@ import { useCart } from '../contexts/CartContext';
 import { mockSendEmail } from '../utils/mockBackend';
 import { useContext } from 'react';
 import { ProjectContext } from '../App';
+import { loadJsonFromFile, validateImportDataNew, importDatabaseDataNew } from '../utils/databaseImporterNew';
 
 // 🏪 STYLED COMPONENTS
 const PageContainer = styled(Box)(({ theme }) => ({
@@ -127,6 +128,8 @@ const MyDesigns: React.FC = () => {
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showSalesManager, setShowSalesManager] = useState(false);
   const [showError, setShowError] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingBOQImport, setPendingBOQImport] = useState(false);
   
   const userEmail = localStorage.getItem('userEmail') || 'test@example.com';
   
@@ -500,6 +503,16 @@ const MyDesigns: React.FC = () => {
     console.log('Creating new revision for design:', design);
     
     const designData = design.designData;
+    // Offer BOQ import when creating a new revision
+    try {
+      const doImport = window.confirm('Do you want to import a BOQ JSON for this new revision?');
+      if (doImport) {
+        setPendingBOQImport(true);
+        // Trigger hidden file picker
+        setTimeout(() => fileInputRef.current?.click(), 0);
+        return;
+      }
+    } catch {}
     
     if (design.panelType === 'Project') {
       // For projects, go to the cart page to create a new revision of the whole project
@@ -543,6 +556,52 @@ const MyDesigns: React.FC = () => {
         console.error('Unknown panel type:', design.panelType);
         navigate('/panel-type');
       }
+    }
+  };
+
+  // Handle BOQ JSON file selection for new revision flow
+  const handleBOQFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset input value so selecting the same file again triggers change
+    try { (e.target as any).value = null; } catch {}
+    if (!file) {
+      setPendingBOQImport(false);
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      alert('Please select a .json BOQ file');
+      setPendingBOQImport(false);
+      return;
+    }
+    try {
+      const json = await loadJsonFromFile(file);
+      const validation = validateImportDataNew(json);
+      if (!validation.valid) {
+        alert(`Validation failed: ${validation.errors.join(', ')}`);
+        setPendingBOQImport(false);
+        return;
+      }
+      const results = await importDatabaseDataNew(json as any);
+      if (!results.success || !results.results) {
+        alert(results.message || 'Import failed');
+        setPendingBOQImport(false);
+        return;
+      }
+      try {
+        sessionStorage.setItem('boqProjectIds', JSON.stringify(results.results.project_ids || []));
+        sessionStorage.setItem('boqImportResults', JSON.stringify(results.results));
+      } catch {}
+      // Navigate to BOQ page showing imported quantities
+      navigate('/boq', {
+        state: {
+          importResults: results.results,
+          projectIds: results.results.project_ids
+        }
+      });
+    } catch (err: any) {
+      alert(`Import failed: ${err?.message || String(err)}`);
+    } finally {
+      setPendingBOQImport(false);
     }
   };
   
@@ -1040,6 +1099,15 @@ const MyDesigns: React.FC = () => {
           </Paper>
         </Box>
       )}
+
+      {/* Hidden file input for BOQ import on new revision */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleBOQFileSelected}
+        style={{ display: 'none' }}
+      />
     </PageContainer>
   );
 };
