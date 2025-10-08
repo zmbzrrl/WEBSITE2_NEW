@@ -6,7 +6,7 @@ import { Add, Save, Upload } from '@mui/icons-material';
 import PanelPreview from "../components/PanelPreview";
 import { ralColors } from "../data/ralColors";
 import { ProjectContext } from '../App';
-import { saveLayout, getUserHierarchy, getLayouts, loadLayout, createProperty, updateLayout, deleteLayout as deleteLayoutApi, createRevision, getAccessibleProperties } from "../utils/newDatabase";
+import { saveLayout, getLayouts, loadLayout, updateLayout, deleteLayout as deleteLayoutApi, getAccessibleProperties } from "../utils/newDatabase";
 import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from "../utils/databaseImporterNew";
 
 const THEME = {
@@ -125,22 +125,17 @@ const Layouts: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string>('');
   const [saveError, setSaveError] = useState<string>('');
   
-  // Load layout state
-  const [isLoading, setIsLoading] = useState(false);
-  const [savedLayouts, setSavedLayouts] = useState<any[]>([]);
-  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  // Load layout state (removed - no longer needed for auto-persistence)
   
-  // Create property state
-  const [showCreatePropertyDialog, setShowCreatePropertyDialog] = useState(false);
-  const [newProperty, setNewProperty] = useState({
-    projectCode: '',
-    propertyName: '',
-    region: ''
-  });
-  // JSON import state (for Create Property flow)
+  // JSON import state
   const [isImportingJson, setIsImportingJson] = useState(false);
   const [importDragActive, setImportDragActive] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  
+  // Property selector state
+  const [accessibleProperties, setAccessibleProperties] = useState<any[]>([]);
+  const [selectedPropId, setSelectedPropId] = useState<string>('');
+  const [showCreatePropertyDialog, setShowCreatePropertyDialog] = useState(false);
 
   const handleImportFile = async (file: File) => {
     if (!file || !file.name.toLowerCase().endsWith('.json')) {
@@ -188,25 +183,12 @@ const Layouts: React.FC = () => {
   };
   const handleImportDragLeave = () => setImportDragActive(false);
 
-  // Property access/selection state
-  const [accessibleProperties, setAccessibleProperties] = useState<Array<{ prop_id: string; property_name: string; region: string }>>([]);
-  const [selectedPropId, setSelectedPropId] = useState<string>('');
-
-  // Load accessible properties on mount
-  useEffect(() => {
-    const init = async () => {
-      const userEmail = localStorage.getItem('userEmail');
-      if (!userEmail) return;
-      const res = await getAccessibleProperties(userEmail);
-      if (res.success) {
-        setAccessibleProperties(res.properties || []);
-        if ((res.properties || []).length > 0) {
-          setSelectedPropId((res.properties as any[])[0].prop_id);
-        }
-      }
-    };
-    init();
-  }, []);
+  // Project context state (same as panel designs)
+  const [sessionProjectCode, setSessionProjectCode] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('ppProjectCode') || '';
+    } catch { return ''; }
+  });
   
 
   // Clear save messages after 5 seconds
@@ -219,6 +201,68 @@ const Layouts: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [saveMessage, saveError]);
+
+  // Auto-save and restore layout state
+  useEffect(() => {
+    const userEmail = localStorage.getItem('userEmail');
+    const projectKey = projectCode || sessionProjectCode || localStorage.getItem('projectCode') || 'default';
+    
+    console.log('Layouts: Attempting to restore state', { 
+      userEmail, 
+      projectCode, 
+      sessionProjectCode, 
+      projectKey,
+      localStorageProjectCode: localStorage.getItem('projectCode')
+    });
+    
+    if (userEmail && projectKey) {
+      // Try to restore saved layout state
+      const storageKey = `layout_state_${userEmail}_${projectKey}`;
+      const savedState = localStorage.getItem(storageKey);
+      console.log('Layouts: Looking for saved state with key:', storageKey, 'Found:', !!savedState);
+      
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState);
+          console.log('Layouts: Restoring state:', parsedState);
+          if (parsedState.layouts && parsedState.currentLayoutId) {
+            setLayouts(parsedState.layouts);
+            setCurrentLayoutId(parsedState.currentLayoutId);
+            setSelectedRoomType(parsedState.selectedRoomType || 'Bedroom');
+            setPanelSizes(parsedState.panelSizes || {});
+            setDeviceSizes(parsedState.deviceSizes || {});
+            console.log('Layouts: State restored successfully');
+          }
+        } catch (error) {
+          console.warn('Failed to restore layout state:', error);
+        }
+      } else {
+        console.log('Layouts: No saved state found, using default layout');
+      }
+    } else {
+      console.log('Layouts: Missing userEmail or projectKey, using default layout');
+    }
+  }, [projectCode, sessionProjectCode]);
+
+  // Auto-save layout state whenever it changes
+  useEffect(() => {
+    const userEmail = localStorage.getItem('userEmail');
+    const projectKey = projectCode || sessionProjectCode || localStorage.getItem('projectCode') || 'default';
+    
+    if (userEmail && projectKey) {
+      const stateToSave = {
+        layouts,
+        currentLayoutId,
+        selectedRoomType,
+        panelSizes,
+        deviceSizes
+      };
+      
+      const storageKey = `layout_state_${userEmail}_${projectKey}`;
+      localStorage.setItem(storageKey, JSON.stringify(stateToSave));
+      console.log('Layouts: Auto-saved state with key:', storageKey, stateToSave);
+    }
+  }, [layouts, currentLayoutId, selectedRoomType, panelSizes, deviceSizes, projectCode, sessionProjectCode]);
 
 
   // Handle image upload
@@ -495,16 +539,12 @@ const Layouts: React.FC = () => {
     ));
   };
 
-  // Save layout function
+  // Save layout function (same flow as panel designs)
   const handleSaveLayout = async () => {
     // Check if user is logged in
     const userEmail = localStorage.getItem('userEmail');
     if (!userEmail) {
       setSaveError('Please log in first to save layouts.');
-      return;
-    }
-    if (!selectedPropId) {
-      setSaveError('Please select a property first.');
       return;
     }
 
@@ -528,43 +568,41 @@ const Layouts: React.FC = () => {
     setSaveMessage('');
 
     try {
-      // Prepare layout data for saving
+      // Prepare layout data for saving (same structure as panel designs)
       const layoutData = {
         layoutName: currentLayout.name.trim(),
-          imageUrl: currentLayout.imageUrl,
-          imageScale: currentLayout.imageScale,
-          imagePosition: currentLayout.imagePosition,
-          imageFit: currentLayout.imageFit,
-          placedPanels: currentLayout.placedPanels.map(panel => ({
-            ...panel,
-            panelSize: panelSizes[panel.id] || 40 // Include custom panel sizes
-          })),
-          placedDevices: currentLayout.placedDevices.map(device => ({
-            ...device,
-            deviceSize: deviceSizes[device.id] || 24 // Include custom device sizes
-          })),
-          panelSizes: panelSizes,
-          deviceSizes: deviceSizes,
-          // Include project context
-          projectName: projectName || 'Untitled Project',
-          projectCode: projectCode || '',
-          location: sessionStorage.getItem('ppLocation') || '',
-          operator: sessionStorage.getItem('ppOperator') || '',
-          servicePartner: sessionStorage.getItem('ppServicePartner') || '',
-          createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString(),
-        // Add layout-specific metadata
+        projectName: currentLayout.name.trim(),
+        projectCode: projectCode || sessionProjectCode || '',
+        location: sessionStorage.getItem('ppLocation') || '',
+        operator: sessionStorage.getItem('ppOperator') || '',
+        servicePartner: sessionStorage.getItem('ppServicePartner') || '',
+        // Layout-specific data
+        imageUrl: currentLayout.imageUrl,
+        imageScale: currentLayout.imageScale,
+        imagePosition: currentLayout.imagePosition,
+        imageFit: currentLayout.imageFit,
+        placedPanels: currentLayout.placedPanels.map(panel => ({
+          ...panel,
+          panelSize: panelSizes[panel.id] || 40
+        })),
+        placedDevices: currentLayout.placedDevices.map(device => ({
+          ...device,
+          deviceSize: deviceSizes[device.id] || 24
+        })),
+        panelSizes: panelSizes,
+        deviceSizes: deviceSizes,
         totalPanels: currentLayout.placedPanels.length,
         totalDevices: currentLayout.placedDevices.length,
-        hasImage: !!currentLayout.imageUrl
+        hasImage: !!currentLayout.imageUrl,
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
       };
 
-      // Save to new database system
-      const result = await saveLayout(userEmail, layoutData, selectedPropId);
+      // Save using project context (same as panel designs)
+      const result = await saveLayout(userEmail, layoutData, projectCode || sessionProjectCode);
       
       if (result.success) {
         setSaveMessage(`Layout "${currentLayout.name}" saved successfully!`);
-        // Clear error if any
         setSaveError('');
       } else {
         setSaveError(result.message || 'Failed to save layout');
@@ -577,203 +615,8 @@ const Layouts: React.FC = () => {
     }
   };
 
-  // Load layout functions
-  const handleLoadLayouts = async () => {
-    const userEmail = localStorage.getItem('userEmail');
-    if (!userEmail) {
-      setSaveError('Please log in first to load layouts.');
-      return;
-    }
-    if (!selectedPropId) {
-      setSaveError('Please select a property first.');
-      return;
-    }
+  // Layout functions removed - using auto-persistence instead
 
-    setIsLoading(true);
-    setSaveError('');
-
-    try {
-      const result = await getLayouts(userEmail, selectedPropId);
-      
-      if (result.success) {
-        setSavedLayouts(result.layouts || []);
-        setShowLoadDialog(true);
-      } else {
-        setSaveError(result.message || 'Failed to load layouts');
-      }
-    } catch (error) {
-      console.error('Error loading layouts:', error);
-      setSaveError('An unexpected error occurred while loading layouts.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadSavedLayout = async (layoutId: string) => {
-    const userEmail = localStorage.getItem('userEmail');
-    if (!userEmail) {
-      setSaveError('Please log in first to load layouts.');
-      return;
-    }
-    if (!selectedPropId) {
-      setSaveError('Please select a property first.');
-      return;
-    }
-
-    try {
-      const result = await loadLayout(layoutId, userEmail, selectedPropId);
-      
-      if (result.success && result.layout) {
-        const layoutData = result.layout.layout_data;
-        
-        // Update the current layout with loaded data
-        setLayouts(prevLayouts => 
-          prevLayouts.map(layout => 
-            layout.id === currentLayoutId 
-              ? {
-                  ...layout,
-                  name: layoutData.layoutName,
-                  imageUrl: layoutData.imageUrl,
-                  imageScale: layoutData.imageScale,
-                  imagePosition: layoutData.imagePosition,
-                  imageFit: layoutData.imageFit,
-                  placedPanels: layoutData.placedPanels || [],
-                  placedDevices: layoutData.placedDevices || []
-                }
-              : layout
-          )
-        );
-
-        // Update panel and device sizes
-        if (layoutData.panelSizes) {
-          setPanelSizes(layoutData.panelSizes);
-        }
-        if (layoutData.deviceSizes) {
-          setDeviceSizes(layoutData.deviceSizes);
-        }
-
-        setShowLoadDialog(false);
-        setSaveMessage(`Layout "${result.layout.layout_name}" loaded successfully!`);
-      } else {
-        setSaveError(result.message || 'Failed to load layout');
-      }
-    } catch (error) {
-      console.error('Error loading layout:', error);
-      setSaveError('An unexpected error occurred while loading the layout.');
-    }
-  };
-
-  // Create property function
-  const handleCreateProperty = async () => {
-    const userEmail = localStorage.getItem('userEmail');
-    if (!userEmail) {
-      setSaveError('Please log in first to create properties.');
-      return;
-    }
-
-    // Validate project code format (REGION-NUMBER-NUMBER)
-    const projectCodeRegex = /^[A-Z]{2}-\d{4}-\d{4}$/;
-    if (!projectCodeRegex.test(newProperty.projectCode)) {
-      setSaveError('Project code must be in format: REGION-NUMBER-NUMBER (e.g., AE-4020-5678)');
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError('');
-
-    try {
-      const result = await createProperty(userEmail, newProperty);
-      
-      if (result.success) {
-        setSaveMessage(`Property "${newProperty.propertyName}" created successfully!`);
-        setShowCreatePropertyDialog(false);
-        setNewProperty({ projectCode: '', propertyName: '', region: '' });
-      } else {
-        setSaveError(result.message || 'Failed to create property');
-      }
-    } catch (error) {
-      console.error('Error creating property:', error);
-      setSaveError('An unexpected error occurred while creating the property.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Layout actions (rename/edit, delete, new revision)
-  const handleRenameLayout = async (layoutId: string, currentName: string) => {
-    const userEmail = localStorage.getItem('userEmail');
-    if (!userEmail) {
-      setSaveError('Please log in first.');
-      return;
-    }
-    const newName = window.prompt('Rename layout', currentName)?.trim();
-    if (!newName || newName === currentName) return;
-    setIsSaving(true);
-    try {
-      const res = await updateLayout(layoutId, userEmail, { layout_name: newName });
-      if (!res.success) {
-        setSaveError(res.message || 'Failed to rename layout');
-      } else {
-        setSaveMessage('Layout renamed');
-        // refresh list
-        await handleLoadLayouts();
-      }
-    } catch (e) {
-      setSaveError('Unexpected error while renaming');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteLayout = async (layoutId: string, layoutName: string) => {
-    const userEmail = localStorage.getItem('userEmail');
-    if (!userEmail) {
-      setSaveError('Please log in first.');
-      return;
-    }
-    const ok = window.confirm(`Delete layout "${layoutName}"? This cannot be undone.`);
-    if (!ok) return;
-    setIsSaving(true);
-    try {
-      const res = await deleteLayoutApi(layoutId, userEmail);
-      if (!res.success) {
-        setSaveError(res.message || 'Failed to delete layout');
-      } else {
-        setSaveMessage('Layout deleted');
-        await handleLoadLayouts();
-      }
-    } catch (e) {
-      setSaveError('Unexpected error while deleting');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCreateRevision = async (layoutId: string, layoutName: string) => {
-    const userEmail = localStorage.getItem('userEmail');
-    if (!userEmail) {
-      setSaveError('Please log in first.');
-      return;
-    }
-    if (!selectedPropId) {
-      setSaveError('Please select a property first.');
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const res = await createRevision(layoutId, userEmail, selectedPropId);
-      if (!res.success) {
-        setSaveError(res.message || 'Failed to create revision');
-      } else {
-        setSaveMessage('Revision created');
-        await handleLoadLayouts();
-      }
-    } catch (e) {
-      setSaveError('Unexpected error while creating revision');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   // Device management functions
   const startPlacingDevice = (deviceType: string) => {
@@ -1510,6 +1353,10 @@ const Layouts: React.FC = () => {
                 fontSize: 16
               }}>
                 Upload a room plan image (PNG/JPG) to start designing
+                <br />
+                <small style={{ fontSize: 12, marginTop: 10, display: 'block' }}>
+                  Layout state: {layouts.length} layouts, current: {currentLayoutId}
+                </small>
               </div>
             ) : (
               <div
@@ -1732,7 +1579,7 @@ const Layouts: React.FC = () => {
           marginTop: 30
         }}>
           <button
-            onClick={() => navigate("/cart")}
+            onClick={() => navigate("/proj-panels")}
             style={{
               padding: '12px 24px',
               background: THEME.secondary,
@@ -1770,49 +1617,7 @@ const Layouts: React.FC = () => {
             {isSaving ? 'Saving...' : 'Save Layout'}
           </button>
           
-          {/* Load Layout Button */}
-          <button
-            onClick={handleLoadLayouts}
-            disabled={isLoading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 16px',
-              backgroundColor: THEME.secondary,
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              fontSize: 14,
-              fontWeight: 500,
-              opacity: isLoading ? 0.7 : 1
-            }}
-          >
-            <Upload fontSize="small" />
-            {isLoading ? 'Loading...' : 'Load Layout'}
-          </button>
           
-          {/* Create Property Button */}
-          <button 
-            onClick={() => setShowCreatePropertyDialog(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 16px',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 500
-            }}
-          >
-            <Add fontSize="small" />
-            Create Property
-          </button>
         </div>
 
 
@@ -1839,277 +1644,33 @@ const Layouts: React.FC = () => {
           </div>
         )}
 
-        {/* Load Layout Dialog */}
-        {showLoadDialog && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: 8,
-              padding: '24px',
-              maxWidth: '600px',
-              width: '90%',
-              maxHeight: '80vh',
-              overflow: 'auto',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
-            }}>
-              <h3 style={{
-                margin: '0 0 20px 0',
-                fontSize: 18,
-                fontWeight: 600,
-                color: '#333'
-              }}>
-                Load Saved Layout
-              </h3>
-              
-              {savedLayouts.length === 0 ? (
-                <p style={{
-                  textAlign: 'center',
-                  color: '#666',
-                  fontStyle: 'italic',
-                  margin: '40px 0'
-                }}>
-                  No saved layouts found. Save a layout first to load it later.
-                </p>
-              ) : (
-                <div style={{
-                  display: 'grid',
-                  gap: '12px',
-                  maxHeight: '400px',
-                  overflow: 'auto'
-                }}>
-                  {savedLayouts.map((layout) => (
-                    <div
-                      key={layout.id}
-                      onClick={() => loadSavedLayout(layout.id)}
-                      style={{
-                        padding: '16px',
-                        border: '1px solid #e0e0e0',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        backgroundColor: '#fafafa'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f0f0f0';
-                        e.currentTarget.style.borderColor = THEME.primary;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#fafafa';
-                        e.currentTarget.style.borderColor = '#e0e0e0';
-                      }}
-                    >
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        marginBottom: '8px'
-                      }}>
-                        <h4 style={{
-                          margin: 0,
-                          fontSize: 16,
-                          fontWeight: 600,
-                          color: '#333'
-                        }}>
-                          {layout.layout_name}
-                        </h4>
-                        <span style={{
-                          fontSize: 12,
-                          color: '#666',
-                          backgroundColor: '#f0f0f0',
-                          padding: '2px 8px',
-                          borderRadius: 12
-                        }}>
-                          {new Date(layout.created_at).toLocaleDateString()}
-                        </span>
-      </div>
 
-                      <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-                        Owner: {layout.user_email}
-                      </div>
-                      
-                      <div style={{
-                        fontSize: 14,
-                        color: '#666',
-                        marginBottom: '12px'
-                      }}>
-                        {layout.layout_data?.totalPanels || 0} panels, {layout.layout_data?.totalDevices || 0} devices
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); loadSavedLayout(layout.id); }}
-                          style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleCreateRevision(layout.id, layout.layout_name); }}
-                          style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-                        >
-                          New Revision
-                        </button>
-                        {(() => {
-                          const currentEmail = localStorage.getItem('userEmail');
-                          const isOwner = currentEmail && currentEmail === layout.user_email;
-                          if (!isOwner) return null;
-                          return (
-                            <>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleRenameLayout(layout.id, layout.layout_name); }}
-                                style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeleteLayout(layout.id, layout.layout_name); }}
-                                style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', color: '#b00020' }}
-                              >
-                                Delete
-                              </button>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
+        {/* Property Selector (only if not auto-bound and multiple choices exist) */}
+        {(() => {
+          const isAutoBound = Boolean((projectCode && projectCode.trim()) || (sessionProjectCode && sessionProjectCode.trim()));
+          const shouldShowSelector = !isAutoBound && accessibleProperties.length > 1;
+          if (!shouldShowSelector) return null;
+          return (
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 14, color: '#555' }}>Property:</span>
+                <select
+                  value={selectedPropId}
+                  onChange={(e) => setSelectedPropId(e.target.value)}
+                  style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4 }}
+                >
+                  <option value="" disabled>Select a property…</option>
+                  {accessibleProperties.map((p) => (
+                    <option key={p.prop_id} value={p.prop_id}>
+                      {p.property_name} — {p.region} ({p.prop_id})
+                    </option>
                   ))}
-                </div>
-              )}
-              
-              <div style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                marginTop: '20px',
-                gap: '12px'
-              }}>
-                <button
-                  onClick={() => setShowLoadDialog(false)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#f5f5f5',
-                    color: '#666',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    fontSize: 14
-                  }}
-                >
-                  Cancel
-                </button>
+                </select>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
-        {/* Property Selector */}
-        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 14, color: '#555' }}>Property:</span>
-            <select
-              value={selectedPropId}
-              onChange={(e) => setSelectedPropId(e.target.value)}
-              style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4 }}
-            >
-              {accessibleProperties.map((p) => (
-                <option key={p.prop_id} value={p.prop_id}>
-                  {p.property_name} — {p.region} ({p.prop_id})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Create Property Dialog */}
-        {showCreatePropertyDialog && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: 8,
-              padding: '24px',
-              maxWidth: '500px',
-              width: '90%',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
-            }}>
-              <h3 style={{
-                margin: '0 0 20px 0',
-                fontSize: 18,
-                fontWeight: 600,
-                color: '#333'
-              }}>
-                Create New Property
-              </h3>
-              
-              <div style={{ marginBottom: '12px', color: '#555' }}>
-                To create a property, drop your JSON file below.
-              </div>
-
-              {/* JSON Import Drop Zone */}
-              <div
-                onDrop={handleImportDrop}
-                onDragOver={handleImportDragOver}
-                onDragLeave={handleImportDragLeave}
-                style={{
-                  border: `2px dashed ${importDragActive ? '#1b92d1' : '#ddd'}`,
-                  borderRadius: 8,
-                  padding: '20px',
-                  background: importDragActive ? '#f0f8ff' : '#fafafa',
-                  marginBottom: '16px',
-                  textAlign: 'center',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Drop JSON to seed property/projects</div>
-                <div style={{ fontSize: 13, color: '#666' }}>
-                  Drag and drop your <code>.json</code> import file here.
-                </div>
-                {isImportingJson && (
-                  <div style={{ marginTop: 10, fontSize: 13, color: '#1b92d1' }}>Importing…</div>
-                )}
-                {importError && (
-                  <div style={{ marginTop: 10, fontSize: 12, color: '#c0392b' }}>{importError}</div>
-                )}
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  onClick={() => setShowCreatePropertyDialog(false)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#f5f5f5',
-                    color: '#666',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    fontSize: 14
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

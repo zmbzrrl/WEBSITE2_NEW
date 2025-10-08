@@ -46,6 +46,7 @@ import LED from "../../assets/LED.png";
 import { getPanelLayoutConfig } from '../../data/panelLayoutConfig';
 import PanelDimensionSelector from '../../components/PanelDimensionSelector';
 import PanelModeSelector, { PanelMode } from '../../components/PanelModeSelector';
+import PanelPreview from '../../components/PanelPreview';
 import { navigateToPrintPreview } from '../../utils/printUtils';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -517,7 +518,7 @@ const SPCustomizer: React.FC = () => {
     iconColor: 'auto',
     textColor: '#000000',
     fontSize: '9pt',
-    iconSize: '38px',
+    iconSize: '14mm',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -1283,252 +1284,6 @@ const SPCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
-  const renderAbsoluteCell = (index: number) => {
-    const icon = placedIcons.find((i) => i.position === index);
-    const text = iconTexts[index];
-    const isPIR = icon?.category === "PIR";
-    const isEditing = editingCell === index;
-    const isHovered = hoveredCell === index;
-    const isIconHovered = !!iconHovered[index];
-    const iconSize = panelDesign.iconSize || '47px';
-    const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
-    const baseTop = parseInt((pos as any).top || '0', 10);
-    const rowIndex = Math.floor(index / 3);
-    // Move rows 2 and 3 down by 10px
-    const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 10 : 0;
-    // Apply per-row offsets only for tall: row 1 -20px, row 2 +10px, row 3 +40px
-    const perRowOffset = (dimensionKey === 'tall') ? ((rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0)) : 0;
-    const adjustedTop = `${baseTop + perRowOffset + lowerRowsOffset}px`;
-    return (
-      <div
-        key={index}
-        style={{
-          position: 'absolute',
-          ...pos,
-          width: (pos as any).width || iconSize,
-          height: (pos as any).height || iconSize,
-          top: adjustedTop,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
-          zIndex: 2,
-        }}
-        onDragOver={e => { e.preventDefault(); }}
-        onDrop={e => { e.preventDefault(); const iconId = e.dataTransfer.getData('text/plain'); handleDrop(index, iconId); }}
-      >
-        {/* Restricted overlay during drag of DND/MUR */}
-        {isDraggingIcon && restrictedCells.includes(index) && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(220, 53, 69, 0.18)',
-              border: '2px dashed rgba(220, 53, 69, 0.8)',
-              borderRadius: '6px',
-              pointerEvents: 'none',
-              zIndex: 0,
-            }}
-          />
-        )}
-        {icon && panelMode !== 'text_only' && (
-          <div 
-            style={{ position: 'relative', display: 'inline-block' }}
-            onMouseEnter={() => setIconHovered(prev => ({ ...prev, [index]: true }))}
-            onMouseLeave={() => setIconHovered(prev => ({ ...prev, [index]: false }))}
-          >
-            <img
-              src={icon.src}
-              alt={icon.label}
-              draggable={true}
-              onDragStart={(e) => handleDragStart(e, icon)}
-              onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
-              style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
-                objectFit: 'contain',
-                marginBottom: '5px',
-                position: 'relative',
-                zIndex: 1,
-                marginTop: isPIR ? '5px' : '0',
-                cursor: 'move',
-                filter: !isPIR ? getIconColorFilter(panelDesign.backgroundColor) : undefined,
-                transition: 'filter 0.2s',
-              }}
-            />
-            {(
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDeleteIcon(icon.id); }}
-                style={{
-                  position: 'absolute',
-                  top: '-8px',
-                  right: '-8px',
-                  background: 'rgba(220, 53, 69, 0.9)',
-                  color: 'white',
-                  border: '2px solid rgba(255, 255, 255, 0.8)',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  padding: 0,
-                  lineHeight: 1,
-                  zIndex: 3,
-                  opacity: isIconHovered ? 1 : 0,
-                  transform: isIconHovered ? 'scale(1)' : 'scale(0.8)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                  fontWeight: 'bold',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220, 53, 69, 1)'; e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.4)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220, 53, 69, 0.9)'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'; }}
-              >
-                ×
-              </button>
-            )}
-          </div>
-        )}
-        {/* Text field - centered when no icon, below icon when icon exists */}
-        {!isPIR && (
-          <div style={{ 
-            width: '100%', 
-            textAlign: 'center', 
-            marginTop: icon ? '-11px' : '0px',
-            height: icon ? 'auto' : '100%',
-            display: icon ? 'block' : 'flex',
-            alignItems: icon ? 'flex-start' : 'center',
-            justifyContent: icon ? 'flex-start' : 'center'
-          }}>
-            {(
-            <>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={text || ''}
-                    onChange={e => handleTextChange(e, index)}
-                    onBlur={handleTextBlur}
-                    autoFocus
-                    style={{ 
-                      width: '100%', 
-                      padding: '4px', 
-                      fontSize: panelDesign.fontSize || '12px', 
-                      textAlign: 'center', 
-                      border: '1px solid rgba(255, 255, 255, 0.2)', 
-                      borderRadius: '4px', 
-                      outline: 'none', 
-                      background: 'rgba(255, 255, 255, 0.1)', 
-                      transition: 'all 0.2s ease', 
-                      fontFamily: panelDesign.fonts || undefined, 
-                      color: getAutoTextColor(panelDesign.backgroundColor), 
-                      marginTop: '0px',
-                      height: icon ? 'auto' : '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  />
-                ) : (
-                  (() => {
-                    const textAllowed = panelMode === 'custom' || panelMode === 'text_only' || (panelMode === 'icons_text' && !!icon);
-                    if (textAllowed) {
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                          {(panelMode === 'custom' && !icon) && (
-                            <div
-                              title="Add icon"
-                              style={{
-                                width: '36px',
-                                height: '36px',
-                                margin: '0 auto 6px auto',
-                                border: '1px dashed #cbd5e1',
-                                borderRadius: '50%',
-                                color: '#94a3b8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '18px',
-                                lineHeight: 1,
-                                opacity: 0.7,
-                                transition: 'opacity 0.2s ease-in-out'
-                              }}
-                              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
-                            >
-                              +
-                            </div>
-                          )}
-                  <div
-                    onClick={() => handleTextClick(index)}
-                            style={{ 
-                              fontSize: panelDesign.fontSize || '12px', 
-                              color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', 
-                              wordBreak: 'break-word', 
-                              width: '100%', 
-                              textAlign: 'center', 
-                              padding: '4px', 
-                              cursor: 'pointer', 
-                              borderRadius: '4px', 
-                              backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', 
-                              transition: 'all 0.2s ease', 
-                              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', 
-                              marginTop: '0px', 
-                              whiteSpace: 'nowrap', 
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              height: icon ? 'auto' : '100%',
-                              ...(text ? { overflow: 'hidden', textOverflow: 'ellipsis' } : { overflow: 'visible', textOverflow: 'clip' }) 
-                            }}
-                  >
-                    {text || 'Add text'}
-                  </div>
-                        </div>
-                      );
-                    }
-                    // Text is not allowed here → show icon indicator instead
-                    return (
-                      <div
-                        style={{ fontSize: panelDesign.fontSize || '12px', color: '#999999', width: '100%', textAlign: 'center', padding: '4px', borderRadius: '4px', backgroundColor: 'transparent', fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif', marginTop: '0px', cursor: 'default' }}
-                      >
-                        <div
-                          title="Add icon"
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            margin: '0 auto',
-                            border: '1px dashed #cbd5e1',
-                            borderRadius: '50%',
-                            color: '#94a3b8',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '18px',
-                            lineHeight: 1,
-                            opacity: 0.7,
-                            transition: 'opacity 0.2s ease-in-out'
-                          }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
-                        >
-                          +
-                        </div>
-                      </div>
-                    );
-                  })()
-                )}
-            </>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   const customizerSteps = [
     { step: 1, label: 'Select Panel\nType' },
@@ -1674,6 +1429,7 @@ const SPCustomizer: React.FC = () => {
   };
 
   return (
+    <>
     <Box
       sx={{
         minHeight: '100vh',
@@ -1877,72 +1633,27 @@ const SPCustomizer: React.FC = () => {
               </div>
               {/* Panel template (right) */}
               <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '60px' }}>
-                <div
-                  style={{
-                    position: 'relative',
-                    width: activeDimension.width || dimensions.width,
-                    height: activeDimension.height || dimensions.height,
-                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    padding: '0',
-                    border: '2px solid rgba(255, 255, 255, 0.2)',
-                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    transition: 'all 0.3s ease',
-                    margin: 0,
-                    fontFamily: panelDesign.fonts || undefined,
-                  }}
-                >
-                  {/* Proximity indicators - two small circles in bottom right */}
-                  {showProximityIndicators && (
-                    <>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '9px',
-                          right: '59px',
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ff9800',
-                          filter: getIconColorFilter(panelDesign.backgroundColor),
-                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                          zIndex: 10
-                        }}
-                      />
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '10px',
-                          right: '37px',
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ff9800',
-                          filter: getIconColorFilter(panelDesign.backgroundColor),
-                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                          zIndex: 10
-                        }}
-                      />
-                    </>
-                  )}
-                  
-                  <div style={{ 
-                    position: 'absolute',
-                    top: '2px',
-                    left: '2px',
-                    right: '2px',
-                    bottom: '2px',
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                    pointerEvents: 'none',
-                    zIndex: 1,
-                  }} />
-                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
-                    {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
-                  </div>
-                </div>
+                <PanelPreview
+                  icons={placedIcons}
+                  panelDesign={panelDesign}
+                  iconTexts={iconTexts}
+                  type="SP"
+                  showProximityIndicators={showProximityIndicators}
+                  editingCell={editingCell}
+                  hoveredCell={hoveredCell}
+                  iconHovered={iconHovered}
+                  isDraggingIcon={isDraggingIcon}
+                  restrictedCells={restrictedCells}
+                  panelMode={panelMode}
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                  onDeleteIcon={handleDeleteIcon}
+                  onTextClick={handleTextClick}
+                  onTextChange={handleTextChange}
+                  onTextBlur={handleTextBlur}
+                  onIconHover={(index, isHovered) => setIconHovered(prev => ({ ...prev, [index]: isHovered }))}
+                  onCellHover={setHoveredCell}
+                />
               </div>
             </div>
           </div>
@@ -2108,83 +1819,27 @@ const SPCustomizer: React.FC = () => {
               
               {/* Panel Template */}
               <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
-                <div
-                  style={{
-                    position: 'relative',
-                width: activeDimension.width || dimensions.width,
-                height: activeDimension.height || dimensions.height,
-                    background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
-                    padding: '0',
-                    border: '2px solid rgba(255, 255, 255, 0.2)',
-                    borderTop: '3px solid rgba(255, 255, 255, 0.4)',
-                    borderLeft: '3px solid rgba(255, 255, 255, 0.3)',
-                    boxShadow: `0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1)`,
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    transition: 'all 0.3s ease',
-                    margin: '0 auto',
-                    fontFamily: panelDesign.fonts || undefined,
-                    }}
-                >
-                  {/* Proximity indicators - two small circles in bottom right */}
-                  {showProximityIndicators && (
-                    <>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '9px',
-                          right: '59px',
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ff9800',
-                          filter: getIconColorFilter(panelDesign.backgroundColor),
-                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                          zIndex: 10
-                        }}
-                      />
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '10px',
-                          right: '37px',
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ff9800',
-                          filter: getIconColorFilter(panelDesign.backgroundColor),
-                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                          zIndex: 10
-                        }}
-                      />
-                    </>
-                  )}
-                  <div style={{ 
-                    position: 'absolute',
-                    top: '2px',
-                    left: '2px',
-                    right: '2px',
-                    bottom: '2px',
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%)',
-                    pointerEvents: 'none',
-                    zIndex: 1,
-                  }} />
-                  <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
-                    {Array.from({ length: 9 }).map((_, index) => {
-                      // Debug logging for position 0
-                      if (index === 0) {
-                        console.log(`🔍 SPCustomizer Position 0:`, {
-                          pos: activeIconPositions[0],
-                          gridOffsetX,
-                          gridOffsetY,
-                          dimensionKey,
-                          activeDimension,
-                          dimensions
-                        });
-                      }
-                      return renderAbsoluteCell(index);
-                    })}
-                </div>
+                <PanelPreview
+                  icons={placedIcons}
+                  panelDesign={panelDesign}
+                  iconTexts={iconTexts}
+                  type="SP"
+                  showProximityIndicators={showProximityIndicators}
+                  editingCell={editingCell}
+                  hoveredCell={hoveredCell}
+                  iconHovered={iconHovered}
+                  isDraggingIcon={isDraggingIcon}
+                  restrictedCells={restrictedCells}
+                  panelMode={panelMode}
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                  onDeleteIcon={handleDeleteIcon}
+                  onTextClick={handleTextClick}
+                  onTextChange={handleTextChange}
+                  onTextBlur={handleTextBlur}
+                  onIconHover={(index, isHovered) => setIconHovered(prev => ({ ...prev, [index]: isHovered }))}
+                  onCellHover={setHoveredCell}
+                />
               </div>
                 
                 {/* Add to Project Button positioned under the panel template */}
@@ -2249,7 +1904,7 @@ const SPCustomizer: React.FC = () => {
                             setPanelDesign({
                               ...panelDesign,
                               fontSize: '9pt',
-                              iconSize: '38px',
+                              iconSize: '14mm',
                               fonts: 'Myriad Pro SemiBold SemiCondensed'
                             });
                             setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
@@ -2420,7 +2075,7 @@ const SPCustomizer: React.FC = () => {
                     Icon Size
                   </div>
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                    {['38px', '32px'].map((size) => (
+                    {['14mm', '10mm'].map((size) => (
                       <button
                         key={size}
                         onClick={() => setPanelDesign({ ...panelDesign, iconSize: size })}
@@ -2783,8 +2438,6 @@ const SPCustomizer: React.FC = () => {
           </div>
         )}
         
-        
-        {/* DND/MUR Restriction Dialog */}
         <Dialog
           open={showRestrictionDialog}
           onClose={() => setShowRestrictionDialog(false)}
@@ -3051,6 +2704,7 @@ const SPCustomizer: React.FC = () => {
         </DialogActions>
       </Dialog>
     </Box>
+    </>
   );
 };
 

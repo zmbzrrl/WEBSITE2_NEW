@@ -77,31 +77,99 @@ export const hasPropertyAccess = async (userEmail: string, propId: string) => {
   return !!(linkArr && linkArr[0]);
 };
 
-// 📋 SAVE LAYOUT FUNCTION - now requires explicit propId
-export const saveLayout = async (userEmail: string, layoutData: any, propId: string) => {
+// 📋 SAVE LAYOUT FUNCTION - uses project context like panel designs
+export const saveLayout = async (userEmail: string, layoutData: any, projectCode?: string) => {
   try {
-    console.log('💾 Saving layout:', layoutData.layoutName, 'for prop:', propId);
+    console.log('💾 Saving layout:', layoutData.layoutName, 'for project:', projectCode);
 
-    // Verify access to property
-    const canAccess = await hasPropertyAccess(userEmail, propId);
-    if (!canAccess) {
-      return { success: false, error: 'forbidden', message: 'You do not have access to this property' };
+    // Ensure user exists
+    try {
+      await supabase
+        .from('users')
+        .upsert([{ email: userEmail }], { onConflict: 'email' })
+        .then(() => null as unknown as void, () => null as unknown as void);
+    } catch (e) {
+      console.warn('⚠️ Could not upsert user before layout creation (continuing):', e);
     }
 
-    // Insert into user_designs for property-scoped revisions
+    // Find or create project (same logic as panel designs)
+    let projectId = layoutData.projectId;
+    const projectName = layoutData.projectName || 'Untitled Project';
+    
+    if (!projectId && projectCode) {
+      // Try to find existing project by project code (stored in project_description)
+      console.log('🔍 Looking for existing project with code:', projectCode, 'for user:', userEmail);
+      const { data: existingProjects, error: findError } = await supabase
+        .from('user_projects')
+        .select('id, project_name, project_description')
+        .eq('user_email', userEmail)
+        .eq('project_description', projectCode);
+      
+      console.log('🔍 Project lookup result:', { existingProjects, findError });
+      
+      if (!findError && existingProjects && existingProjects.length > 0) {
+        projectId = existingProjects[0].id;
+        console.log('✅ Found existing project:', existingProjects[0].project_name, 'for code:', projectCode);
+      } else {
+        console.log('❌ No existing project found for code:', projectCode);
+      }
+    }
+
+    if (!projectId) {
+      // Create new project with project code in description
+      const baseProjectName = projectName.replace(/\s*\(rev\d+\)$/, '');
+      const { data: projectData, error: projectError } = await supabase
+        .from('user_projects')
+        .insert([
+          {
+            user_email: userEmail,
+            project_name: baseProjectName,
+            project_description: projectCode || layoutData.projectDescription || 'Layout project'
+          }
+        ])
+        .select()
+        .single();
+
+      if (projectError) {
+        console.error('❌ Error creating project:', projectError);
+        return {
+          success: false,
+          error: projectError.message,
+          message: 'Failed to create project'
+        };
+      }
+
+      projectId = projectData.id;
+      console.log('✅ Created new project:', baseProjectName, 'with code:', projectCode);
+    }
+
+    // Insert into layouts table with project context
     const insertPayload: any = {
       user_email: userEmail,
-      prop_id: propId,
-      design_name: layoutData.layoutName,
-      panel_type: 'Project',
-      design_data: layoutData
+      prop_id: projectCode, // Use projectCode as prop_id (required field)
+      project_id: projectId,
+      layout_data: {
+        ...layoutData,
+        layout_name: layoutData.layoutName // Store layout name in layout_data
+      },
+      created_at: new Date().toISOString(),
+      last_modified: new Date().toISOString()
     };
+    
+    console.log('🔍 Inserting layout with payload:', insertPayload);
+    
     const { data, error } = await supabase
-      .from('user_designs')
+      .from('layouts')
       .insert([insertPayload])
       .select('id')
       .single();
-    if (error) return { success: false, error: 'db', message: 'Failed to save layout to database' };
+      
+    console.log('🔍 Insert result:', { data, error });
+      
+    if (error) {
+      console.error('❌ Database error:', error);
+      return { success: false, error: 'db', message: 'Failed to save layout to database: ' + error.message };
+    }
 
     return { success: true, layoutId: (data as any)?.id, message: `Layout "${layoutData.layoutName}" saved successfully!` };
   } catch (error) {
@@ -109,25 +177,43 @@ export const saveLayout = async (userEmail: string, layoutData: any, propId: str
   }
 };
 
-// 📋 GET LAYOUTS FUNCTION - by selected property
-export const getLayouts = async (userEmail: string, propId: string) => {
+// 📋 GET LAYOUTS FUNCTION - by user (project context)
+export const getLayouts = async (userEmail: string, projectCode?: string) => {
   try {
-    console.log('📋 Getting layouts for property:', propId, 'user:', userEmail);
+    console.log('📋 Getting layouts for user:', userEmail, 'project:', projectCode);
 
-    const canAccess = await hasPropertyAccess(userEmail, propId);
-    if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' };
-
-    const { data, error } = await supabase
-      .from('user_designs')
+    let query = supabase
+      .from('layouts')
       .select('*')
-      .eq('prop_id', propId)
-      .eq('panel_type', 'Project')
+      .eq('user_email', userEmail)
       .order('created_at', { ascending: false });
 
-    if (error) return { success: false, error: 'db', message: 'Failed to get layouts' };
+    // If projectCode provided, filter by project
+    if (projectCode) {
+      // Join with user_projects to filter by project code (stored in project_description)
+      query = supabase
+        .from('layouts')
+        .select(`
+          *,
+          user_projects!inner(project_description)
+        `)
+        .eq('user_email', userEmail)
+        .eq('user_projects.project_description', projectCode)
+        .order('created_at', { ascending: false });
+    }
+
+    const { data, error } = await query;
+
+    console.log('🔍 Get layouts result:', { data, error, projectCode });
+
+    if (error) {
+      console.error('❌ Error getting layouts:', error);
+      return { success: false, error: 'db', message: 'Failed to get layouts: ' + error.message };
+    }
 
     return { success: true, layouts: data || [], message: 'Layouts retrieved successfully!' };
   } catch (error) {
+    console.error('❌ Unexpected error getting layouts:', error);
     return { success: false, error: 'unexpected', message: 'Failed to get layouts' };
   }
 };
@@ -253,24 +339,19 @@ export const getUserGroupsForProperty = async (propId: string) => {
   }
 };
 
-// 🔄 LOAD LAYOUT FUNCTION - ensure layout is in selected property
-export const loadLayout = async (layoutId: string, userEmail: string, propId: string) => {
+// 🔄 LOAD LAYOUT FUNCTION - load layout by user
+export const loadLayout = async (layoutId: string, userEmail: string) => {
   try {
-    const canAccess = await hasPropertyAccess(userEmail, propId);
-    if (!canAccess) return { success: false, error: 'forbidden', message: 'No access to property' };
-
     const { data, error } = await supabase
-      .from('design')
+      .from('layouts')
       .select('*')
       .eq('id', layoutId)
-      .eq('prop_id', propId)
-      .eq('is_active', true)
-      .eq('design_type', 'layout')
+      .eq('user_email', userEmail)
       .single();
 
     if (error || !data) return { success: false, error: 'not_found', message: 'Layout not found' };
 
-    return { success: true, layout: data, message: `Layout "${data.name}" loaded successfully!` };
+    return { success: true, layout: data, message: `Layout "${data.layout_data?.layout_name || 'Untitled'}" loaded successfully!` };
   } catch (error) {
     return { success: false, error: 'unexpected', message: 'Failed to load layout' };
   }
@@ -397,13 +478,15 @@ export const getLayoutAccess = async (layoutId: string, requesterEmail: string) 
 // Update layout (owner only)
 export const updateLayout = async (layoutId: string, userEmail: string, updates: { layout_name?: string; layout_data?: any; }) => {
   try {
-    // Update directly in user_designs; enforce ownership by user_email
-    const payload: any = {};
-    if (typeof updates.layout_name === 'string') payload.design_name = updates.layout_name;
-    if (typeof updates.layout_data !== 'undefined') payload.design_data = { ...(updates.layout_data || {}), isEdited: true };
+    // Update directly in layouts table; enforce ownership by user_email
+    const payload: any = {
+      last_modified: new Date().toISOString()
+    };
+    if (typeof updates.layout_name === 'string') payload.layout_name = updates.layout_name;
+    if (typeof updates.layout_data !== 'undefined') payload.layout_data = { ...(updates.layout_data || {}), isEdited: true };
 
     const { error } = await supabase
-      .from('user_designs')
+      .from('layouts')
       .update(payload)
       .eq('id', layoutId)
       .eq('user_email', userEmail);
@@ -418,9 +501,9 @@ export const updateLayout = async (layoutId: string, userEmail: string, updates:
 // Delete layout (owner only) - soft delete
 export const deleteLayout = async (layoutId: string, userEmail: string) => {
   try {
-    // Ownership check in user_designs
+    // Ownership check in layouts table
     const { data: row, error: rowErr } = await supabase
-      .from('user_designs')
+      .from('layouts')
       .select('id, user_email')
       .eq('id', layoutId)
       .maybeSingle();
@@ -428,7 +511,7 @@ export const deleteLayout = async (layoutId: string, userEmail: string) => {
     if ((row as any).user_email !== userEmail) return { success: false, error: 'forbidden', message: 'Only the owner can delete this layout' } as const;
 
     const { error } = await supabase
-      .from('user_designs')
+      .from('layouts')
       .delete()
       .eq('id', layoutId)
       .eq('user_email', userEmail);

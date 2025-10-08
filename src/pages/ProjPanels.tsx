@@ -198,7 +198,7 @@ const ProjPanels: React.FC = () => {
           const propId = projectCode || (() => { try { return sessionStorage.getItem('ppProjectCode') || ''; } catch { return ''; } })();
           // Only reload if cart is empty to avoid overwriting unsaved in-memory edits
           if (propId && (!projPanels || projPanels.length === 0)) {
-            const lr = await loadLayout(location.state.projectDesignId, userEmail, propId);
+            const lr = await loadLayout(location.state.projectDesignId, userEmail);
             if ((lr as any).success) {
               const layout = (lr as any).layout;
               const data = (layout?.data) || {};
@@ -229,7 +229,7 @@ const ProjPanels: React.FC = () => {
             setIsViewMode(false);
             setEditingDesignId(sessDesignId);
             if (sessProjectName) setOriginalProjectName(sessProjectName);
-            const lr = await loadLayout(sessDesignId, userEmail, sessProp);
+            const lr = await loadLayout(sessDesignId, userEmail);
             if ((lr as any).success) {
               const layout = (lr as any).layout;
               if (layout?.name) {
@@ -1140,6 +1140,7 @@ const ProjPanels: React.FC = () => {
                     }))}
                     panelDesign={item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }}
                     type={item.type}
+                    iconTexts={item.iconTexts}
                   />
 
                   <PanelConfigurationSummary

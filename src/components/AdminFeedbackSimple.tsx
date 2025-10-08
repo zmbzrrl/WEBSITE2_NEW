@@ -4,6 +4,7 @@ import {
   Typography,
   Card,
   CardContent,
+    CardActions,
   Button,
   Chip,
   Alert,
@@ -12,6 +13,7 @@ import {
   Paper,
   Stack
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { supabase } from '../utils/supabaseClient';
 import { isAdminEmail } from '../utils/admin';
@@ -31,8 +33,26 @@ const AdminFeedbackSimple: React.FC = () => {
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [viewedIds, setViewedIds] = useState<Set<number>>(() => {
+    try {
+      if (typeof window === 'undefined') return new Set();
+      const raw = localStorage.getItem('feedbackViewedIds');
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw) as number[];
+      return new Set(arr);
+    } catch {
+      return new Set();
+    }
+  });
 
-  const userEmail = localStorage.getItem('userEmail');
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        setUserEmail(localStorage.getItem('userEmail'));
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (userEmail && isAdminEmail(userEmail)) {
@@ -63,7 +83,22 @@ const AdminFeedbackSimple: React.FC = () => {
         }
         setFeedback([]);
       } else {
-        setFeedback(data || []);
+        const list = data || [];
+        setFeedback(list);
+        // Mark currently loaded 'new' items as viewed on this device
+        // so subsequent visits won't show NEW for the same items
+        const newIds = list
+          .filter((f: any) => f.status === 'new')
+          .map((f: any) => f.id as number)
+          .filter((id: number) => !viewedIds.has(id));
+        if (newIds.length > 0) {
+          const updated = new Set(viewedIds);
+          newIds.forEach(id => updated.add(id));
+          setViewedIds(updated);
+          try {
+            localStorage.setItem('feedbackViewedIds', JSON.stringify(Array.from(updated)));
+          } catch {}
+        }
         setError('');
       }
     } catch (err) {
@@ -72,6 +107,32 @@ const AdminFeedbackSimple: React.FC = () => {
       setFeedback([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (item: FeedbackItem) => {
+    const ok = window.confirm('Delete this feedback? This cannot be undone.');
+    if (!ok) return;
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .delete()
+        .eq('id', item.id);
+      if (error) {
+        alert('Failed to delete: ' + error.message);
+        return;
+      }
+      // Optimistically remove from UI
+      setFeedback(prev => prev.filter(f => f.id !== item.id));
+      // Also remove from viewedIds store
+      const updated = new Set(viewedIds);
+      updated.delete(item.id);
+      setViewedIds(updated);
+      try {
+        localStorage.setItem('feedbackViewedIds', JSON.stringify(Array.from(updated)));
+      } catch {}
+    } catch (e) {
+      alert('Unexpected error while deleting.');
     }
   };
 
@@ -86,6 +147,25 @@ const AdminFeedbackSimple: React.FC = () => {
 
   const formatDate = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
+  };
+
+  // Treat items as visually NEW only for a short window (e.g., 72 hours)
+  const isRecent = (timestamp: string, hours: number = 72) => {
+    const created = new Date(timestamp).getTime();
+    const ageMs = Date.now() - created;
+    return ageMs <= hours * 60 * 60 * 1000;
+  };
+
+  // Determine whether to show a chip and which label/color, without mutating DB
+  const getDisplayChipProps = (item: FeedbackItem) => {
+    if (item.status === 'new') {
+      // Show NEW only if this specific item hasn't been seen on this device
+      if (viewedIds.has(item.id)) {
+        return null;
+      }
+      return { label: 'NEW', color: getStatusColor('new') } as const;
+    }
+    return { label: item.status.replace('_', ' ').toUpperCase(), color: getStatusColor(item.status) } as const;
   };
 
   if (!userEmail || !isAdminEmail(userEmail)) {
@@ -177,11 +257,17 @@ const AdminFeedbackSimple: React.FC = () => {
               >
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Chip 
-                      label={item.status.replace('_', ' ').toUpperCase()} 
-                      color={getStatusColor(item.status) as any}
-                      size="small"
-                    />
+                    {(() => {
+                      const chip = getDisplayChipProps(item);
+                      if (!chip) return <span />;
+                      return (
+                        <Chip 
+                          label={chip.label}
+                          color={chip.color as any}
+                          size="small"
+                        />
+                      );
+                    })()}
                     <Typography variant="caption" color="text.secondary">
                       {formatDate(item.timestamp)}
                     </Typography>
@@ -206,13 +292,38 @@ const AdminFeedbackSimple: React.FC = () => {
                   </Typography>
 
                   {item.screenshots.length > 0 && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        📷 {item.screenshots.length} screenshot{item.screenshots.length !== 1 ? 's' : ''}
-                      </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                      {item.screenshots.slice(0, 4).map((url, idx) => (
+                        <a key={idx} href={url} target="_blank" rel="noreferrer">
+                          <img
+                            src={url}
+                            alt={`screenshot-${idx + 1}`}
+                            style={{
+                              width: 72,
+                              height: 72,
+                              objectFit: 'cover',
+                              borderRadius: 6,
+                              border: '1px solid rgba(0,0,0,0.08)'
+                            }}
+                          />
+                        </a>
+                      ))}
+                      {item.screenshots.length > 4 && (
+                        <Chip size="small" label={`+${item.screenshots.length - 4} more`} />
+                      )}
                     </Box>
                   )}
                 </CardContent>
+                <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                  <Button 
+                    variant="text" 
+                    color="error" 
+                    startIcon={<DeleteIcon />} 
+                    onClick={() => handleDelete(item)}
+                  >
+                    Delete
+                  </Button>
+                </CardActions>
               </Card>
             </Grid>
           ))}

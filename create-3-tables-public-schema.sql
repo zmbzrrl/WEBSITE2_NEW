@@ -1,4 +1,4 @@
--- 🏗️ CREATE ONLY THE 3 REQUESTED TABLES IN PUBLIC SCHEMA
+ -- 🏗️ CREATE ONLY THE 3 REQUESTED TABLES IN PUBLIC SCHEMA
 -- Property → User Groups (UG) → Users
 -- Run this in your Supabase SQL Editor
 

@@ -48,14 +48,36 @@ const FeedbackModalSimple: React.FC<FeedbackModalProps> = ({ open, onClose }) =>
 
     try {
       const userEmail = localStorage.getItem('userEmail') || 'anonymous';
-      
-      // Save feedback to database
+
+      // Upload screenshots (if any) to Supabase Storage and collect public URLs
+      const uploadedUrls: string[] = [];
+      if (screenshots.length > 0) {
+        const bucket = 'feedback-screenshots';
+        for (const file of screenshots) {
+          const ext = file.name.split('.').pop() || 'png';
+          const path = `${new Date().toISOString().slice(0,10)}/${userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_')}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from(bucket)
+            .upload(path, file, { contentType: file.type || 'image/png', upsert: false });
+          if (uploadError) {
+            console.error('Screenshot upload failed:', uploadError);
+            // Continue with other files; we still save what we can
+            continue;
+          }
+          const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
+          if (publicData?.publicUrl) {
+            uploadedUrls.push(publicData.publicUrl);
+          }
+        }
+      }
+
+      // Save feedback to database with screenshot URLs
       const { error: dbError } = await supabase
         .from('feedback')
         .insert({
           message: message.trim(),
           user_email: userEmail,
-          screenshots: [], // For now, just save without screenshots
+          screenshots: uploadedUrls,
           timestamp: new Date().toISOString(),
           user_agent: navigator.userAgent,
           url: window.location.href,

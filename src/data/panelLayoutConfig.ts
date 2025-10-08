@@ -58,15 +58,15 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         width: '95mm',
         height: '95mm',
         iconPositions: [
-          { top: '23px', left: '33px' },   // Icon 0 (top-left)
-          { top: '23px', left: '136px' },  // Icon 1 (top-center)
-          { top: '23px', left: '233px' },  // Icon 2 (top-right)
-          { top: '123px', left: '33px' },  // Icon 3 (middle-left)
-          { top: '123px', left: '136px' }, // Icon 4 (middle-center)
-          { top: '123px', left: '233px' }, // Icon 5 (middle-right)
-          { top: '218px', left: '33px' },  // Icon 6 (bottom-left)
-          { top: '218px', left: '136px' }, // Icon 7 (bottom-center)
-          { top: '218px', left: '233px' }, // Icon 8 (bottom-right)
+          { top: '45px', left: '47px' },   // Icon 0 (top-left) - moved down 25px, right 17px, up 3px, left 3px
+          { top: '45px', left: '136px' },  // Icon 1 (top-center) - moved down 25px total, up 3px
+          { top: '45px', left: '226px' },  // Icon 2 (top-right) - moved down 25px, left 7px, up 3px
+          { top: '133px', left: '47px' },  // Icon 3 (middle-left) - aligned with cell 0
+          { top: '133px', left: '136px' }, // Icon 4 (middle-center) - moved down 10px
+          { top: '133px', left: '226px' }, // Icon 5 (middle-right) - moved left 7px, down 10px
+          { top: '225px', left: '47px' },  // Icon 6 (bottom-left) - aligned with cell 0
+          { top: '225px', left: '136px' }, // Icon 7 (bottom-center) - moved down 10px, up 3px
+          { top: '225px', left: '226px' }, // Icon 8 (bottom-right) - moved left 7px, down 10px, up 3px
         ]
       },
       wide: {
@@ -75,50 +75,50 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         // Force a true 3x3 grid across the wider width
         // Spread columns to make use of extra width (approx. +147px from standard)
         iconPositions: [
-          { top: '23px', left: '33px' },    // 0 top-left
-          { top: '23px', left: '180px' },   // 1 top-center (shifted right)
-          { top: '23px', left: '327px' },   // 2 top-right (shifted right)
-          { top: '123px', left: '33px' },   // 3 middle-left
-          { top: '123px', left: '180px' },  // 4 middle-center
-          { top: '123px', left: '327px' },  // 5 middle-right
-          { top: '218px', left: '33px' },   // 6 bottom-left
-          { top: '218px', left: '180px' },  // 7 bottom-center
-          { top: '218px', left: '327px' },  // 8 bottom-right
+          { top: '45px', left: '47px' },    // 0 top-left - moved down 25px, right 17px, up 3px, left 3px
+          { top: '45px', left: '180px' },   // 1 top-center (shifted right) - moved down 25px total, up 3px
+          { top: '45px', left: '320px' },   // 2 top-right (shifted right) - moved down 25px, left 7px, up 3px
+          { top: '133px', left: '47px' },   // 3 middle-left - aligned with cell 0
+          { top: '133px', left: '180px' },  // 4 middle-center - moved down 10px
+          { top: '133px', left: '320px' },  // 5 middle-right - moved left 7px, down 10px
+          { top: '225px', left: '47px' },   // 6 bottom-left - aligned with cell 0
+          { top: '225px', left: '180px' },  // 7 bottom-center - moved down 10px, up 3px
+          { top: '225px', left: '320px' },  // 8 bottom-right - moved left 7px, down 10px, up 3px
         ]
       },
       tall: {
         width: '95mm',
         height: '130mm',
         iconPositions: [
-          { top: '23px', left: '28px' },   // Icon 0 (top-left)
-          { top: '23px', left: '131px' },  // Icon 1 (top-center)
-          { top: '23px', left: '228px' },  // Icon 2 (top-right)
-          { top: '123px', left: '28px' },  // Icon 3 (middle-left)
-          { top: '123px', left: '131px' }, // Icon 4 (middle-center)
-          { top: '123px', left: '228px' }, // Icon 5 (middle-right)
-          { top: '218px', left: '28px' },  // Icon 6 (bottom-left)
-          { top: '218px', left: '131px' }, // Icon 7 (bottom-center)
-          { top: '218px', left: '228px' }, // Icon 8 (bottom-right)
-          { top: '313px', left: '28px' },  // Icon 9 (bottom-extra-left)
-          { top: '313px', left: '131px' }, // Icon 10 (bottom-extra-center)
-          { top: '313px', left: '228px' }, // Icon 11 (bottom-extra-right)
+          { top: '45px', left: '42px' },   // Icon 0 (top-left) - moved down 25px, right 17px, up 3px, left 3px
+          { top: '45px', left: '131px' },  // Icon 1 (top-center) - moved down 25px total, up 3px
+          { top: '45px', left: '221px' },  // Icon 2 (top-right) - moved down 25px, left 7px, up 3px
+          { top: '133px', left: '42px' },  // Icon 3 (middle-left) - aligned with cell 0
+          { top: '133px', left: '131px' }, // Icon 4 (middle-center) - moved down 10px
+          { top: '133px', left: '221px' }, // Icon 5 (middle-right) - moved left 7px, down 10px
+          { top: '225px', left: '42px' },  // Icon 6 (bottom-left) - aligned with cell 0
+          { top: '225px', left: '131px' }, // Icon 7 (bottom-center) - moved down 10px, up 3px
+          { top: '225px', left: '221px' }, // Icon 8 (bottom-right) - moved left 7px, down 10px, up 3px
+          { top: '268px', left: '45px' },  // Icon 9 (bottom-extra-left) - moved right 17px, up 45px
+          { top: '268px', left: '131px' }, // Icon 10 (bottom-extra-center) - moved up 45px
+          { top: '268px', left: '221px' }, // Icon 11 (bottom-extra-right) - moved left 7px, up 45px
         ]
       }
     },
     // Default icon positions (for backward compatibility)
     iconPositions: [
-      { top: '23px', left: '33px' },   // Icon 0 (top-left)
-      { top: '23px', left: '136px' },  // Icon 1 (top-center)
-      { top: '23px', left: '233px' },  // Icon 2 (top-right)
-      { top: '123px', left: '33px' },  // Icon 3 (middle-left)
-      { top: '123px', left: '136px' }, // Icon 4 (middle-center)
-      { top: '123px', left: '233px' }, // Icon 5 (middle-right)
-      { top: '218px', left: '33px' },  // Icon 6 (bottom-left)
-      { top: '218px', left: '136px' }, // Icon 7 (bottom-center)
-      { top: '218px', left: '233px' }, // Icon 8 (bottom-right)
+      { top: '45px', left: '47px' },   // Icon 0 (top-left) - moved down 25px, right 17px, up 3px, left 3px
+      { top: '45px', left: '136px' },  // Icon 1 (top-center) - moved down 25px total, up 3px
+      { top: '45px', left: '226px' },  // Icon 2 (top-right) - moved down 25px, left 7px, up 3px
+      { top: '133px', left: '47px' },  // Icon 3 (middle-left) - aligned with cell 0
+      { top: '133px', left: '136px' }, // Icon 4 (middle-center) - moved down 10px
+      { top: '133px', left: '226px' }, // Icon 5 (middle-right) - moved left 7px, down 10px
+      { top: '225px', left: '47px' },  // Icon 6 (bottom-left) - aligned with cell 0
+      { top: '225px', left: '136px' }, // Icon 7 (bottom-center) - moved down 10px, up 3px
+      { top: '225px', left: '226px' }, // Icon 8 (bottom-right) - moved left 7px, down 10px, up 3px
     ],
     iconLayout: {
-      size: '40px',
+      size: '38px',
       spacing: '5px',
       position: 'top'
     },
@@ -150,64 +150,64 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         width: '95mm',
         height: '95mm',
         iconPositions: [
-          { top: '23px', left: '33px' },
-          { top: '23px', left: '136px' },
-          { top: '23px', left: '233px' },
-          { top: '123px', left: '33px' },
+          { top: '33px', left: '33px' },
+          { top: '33px', left: '136px' },
+          { top: '33px', left: '233px' },
+          { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
           { top: '123px', left: '136px' },
-          { top: '123px', left: '233px' },
-          { top: '218px', left: '33px' },
-          { top: '218px', left: '136px' },
-          { top: '218px', left: '233px' },
+          { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
+          { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
+          { top: '188px', left: '136px' },  // Row 3 - moved up 30px
+          { top: '188px', left: '225px' },  // Cell 8 - moved left by 8px
         ]
       },
       wide: {
         width: '130mm',
         height: '95mm',
         iconPositions: [
-          { top: '23px', left: '33px' },
-          { top: '23px', left: '180px' },
-          { top: '23px', left: '327px' },
-          { top: '123px', left: '33px' },
+          { top: '33px', left: '33px' },
+          { top: '33px', left: '180px' },
+          { top: '33px', left: '327px' },
+          { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
           { top: '123px', left: '180px' },
-          { top: '123px', left: '327px' },
-          { top: '218px', left: '33px' },
-          { top: '218px', left: '180px' },
-          { top: '218px', left: '327px' },
+          { top: '123px', left: '319px' },  // Cell 5 - moved left by 8px
+          { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
+          { top: '188px', left: '180px' },  // Row 3 - moved up 30px
+          { top: '188px', left: '319px' },  // Cell 8 - moved left by 8px
         ]
       },
       tall: {
         width: '95mm',
         height: '130mm',
         iconPositions: [
-          { top: '23px', left: '33px' },
-          { top: '23px', left: '136px' },
-          { top: '23px', left: '233px' },
-          { top: '123px', left: '33px' },
+          { top: '33px', left: '33px' },
+          { top: '33px', left: '136px' },
+          { top: '33px', left: '233px' },
+          { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
           { top: '123px', left: '136px' },
-          { top: '123px', left: '233px' },
-          { top: '218px', left: '33px' },
-          { top: '218px', left: '136px' },
-          { top: '218px', left: '233px' },
-          { top: '313px', left: '33px' },
-          { top: '313px', left: '136px' },
-          { top: '313px', left: '233px' },
+          { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
+          { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
+          { top: '188px', left: '136px' },  // Row 3 - moved up 30px
+          { top: '188px', left: '225px' },  // Cell 8 - moved left by 8px
+          { top: '268px', left: '33px' },  // Row 4 - moved up 45px
+          { top: '268px', left: '136px' },  // Row 4 - moved up 45px
+          { top: '268px', left: '233px' },  // Row 4 - moved up 45px
         ]
       }
     },
     iconPositions: [
-      { top: '23px', left: '33px' },
-      { top: '23px', left: '136px' },
-      { top: '23px', left: '233px' },
-      { top: '123px', left: '33px' },
+      { top: '33px', left: '33px' },
+      { top: '33px', left: '136px' },
+      { top: '33px', left: '233px' },
+      { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
       { top: '123px', left: '136px' },
-      { top: '123px', left: '233px' },
-      { top: '218px', left: '33px' },
-      { top: '218px', left: '136px' },
-      { top: '218px', left: '233px' },
+      { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
+      { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
+      { top: '188px', left: '136px' },  // Row 3 - moved up 30px
+      { top: '188px', left: '225px' },  // Cell 8 - moved left by 8px
     ],
     iconLayout: {
-      size: '40px',
+      size: '32px',
       spacing: '5px',
       position: 'top'
     },
@@ -235,7 +235,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       height: '320px'
     },
     iconPositions: [
-      // Left SP (first 9 slots)
+      // Left SP (first 9 slots) - matches customizer baseIconPositions
       { top: '23px', left: '33px' },   // 0
       { top: '23px', left: '136px' },  // 1
       { top: '23px', left: '233px' },  // 2
@@ -245,7 +245,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       { top: '218px', left: '33px' },  // 6
       { top: '218px', left: '136px' }, // 7
       { top: '218px', left: '233px' }, // 8
-      // Right SP (next 9 slots, left + 320px)
+      // Right SP (next 9 slots, left + 320px) - matches customizer rightIconPositions
       { top: '23px', left: '353px' },   // 9
       { top: '23px', left: '456px' },   // 10
       { top: '23px', left: '553px' },   // 11
@@ -497,7 +497,28 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
 
 // Helper function to get layout config for a panel type
 export const getPanelLayoutConfig = (panelType: string): PanelLayoutConfig => {
-  return PANEL_LAYOUT_CONFIG[panelType] || PANEL_LAYOUT_CONFIG.SP;
+  const config = PANEL_LAYOUT_CONFIG[panelType];
+  if (!config) {
+    console.error(`Panel type '${panelType}' not found in configuration. Available types:`, Object.keys(PANEL_LAYOUT_CONFIG));
+    // Return a basic fallback configuration instead of SP to avoid cross-contamination
+    return {
+      dimensions: { width: '95mm', height: '95mm' },
+      iconPositions: [
+        { top: '50px', left: '50px' },
+        { top: '50px', left: '150px' },
+        { top: '50px', left: '250px' },
+        { top: '150px', left: '50px' },
+        { top: '150px', left: '150px' },
+        { top: '150px', left: '250px' },
+        { top: '250px', left: '50px' },
+        { top: '250px', left: '150px' },
+        { top: '250px', left: '250px' },
+      ],
+      iconLayout: { size: '40px', spacing: '5px', position: 'top' as const },
+      textLayout: { fontSize: '12px', position: 'absolute' as const, bottom: '13px', padding: '2px' }
+    };
+  }
+  return config;
 };
 
 // Helper function to get dimensions for a panel type

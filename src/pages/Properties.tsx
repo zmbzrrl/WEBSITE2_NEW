@@ -447,17 +447,17 @@ const Properties: React.FC = () => {
             <select
               value={regionFilter}
               onChange={(e) => setRegionFilter(e.target.value)}
-              style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff' }}
+              style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ddd' }}
             >
-              <option value="All">All regions</option>
-              {uniqueRegions.map(r => (
-                <option key={r} value={r}>{r}</option>
+              <option value="All">All Regions</option>
+              {uniqueRegions.map(region => (
+                <option key={region} value={region}>{region}</option>
               ))}
             </select>
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value)}
-              style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ddd', background: '#fff' }}
+              style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ddd' }}
             >
               <option value="name_asc">Sort: Name (A→Z)</option>
               <option value="name_desc">Sort: Name (Z→A)</option>

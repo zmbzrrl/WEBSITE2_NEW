@@ -39,6 +39,7 @@ interface CartItem {
     extraComments?: string;
     isLayoutReversed?: boolean;
   };
+  iconTexts?: { [key: number]: string };
 }
 
 export interface CartContextType {
