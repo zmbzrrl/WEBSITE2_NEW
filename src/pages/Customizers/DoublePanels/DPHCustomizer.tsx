@@ -801,7 +801,7 @@ const DPHCustomizer: React.FC = () => {
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
-        panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
+        panelName: selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity, // Use BOQ allocated quantity
         maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
       };

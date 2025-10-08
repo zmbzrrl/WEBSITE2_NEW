@@ -1084,6 +1084,7 @@ const IDPGCustomizer = () => {
       quantity: 1,
       panelDesign: { 
         ...panelDesign, 
+        iconColor: panelDesign.iconColor || 'auto', // Ensure iconColor is included
         backbox, 
         extraComments,
         // Save IDPG-specific configuration
@@ -1109,7 +1110,7 @@ const IDPGCustomizer = () => {
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
       const enhancedDesign = {
         ...design,
-        panelName: design.panelName || selectedDesignName || getPanelTypeLabel(design.type),
+        panelName: selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity, // Use BOQ allocated quantity
         maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
       };
