@@ -793,10 +793,15 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               }
             }
             
-            // TAG: lower rows 2 and 3 (indices 3-8) by 30px
+            // TAG: lower rows 2 and 3 (indices 3-8) by 30px, and move rows 3 and 4 down by additional 8px
             if (isTAG && adjustedPos && adjustedPos.top && index >= 3 && index <= 8) {
               const topValue = parseInt(adjustedPos.top);
-              adjustedPos = { ...adjustedPos, top: (topValue + 30) + 'px' } as any;
+              let offset = 30; // Base offset for rows 2 and 3
+              // Add 8px for rows 3 and 4 (indices 6-8 and 9-11 if they exist)
+              if (index >= 6) {
+                offset += 8;
+              }
+              adjustedPos = { ...adjustedPos, top: (topValue + offset) + 'px' } as any;
             }
             
             return (
@@ -1793,6 +1798,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                   // Lower rows 2 and 3 by 30px
                   const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
                   perRowOffset += lowerRowsOffset;
+                  // Move row 3 and 4 down by additional 8px
+                  if (rowIndex === 2 || rowIndex === 3) {
+                    perRowOffset += 8;
+                  }
                 }
                 
                 const adjustedTop = `${baseTop + perRowOffset}px`;

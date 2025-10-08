@@ -131,7 +131,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
     specialLayouts: {
       PIR: {
         iconSize: '40px',
-        marginTop: '20px'
+        marginTop: '0'
       },
       Bathroom: {
         iconSize: '47px' // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
@@ -220,7 +220,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
     specialLayouts: {
       PIR: {
         iconSize: '40px',
-        marginTop: '20px'
+        marginTop: '0'
       },
       Bathroom: {
         iconSize: '47px' // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
