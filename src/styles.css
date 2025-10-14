@@ -17,22 +17,26 @@ html {
 
 /* Print-specific styles for PDF export */
 @media print {
-  /* Reset page margins and hide browser UI */
+  /* Remove ALL browser margins and headers/footers */
   @page {
-    margin: 0.5in;
+    margin: 12.7mm !important; /* Set proper page margins */
     size: A4;
+    /* Hide browser headers and footers completely */
+    @top-left { content: none; }
+    @top-center { content: none; }
+    @top-right { content: none; }
+    @bottom-left { content: none; }
+    @bottom-center { content: none; }
+    @bottom-right { content: none; }
   }
   
-  /* Remove browser default headers and footers */
-  @page {
-    margin: 12.7mm; /* 0.5 inch margins */
-    size: A4;
-  }
-  
-  /* Hide browser headers and footers */
+  /* Reset body margins for print */
   html, body {
-    -webkit-print-color-adjust: exact;
-    color-adjust: exact;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    /* Remove forced white background to preserve original colors */
   }
   
   /* Hide all non-essential elements during print */
@@ -52,6 +56,15 @@ html {
     display: none !important;
   }
   
+  /* Hide browser UI elements */
+  .MuiButton-root,
+  .MuiDialog-root,
+  .MuiDialog-paper,
+  [role="button"]:not(.panel-button),
+  button:not(.panel-button) {
+    display: none !important;
+  }
+  
   /* Ensure proper page breaks */
   .page-break {
     page-break-before: always;
@@ -65,6 +78,14 @@ html {
   .no-break {
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+  
+  /* Remove any potential borders from the root */
+  #root {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    outline: none !important;
   }
 }
 

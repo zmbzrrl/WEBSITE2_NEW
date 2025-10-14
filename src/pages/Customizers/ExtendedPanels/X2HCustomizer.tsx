@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from '../../../contexts/CartContext';
 import { supabase } from '../../../utils/supabaseClient';
 import '../Customizer.css';
+import { getBackboxOptions } from '../../../utils/backboxOptions';
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -34,6 +35,9 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import FlipIcon from '@mui/icons-material/Flip';
 import { styled } from '@mui/material/styles';
 import { ralColors, RALColor } from '../../../data/ralColors';
 import { ProjectContext } from '../../../App';
@@ -448,11 +452,9 @@ const InformationBox = ({
                 style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
               >
                 <option value="">Select a backbox...</option>
-                <option value="Backbox 1">Backbox 1</option>
-                <option value="Backbox 2">Backbox 2</option>
-                <option value="Backbox 3">Backbox 3</option>
-                <option value="Backbox 4">Backbox 4</option>
-                <option value="Backbox 5">Backbox 5</option>
+                {getBackboxOptions('X2H').map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
@@ -564,6 +566,8 @@ const X2HCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  // Free design PIR toggle state
+  const [pirToggle, setPirToggle] = useState<boolean>(false);
   
   // Track if panel has been added to project for button text change
   const [panelAddedToProject, setPanelAddedToProject] = useState<boolean>(false);
@@ -571,6 +575,10 @@ const X2HCustomizer: React.FC = () => {
   // Custom panel component state
   const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
   const [showCustomPanelDialog, setShowCustomPanelDialog] = useState(false);
+  
+  // Add swap and mirror state
+  const [swapUpDown, setSwapUpDown] = useState(false); // NEW: swap state
+  const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
   
   // Icon size conversion function (mm to px)
   const convertIconSize = (size: string): string => {
@@ -604,6 +612,12 @@ const X2HCustomizer: React.FC = () => {
     setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
     setIconTexts(prev => ({ ...prev }));
   };
+  // Sync free-design toggle with current PIR presence
+  useEffect(() => {
+    if (location.state?.fromFreeDesign) {
+      setPirToggle(hasPIR);
+    }
+  }, [location.state?.fromFreeDesign, hasPIR]);
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
@@ -631,6 +645,9 @@ const X2HCustomizer: React.FC = () => {
         setPanelDesign(editPanelData.panelDesign);
         setBackbox(editPanelData.panelDesign.backbox || '');
         setExtraComments(editPanelData.panelDesign.extraComments || '');
+        // Load swap states
+        setSwapUpDown(editPanelData.panelDesign.swapUpDown || false);
+        setMirrorVertical(editPanelData.panelDesign.mirrorVertical || false);
       }
       
       // Load placed icons
@@ -749,7 +766,7 @@ const X2HCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign } = {
+    const design: Design & { panelDesign: typeof panelDesign & { swapUpDown?: boolean; mirrorVertical?: boolean } } = {
       type: "X2H",
       icons: Array.from({ length: iconPositions.length })
         .map((_, index) => {
@@ -765,7 +782,7 @@ const X2HCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { ...panelDesign, backbox, extraComments, swapUpDown, mirrorVertical },
     };
 
     const category = mapTypeToCategory(design.type);
@@ -989,6 +1006,16 @@ const X2HCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
+  // Swap left/right logic - toggle state
+  const handleSwapUpDown = () => {
+    setSwapUpDown(s => !s);
+  };
+
+  // Mirror vertically logic - just toggle the state
+  const handleMirrorVertical = () => {
+    setMirrorVertical(m => !m);
+  };
+
   const renderAbsoluteCell = (index: number) => {
     const icon = placedIcons.find((i) => i.position === index);
     const text = iconTexts[index];
@@ -997,10 +1024,41 @@ const X2HCustomizer: React.FC = () => {
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
     const iconSize = convertIconSize(panelDesign.iconSize || '14mm');
-    const pos = iconPositions[index] || { top: '0px', left: '0px' };
+    // Default position
+    let pos = iconPositions[index] || { top: '0px', left: '0px' };
+    
+    // If swapUpDown (horizontal swap) is true, swap left/right: move 3x3 grid to right, big icons to left
+    if (swapUpDown) {
+      if (index >= 0 && index <= 8) {
+        const swappedGridOffsetX = 550 // shift grid much further to right side
+        pos = { ...pos, left: (parseInt(pos.left) + swappedGridOffsetX) + 'px' } as any;
+      } else if (index === 9) {
+        // Move first big icon to left side
+        pos = { ...pos, left: '36px' } as any;
+        } else if (index === 10) {
+          // Move second big icon to right side to maintain proper spacing
+          pos = { ...pos, left: '300px' } as any;
+        }
+    }
+    
+    // If mirrorVertical is true, mirror the 3x3 grid horizontally (column 0<->2)
+    if (mirrorVertical && index >= 0 && index <= 8) {
+      const row = Math.floor(index / 3);
+      const col = index % 3;
+      if (col === 0) {
+        // Column 0 moves to column 2 position
+        const col2Pos = iconPositions?.[row * 3 + 2] || pos;
+        pos = { ...col2Pos };
+      } else if (col === 2) {
+        // Column 2 moves to column 0 position
+        const col0Pos = iconPositions?.[row * 3] || pos;
+        pos = { ...col0Pos };
+      }
+      // Column 1 stays in place
+    }
     
     // Calculate container size to match icon size
-    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : ((index === 9 || index === 10) ? '204px' : convertIconSize(panelDesign.iconSize || '14mm')));
+    const containerSize = ((index === 9 || index === 10) ? '204px' : convertIconSize(panelDesign.iconSize || '14mm'));
     
     return (
         <div
@@ -1248,6 +1306,39 @@ const X2HCustomizer: React.FC = () => {
     checkProximityFlag();
   }, [location.state?.selectedDesignId, isEditMode]);
 
+  // Check for Motion flag and automatically place PIR icon if needed
+  useEffect(() => {
+    const checkMotionFlag = async () => {
+      const motionFlagData = location.state?.motionFlagData;
+      
+      if (motionFlagData?.hasMotionFlag && !isEditMode && icons && Object.keys(icons).length > 0) {
+        console.log('🔍 X2H Motion flag data received:', motionFlagData);
+        
+        try {
+          // Get PIR icon from icon library
+          const pirIcon = (icons as any)['PIR'];
+          if (pirIcon && !hasPIR) {
+            const pirPosition = getPirIndex();
+            const newPir: PlacedIcon = {
+              id: Date.now(),
+              iconId: 'PIR',
+              src: pirIcon.src || '',
+              label: 'PIR',
+              position: pirPosition,
+              category: 'PIR'
+            };
+            setPlacedIcons(prev => [...prev, newPir]);
+            console.log('✅ X2H PIR icon placed automatically due to motion flag');
+          }
+        } catch (error) {
+          console.error('Error placing PIR icon:', error);
+        }
+      }
+    };
+    
+    checkMotionFlag();
+  }, [location.state?.motionFlagData, isEditMode, icons, placedIcons]);
+
   // Only destructure config once, then override iconPositions
   const config = getPanelLayoutConfig('X2H');
   console.log('X2H iconPositions length:', config.iconPositions?.length, config.iconPositions);
@@ -1331,6 +1422,59 @@ const X2HCustomizer: React.FC = () => {
         </Box>
 
         <ProgressBar />
+
+        {/* Free Design: Motion Sensor Toggle */}
+        {location.state?.fromFreeDesign && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, gap: 24 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={pirToggle}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setPirToggle(enabled);
+                  if (enabled) {
+                    const pirIcon = (icons as any)['PIR'];
+                    const pirPos = getPirIndex();
+                    const exists = placedIcons.some(icon => icon.category === 'PIR');
+                    const occupied = placedIcons.some(icon => icon.position === pirPos);
+                    if (pirIcon && !exists && !occupied) {
+                      const newPir = {
+                        id: Date.now(),
+                        iconId: 'PIR',
+                        src: pirIcon.src || '',
+                        label: 'PIR',
+                        position: pirPos,
+                        category: 'PIR'
+                      } as any;
+                      setPlacedIcons(prev => [...prev, newPir]);
+                    }
+                  } else {
+                    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+                    setIconTexts(prev => ({ ...prev }));
+                  }
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Motion Sensor</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={showProximityIndicators}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setShowProximityIndicators(enabled);
+                  setPanelDesign((prev: any) => ({
+                    ...prev,
+                    features: { ...(prev?.features || {}), Proximity: enabled },
+                    Proximity: enabled,
+                  }));
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Proximity</span>
+            </label>
+          </Box>
+        )}
 
         {/* Step Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
@@ -1732,8 +1876,34 @@ const X2HCustomizer: React.FC = () => {
             {/* Proximity indicators overlay */}
             {showProximityIndicators && (
               <>
-                <div style={{ position: 'absolute', bottom: '14px', right: '58px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
-                <div style={{ position: 'absolute', bottom: '14px', right: '28px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ff9800', zIndex: 3 }} />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '18px',
+                    right: '62px',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ff9800',
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                    zIndex: 10
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '18px',
+                    right: '32px',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ff9800',
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                    zIndex: 10
+                  }}
+                />
               </>
             )}
               <div style={{ 
@@ -1802,6 +1972,27 @@ const X2HCustomizer: React.FC = () => {
                 {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
                 </div>
             </div>
+          </div>
+        )}
+
+        {/* Swap/Mirror Buttons - compact toolbar above template on step 2 */}
+        {currentStep === 2 && (
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, margin: '8px 0 12px 0' }}>
+            <Button
+              variant="outlined"
+              onClick={handleSwapUpDown}
+              size="small"
+            >
+              {!swapUpDown ? 'Swap' : 'Unswap'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleMirrorVertical}
+              size="small"
+              startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} fontSize="small" />}
+            >
+              {mirrorVertical ? 'Unmirror' : 'Mirror'}
+            </Button>
           </div>
         )}
 

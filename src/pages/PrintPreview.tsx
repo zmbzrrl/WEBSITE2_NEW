@@ -9,6 +9,7 @@ import PanelPreview from '../components/PanelPreview';
 import logoImage from '../assets/logo.png';
 import { getIconColorName } from '../data/iconColors';
 import { ralColors } from '../data/ralColors';
+import { getBackboxOptions } from '../utils/backboxOptions';
 import page2Png from '../assets/pdf/2.png';
 import page3Png from '../assets/pdf/3.png';
 import page4Png from '../assets/pdf/4.png';
@@ -28,13 +29,13 @@ const getIconColorFromBackground = (backgroundColor: string): string => {
   // Calculate brightness (0-255)
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   
-  // Use white for dark backgrounds, dark grey for light backgrounds
+  // Use white for dark backgrounds, grey for light backgrounds
   if (brightness < 150) {
     // Dark background - use white icons
     return 'White';
   } else {
-    // Light background - use dark grey icons
-    return 'Dark Grey';
+    // Light background - use grey icons
+    return 'Grey';
   }
 };
 
@@ -70,10 +71,11 @@ const getPanelDetails = (config: PanelConfig) => {
   const fonts = panelDesign?.fonts || 'Default';
   
   // Get panel type
-  const panelType = type || 'Standard';
+  const panelType = type || 'SP';
   
-  // Get backbox (assuming standard for now)
-  const backbox = 'Standard';
+  // Get backbox based on panel type and configuration
+  const backboxOptions = getBackboxOptions(panelType, panelDesign);
+  const backbox = backboxOptions.length > 0 ? backboxOptions[0].label : 'Standard';
   
   return {
     panelName: name || 'Panel',
@@ -92,16 +94,21 @@ const PrintContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
   padding: 0, // Remove padding to let page margins show
   backgroundColor: 'white',
+  margin: 0,
+  border: 'none',
   
   // Print-specific styles
   '@media print': {
     padding: 0,
-    backgroundColor: 'white',
+    margin: 0,
+    /* Remove forced white background to preserve original colors */
     minHeight: 'auto',
     height: 'auto',
+    border: 'none',
+    outline: 'none',
     // Hide browser default headers and footers
     '@page': {
-      margin: '12.7mm', // 0.5 inch margins
+      margin: 0, // Remove all margins
       size: 'A4',
     },
     // Additional print styles to remove browser headers/footers
@@ -220,19 +227,22 @@ const CoverPage = styled(Paper)(({ theme }) => ({
   backgroundColor: '#f5f5f5', // Light grey background
   boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
   textAlign: 'center',
+  border: 'none',
   
   '@media print': {
     boxShadow: 'none',
     margin: '0',
-    padding: '12.7mm', // Match the page margins
+    padding: '0', // Remove padding since @page handles margins
     pageBreakInside: 'avoid',
     breakInside: 'avoid',
-    width: '100%',
-    height: '100%',
-    minHeight: '100%',
+    width: '100%', // Fill entire page width
+    height: '100%', // Fill entire page height
+    minHeight: '100%', // Ensure it fills the page
     backgroundColor: 'white', // White background for print
     alignItems: 'flex-start',
-    justifyContent: 'flex-start'
+    justifyContent: 'flex-start',
+    border: 'none',
+    outline: 'none'
   }
 }));
 
@@ -295,19 +305,22 @@ const A4Page = styled(Paper)(({ theme }) => ({
   flexDirection: 'column',
   backgroundColor: '#f5f5f5', // Light grey background
   boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+  border: 'none',
   
   '@media print': {
     boxShadow: 'none',
     margin: '0',
-    padding: '12.7mm', // Match the page margins
+    padding: '0', // Remove padding since @page handles margins
     pageBreakAfter: 'always',
     pageBreakInside: 'avoid',
     breakInside: 'avoid',
-    width: '100%',
-    height: '100vh',
-    minHeight: '100vh',
+    width: '100%', // Fill entire page width
+    height: '100vh', // Fill entire page height
+    minHeight: '100vh', // Ensure it fills the page
     backgroundColor: 'white', // White background for print
-    justifyContent: 'flex-start'
+    justifyContent: 'flex-start',
+    border: 'none',
+    outline: 'none'
   }
 }));
 
@@ -321,7 +334,7 @@ const PanelGrid = styled(Box)(({ theme }) => ({
   padding: '0 12.7mm 12.7mm 12.7mm',
   '@media print': {
     gap: '5mm',
-    padding: '0',
+    padding: '12.7mm', // Add padding back since pages don't have it
     height: 'auto',
     minHeight: 'auto',
     alignSelf: 'flex-start'
@@ -357,11 +370,13 @@ const PanelDetailsContainer = styled(Box)(({ theme }) => ({
   minWidth: '120mm',
   maxWidth: '150mm',
   padding: '5mm',
+  marginLeft: '20mm',
   
   '@media print': {
     padding: '3mm',
     minWidth: '100mm',
-    maxWidth: '120mm'
+    maxWidth: '120mm',
+    marginLeft: '15mm'
   }
 }));
 
@@ -383,11 +398,11 @@ const PanelVisualContainer = styled(Box)(({ theme }) => ({
 const DetailRow = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
-  marginBottom: theme.spacing(1),
+  marginBottom: theme.spacing(2),
   width: '100%',
   
   '@media print': {
-    marginBottom: '2px'
+    marginBottom: '8px'
   }
 }));
 
@@ -599,17 +614,55 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
   const [showPrintInstructions, setShowPrintInstructions] = useState(false);
 
   useEffect(() => {
-    // Add print styles to remove browser headers/footers
+    // Add comprehensive print styles to remove browser headers/footers and borders
     const style = document.createElement('style');
     style.textContent = `
       @media print {
         @page {
-          margin: 12.7mm;
+          margin: 12.7mm !important; /* Set proper page margins */
           size: A4;
+          /* Completely hide browser headers and footers */
+          @top-left { content: none !important; }
+          @top-center { content: none !important; }
+          @top-right { content: none !important; }
+          @bottom-left { content: none !important; }
+          @bottom-center { content: none !important; }
+          @bottom-right { content: none !important; }
         }
+        
         html, body {
-          -webkit-print-color-adjust: exact;
-          color-adjust: exact;
+          margin: 0 !important;
+          padding: 0 !important;
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          /* Remove forced white background to preserve original colors */
+          border: none !important;
+          outline: none !important;
+        }
+        
+        #root {
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          outline: none !important;
+        }
+        
+        /* Hide any browser UI elements */
+        .MuiButton-root,
+        .MuiDialog-root,
+        .MuiDialog-paper {
+          display: none !important;
+        }
+        
+        /* Ensure no unwanted borders */
+        * {
+          border: none !important;
+          outline: none !important;
+        }
+        
+        /* Re-apply borders only to specific elements that need them */
+        .MuiPaper-root {
+          border: 1px solid #e0e0e0 !important;
         }
       }
     `;
@@ -696,7 +749,40 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
     setShowPrintInstructions(false);
     // Small delay to ensure dialog is closed
     setTimeout(() => {
+      // Add additional print styles right before printing
+      const printStyle = document.createElement('style');
+      printStyle.textContent = `
+        @media print {
+          @page {
+            margin: 12.7mm !important; /* Set proper page margins */
+            size: A4;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            outline: none !important;
+          }
+          #root {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `;
+      document.head.appendChild(printStyle);
+      
+      // Trigger print
       window.print();
+      
+      // Remove the temporary style after printing
+      setTimeout(() => {
+        document.head.removeChild(printStyle);
+      }, 1000);
     }, 100);
   };
 
@@ -772,11 +858,13 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             alignItems: 'flex-start', 
             width: '100%', 
             marginTop: '-100px',
+            padding: '12.7mm', // Add padding for print
             '@media print': {
               marginTop: '0px',
               paddingTop: '40px',
               width: '100%',
-              maxWidth: 'none'
+              maxWidth: 'none',
+              padding: '0' // Remove padding since @page handles margins
             }
           }}>
             {/* Logo on first line */}
@@ -903,7 +991,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         iconColorNames = explicitIconColors.map(hex => {
                           const h = hex.toLowerCase();
                           if (h === '#ffffff' || h === '#fff') return 'White';
-                          if (h === '#808080' || h === '#000000' || h === '#000') return 'Dark Grey';
+                          if (h === '#808080' || h === '#000000' || h === '#000') return 'Grey';
                           return getIconColorFromBackground(hex);
                         });
                       } else {
@@ -914,7 +1002,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                       }
                       const set = new Set(iconColorNames);
                       if (set.size === 0) return 'N/A';
-                      if (set.has('White') && set.has('Dark Grey')) return 'Black, White';
+                      if (set.has('White') && set.has('Grey')) return 'Black, White';
                       return set.has('White') ? 'White' : 'Black';
                     })()}
                   </Typography>
@@ -1142,6 +1230,30 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
               {projectCode}
             </Typography>
           </Box>
+
+          {/* Disclaimer Section */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'flex-start', 
+            width: '100%', 
+            marginTop: '40px'
+          }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: '#888',
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                fontSize: '0.9rem',
+                textAlign: 'left',
+                lineHeight: 1.4,
+                fontStyle: 'italic'
+              }}
+            >
+              <strong>Disclaimer:</strong><br />
+              The colors in this document are only an approximation to the colors of the real panels
+            </Typography>
+          </Box>
         </CoverPage>
 
         {/* Static pages 2,3,4 from SVGs */}
@@ -1260,14 +1372,143 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                 return (
                   <PanelContainer key={panelIndex}>
                     <PanelVisualContainer>
+                      {/* Dimension lines and panel preview */}
                       <Box sx={{ 
+                        position: 'relative',
                         display: 'flex', 
                         justifyContent: 'flex-start', 
                         alignItems: 'flex-start',
                         width: '100%',
-                        transform: 'scale(0.715) translate(100px, 70px)',
+                        transform: 'scale(0.9) translate(50px, 30px)',
                         transformOrigin: 'top left'
                       }}>
+                        {/* Width dimension line (top) - split into two segments with gap for text */}
+                        {/* Left segment */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '-25px',
+                          left: '0',
+                          right: '50%',
+                          height: '2px',
+                          backgroundColor: '#999',
+                          marginRight: '40px'
+                        }} />
+                        {/* Right segment */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '-25px',
+                          left: '50%',
+                          right: '0',
+                          height: '2px',
+                          backgroundColor: '#999',
+                          marginLeft: '40px'
+                        }} />
+                        {/* Text in the gap */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '-25px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                          fontSize: '14px',
+                          color: '#999',
+                          fontWeight: 'bold',
+                          backgroundColor: 'white',
+                          padding: '0 4px',
+                          height: '2px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          {config.type === 'SP' ? 
+                            (config.panelDesign?.spConfig?.dimension === 'wide' ? '130 mm' : 
+                             config.panelDesign?.spConfig?.dimension === 'tall' ? '95 mm' : '95 mm') :
+                            config.type?.includes('X2') ? '224 mm' : 
+                            config.type?.includes('X1') ? '130 mm' : '95 mm'}
+                        </Box>
+
+                        {/* Width dimension endpoint lines (vertical lines at ends) */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '-32px',
+                          left: '0',
+                          width: '3px',
+                          height: '15px',
+                          backgroundColor: '#999'
+                        }} />
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '-32px',
+                          right: '0',
+                          width: '3px',
+                          height: '15px',
+                          backgroundColor: '#999'
+                        }} />
+
+                        {/* Height dimension line (left) - split into two segments with gap for text */}
+                        {/* Top segment */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '0',
+                          left: '-25px',
+                          bottom: '50%',
+                          width: '2px',
+                          backgroundColor: '#999',
+                          marginBottom: '40px'
+                        }} />
+                        {/* Bottom segment */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '-25px',
+                          bottom: '0',
+                          width: '2px',
+                          backgroundColor: '#999',
+                          marginTop: '40px'
+                        }} />
+                        {/* Text in the gap */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '-25px',
+                          transform: 'translateY(-50%)',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                          fontSize: '14px',
+                          color: '#999',
+                          fontWeight: 'bold',
+                          backgroundColor: 'white',
+                          padding: '4px 0',
+                          width: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          writingMode: 'vertical-rl',
+                          textOrientation: 'mixed'
+                        }}>
+                          {config.type === 'SP' ? 
+                            (config.panelDesign?.spConfig?.dimension === 'wide' ? '95 mm' : 
+                             config.panelDesign?.spConfig?.dimension === 'tall' ? '130 mm' : '95 mm') :
+                            config.type?.includes('X2') ? '95 mm' : 
+                            config.type?.includes('X1') ? '95 mm' : '95 mm'}
+                        </Box>
+
+                        {/* Height dimension endpoint lines (horizontal lines at ends) */}
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '0',
+                          left: '-32px',
+                          width: '15px',
+                          height: '3px',
+                          backgroundColor: '#999'
+                        }} />
+                        <Box sx={{
+                          position: 'absolute',
+                          bottom: '0',
+                          left: '-32px',
+                          width: '15px',
+                          height: '3px',
+                          backgroundColor: '#999'
+                        }} />
+
                         <PanelPreview
                           icons={config.icons}
                           panelDesign={config.panelDesign}
@@ -1330,6 +1571,107 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                 );
               })}
             </PanelGrid>
+
+            {/* Signature & Stamp Section */}
+            <Box sx={{
+              marginTop: 'auto',
+              paddingTop: '16px',
+              paddingLeft: '12.7mm',
+              paddingRight: '12.7mm',
+              paddingBottom: '12.7mm',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              
+              '@media print': {
+                paddingTop: '8px',
+                paddingLeft: '10mm',
+                paddingRight: '10mm',
+                paddingBottom: '10mm',
+              }
+            }}>
+              <Typography sx={{
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#666',
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                marginBottom: '8px',
+                
+                '@media print': {
+                  fontSize: '11px',
+                }
+              }}>
+                Signature & Stamp:
+              </Typography>
+              
+              <Box sx={{
+                display: 'flex',
+                width: '100%',
+                gap: '40mm',
+                
+                '@media print': {
+                  gap: '30mm',
+                }
+              }}>
+                {/* Client Signature Line */}
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  minWidth: '80mm',
+                }}>
+                  <Box sx={{
+                    borderBottom: '1px solid #ccc',
+                    height: '20px',
+                    marginBottom: '4px',
+                    
+                    '@media print': {
+                      height: '15px',
+                    }
+                  }} />
+                  <Typography sx={{
+                    fontSize: '10px',
+                    color: '#666',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                    
+                    '@media print': {
+                      fontSize: '9px',
+                    }
+                  }}>
+                    Client Signature
+                  </Typography>
+                </Box>
+
+                {/* Design Team Signature Line */}
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  minWidth: '80mm',
+                }}>
+                  <Box sx={{
+                    borderBottom: '1px solid #ccc',
+                    height: '20px',
+                    marginBottom: '4px',
+                    
+                    '@media print': {
+                      height: '15px',
+                    }
+                  }} />
+                  <Typography sx={{
+                    fontSize: '10px',
+                    color: '#666',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                    
+                    '@media print': {
+                      fontSize: '9px',
+                    }
+                  }}>
+                    Design Team Signature
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
           </A4Page>
         ))}
 

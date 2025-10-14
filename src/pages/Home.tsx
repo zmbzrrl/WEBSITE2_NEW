@@ -24,11 +24,11 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 // Importing images that will be displayed on the home page
 
 import logo from '../assets/logo.png';
-import tagPir from '../assets/panels/TAG_FLAT_95x95.png';    
+import tagPir from '../assets/panels/TAG.png';    
 import idpgRn from '../assets/panels/IDPG flat 130x180_RN_bar.png';   
 import idpg from '../assets/panels/IDPG_95X95_Icons.png';         
 import sp from '../assets/panels/GS09_95x95_Flat.png';          
-import x2rs from '../assets/panels/GS_Extended_Flat.png';        
+import x2rs from '../assets/panels/X2LS.png';        
 import dpRt from '../assets/panels/GS_Double module_224x95.png';        
 
 //                                   ===== CONTEXT IMPORT =====
@@ -878,10 +878,10 @@ const Home = () => {
         }} 
       />
       
-      {/* X2RS Panel - bottom left (largest) */}
+      {/* X2LS Panel - bottom left (largest) */}
       <ExtendedFloatingImage 
         src={x2rs} 
-        alt="X2RS" 
+        alt="X2LS" 
         $showPrompt={currentStep !== 'welcome'}
         style={{ 
           bottom: currentStep !== 'welcome' ? '6%' : '20%', 

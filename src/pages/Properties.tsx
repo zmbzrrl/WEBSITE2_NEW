@@ -32,6 +32,7 @@ const Properties: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [newProperty, setNewProperty] = useState({ projectCode: '', propertyName: '', region: '' });
   const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState('');
   // JSON import UI state
   const [dragActive, setDragActive] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -692,7 +693,88 @@ const Properties: React.FC = () => {
       {showCreate && (
         <div style={{ position: 'fixed', inset: 0 as any, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', borderRadius: 8, padding: 20, width: '90%', maxWidth: 520 }}>
-            <h3 style={{ marginTop: 0 }}>Create Property from JSON</h3>
+            <h3 style={{ marginTop: 0 }}>Create Property</h3>
+
+            {/* Manual Create Form */}
+            <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 13, color: '#333' }}>Project Code (unique)</span>
+                <input
+                  value={newProperty.projectCode}
+                  onChange={(e) => setNewProperty(p => ({ ...p, projectCode: e.target.value.trim() }))}
+                  style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ddd' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 13, color: '#333' }}>Property Name</span>
+                <input
+                  value={newProperty.propertyName}
+                  onChange={(e) => setNewProperty(p => ({ ...p, propertyName: e.target.value }))}
+                  style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ddd' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 13, color: '#333' }}>Region</span>
+                <input
+                  value={newProperty.region}
+                  onChange={(e) => setNewProperty(p => ({ ...p, region: e.target.value }))}
+                  style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ddd' }}
+                />
+              </label>
+              {createError && (
+                <div style={{ background: '#fdecea', color: '#611a15', border: '1px solid #f5c2c0', padding: '8px 10px', borderRadius: 6, fontSize: 13 }}>{createError}</div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button onClick={() => setShowCreate(false)}
+                        disabled={saving}
+                        style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>Close</button>
+                <button
+                  onClick={async () => {
+                    if (!user?.email) { setCreateError('Please log in first.'); return; }
+                    setCreateError('');
+                    if (!newProperty.projectCode || !newProperty.propertyName || !newProperty.region) {
+                      setCreateError('Please fill all fields.');
+                      return;
+                    }
+                    setSaving(true);
+                    try {
+                      const res = await createProperty(user.email, {
+                        projectCode: newProperty.projectCode,
+                        propertyName: newProperty.propertyName,
+                        region: newProperty.region
+                      });
+                      if (!res.success) {
+                        setCreateError(res.message || 'Failed to create property');
+                        setSaving(false);
+                        return;
+                      }
+                      // Persist context/session to mirror import path
+                      setProjectCode(newProperty.projectCode);
+                      setProjectName(newProperty.propertyName);
+                      try {
+                        sessionStorage.setItem('ppProjectCode', newProperty.projectCode);
+                        sessionStorage.setItem('ppProjectName', newProperty.propertyName);
+                        // No BOQ projectIds yet; user can design freely
+                      } catch {}
+                      // Refresh list but also navigate to design selector for immediate workflow
+                      try { await load(); } catch {}
+                      setShowCreate(false);
+                      navigate('/panel-type');
+                    } catch (e: any) {
+                      setCreateError(e?.message || 'Unexpected error');
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  style={{ padding: '8px 14px', background: saving ? '#7aaacf' : '#1b92d1', color: '#fff', border: 'none', borderRadius: 4, cursor: saving ? 'not-allowed' : 'pointer' }}
+                >
+                  {saving ? 'Creating…' : 'Create Property'}
+                </button>
+              </div>
+            </div>
+
+            <hr style={{ margin: '16px 0' }} />
+            <h4 style={{ margin: '0 0 8px 0' }}>Or Import from JSON</h4>
             {/* JSON Import Drop Zone */}
             <div
               onDrop={handleDrop}
@@ -711,10 +793,6 @@ const Properties: React.FC = () => {
               <div style={{ fontSize: 12, color: '#666' }}>Drag and drop a .json file here</div>
               {importing && <div style={{ marginTop: 8, fontSize: 12, color: '#1b92d1' }}>Importing…</div>}
               {importError && <div style={{ marginTop: 8, fontSize: 12, color: '#c0392b' }}>{importError}</div>}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setShowCreate(false)}
-                      style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' }}>Close</button>
             </div>
           </div>
         </div>

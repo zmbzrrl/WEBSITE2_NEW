@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from '../../../contexts/CartContext';
 import { supabase } from '../../../utils/supabaseClient';
 import '../Customizer.css';
+import { getBackboxOptions } from '../../../utils/backboxOptions';
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -42,8 +43,8 @@ import logo from '../../../assets/logo.png';
 
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import FlipIcon from '@mui/icons-material/Flip';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
@@ -485,11 +486,9 @@ const InformationBox = ({
                 style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
               >
                 <option value="">Select a backbox...</option>
-                <option value="Backbox 1">Backbox 1</option>
-                <option value="Backbox 2">Backbox 2</option>
-                <option value="Backbox 3">Backbox 3</option>
-                <option value="Backbox 4">Backbox 4</option>
-                <option value="Backbox 5">Backbox 5</option>
+                {getBackboxOptions('X1H').map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
@@ -561,6 +560,8 @@ const X1HCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  // Free design PIR toggle state
+  const [pirToggle, setPirToggle] = useState<boolean>(false);
   
   // Custom panel component state
   const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
@@ -596,13 +597,19 @@ const X1HCustomizer: React.FC = () => {
     setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
     setIconTexts(prev => ({ ...prev }));
   };
+  // Sync free-design toggle with current PIR presence
+  useEffect(() => {
+    if (location.state?.fromFreeDesign) {
+      setPirToggle(hasPIR);
+    }
+  }, [location.state?.fromFreeDesign, hasPIR]);
 
   const [iconHovered, setIconHovered] = useState<{ [index: number]: boolean }>({});
   const { projectName, projectCode, boqQuantities } = useContext(ProjectContext);
   const [selectedFont, setSelectedFont] = useState<string>('Arial');
   const [isTextEditing, setIsTextEditing] = useState<number | null>(null);
   // Add swap and mirror state
-  const [swapUpDown, setSwapUpDown] = useState(false); // NEW: swap state
+  const [swapLeftRight, setSwapLeftRight] = useState(false); // NEW: swap state for X1H (left/right)
   const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
   
   // Edit mode state
@@ -630,7 +637,7 @@ const X1HCustomizer: React.FC = () => {
         setExtraComments(editPanelData.panelDesign.extraComments || '');
         
         // Load swap states
-        setSwapUpDown(editPanelData.panelDesign.swapUpDown || false);
+        setSwapLeftRight(editPanelData.panelDesign.swapLeftRight || false);
         setMirrorVertical(editPanelData.panelDesign.mirrorVertical || false);
       }
       
@@ -750,8 +757,8 @@ const X1HCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign & { swapUpDown?: boolean; mirrorVertical?: boolean } } = {
-      type: "X1V",
+    const design: Design & { panelDesign: typeof panelDesign & { swapLeftRight?: boolean; mirrorVertical?: boolean } } = {
+      type: "X1H",
       icons: Array.from({ length: 18 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -766,7 +773,7 @@ const X1HCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, swapUpDown, mirrorVertical },
+      panelDesign: { ...panelDesign, backbox, extraComments, swapLeftRight, mirrorVertical },
     };
 
     if (isEditMode && editPanelIndex !== undefined) {
@@ -1013,9 +1020,9 @@ const X1HCustomizer: React.FC = () => {
     setEditingCell(null);
   };
 
-  // Swap up/down logic - just toggle the state
-  const handleSwapUpDown = () => {
-    setSwapUpDown(s => !s);
+  // Swap left/right logic - just toggle the state
+  const handleSwapLeftRight = () => {
+    setSwapLeftRight(s => !s);
   };
 
   // Mirror vertically logic - just toggle the state
@@ -1034,18 +1041,17 @@ const X1HCustomizer: React.FC = () => {
     // Default position
     let pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     
-    // If swapUpDown is true, swap top 3x3 grid with bottom single slot
-    if (swapUpDown) {
+    // If swapLeftRight is true, swap left 3x3 grid with right single slot
+    if (swapLeftRight) {
       if (index >= 0 && index <= 8) {
-        // Move the 3x3 grid to the bottom half
-        // Panel is 640px tall, so move grid to bottom half (320px offset)
-        const swappedGridOffset = 320;
-        pos = { ...pos, top: (parseInt(pos.top) + swappedGridOffset) + 'px' };
+        // Move the left 3x3 grid to the right side
+        // Panel is 731px wide, so move grid to right half (around 340px offset)
+        const swappedGridOffset = 340;
+        pos = { ...pos, left: (parseInt(pos.left) + swappedGridOffset) + 'px' };
       } else if (index === 9) {
-        // Move the single slot to the top half, positioned more centrally
-        // Original position is 328px top, 36px left
-        // Move it to center of top half (around 55px from top)
-        pos = { ...pos, top: '55px' };
+        // Move the right single slot to the left side, positioned more centrally
+        // Original position is left: '341px', move it to left side (around 33px from left)
+        pos = { ...pos, left: '33px', top: '123px' }; // Center it vertically on the left
       }
     }
     
@@ -1066,7 +1072,7 @@ const X1HCustomizer: React.FC = () => {
     }
     
     // Calculate container size to match icon size
-    const containerSize = isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : (index === 9 ? '240px' : panelDesign.iconSize || '40px'));
+    const containerSize = (index === 9 ? '240px' : (panelDesign.iconSize || '14mm'));
     
     return (
         <div
@@ -1097,8 +1103,8 @@ const X1HCustomizer: React.FC = () => {
                 draggable={currentStep !== 3}
                 onDragStart={currentStep !== 3 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : (index === 9 ? '240px' : panelDesign.iconSize || '40px')),
+                width: index === 9 ? '240px' : (panelDesign.iconSize || '14mm'),
+                height: index === 9 ? '240px' : (panelDesign.iconSize || '14mm'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -1285,12 +1291,20 @@ const X1HCustomizer: React.FC = () => {
   
   useEffect(() => {
     const checkProximityFlag = async () => {
-      if (!isEditMode && location.state?.selectedDesignId) {
+      const selectedDesignId = location.state?.selectedDesignId;
+      const proxFromState = location.state?.proximityFlag === true;
+      if (proxFromState) {
+        console.log('✅ Proximity flag from state is true - showing proximity indicators');
+        setShowProximityIndicators(true);
+        setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+        return;
+      }
+      if (!isEditMode && selectedDesignId) {
         try {
           const { data: designData, error } = await supabase
             .from('user_designs')
             .select('design_data')
-            .eq('id', location.state.selectedDesignId)
+            .eq('id', selectedDesignId)
             .single();
           
           if (designData && !error) {
@@ -1311,11 +1325,55 @@ const X1HCustomizer: React.FC = () => {
         } catch (error) {
           console.error('Error checking proximity flag:', error);
         }
+      } else if (!isEditMode) {
+        // Fallback: sessionStorage set at navigation time
+        try {
+          if (selectedDesignId) {
+            const stored = sessionStorage.getItem(`boqProximity:${selectedDesignId}`);
+            if (stored === 'true') {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            }
+          }
+        } catch {}
       }
     };
     
     checkProximityFlag();
   }, [location.state?.selectedDesignId, isEditMode]);
+
+  // Check for Motion flag and automatically place PIR icon if needed
+  useEffect(() => {
+    const checkMotionFlag = async () => {
+      const motionFlagData = location.state?.motionFlagData;
+      
+      if (motionFlagData?.hasMotionFlag && !isEditMode && icons && Object.keys(icons).length > 0) {
+        console.log('🔍 X1H Motion flag data received:', motionFlagData);
+        
+        try {
+          // Get PIR icon from icon library
+          const pirIcon = (icons as any)['PIR'];
+          if (pirIcon && !hasPIR) {
+            const pirPosition = getPirIndex();
+            const newPir: PlacedIcon = {
+              id: Date.now(),
+              iconId: 'PIR',
+              src: pirIcon.src || '',
+              label: 'PIR',
+              position: pirPosition,
+              category: 'PIR'
+            };
+            setPlacedIcons(prev => [...prev, newPir]);
+            console.log('✅ X1H PIR icon placed automatically due to motion flag');
+          }
+        } catch (error) {
+          console.error('Error placing PIR icon:', error);
+        }
+      }
+    };
+    
+    checkMotionFlag();
+  }, [location.state?.motionFlagData, isEditMode, icons, placedIcons]);
 
   // Only destructure config once, and use iconPositions from config
   // Use X1H layout config for horizontal 1-socket
@@ -1401,13 +1459,88 @@ const X1HCustomizer: React.FC = () => {
 
         <ProgressBar />
 
+        {/* Free Design: Motion Sensor Toggle */}
+        {location.state?.fromFreeDesign && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, gap: 24 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={pirToggle}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setPirToggle(enabled);
+                  if (enabled) {
+                    const pirIcon = (icons as any)['PIR'];
+                    const pirPos = getPirIndex();
+                    const exists = placedIcons.some(icon => icon.category === 'PIR');
+                    const occupied = placedIcons.some(icon => icon.position === pirPos);
+                    if (pirIcon && !exists && !occupied) {
+                      const newPir = {
+                        id: Date.now(),
+                        iconId: 'PIR',
+                        src: pirIcon.src || '',
+                        label: 'PIR',
+                        position: pirPos,
+                        category: 'PIR'
+                      } as any;
+                      setPlacedIcons(prev => [...prev, newPir]);
+                    }
+                  } else {
+                    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+                    setIconTexts(prev => ({ ...prev }));
+                  }
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Motion Sensor</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={showProximityIndicators}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setShowProximityIndicators(enabled);
+                  setPanelDesign((prev: any) => ({
+                    ...prev,
+                    features: { ...(prev?.features || {}), Proximity: enabled },
+                    Proximity: enabled,
+                  }));
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Proximity</span>
+            </label>
+          </Box>
+        )}
+
         {/* Step Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
           <Button
             variant="outlined"
             onClick={() => {
               if (currentStep === 2) {
-                navigate('/panel/extended');
+                // Preserve the socket category when navigating back to extended panel selector
+                console.log('X1H Back button - current location.state:', location.state);
+                const backState = {
+                  state: {
+                    socketCategory: location.state?.socketCategory,
+                    fromBOQ: location.state?.fromBOQ,
+                    fromFreeDesign: location.state?.fromFreeDesign,
+                    projectIds: location.state?.projectIds,
+                    importResults: location.state?.importResults,
+                    selectedDesignId: location.state?.selectedDesignId,
+                    selectedDesignName: location.state?.selectedDesignName,
+                    selectedDesignQuantity: location.state?.selectedDesignQuantity,
+                    selectedDesignMaxQuantity: location.state?.selectedDesignMaxQuantity,
+                    motionFlagData: location.state?.motionFlagData,
+                    proximityFlag: location.state?.proximityFlag,
+                    roomNumberFlag: location.state?.roomNumberFlag,
+                    cardReaderFlag: location.state?.cardReaderFlag,
+                    projectName: location.state?.projectName,
+                    projectCode: location.state?.projectCode
+                  }
+                };
+                console.log('X1H Back button - passing back state:', backState);
+                navigate('/panel/extended', backState);
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
               }
@@ -1426,8 +1559,10 @@ const X1HCustomizer: React.FC = () => {
           )}
         </Box>
 
-        {/* Icon List: Only visible on step 2 */}
+        {/* Step 2 Layout: Icons list first, then panel template below */}
         {currentStep === 2 && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '30px' }}>
+            {/* Icons List Section - moved above template */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: '40px', justifyContent: 'center', alignItems: 'flex-start', marginBottom: '20px' }}>
         {/* Categories column */}
         <div style={{ minWidth: 140, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
@@ -1453,26 +1588,6 @@ const X1HCustomizer: React.FC = () => {
               {category}
             </button>
           ))}
-          {/* PIR toggle next to categories */}
-          <button
-            type="button"
-            onClick={() => (hasPIR ? removePir() : addPir())}
-            style={{
-              padding: '10px 16px',
-              borderRadius: '6px',
-              border: 'none',
-              background: 'transparent',
-              color: '#1976d2',
-              cursor: 'pointer',
-              fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-              fontSize: '14px',
-              letterSpacing: '0.5px',
-              fontWeight: 'bold'
-            }}
-            title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-          >
-            {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-          </button>
         </div>
         {/* Icons grid column */}
         <div style={{ 
@@ -1515,31 +1630,35 @@ const X1HCustomizer: React.FC = () => {
             </div>
           ))}
         </div>
-        {/* Swap/Mirror Buttons under the icons list */}
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 16, margin: '24px 0 0 0' }}>
+            </div>
+
+            {/* Panel Template Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+        {/* Swap/Mirror Buttons - compact toolbar above template */}
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8 }}>
           <Button
             variant="outlined"
-            onClick={handleSwapUpDown}
-            sx={{ minWidth: 160, display: 'flex', alignItems: 'center', gap: 1 }}
-            startIcon={!swapUpDown ? <ArrowUpwardIcon /> : <ArrowDownwardIcon />}
+                  onClick={handleSwapLeftRight}
+            size="small"
+                  startIcon={!swapLeftRight ? <ArrowForwardIcon fontSize="small" /> : <ArrowBackIcon fontSize="small" />}
           >
-            {!swapUpDown ? 'Up' : 'Down'}
+                  {!swapLeftRight ? 'Right' : 'Left'}
           </Button>
           <Button
             variant="outlined"
             onClick={handleMirrorVertical}
-            sx={{ minWidth: 160 }}
-            startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} />}
+            size="small"
+            startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} fontSize="small" />}
           >
             {mirrorVertical ? 'Unmirror' : 'Mirror'}
           </Button>
         </div>
-        {/* Panel Preview for Step 2 (only this one should render) */}
-        <div style={{ flex: '0 0 340px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: 0 }}>
+              {/* Panel Preview */}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
           <div
             style={{
               position: 'relative',
-              width: '320px',
+                    width: dimensions.width,
               height: dimensions.height,
               background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
               padding: '0',
@@ -1600,6 +1719,7 @@ const X1HCustomizer: React.FC = () => {
             }} />
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
               {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
+                  </div>
             </div>
           </div>
         </div>
@@ -1774,11 +1894,9 @@ const X1HCustomizer: React.FC = () => {
                   }}
                 >
                   <option value="">Select a backbox...</option>
-                  <option value="Backbox 1">Backbox 1</option>
-                  <option value="Backbox 2">Backbox 2</option>
-                  <option value="Backbox 3">Backbox 3</option>
-                  <option value="Backbox 4">Backbox 4</option>
-                  <option value="Backbox 5">Backbox 5</option>
+                  {getBackboxOptions('X1H').map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
                 {backboxError && <div style={{ color: 'red', fontSize: '12px', marginTop: '8px' }}>{backboxError}</div>}
               </div>
@@ -1873,7 +1991,7 @@ const X1HCustomizer: React.FC = () => {
               <div
                 style={{
               position: 'relative',
-              width: '320px',
+              width: dimensions.width,
               height: dimensions.height, // use config
               background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
               padding: '0',

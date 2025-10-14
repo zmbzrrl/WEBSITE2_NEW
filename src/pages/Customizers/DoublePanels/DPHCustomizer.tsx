@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from '../../../contexts/CartContext';
 import { supabase } from '../../../utils/supabaseClient';
 import '../Customizer.css';
+import { getBackboxOptions } from '../../../utils/backboxOptions';
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -451,11 +452,9 @@ const InformationBox = ({
                 style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
               >
                 <option value="">Select a backbox...</option>
-                <option value="Backbox 1">Backbox 1</option>
-                <option value="Backbox 2">Backbox 2</option>
-                <option value="Backbox 3">Backbox 3</option>
-                <option value="Backbox 4">Backbox 4</option>
-                <option value="Backbox 5">Backbox 5</option>
+                {getBackboxOptions('DP').map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
@@ -546,6 +545,8 @@ const DPHCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  // Free design PIR toggle state
+  const [pirToggle, setPirToggle] = useState<boolean>(false);
   
   // Custom panel component state
   const [showCustomPanelComponent, setShowCustomPanelComponent] = useState(false);
@@ -604,6 +605,12 @@ const DPHCustomizer: React.FC = () => {
     setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
     setIconTexts(prev => ({ ...prev }));
   };
+  // Sync free-design toggle with current PIR presence
+  useEffect(() => {
+    if (location.state?.fromFreeDesign) {
+      setPirToggle(hasPIR);
+    }
+  }, [location.state?.fromFreeDesign, hasPIR]);
   const [qtyOpen, setQtyOpen] = useState(false);
   const [qtyRemaining, setQtyRemaining] = useState<number | undefined>(undefined);
   const [pendingDesign, setPendingDesign] = useState<any | null>(null);
@@ -1223,12 +1230,20 @@ const DPHCustomizer: React.FC = () => {
   const [showProximityIndicators, setShowProximityIndicators] = useState(false);
   useEffect(() => {
     const checkProximityFlag = async () => {
-      if (!isEditMode && location.state?.selectedDesignId) {
+      const selectedDesignId = location.state?.selectedDesignId;
+      const proxFromState = location.state?.proximityFlag === true;
+      if (proxFromState) {
+        console.log('✅ Proximity flag from state is true - showing proximity indicators');
+        setShowProximityIndicators(true);
+        setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+        return;
+      }
+      if (!isEditMode && selectedDesignId) {
         try {
           const { data: designData, error } = await supabase
             .from('user_designs')
             .select('design_data')
-            .eq('id', location.state.selectedDesignId)
+            .eq('id', selectedDesignId)
             .single();
           if (designData && !error) {
             const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
@@ -1243,10 +1258,54 @@ const DPHCustomizer: React.FC = () => {
         } catch (error) {
           console.error('Error checking proximity flag:', error);
         }
+      } else if (!isEditMode) {
+        // Fallback: sessionStorage set at navigation time
+        try {
+          if (selectedDesignId) {
+            const stored = sessionStorage.getItem(`boqProximity:${selectedDesignId}`);
+            if (stored === 'true') {
+              setShowProximityIndicators(true);
+              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
+            }
+          }
+        } catch {}
       }
     };
     checkProximityFlag();
   }, [location.state?.selectedDesignId, isEditMode]);
+
+  // Check for Motion flag and automatically place PIR icon if needed
+  useEffect(() => {
+    const checkMotionFlag = async () => {
+      const motionFlagData = location.state?.motionFlagData;
+      
+      if (motionFlagData?.hasMotionFlag && !isEditMode && icons && Object.keys(icons).length > 0) {
+        console.log('🔍 DPH Motion flag data received:', motionFlagData);
+        
+        try {
+          // Get PIR icon from icon library
+          const pirIcon = (icons as any)['PIR'];
+          if (pirIcon && !hasPIR) {
+            const pirPosition = getPirIndex();
+            const newPir: PlacedIcon = {
+              id: Date.now(),
+              iconId: 'PIR',
+              src: pirIcon.src || '',
+              label: 'PIR',
+              position: pirPosition,
+              category: 'PIR'
+            };
+            setPlacedIcons(prev => [...prev, newPir]);
+            console.log('✅ DPH PIR icon placed automatically due to motion flag');
+          }
+        } catch (error) {
+          console.error('Error placing PIR icon:', error);
+        }
+      }
+    };
+    
+    checkMotionFlag();
+  }, [location.state?.motionFlagData, isEditMode, icons, placedIcons]);
 
   // Only destructure config once, then override iconPositions
   const config = getPanelLayoutConfig('SP');
@@ -1432,6 +1491,61 @@ const DPHCustomizer: React.FC = () => {
 
         <ProgressBar />
 
+        {/* Free Design: Motion Sensor Toggle */}
+        {location.state?.fromFreeDesign && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, gap: 24 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={pirToggle}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setPirToggle(enabled);
+                  if (enabled) {
+                    // add PIR if not present
+                    const pirIcon = (icons as any)['PIR'];
+                    const pirPos = getPirIndex();
+                    const exists = placedIcons.some(icon => icon.category === 'PIR');
+                    const occupied = placedIcons.some(icon => icon.position === pirPos);
+                    if (pirIcon && !exists && !occupied) {
+                      const newPir = {
+                        id: Date.now(),
+                        iconId: 'PIR',
+                        src: pirIcon.src || '',
+                        label: 'PIR',
+                        position: pirPos,
+                        category: 'PIR'
+                      } as any;
+                      setPlacedIcons(prev => [...prev, newPir]);
+                    }
+                  } else {
+                    // remove PIR
+                    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+                    setIconTexts(prev => ({ ...prev }));
+                  }
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Motion Sensor</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={showProximityIndicators}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setShowProximityIndicators(enabled);
+                  setPanelDesign((prev: any) => ({
+                    ...prev,
+                    features: { ...(prev?.features || {}), Proximity: enabled },
+                    Proximity: enabled,
+                  }));
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Proximity</span>
+            </label>
+          </Box>
+        )}
+
         {/* Step Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
           <Button
@@ -1482,26 +1596,6 @@ const DPHCustomizer: React.FC = () => {
                   {category}
                 </button>
               ))}
-              {/* PIR toggle next to categories */}
-              <button
-                type="button"
-                onClick={() => (hasPIR ? removePir() : addPir())}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#1976d2',
-                  cursor: 'pointer',
-                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                  fontSize: '14px',
-                  letterSpacing: '0.5px',
-                  fontWeight: 'bold'
-                }}
-                title={hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-              >
-                {hasPIR ? 'Remove motion sensor' : 'Add a motion sensor?'}
-              </button>
             </div>
             <div style={{ 
               display: 'grid',

@@ -454,7 +454,7 @@ const ProjPanels: React.FC = () => {
               })))
             }
           } as const;
-          const result = await updateLayout(effectiveEditingDesignId, userEmail, layoutData as any);
+          const result = await updateLayout(effectiveEditingDesignId, decodeURIComponent(userEmail), layoutData as any);
           if ((result as any).success) {
             setSaveMessage('✅ Project updated successfully!');
             setProjectJustSaved(true);
@@ -483,7 +483,7 @@ const ProjPanels: React.FC = () => {
                 })))
               }
             };
-            const result = await updateDesign(userEmail, effectiveEditingDesignId, projectData);
+            const result = await updateDesign(decodeURIComponent(userEmail), effectiveEditingDesignId, projectData);
             if (result.success) {
               setSaveMessage('✅ Project updated successfully!');
               setProjectJustSaved(true);
@@ -545,7 +545,7 @@ const ProjPanels: React.FC = () => {
             };
 
             // Update existing design
-            const result = await updateDesign(userEmail, existingDesignWithSameName.id, projectData);
+            const result = await updateDesign(decodeURIComponent(userEmail), existingDesignWithSameName.id, projectData);
             
             if (result.success) {
               setSaveMessage('✅ Project updated successfully!');
@@ -585,7 +585,7 @@ const ProjPanels: React.FC = () => {
               };
 
               // Update existing design
-              const result = await updateDesign(userEmail, existingDesignWithRevision.id, projectData);
+              const result = await updateDesign(decodeURIComponent(userEmail), existingDesignWithRevision.id, projectData);
               
               if (result.success) {
                 setSaveMessage('✅ Project updated successfully!');

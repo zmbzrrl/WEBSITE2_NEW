@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
+import { getBackboxOptions } from "../../utils/backboxOptions";
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -17,6 +18,7 @@ const getPanelTypeLabel = (type: string) => {
   }
 };
 import CartButton from "../../components/CartButton";
+import RALColorSelector from "../../components/RALColorSelector";
 // BOQ removed
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../../assets/logo.png";
@@ -298,7 +300,8 @@ const getTextColorFromBackground = (backgroundColor: string): string => {
   const g = parseInt(hex.substr(2, 2), 16);
   const b = parseInt(hex.substr(4, 2), 16);
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-  return brightness < 150 ? '#FFFFFF' : '#333333';
+  // Match icon contrast: white on dark, dark grey (#808080) on light
+  return brightness < 150 ? '#FFFFFF' : '#808080';
 };
 
 const IDPGCustomizer = () => {
@@ -309,8 +312,8 @@ const IDPGCustomizer = () => {
   const [roomNumber, setRoomNumber] = useState(false);
   const [statusMode, setStatusMode] = useState<'bar' | 'icons'>('bar');
   const [roomNumberText, setRoomNumberText] = useState("");
-  const [selectedIcon1, setSelectedIcon1] = useState("G1");
-  const [selectedIcon2, setSelectedIcon2] = useState("G2");
+  const [selectedIcon1, setSelectedIcon1] = useState("DND Privacy");
+  const [selectedIcon2, setSelectedIcon2] = useState("MUR Service");
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
   const [backboxError, setBackboxError] = useState('');
@@ -344,6 +347,7 @@ const IDPGCustomizer = () => {
   const isEditMode = location.state?.editMode || false;
   const editPanelIndex = location.state?.panelIndex;
   const editPanelData = location.state?.panelData;
+  const isFreeDesignMode = location.state?.fromFreeDesign || false;
 
   // Guest Services icons mapping
   const guestServicesIcons = {
@@ -353,11 +357,11 @@ const IDPGCustomizer = () => {
     G18: g18Icon,
   };
 
-  // Only allow G1 and G2 for left icon
-  const leftIconOptions = ['G1', 'G2'];
+  // DND Privacy icons for left side
+  const leftIconOptions = ['DND Privacy', 'DND Privacy Alternative 1', 'DND Privacy Alternative 2'];
 
-  // Always use G3 for right icon
-  const rightIcon = 'G3';
+  // MUR Service icons for right side
+  const rightIconOptions = ['MUR Service', 'MUR Service Alternative 1', 'MUR Service Alternative 2', 'MUR Service Alternative 3', 'MUR Service Alternative 4', 'MUR Service Alternative 5'];
 
   // Default panel design values
   const defaultPanelDesign = {
@@ -439,7 +443,8 @@ const IDPGCustomizer = () => {
           setCardReader(config.cardReader || false);
           setRoomNumber(config.roomNumber || false);
           setStatusMode(config.statusMode || 'bar');
-          setSelectedIcon1(config.selectedIcon1 || 'G1');
+          setSelectedIcon1(config.selectedIcon1 || 'DND Privacy');
+          setSelectedIcon2(config.selectedIcon2 || 'MUR Service');
           setRoomNumberText(config.roomNumberText || '');
         }
       }
@@ -494,7 +499,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
               }}>
                 <img 
-                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  src={icons[selectedIcon1]?.src || ''} 
                   alt="Icon 1" 
                   style={{
                     width: panelDesign.iconSize,
@@ -515,7 +520,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
               }}>
                 <img 
-                  src={guestServicesIcons[rightIcon]} 
+                  src={icons[selectedIcon2]?.src || ''} 
                   alt="Icon 2" 
                   style={{
                     width: panelDesign.iconSize,
@@ -535,8 +540,8 @@ const IDPGCustomizer = () => {
               paddingBottom: "10px",
             }}>
               <img 
-                src={g18Icon} 
-                alt="G18 Icon" 
+                src={icons['Bell']?.src || g18Icon} 
+                alt="Bell Icon" 
                 style={{
                   width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
@@ -558,12 +563,12 @@ const IDPGCustomizer = () => {
         }}>
           {/* Middle bar */}
           <div style={{
-            width: "100%",
+            width: "20%",
             height: "8px",
             background: "transparent",
             border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
-            margin: "auto 0",
+            margin: "auto",
           }} />
           {/* G18 icon in bottom center */}
           <div style={{
@@ -682,7 +687,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
               }}>
                 <img 
-                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  src={icons[selectedIcon1]?.src || ''} 
                   alt="Icon 1" 
                   style={{
                     width: panelDesign.iconSize,
@@ -703,7 +708,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
               }}>
                 <img 
-                  src={guestServicesIcons[rightIcon]} 
+                  src={icons[selectedIcon2]?.src || ''} 
                   alt="Icon 2" 
                   style={{
                     width: panelDesign.iconSize,
@@ -716,12 +721,12 @@ const IDPGCustomizer = () => {
           ) : (
             /* Status bar */
           <div style={{
-            width: "100%",
+            width: "20%",
             height: "8px",
             background: "transparent",
             border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
-            margin: "10px 0",
+            margin: "10px auto",
           }} />
           )}
           
@@ -779,7 +784,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
           }}>
             <img 
-                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  src={icons[selectedIcon1]?.src || ''} 
                   alt="Icon 1" 
               style={{
                 width: panelDesign.iconSize,
@@ -800,7 +805,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
           }}>
             <img 
-                  src={guestServicesIcons[rightIcon]} 
+                  src={icons[selectedIcon2]?.src || ''} 
                   alt="Icon 2" 
               style={{
                     width: panelDesign.iconSize,
@@ -813,12 +818,12 @@ const IDPGCustomizer = () => {
           ) : (
             /* Status bar at top */
           <div style={{
-            width: "100%",
+            width: "20%",
             height: "8px",
             background: "transparent",
             border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
-            marginBottom: "20px",
+            margin: "0 auto 20px auto",
           }} />
           )}
           
@@ -954,7 +959,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
               }}>
                 <img 
-                  src={guestServicesIcons[selectedIcon1 as keyof typeof guestServicesIcons]} 
+                  src={icons[selectedIcon1]?.src || ''} 
                   alt="Icon 1" 
                   style={{
                     width: panelDesign.iconSize,
@@ -975,7 +980,7 @@ const IDPGCustomizer = () => {
                 height: "100%",
               }}>
                 <img 
-                  src={guestServicesIcons[rightIcon]} 
+                  src={icons[selectedIcon2]?.src || ''} 
                   alt="Icon 2" 
                   style={{
                     width: panelDesign.iconSize,
@@ -988,12 +993,12 @@ const IDPGCustomizer = () => {
           ) : (
             /* Status bar right below the number */
             <div style={{
-              width: "100%",
+              width: "20%",
               height: "8px",
               background: "transparent",
               border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
               borderRadius: "4px",
-              marginBottom: "20px",
+              margin: "10px auto",
             }} />
           )}
           
@@ -1005,8 +1010,8 @@ const IDPGCustomizer = () => {
             flex: "1",
             }}>
               <img 
-                src={g18Icon} 
-                alt="G18 Icon" 
+                src={icons['Bell']?.src || g18Icon} 
+                alt="Bell Icon" 
                 style={{
                   width: panelDesign.iconSize,
                   height: panelDesign.iconSize,
@@ -1093,6 +1098,7 @@ const IDPGCustomizer = () => {
           roomNumber,
           statusMode,
           selectedIcon1,
+          selectedIcon2,
           roomNumberText,
         }
       },
@@ -1108,11 +1114,13 @@ const IDPGCustomizer = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      
+      // In free design mode, use default values instead of BOQ values
       const enhancedDesign = {
         ...design,
-        panelName: selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
-        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
+        panelName: isFreeDesignMode ? getPanelTypeLabel(design.type) : (selectedDesignName || getPanelTypeLabel(design.type)),
+        quantity: isFreeDesignMode ? 1 : selectedDesignQuantity, // Use 1 for free design, BOQ quantity for import mode
+        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined)
       };
 
       if (panelAddedToProject) {
@@ -1126,31 +1134,36 @@ const IDPGCustomizer = () => {
           addToCart(enhancedDesign as any);
         }
       } else {
-        // Add new panel with quantity prompt constrained by BOQ remaining
-        const category = mapTypeToCategory(design.type);
+        // Add new panel with quantity prompt constrained by BOQ remaining (only in BOQ mode)
+        if (!isFreeDesignMode) {
+          const category = mapTypeToCategory(design.type);
 
-        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+          const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-        const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-          return undefined;
-        };
+          const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+            return undefined;
+          };
 
-        const cap = getCategoryCap(category);
-        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+          const cap = getCategoryCap(category);
+          const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
-        if (remaining !== undefined) {
-          if (remaining <= 0) {
-            // BOQ removed
+          if (remaining !== undefined) {
+            if (remaining <= 0) {
+              // BOQ removed
+              return;
+            }
+            setPendingDesign(design as any);
+            setPendingCategory(category);
+            setQtyRemaining(remaining);
+            setQtyOpen(true);
             return;
           }
-          setPendingDesign(design as any);
-          setPendingCategory(category);
-          setQtyRemaining(remaining);
-          setQtyOpen(true);
-          return;
-        }
 
-        addToCart(enhancedDesign as any);
+          addToCart(enhancedDesign as any);
+        } else {
+          // Free design mode - add directly without BOQ constraints
+          addToCart(enhancedDesign as any);
+        }
         setPanelAddedToProject(true); // Mark panel as added to project
       }
     }
@@ -1391,7 +1404,7 @@ const IDPGCustomizer = () => {
                         }}
                       >
                         <img 
-                          src={guestServicesIcons[opt as keyof typeof guestServicesIcons]} 
+                          src={icons[opt]?.src || ''} 
                           alt={opt} 
                           style={{
                             width: '24px',
@@ -1407,34 +1420,50 @@ const IDPGCustomizer = () => {
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography
                     sx={{
-                      color: 'rgba(255, 255, 255, 0.5)',
+                      color: 'rgba(255, 255, 255, 0.7)',
                       fontSize: '12px',
                       marginBottom: '8px',
                       fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                     }}
                   >
-                    Right (G3)
+                    Right
                   </Typography>
                   <Box sx={{
-                    width: '40px',
-                    height: '40px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '6px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    opacity: 0.7,
+                    gap: 1,
                   }}>
-                    <img 
-                      src={guestServicesIcons[rightIcon]} 
-                      alt={rightIcon} 
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        filter: getIconColorFilter(panelDesign.backgroundColor),
-                      }}
-                    />
+                    {rightIconOptions.map((opt) => (
+                      <Box
+                        key={opt}
+                        onClick={() => setSelectedIcon2(opt)}
+                        sx={{
+                          width: '40px',
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: selectedIcon2 === opt ? '2px solid rgba(255, 255, 255, 0.8)' : '1px solid rgba(255, 255, 255, 0.3)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          background: selectedIcon2 === opt ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            border: '2px solid rgba(255, 255, 255, 0.6)',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                          }
+                        }}
+                      >
+                        <img 
+                          src={icons[opt]?.src || ''} 
+                          alt={opt} 
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            filter: getIconColorFilter(panelDesign.backgroundColor),
+                          }}
+                        />
+                      </Box>
+                    ))}
                   </Box>
                 </Box>
               </Box>
@@ -1489,83 +1518,10 @@ const IDPGCustomizer = () => {
                     Panel Design
                   </h3>
                   {/* Background Color Section */}
-                  <div style={{
-                    marginBottom: '28px',
-                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                    padding: '20px',
-                    borderRadius: '10px',
-                    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                    border: '1px solid #e9ecef',
-                  }}>
-                    <div style={{
-                      fontWeight: '600',
-                      marginBottom: '16px',
-                      color: '#1a1f2c',
-                      fontSize: '15px',
-                      letterSpacing: '0.3px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}>
-                      <div style={{
-                        width: '4px',
-                        height: '16px',
-                        background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                        borderRadius: '2px',
-                      }} />
-                      Background Color (RAL)
-                    </div>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-                        gap: '10px',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
-                        borderRadius: '8px',
-                        padding: '16px',
-                        border: '1px solid #dee2e6',
-                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)',
-                      }}
-                    >
-                      {ralColors.map((color: RALColor) => (
-                        <button
-                    key={color.code}
-                          type="button"
-                          onClick={() => setPanelDesign({ ...panelDesign, backgroundColor: color.hex })}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            border: panelDesign.backgroundColor === color.hex ? '2px solid #0056b3' : '1px solid #dee2e6',
-                            borderRadius: '8px',
-                            background: panelDesign.backgroundColor === color.hex ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                            cursor: 'pointer',
-                            padding: '8px 6px',
-                            outline: 'none',
-                            boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 3px rgba(0, 86, 179, 0.15), 0 2px 8px rgba(0,0,0,0.1)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                            transition: 'all 0.2s ease',
-                            transform: panelDesign.backgroundColor === color.hex ? 'translateY(-1px)' : 'translateY(0)',
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: '28px',
-                              height: '28px',
-                              borderRadius: '6px',
-                      background: color.hex,
-                              border: '2px solid #ffffff',
-                              marginBottom: '6px',
-                              display: 'block',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)',
-                            }}
-                          />
-                          <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <RALColorSelector
+                    selectedColor={panelDesign.backgroundColor}
+                    onColorSelect={(hex) => setPanelDesign({ ...panelDesign, backgroundColor: hex })}
+                  />
 
 
                   
@@ -1616,11 +1572,9 @@ const IDPGCustomizer = () => {
                       }}
                     >
                       <option value="">Select a backbox...</option>
-                      <option value="Backbox 1">Backbox 1</option>
-                      <option value="Backbox 2">Backbox 2</option>
-                      <option value="Backbox 3">Backbox 3</option>
-                      <option value="Backbox 4">Backbox 4</option>
-                      <option value="Backbox 5">Backbox 5</option>
+                      {getBackboxOptions('IDPG', { idpgConfig: { cardReader, roomNumber } }).map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                     {backboxError && (
                       <div style={{
@@ -1689,7 +1643,6 @@ const IDPGCustomizer = () => {
                         WebkitBackdropFilter: "blur(20px)",
                         transition: "all 0.3s ease",
                         position: "relative",
-                        transform: "perspective(1000px) rotateX(5deg)",
                         transformStyle: "preserve-3d",
                         marginBottom: "20px",
                       }}

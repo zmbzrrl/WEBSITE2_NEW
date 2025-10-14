@@ -72,36 +72,33 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       wide: {
         width: '130mm',
         height: '95mm',
-        // Force a true 3x3 grid across the wider width
-        // Spread columns to make use of extra width (approx. +147px from standard)
+        // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '45px', left: '47px' },    // 0 top-left - moved down 25px, right 17px, up 3px, left 3px
-          { top: '45px', left: '180px' },   // 1 top-center (shifted right) - moved down 25px total, up 3px
-          { top: '45px', left: '320px' },   // 2 top-right (shifted right) - moved down 25px, left 7px, up 3px
-          { top: '133px', left: '47px' },   // 3 middle-left - aligned with cell 0
-          { top: '133px', left: '180px' },  // 4 middle-center - moved down 10px
-          { top: '133px', left: '320px' },  // 5 middle-right - moved left 7px, down 10px
-          { top: '225px', left: '47px' },   // 6 bottom-left - aligned with cell 0
-          { top: '225px', left: '180px' },  // 7 bottom-center - moved down 10px, up 3px
-          { top: '225px', left: '320px' },  // 8 bottom-right - moved left 7px, down 10px, up 3px
+          { top: '45px', left: '47px' },
+          { top: '45px', left: '136px' },
+          { top: '45px', left: '226px' },
+          { top: '133px', left: '47px' },
+          { top: '133px', left: '136px' },
+          { top: '133px', left: '226px' },
+          { top: '225px', left: '47px' },
+          { top: '225px', left: '136px' },
+          { top: '225px', left: '226px' },
         ]
       },
       tall: {
         width: '95mm',
         height: '130mm',
+        // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '45px', left: '42px' },   // Icon 0 (top-left) - moved down 25px, right 17px, up 3px, left 3px
-          { top: '45px', left: '131px' },  // Icon 1 (top-center) - moved down 25px total, up 3px
-          { top: '45px', left: '221px' },  // Icon 2 (top-right) - moved down 25px, left 7px, up 3px
-          { top: '133px', left: '42px' },  // Icon 3 (middle-left) - aligned with cell 0
-          { top: '133px', left: '131px' }, // Icon 4 (middle-center) - moved down 10px
-          { top: '133px', left: '221px' }, // Icon 5 (middle-right) - moved left 7px, down 10px
-          { top: '225px', left: '42px' },  // Icon 6 (bottom-left) - aligned with cell 0
-          { top: '225px', left: '131px' }, // Icon 7 (bottom-center) - moved down 10px, up 3px
-          { top: '225px', left: '221px' }, // Icon 8 (bottom-right) - moved left 7px, down 10px, up 3px
-          { top: '268px', left: '45px' },  // Icon 9 (bottom-extra-left) - moved right 17px, up 45px
-          { top: '268px', left: '131px' }, // Icon 10 (bottom-extra-center) - moved up 45px
-          { top: '268px', left: '221px' }, // Icon 11 (bottom-extra-right) - moved left 7px, up 45px
+          { top: '45px', left: '47px' },
+          { top: '45px', left: '136px' },
+          { top: '45px', left: '226px' },
+          { top: '133px', left: '47px' },
+          { top: '133px', left: '136px' },
+          { top: '133px', left: '226px' },
+          { top: '225px', left: '47px' },
+          { top: '225px', left: '136px' },
+          { top: '225px', left: '226px' },
         ]
       }
     },
@@ -150,13 +147,13 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         width: '95mm',
         height: '95mm',
         iconPositions: [
-          { top: '33px', left: '33px' },
-          { top: '33px', left: '136px' },
-          { top: '33px', left: '233px' },
-          { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
+          { top: '33px', left: '80px' },  // Cell 0 - moved right by 30px total (10px + 20px)
+          { top: '33px', left: '140px' },
+          { top: '33px', left: '200px' },
+          { top: '123px', left: '49px' },  // Cell 3 - moved right by 13px total + 3px
           { top: '123px', left: '136px' },
           { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
-          { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
+          { top: '188px', left: '49px' },  // Cell 6 - moved right by 13px total + 3px
           { top: '188px', left: '136px' },  // Row 3 - moved up 30px
           { top: '188px', left: '225px' },  // Cell 8 - moved left by 8px
         ]
@@ -164,47 +161,47 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       wide: {
         width: '130mm',
         height: '95mm',
+        // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '33px', left: '33px' },
-          { top: '33px', left: '180px' },
-          { top: '33px', left: '327px' },
-          { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
-          { top: '123px', left: '180px' },
-          { top: '123px', left: '319px' },  // Cell 5 - moved left by 8px
-          { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
-          { top: '188px', left: '180px' },  // Row 3 - moved up 30px
-          { top: '188px', left: '319px' },  // Cell 8 - moved left by 8px
+          { top: '33px', left: '80px' },
+          { top: '33px', left: '140px' },
+          { top: '33px', left: '200px' },
+          { top: '123px', left: '49px' },
+          { top: '123px', left: '136px' },
+          { top: '123px', left: '225px' },
+          { top: '188px', left: '49px' },
+          { top: '188px', left: '136px' },
+          { top: '188px', left: '225px' },
         ]
       },
       tall: {
         width: '95mm',
         height: '130mm',
+        // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '33px', left: '33px' },
-          { top: '33px', left: '136px' },
-          { top: '33px', left: '233px' },
-          { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
+          { top: '33px', left: '80px' },
+          { top: '33px', left: '140px' },
+          { top: '33px', left: '200px' },
+          { top: '123px', left: '49px' },
           { top: '123px', left: '136px' },
-          { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
-          { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
-          { top: '188px', left: '136px' },  // Row 3 - moved up 30px
-          { top: '188px', left: '225px' },  // Cell 8 - moved left by 8px
-          { top: '268px', left: '33px' },  // Row 4 - moved up 45px
-          { top: '268px', left: '136px' },  // Row 4 - moved up 45px
-          { top: '268px', left: '233px' },  // Row 4 - moved up 45px
+          { top: '123px', left: '225px' },
+          { top: '188px', left: '49px' },
+          { top: '188px', left: '136px' },
+          { top: '188px', left: '225px' },
         ]
       }
     },
+    // Default to 3x3 grid positions matching standard
     iconPositions: [
-      { top: '33px', left: '33px' },
-      { top: '33px', left: '136px' },
-      { top: '33px', left: '233px' },
-      { top: '123px', left: '46px' },  // Cell 3 - moved right by 13px total
+      { top: '33px', left: '80px' },
+      { top: '33px', left: '140px' },
+      { top: '33px', left: '200px' },
+      { top: '123px', left: '49px' },
       { top: '123px', left: '136px' },
-      { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
-      { top: '188px', left: '46px' },  // Cell 6 - moved right by 13px total
-      { top: '188px', left: '136px' },  // Row 3 - moved up 30px
-      { top: '188px', left: '225px' },  // Cell 8 - moved left by 8px
+      { top: '123px', left: '225px' },
+      { top: '188px', left: '49px' },
+      { top: '188px', left: '136px' },
+      { top: '188px', left: '225px' },
     ],
     iconLayout: {
       size: '32px',
@@ -407,8 +404,8 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
   // Extended Panel Horizontal 1 (X1H)
   X1H: {
     dimensions: {
-      width: '640px',
-      height: '320px'
+      width: '731px', // 217mm converted to pixels (217 * 3.37)
+      height: '320px' // 95mm converted to pixels (95 * 3.37)
     },
     iconPositions: [
       // Left SP (first 9 slots)

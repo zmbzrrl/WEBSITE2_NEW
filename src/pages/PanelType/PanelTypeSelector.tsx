@@ -12,14 +12,18 @@ import {
   TextField,
   CircularProgress,
   Tooltip,
+  Switch,
+  FormControlLabel,
+  Paper,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import SP from "../../assets/panels/SP.png";
-import DP from "../../assets/panels/DP.jpg";
-import X2H from "../../assets/panels/X2RS.png";
+import DP from "../../assets/panels/DP.png";
+import X2H from "../../assets/panels/X2LS.png";
+import X1H from "../../assets/panels/X1RS.png";
 import IDPG from "../../assets/panels/IDPG_RN.png";
-import TAG from "../../assets/panels/TAG_PIR.png";
+import TAG from "../../assets/panels/TAG.png";
 import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
 import { ProjectContext } from '../../App';
@@ -121,8 +125,18 @@ const PanelTypeSelector = () => {
   const location = useLocation();
   const theme = useTheme();
   const [showPanels] = useState(true);
+  const [isFreeDesignMode, setIsFreeDesignMode] = useState(false);
   const { projectName, projectCode } = useContext(ProjectContext);
   const { projPanels } = useCart();
+
+  // Persist Free Design toggle across navigation/reloads
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('freeDesignMode');
+      if (saved === 'true') setIsFreeDesignMode(true);
+      if (saved === 'false') setIsFreeDesignMode(false);
+    } catch {}
+  }, []);
 
   // BOQ-integrated state
   const importResults = (location.state?.importResults as { project_ids?: string[] } | undefined) || (() => {
@@ -135,31 +149,17 @@ const PanelTypeSelector = () => {
   // Check if we're in BOQ mode or standalone mode
   const hasBOQ = Array.isArray(projectIds) && projectIds.length > 0;
   const hasProjectCode = !!projectCode; // Check if we have a project code from context
-  // Always keep BOQ-aware mode active when projectIds exist
-  const hasBOQEffective = hasBOQ;
+  // Use BOQ mode only when not in free design mode and BOQ data exists
+  const hasBOQEffective = hasBOQ && !isFreeDesignMode;
   
   console.log('PanelTypeSelector - hasBOQ:', hasBOQ);
   console.log('PanelTypeSelector - hasProjectCode:', hasProjectCode);
   console.log('PanelTypeSelector - projectIds:', projectIds);
   console.log('PanelTypeSelector - projectCode:', projectCode);
 
-  // Only redirect if we have neither BOQ nor project code
-  const [redirecting, setRedirecting] = useState(false);
-  useEffect(() => {
-    if (!hasBOQEffective && !hasProjectCode) {
-      console.log('PanelTypeSelector - No BOQ or project code, redirecting to properties');
-      setRedirecting(true);
-      navigate('/properties', { replace: true });
-    } else {
-      console.log('PanelTypeSelector - Has BOQ or project code, staying on page');
-      setRedirecting(false);
-    }
-  }, [hasBOQEffective, hasProjectCode, navigate]);
-
-  // Prevent any UI from rendering until we have context or redirect happens
-  if ((!hasBOQEffective && !hasProjectCode) || redirecting) {
-    return null;
-  }
+  // Do not redirect away; allow user to enable Free Design Mode from this page
+  // Keep a minimal redirecting state for future use if needed
+  const [redirecting] = useState(false);
   const [boqLoading, setBoqLoading] = useState(false);
   const [boqFetched, setBoqFetched] = useState(false);
   const [boqError, setBoqError] = useState<string | null>(null);
@@ -261,19 +261,26 @@ const PanelTypeSelector = () => {
       key: 'DP',
     },
     {
-      name: "Extended Panel",
+      name: "Extended Panels — 1 Socket",
+      image: X1H,
+      path: "/panel/extended",
+      key: 'EXT1',
+    },
+    {
+      name: "Extended Panels — 2 Sockets",
       image: X2H,
       path: "/panel/extended",
-      key: 'EXT',
+      key: 'EXT2',
     },
   ];
 
-  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT' => {
+  const mapTypeToCategory = (t: string): 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT1' | 'EXT2' => {
     if (t === 'SP') return 'SP';
     if (t === 'TAG') return 'TAG';
     if (t === 'IDPG') return 'IDPG';
     if (t === 'DPH' || t === 'DPV') return 'DP';
-    if (t && t.toUpperCase().startsWith('X')) return 'EXT';
+    if (t && t.toUpperCase().startsWith('X1')) return 'EXT1';
+    if (t && t.toUpperCase().startsWith('X2')) return 'EXT2';
     return 'SP';
   };
 
@@ -321,8 +328,8 @@ const PanelTypeSelector = () => {
   useEffect(() => {
     if (!hasBOQEffective) { setAdjustedBoqData(boqData); return; }
     const lower = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
-    const countsByCategoryAndName: Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT', Record<string, number>> = {
-      SP: {}, TAG: {}, IDPG: {}, DP: {}, EXT: {}
+    const countsByCategoryAndName: Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2', Record<string, number>> = {
+      SP: {}, TAG: {}, IDPG: {}, DP: {}, EXT1: {}, EXT2: {}
     };
     // Tally used quantities from current projPanels by category and panelName (best-available key)
     for (const panel of projPanels) {
@@ -335,7 +342,7 @@ const PanelTypeSelector = () => {
     // Build adjusted BOQ data with per-design remaining quantities
     const next: typeof boqData = {};
     for (const [catKey, entry] of Object.entries(boqData)) {
-      const cat = catKey as 'SP'|'TAG'|'IDPG'|'DP'|'EXT';
+      const cat = catKey as 'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2';
       const usedMap = countsByCategoryAndName[cat] || {};
       const designs = (entry.designs || []).map(d => {
         const used = usedMap[lower(d.name)] || 0;
@@ -349,7 +356,7 @@ const PanelTypeSelector = () => {
   }, [boqData, projPanels, hasBOQEffective]);
 
   // Allocation update (fixed totals)
-  const updateAlloc = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT', designId: string, newQty: number) => {
+  const updateAlloc = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2', designId: string, newQty: number) => {
     if (newQty < 0) return;
     setBoqData(prev => {
       const current = { ...(prev[cat] || { fixedTotal: 0, totalQuantity: 0, designs: [] }) } as typeof prev[typeof cat];
@@ -365,7 +372,7 @@ const PanelTypeSelector = () => {
   };
 
   const usedByCategory = useMemo(() => {
-    const counts: Record<'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT', number> = { SP: 0, TAG: 0, IDPG: 0, DP: 0, EXT: 0 };
+    const counts: Record<'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT1' | 'EXT2', number> = { SP: 0, TAG: 0, IDPG: 0, DP: 0, EXT1: 0, EXT2: 0 };
     for (const item of projPanels) {
       const cat = mapTypeToCategory(item.type);
       const qty = typeof item.quantity === 'number' && !isNaN(item.quantity) ? item.quantity : 1;
@@ -457,7 +464,7 @@ const PanelTypeSelector = () => {
     loadFlags();
   }, [hasBOQEffective, projectIds]);
 
-  const remainingByCategory = useMemo(() => ({ SP: undefined, TAG: undefined, IDPG: undefined, DP: undefined, EXT: undefined } as Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT', number | undefined>), [usedByCategory]);
+  const remainingByCategory = useMemo(() => ({ SP: undefined, TAG: undefined, IDPG: undefined, DP: undefined, EXT1: undefined, EXT2: undefined } as Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2', number | undefined>), [usedByCategory]);
 
   // BOQ removed: no redirects or gating
 
@@ -468,6 +475,13 @@ const PanelTypeSelector = () => {
     console.log('remainingByCategory:', remainingByCategory);
     console.log('boqData keys:', Object.keys(boqData));
     console.log('adjustedBoqData keys:', Object.keys(adjustedBoqData));
+    console.log('isFreeDesignMode:', isFreeDesignMode);
+    
+    // If in free design mode, show all panel types
+    if (isFreeDesignMode) {
+      console.log('Free design mode - showing all panel types');
+      return allPanelTypes;
+    }
     
     // If BOQ mode is active, only show categories present in BOQ; else show all
     const presentKeys = new Set(Object.keys(adjustedBoqData));
@@ -479,7 +493,7 @@ const PanelTypeSelector = () => {
     
     // Further filter by remaining BOQ quantities if provided
     const final = base.filter(p => {
-      const remaining = remainingByCategory[p.key as 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT'];
+      const remaining = remainingByCategory[p.key as 'SP' | 'TAG' | 'IDPG' | 'DP' | 'EXT1' | 'EXT2'];
       const shouldKeep = remaining === undefined || remaining > 0;
       console.log(`Panel ${p.name} (${p.key}): remaining=${remaining}, shouldKeep=${shouldKeep}`);
       // If no BOQ quantity specified for this category, keep it. If specified, require remaining > 0
@@ -488,10 +502,13 @@ const PanelTypeSelector = () => {
     
     console.log('Final panelTypes:', final.map(p => p.name));
     return final;
-  }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory, hasBOQEffective, adjustedBoqData]);
+  }, [effectiveAllowedPanelTypes, allPanelTypes, remainingByCategory, hasBOQEffective, adjustedBoqData, isFreeDesignMode]);
 
   // If BOQ not fetched yet, show loading state (prevents plain selector flash)
   // Only show loading if we're in BOQ mode and haven't fetched BOQ data yet
+  if (redirecting) {
+    return null;
+  }
   if (hasBOQEffective && !boqFetched) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #718096 0%, #a0aec0 100%)' }}>
@@ -593,6 +610,75 @@ const PanelTypeSelector = () => {
           <ProgressBar />
         </ProgressContainer>
 
+        {/* Design Mode Toggle */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          mb: 4,
+          mt: 2
+        }}>
+          <Paper sx={{ 
+            p: 2, 
+            backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: 2
+          }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isFreeDesignMode}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setIsFreeDesignMode(val);
+                    try { sessionStorage.setItem('freeDesignMode', String(val)); } catch {}
+                  }}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: '#1976d2',
+                      '& + .MuiSwitch-track': {
+                        backgroundColor: '#1976d2',
+                      },
+                    },
+                    '& .MuiSwitch-track': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
+                />
+              }
+              label={
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                  <Typography sx={{ 
+                    color: 'rgba(255, 255, 255, 0.9)', 
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif'
+                  }}>
+                    {isFreeDesignMode ? 'Free Design Mode' : 'Import-Based Design'}
+                  </Typography>
+                  <Typography sx={{ 
+                    color: 'rgba(255, 255, 255, 0.7)', 
+                    fontSize: '12px',
+                    fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                    textAlign: 'center'
+                  }}>
+                    {isFreeDesignMode 
+                      ? 'Design freely with all panel options available' 
+                      : 'Design based on imported BOQ specifications'
+                    }
+                  </Typography>
+                </Box>
+              }
+              sx={{ 
+                margin: 0,
+                '& .MuiFormControlLabel-label': {
+                  marginLeft: 2
+                }
+              }}
+            />
+          </Paper>
+        </Box>
+
         {(showPanels && panelTypes.length > 0) && (
           <motion.div
             variants={containerVariants}
@@ -606,8 +692,8 @@ const PanelTypeSelector = () => {
                   key={panel.name}
                   item 
                   xs={12} 
-                  sm={panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 12 : 6} 
-                  md={panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 6 : 4}
+                  sm={panel.name === 'Double Panel' || panel.name.startsWith('Extended Panels') ? 12 : 6} 
+                  md={panel.name === 'Double Panel' || panel.name.startsWith('Extended Panels') ? 6 : 4}
                   component="div"
                 >
                   <StyledPanel variants={itemVariants}>
@@ -629,26 +715,26 @@ const PanelTypeSelector = () => {
                         style={{
                           maxHeight:
                             panel.name === 'Single Panel' || panel.name === 'Thermostat'
-                              ? 183  // 30% smaller: 262 * 0.7
+                              ? 183
                               : panel.name === 'Corridor Panel'
-                              ? 277  // 20% smaller: 346 * 0.8
+                              ? 277
                               : panel.name === 'Double Panel'
                               ? 250
-                              : panel.name === 'Extended Panel'
-                              ? 276  // Another 5% bigger: 263 * 1.05
+                              : panel.name.startsWith('Extended Panels')
+                              ? 276
                               : 288,
                           width:
                             panel.name === 'Single Panel' || panel.name === 'Thermostat'
-                              ? '75%'  // 30% smaller: 107% * 0.7
+                              ? '75%'
                               : panel.name === 'Corridor Panel'
-                              ? '115%'  // 20% smaller: 144% * 0.8
+                              ? '115%'
                               : panel.name === 'Double Panel'
                               ? '87%'
-                              : panel.name === 'Extended Panel'
-                              ? '96%'  // Another 5% bigger: 91% * 1.05
+                              : panel.name.startsWith('Extended Panels')
+                              ? '96%'
                               : '120%',
                           marginBottom: 16,
-                          marginTop: panel.name === 'Double Panel' || panel.name === 'Extended Panel' ? 0 : undefined,
+                          marginTop: panel.name === 'Double Panel' || panel.name.startsWith('Extended Panels') ? 0 : undefined,
                         }}
                       />
                       <PanelTitle 
@@ -667,33 +753,43 @@ const PanelTypeSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
-                        disabled={true}
+                        disabled={!isFreeDesignMode}
                         onClick={() => {
-                          // Disabled - users should only use Design buttons
+                          if (isFreeDesignMode) {
+                            // Navigate to customizer in free design mode
+                            navigate(panel.path, { 
+                              state: { 
+                                fromFreeDesign: true,
+                                projectName,
+                                projectCode,
+                                socketCategory: panel.key // Pass the socket category for free design mode too
+                              } 
+                            });
+                          }
                         }}
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.3)',
+                          color: isFreeDesignMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.3)',
                           textTransform: 'none',
                           fontWeight: 400,
                           letterSpacing: '0.5px',
-                          opacity: 0,
-                          transform: 'translateY(10px)',
+                          opacity: isFreeDesignMode ? 1 : 0,
+                          transform: isFreeDesignMode ? 'translateY(0)' : 'translateY(10px)',
                           transition: 'all 0.3s ease',
                           fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                          cursor: 'not-allowed',
+                          cursor: isFreeDesignMode ? 'pointer' : 'not-allowed',
                           '&:hover': {
-                            color: 'rgba(255, 255, 255, 0.3)',
-                            backgroundColor: 'transparent',
+                            color: isFreeDesignMode ? '#ffffff' : 'rgba(255, 255, 255, 0.3)',
+                            backgroundColor: isFreeDesignMode ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
                           },
                           '&.Mui-disabled': {
                             color: 'rgba(255, 255, 255, 0.3)',
                           },
                         }}
                       >
-                        Select Panel
+                        {isFreeDesignMode ? 'Design Panel' : 'Select Panel'}
                       </Button>
-                      {/* BOQ allocation for this category if available */}
-                      {hasBOQEffective && adjustedBoqData[panel.key as 'SP'|'TAG'|'IDPG'|'DP'|'EXT'] && (
+                      {/* BOQ allocation for this category if available - only show when not in free design mode */}
+                      {!isFreeDesignMode && hasBOQEffective && adjustedBoqData[panel.key as 'SP'|'TAG'|'IDPG'|'DP'|'EXT'] && (
                         <Box sx={{ mt: 2, width: '100%', maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
                             <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.9)' }}>Quantity</Typography>
@@ -902,7 +998,8 @@ const PanelTypeSelector = () => {
                                           motionFlagData,
                                           proximityFlag,
                                           roomNumberFlag: !!roomNumberFlags[d.id],
-                                          cardReaderFlag: !!cardReaderFlags[d.id]
+                                          cardReaderFlag: !!cardReaderFlags[d.id],
+                                          socketCategory: panel.key // Pass the socket category (EXT1 or EXT2)
                                         } 
                                       });
                                     }}
@@ -928,7 +1025,7 @@ const PanelTypeSelector = () => {
             </Grid>
           </motion.div>
         )}
-        {hasBOQEffective && boqFetched && panelTypes.length === 0 && (
+        {!isFreeDesignMode && hasBOQEffective && boqFetched && panelTypes.length === 0 && (
           <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.9)', mt: 6 }}>
             <Typography>No panel designs were found in the imported JSON for this selection.</Typography>
           </Box>

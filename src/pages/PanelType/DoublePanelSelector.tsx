@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
-import DPH from "../../assets/panels/DP.jpg";
+import DPH from "../../assets/panels/DP.png";
 import DPV from "../../assets/panels/GS_Double module_224x25_vertical.png";
 import logo from "../../assets/logo.png";
 import CartButton from "../../components/CartButton";
@@ -304,11 +304,18 @@ const DoublePanelSelector = () => {
                 >
                   <StyledPanel variants={itemVariants}>
                     <PanelContainer
-                      onClick={() => {
-                        // Disabled - users should only use Design buttons
-                      }}
+                      onClick={() => navigate(panel.path, { 
+                        state: { 
+                          proximityFlag: location.state?.proximityFlag,
+                          motionFlagData: location.state?.motionFlagData,
+                          selectedDesignId: location.state?.selectedDesignId,
+                          fromBOQ: location.state?.fromBOQ,
+                          projectIds: location.state?.projectIds,
+                          importResults: location.state?.importResults
+                        } 
+                      })}
                       sx={{
-                        cursor: 'default',
+                        cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -343,12 +350,18 @@ const DoublePanelSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
-                        disabled={true}
-                        onClick={() => {
-                          // Disabled - users should only use Design buttons
-                        }}
+                        onClick={() => navigate(panel.path, { 
+                          state: { 
+                            proximityFlag: location.state?.proximityFlag,
+                            motionFlagData: location.state?.motionFlagData,
+                            selectedDesignId: location.state?.selectedDesignId,
+                            fromBOQ: location.state?.fromBOQ,
+                            projectIds: location.state?.projectIds,
+                            importResults: location.state?.importResults
+                          } 
+                        })}
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.3)',
+                          color: 'rgba(255, 255, 255, 0.7)',
                           textTransform: 'none',
                           fontWeight: 400,
                           letterSpacing: '0.5px',
@@ -356,13 +369,9 @@ const DoublePanelSelector = () => {
                           transform: 'translateY(10px)',
                           transition: 'all 0.3s ease',
                           fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
-                          cursor: 'not-allowed',
                           '&:hover': {
-                            color: 'rgba(255, 255, 255, 0.3)',
+                            color: 'rgba(255, 255, 255, 1)',
                             backgroundColor: 'transparent',
-                          },
-                          '&.Mui-disabled': {
-                            color: 'rgba(255, 255, 255, 0.3)',
                           },
                         }}
                       >

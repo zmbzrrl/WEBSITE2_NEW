@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ralColors } from '../data/ralColors';
 import { getIconColorName } from '../data/iconColors';
 import { allIcons } from '../assets/iconLibrary';
+import { allIcons as icons2 } from '../assets/iconLibrary2';
 import DISPLAY from '../assets/icons/DISPLAY.png';
 import FAN from '../assets/icons/FAN.png';
 import { getPanelLayoutConfig, PanelLayoutConfig } from '../data/panelLayoutConfig';
@@ -205,6 +206,10 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
     if (isTAG) {
       if (icon?.iconId === 'DISPLAY') {
         return '240px'; // Large display icon
+      }
+      // C and F icons from TAG_icons folder should be 50% smaller
+      if (icon && (icon.iconId === 'C' || icon.iconId === 'F')) {
+        return '20px'; // 50% of base 40px size
       }
       if (icon?.iconId === 'FAN') {
         // Different sizes for different fan positions
@@ -410,11 +415,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
               }
               
               if (isTAG && panelDesign.tagConfig) {
-                const { dimension } = panelDesign.tagConfig;
-                if (dimension === 'tall') {
-                  perRowOffset = (rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0);
-                }
-                // Lower rows 2 and 3 by 30px
+                // Keep TAG grid consistent across dimensions (no per-row offsets)
                 const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
                 perRowOffset += lowerRowsOffset;
               }

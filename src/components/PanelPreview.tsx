@@ -61,8 +61,8 @@ const getAutoTextColor = (backgroundColor: string): string => {
   // Calculate brightness (0-255)
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   
-  // Use white text for dark backgrounds, dark text for light backgrounds
-  return brightness < 150 ? '#ffffff' : '#2c2c2c';
+  // Use white text for dark backgrounds, dark grey (#808080) for light to match icons
+  return brightness < 150 ? '#ffffff' : '#808080';
 };
 
 interface PanelPreviewIcon {
@@ -197,11 +197,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
     const rowIndex = Math.floor(index / 3);
-    // Move rows 2 and 3 down by 10px
-    const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 10 : 0;
-    // Apply per-row offsets only for tall: row 1 -20px, row 2 +10px, row 3 +40px
-    const perRowOffset = (dimensionKey === 'tall') ? ((rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0)) : 0;
-    const adjustedTop = `${baseTop + perRowOffset + lowerRowsOffset}px`;
+    // Do not adjust rows based on dimension; keep SP-style grid consistent
+    const adjustedTop = `${baseTop}px`;
     
     return (
       <div
@@ -524,10 +521,16 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       // Also update the icon positions for the selected dimension (scaled to match new panel size)
       dimensionIconPositions = config.dimensionConfigs[dimension].iconPositions?.map(scaleIconPosition);
     }
-    // Calculate grid offsets for standard mode if not provided
+    // Keep base offsets consistent across dimensions; apply requested SP shifts
     if (!gridOffsetX && !gridOffsetY) {
-      calculatedGridOffsetX = dimension === 'wide' ? 40 : (dimension === 'standard' ? 20 : (dimension === 'tall' ? 25 : 0));
-      calculatedGridOffsetY = dimension === 'tall' ? 58 : 15;
+      let offsetX = 20;
+      let offsetY = 15;
+      // For SP wide: shift grid 60px right
+      if (dimension === 'wide') offsetX += 60;
+      // For SP tall: shift grid 50px down
+      if (dimension === 'tall') offsetY += 50;
+      calculatedGridOffsetX = offsetX;
+      calculatedGridOffsetY = offsetY;
     }
   } else if (isSP && !gridOffsetX && !gridOffsetY) {
     // Default SP grid offsets when no config is provided
@@ -546,10 +549,16 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       // Also update the icon positions for the selected dimension (scaled to match new panel size)
       dimensionIconPositions = config.dimensionConfigs[dimension].iconPositions?.map(scaleIconPosition);
     }
-    // Calculate grid offsets for standard mode if not provided
+    // Keep base offsets consistent across dimensions; apply requested TAG shifts
     if (!gridOffsetX && !gridOffsetY) {
-      calculatedGridOffsetX = dimension === 'wide' ? 40 : (dimension === 'standard' ? 20 : (dimension === 'tall' ? 25 : 0));
-      calculatedGridOffsetY = dimension === 'tall' ? 58 : 15;
+      let offsetX = 20;
+      let offsetY = 15;
+      // For TAG wide: shift grid 60px right
+      if (dimension === 'wide') offsetX += 60;
+      // For TAG tall: shift grid 50px down
+      if (dimension === 'tall') offsetY += 50;
+      calculatedGridOffsetX = offsetX;
+      calculatedGridOffsetY = offsetY;
     }
   } else if (isTAG && !gridOffsetX && !gridOffsetY) {
     // Default TAG grid offsets when no config is provided
@@ -576,14 +585,18 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       if (icon?.iconId === 'DISPLAY') {
         return '237px'; // Large display icon - made 3% bigger
       }
+      // C and F icons from TAG_icons folder should be 50% smaller
+      if (icon && (icon.iconId === 'C' || icon.iconId === 'F')) {
+        const baseSize = 40; // Base size for TAG icons
+        return `${Math.round(baseSize * 0.5)}px`; // 20px
+      }
       // First row icons (positions 0, 1, 2) are 35px
       if (icon && (icon.position === 0 || icon.position === 1 || icon.position === 2)) {
         return '35px';
       }
-      // Rows 2, 3 and 4 icons (positions 3, 4, 5, 6, 7, 8, 9, 10, 11) are 45px
+      // Rows 2 and 3 icons (positions 3, 4, 5, 6, 7, 8) are 45px
       if (icon && (icon.position === 3 || icon.position === 4 || icon.position === 5 ||
-                   icon.position === 6 || icon.position === 7 || icon.position === 8 || 
-                   icon.position === 9 || icon.position === 10 || icon.position === 11)) {
+                   icon.position === 6 || icon.position === 7 || icon.position === 8)) {
         return '45px';
       }
       if (icon?.iconId === 'FAN') {
@@ -665,7 +678,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             alt="DISPLAY"
             style={{
               position: 'absolute',
-              top: '90px',
+              top: (panelDesign.tagConfig?.dimension === 'tall') ? '140px' : '90px',
               left: 'calc(45% + 15px)',
               transform: 'translateX(-50%)',
               width: '237px',
@@ -697,7 +710,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             <div
               style={{
                 position: 'absolute',
-                bottom: '10px',
+                bottom: '8px',
                 right: '37px',
                 width: '10px',
                 height: '10px',
@@ -802,6 +815,26 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 offset += 8;
               }
               adjustedPos = { ...adjustedPos, top: (topValue + offset) + 'px' } as any;
+            }
+
+            // SP: apply dimension-specific overall grid shift for absolute rendering
+            if (isSP && panelDesign.spConfig && adjustedPos) {
+              const { dimension } = panelDesign.spConfig;
+              const baseLeft = parseInt((adjustedPos as any).left || '0', 10);
+              const baseTop = parseInt((adjustedPos as any).top || '0', 10);
+              const dx = dimension === 'wide' ? 60 : 0;
+              const dy = dimension === 'tall' ? 50 : 0;
+              adjustedPos = { ...adjustedPos, left: (baseLeft + dx) + 'px', top: (baseTop + dy) + 'px' } as any;
+            }
+
+            // TAG: apply dimension-specific overall grid shift for absolute rendering
+            if (isTAG && panelDesign.tagConfig && adjustedPos) {
+              const { dimension } = panelDesign.tagConfig;
+              const baseLeft = parseInt((adjustedPos as any).left || '0', 10);
+              const baseTop = parseInt((adjustedPos as any).top || '0', 10);
+              const dx = dimension === 'wide' ? 60 : 0;
+              const dy = dimension === 'tall' ? 50 : 0;
+              adjustedPos = { ...adjustedPos, left: (baseLeft + dx) + 'px', top: (baseTop + dy) + 'px' } as any;
             }
             
             return (
@@ -1739,15 +1772,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             height: '100%', 
             transform: `translate(${calculatedGridOffsetX}px, ${calculatedGridOffsetY}px)` 
           }}>
-            {(isTAG ? Array.from({ length: 12 }) : (dimensionIconPositions || iconPositions || [])).map((_, index) => {
+            {(isTAG ? Array.from({ length: 9 }) : (dimensionIconPositions || iconPositions || [])).map((_, index) => {
               let pos = (dimensionIconPositions || iconPositions || [])[index];
-              
-              // For TAG panels, provide fallback positions for the 4th row (positions 9-11)
-              if (isTAG && !pos && index >= 9) {
-                if (index === 9) pos = { top: '313px', left: '33px' };
-                else if (index === 10) pos = { top: '313px', left: '136px' };
-                else if (index === 11) pos = { top: '313px', left: '233px' };
-              }
               
               // Final fallback
               if (!pos) pos = { top: '0px', left: '0px' };
@@ -1772,39 +1798,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
               const adjustedFontSize = text ? calculateFontSize(text, parseInt(dimensions.width) / 6, baseFontSize) : baseFontSize;
               
-              // Apply per-row offsets for SP and TAG panels (same as customizers)
+              // Keep SP/TAG absolute positions consistent across dimensions (no per-row offsets)
               let adjustedPos = pos;
               if (isSP || isTAG) {
                 const baseTop = parseInt((pos as any).top || '0', 10);
-                const rowIndex = Math.floor(index / 3);
-                
-                // Apply per-row offsets based on dimension
-                let perRowOffset = 0;
-                if (isSP && panelDesign.spConfig) {
-                  const { dimension } = panelDesign.spConfig;
-                  if (dimension === 'tall') {
-                    perRowOffset = (rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0);
-                  }
-                  // Move rows 2 and 3 down by 10px
-                  const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 10 : 0;
-                  perRowOffset += lowerRowsOffset;
-                }
-                
-                if (isTAG && panelDesign.tagConfig) {
-                  const { dimension } = panelDesign.tagConfig;
-                  if (dimension === 'tall') {
-                    perRowOffset = (rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0);
-                  }
-                  // Lower rows 2 and 3 by 30px
-                  const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
-                  perRowOffset += lowerRowsOffset;
-                  // Move row 3 and 4 down by additional 8px
-                  if (rowIndex === 2 || rowIndex === 3) {
-                    perRowOffset += 8;
-                  }
-                }
-                
-                const adjustedTop = `${baseTop + perRowOffset}px`;
+                const adjustedTop = `${baseTop}px`;
                 adjustedPos = { ...pos, top: adjustedTop };
               }
               
@@ -2002,12 +2000,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             }}>
               {/* Middle bar */}
               <div style={{
-                width: "100%",
+                width: "20%",
                 height: "8px",
                 background: "transparent",
                 border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
-                margin: "auto 0",
+                margin: "auto",
               }} />
               {/* G18 icon in bottom center */}
               <div style={{
@@ -2051,7 +2049,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               marginBottom: "10px",
             }}>
               <div style={{
-                color: panelDesign.textColor,
+                color: getAutoTextColor(panelDesign.backgroundColor),
                 fontSize: "48px",
                 fontWeight: 'bold',
                 fontFamily: panelDesign.fonts || undefined,
@@ -2117,12 +2115,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             ) : (
               /* Status bar */
               <div style={{
-                width: "100%",
+                width: "20%",
                 height: "8px",
                 background: "transparent",
                 border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
-                margin: "10px 0",
+                margin: "10px auto",
               }} />
             )}
             
@@ -2214,12 +2212,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             ) : (
               /* Status bar at top */
               <div style={{
-                width: "100%",
+                width: "20%",
                 height: "8px",
                 background: "transparent",
                 border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
-                marginBottom: "20px",
+                margin: "0 auto 20px auto",
               }} />
             )}
             
@@ -2280,7 +2278,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               marginBottom: "10px",
             }}>
               <div style={{
-                color: panelDesign.textColor,
+                color: getAutoTextColor(panelDesign.backgroundColor),
                 fontSize: "48px",
                 fontWeight: 'bold',
                 fontFamily: panelDesign.fonts || undefined,
@@ -2346,12 +2344,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             ) : (
               /* Status bar right below the number */
               <div style={{
-                width: "100%",
+                width: "20%",
                 height: "8px",
                 background: "transparent",
                 border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "4px",
-                marginBottom: "20px",
+                margin: "10px auto",
               }} />
             )}
             
@@ -2436,7 +2434,6 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
           WebkitBackdropFilter: "blur(20px)",
           transition: "all 0.3s ease",
           position: "relative",
-          transform: "perspective(1000px) rotateX(5deg)",
           transformStyle: "preserve-3d",
           margin: "0 auto",
           fontFamily: panelDesign.fonts || undefined,

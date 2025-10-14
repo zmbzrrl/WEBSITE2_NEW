@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { supabase } from "../../utils/supabaseClient";
 import "./Customizer.css";
+import { getBackboxOptions } from "../../utils/backboxOptions";
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -19,6 +20,7 @@ const getPanelTypeLabel = (type: string) => {
   }
 };
 import CartButton from "../../components/CartButton";
+import RALColorSelector from "../../components/RALColorSelector";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from "../../assets/logo.png";
 import {
@@ -450,11 +452,9 @@ const InformationBox = ({
                   style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
                 >
                   <option value="">Select a backbox...</option>
-                  <option value="Backbox 1">Backbox 1</option>
-                  <option value="Backbox 2">Backbox 2</option>
-                  <option value="Backbox 3">Backbox 3</option>
-                  <option value="Backbox 4">Backbox 4</option>
-                  <option value="Backbox 5">Backbox 5</option>
+                  {getBackboxOptions('SP', { spConfig: { dimension: panelDesign?.spConfig?.dimension || 'standard' } }).map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
@@ -607,6 +607,7 @@ const SPCustomizer: React.FC = () => {
   const editPanelIndex = location.state?.panelIndex;
   const editPanelData = location.state?.panelData;
   const isAddingToExistingProject = location.state?.isAddingToExistingProject || false;
+  const isFreeDesignMode = location.state?.fromFreeDesign || false;
   
   // Debug logging for edit mode
   console.log('🔍 SPCustomizer Edit Mode Debug:');
@@ -683,6 +684,16 @@ const SPCustomizer: React.FC = () => {
         setPanelDesign(panelDesignData);
         setBackbox(panelDesignData.backbox || '');
         setExtraComments(panelDesignData.extraComments || '');
+        
+        // Load proximity flag if present
+        const proximityFlag = panelDesignData.features?.Proximity || panelDesignData.Proximity;
+        if (proximityFlag === true) {
+          console.log('✅ Loading proximity flag from edit data - showing proximity indicators');
+          setShowProximityIndicators(true);
+        } else {
+          console.log('❌ No proximity flag in edit data - hiding proximity indicators');
+          setShowProximityIndicators(false);
+        }
         
         // Load dimension configuration if present
         if (panelDesignData.spConfig && panelDesignData.spConfig.dimension) {
@@ -971,11 +982,13 @@ const SPCustomizer: React.FC = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      
+      // In free design mode, use default values instead of BOQ values
       const enhancedDesign = {
         ...design,
-        panelName: selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
-        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
+        panelName: isFreeDesignMode ? getPanelTypeLabel(design.type) : (selectedDesignName || getPanelTypeLabel(design.type)),
+        quantity: isFreeDesignMode ? 1 : selectedDesignQuantity, // Use 1 for free design, BOQ quantity for import mode
+        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined)
       };
 
       if (panelAddedToProject) {
@@ -989,7 +1002,8 @@ const SPCustomizer: React.FC = () => {
           addToCart(enhancedDesign);
         }
     } else {
-      // Add new panel with quantity prompt constrained by BOQ remaining
+      // Add new panel with quantity prompt constrained by BOQ remaining (only in BOQ mode)
+      if (!isFreeDesignMode) {
       const category = mapTypeToCategory(design.type);
 
       const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
@@ -1009,6 +1023,11 @@ const SPCustomizer: React.FC = () => {
 
       addToCart(enhancedDesign);
         setPanelAddedToProject(true); // Mark panel as added to project
+      } else {
+        // Free design mode - add directly without BOQ constraints
+      addToCart(enhancedDesign);
+        setPanelAddedToProject(true); // Mark panel as added to project
+      }
       }
       
       // If we are adding to an existing project, return to cart and preserve project edit context
@@ -1347,8 +1366,8 @@ const SPCustomizer: React.FC = () => {
               onDragStart={(e) => handleDragStart(e, icon)}
               onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
+                width: panelDesign.iconSize || '14mm',
+                height: panelDesign.iconSize || '14mm',
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -1621,6 +1640,15 @@ const SPCustomizer: React.FC = () => {
     }
   }, [panelDesign.fonts]);
 
+  // Free Design PIR toggle
+  const hasPIRFree = placedIcons.some(icon => icon.category === 'PIR');
+  const [pirToggle, setPirToggle] = useState<boolean>(false);
+  useEffect(() => {
+    if (location.state?.fromFreeDesign) {
+      setPirToggle(hasPIRFree);
+    }
+  }, [location.state?.fromFreeDesign, hasPIRFree]);
+
   const config = getPanelLayoutConfig('SP');
   const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
   const [dimensionKey, setDimensionKey] = useState<string>('standard');
@@ -1644,7 +1672,7 @@ const SPCustomizer: React.FC = () => {
     ? dimensionConfigs[dimensionKey].iconPositions
     : (iconPositions || []);
   const gridOffsetX = dimensionKey === 'wide' ? 40 : (dimensionKey === 'standard' ? 20 : (dimensionKey === 'tall' ? 25 : 0));
-  const gridOffsetY = dimensionKey === 'tall' ? 58 : 15;
+  const gridOffsetY = 15;
 
   const getAutoTextColor = (backgroundColor: string): string => {
     const hex = (backgroundColor || '#ffffff').replace('#', '');
@@ -1664,7 +1692,8 @@ const SPCustomizer: React.FC = () => {
     const iconCategory = icon.category?.toLowerCase() || '';
     
     // Block text for any icon from TAG_icons folder
-    if (iconId.startsWith('tag_') || iconCategory === 'tag') {
+    // TAG icons from TAG_icons folder are categorized as "Thermostat"
+    if (iconId.startsWith('tag_') || iconCategory === 'tag' || iconCategory === 'thermostat') {
       console.log('🚫 Text blocked for TAG icon:', icon.label, 'ID:', icon.iconId, 'Category:', icon.category);
       return false;
     }
@@ -1743,6 +1772,61 @@ const SPCustomizer: React.FC = () => {
 
         <ProgressBar />
 
+        {/* Free Design: Motion Sensor Toggle */}
+        {location.state?.fromFreeDesign && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, gap: 24 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={pirToggle}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setPirToggle(enabled);
+                  if (enabled) {
+                    // add PIR if not present
+                    const pirIcon = (icons as any)['PIR'];
+                    const pirPos = getPirIndex();
+                    const exists = placedIcons.some(icon => icon.category === 'PIR');
+                    const occupied = placedIcons.some(icon => icon.position === pirPos);
+                    if (pirIcon && !exists && !occupied) {
+                      const newPir = {
+                        id: Date.now(),
+                        iconId: 'PIR',
+                        src: pirIcon.src || '',
+                        label: 'PIR',
+                        position: pirPos,
+                        category: 'PIR'
+                      } as any;
+                      setPlacedIcons(prev => [...prev, newPir]);
+                    }
+                  } else {
+                    // remove PIR
+                    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+                    setIconTexts(prev => ({ ...prev }));
+                  }
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Motion Sensor</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={showProximityIndicators}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setShowProximityIndicators(enabled);
+                  setPanelDesign((prev: any) => ({
+                    ...prev,
+                    features: { ...(prev?.features || {}), Proximity: enabled },
+                    Proximity: enabled,
+                  }));
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Proximity</span>
+            </label>
+          </Box>
+        )}
+
         {/* Step Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
           <Button
@@ -1752,11 +1836,16 @@ const SPCustomizer: React.FC = () => {
                 if (window.history.length > 1) {
                   navigate(-1);
                 } else {
+                  // Check if we came from free design mode
+                  if (isFreeDesignMode) {
+                    navigate('/panel-type');
+                } else {
                   const idsStr = typeof window !== 'undefined' ? sessionStorage.getItem('boqProjectIds') : null;
                   const projectIds = idsStr ? JSON.parse(idsStr) : [];
                   const resStr = typeof window !== 'undefined' ? sessionStorage.getItem('boqImportResults') : null;
                   const importResults = resStr ? JSON.parse(resStr) : undefined;
                   navigate('/panel-type', { state: { projectIds, importResults } });
+                  }
                 }
               } else {
                 setCurrentStep((s) => Math.max(2, s - 1));
@@ -1994,83 +2083,10 @@ const SPCustomizer: React.FC = () => {
               </h3>
 
               {/* Background Color Section */}
-              <div style={{ 
-                marginBottom: '28px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                padding: '20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-                border: '1px solid #e9ecef'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  marginBottom: '16px', 
-                  color: '#1a1f2c',
-                  fontSize: '15px',
-                  letterSpacing: '0.3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '4px',
-                    height: '16px',
-                    background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                    borderRadius: '2px'
-                  }} />
-                  Background Color (RAL)
-                </div>
-            <div
-              style={{
-                display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-                    gap: '10px',
-                    maxHeight: '200px',
-                overflowY: 'auto',
-                    background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    border: '1px solid #dee2e6',
-                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
-              }}
-            >
-              {ralColors.map((color: RALColor) => (
-                <button
-                  key={color.code}
-                  type="button"
-                  onClick={() => setPanelDesign({ ...panelDesign, backgroundColor: color.hex })}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                        border: panelDesign.backgroundColor === color.hex ? '2px solid #0056b3' : '1px solid #dee2e6',
-                        borderRadius: '8px',
-                        background: panelDesign.backgroundColor === color.hex ? 'linear-gradient(145deg, #e3f2fd 0%, #f0f8ff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                    cursor: 'pointer',
-                        padding: '8px 6px',
-                    outline: 'none',
-                        boxShadow: panelDesign.backgroundColor === color.hex ? '0 0 0 3px rgba(0, 86, 179, 0.15), 0 2px 8px rgba(0,0,0,0.1)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transition: 'all 0.2s ease',
-                        transform: panelDesign.backgroundColor === color.hex ? 'translateY(-1px)' : 'translateY(0)',
-                  }}
-                >
-                  <span
-                    style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '6px',
-                      background: color.hex,
-                          border: '2px solid #ffffff',
-                          marginBottom: '6px',
-                      display: 'block',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)'
-                    }}
-                  />
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#495057' }}>{`RAL ${color.code}`}</span>
-                </button>
-              ))}
-            </div>
-              </div>
+              <RALColorSelector
+                selectedColor={panelDesign.backgroundColor}
+                onColorSelect={(hex) => setPanelDesign({ ...panelDesign, backgroundColor: hex })}
+              />
               
               {/* Font Size Section */}
               {/* Font size controls removed for step 3 */}
@@ -2095,11 +2111,9 @@ const SPCustomizer: React.FC = () => {
                       style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
                     >
                       <option value="">Select a backbox...</option>
-                      <option value="Backbox 1">Backbox 1</option>
-                      <option value="Backbox 2">Backbox 2</option>
-                      <option value="Backbox 3">Backbox 3</option>
-                      <option value="Backbox 4">Backbox 4</option>
-                      <option value="Backbox 5">Backbox 5</option>
+                      {getBackboxOptions('SP', { spConfig: { dimension: panelDesign?.spConfig?.dimension || 'standard' } }).map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                 {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
               </Box>

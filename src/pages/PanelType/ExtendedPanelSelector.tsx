@@ -11,11 +11,10 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
-import X1LS from "../../assets/panels/X1LS.png";
-import X1RS from "../../assets/panels/X1RS.jpg";
+import X1LS from "../../assets/panels/X1RS.png";
+import X1RS from "../../assets/panels/X1RS.png";
 import X1V from "../../assets/panels/X1V_UP.png";
 import X2LS from "../../assets/panels/X2LS.png";
-import X2RS from "../../assets/panels/X2RS.png";
 import X2V from "../../assets/panels/X2V_UP.png";
 import logo from "../../assets/logo.png";
 import logo2 from "../../assets/logo.png";
@@ -208,39 +207,51 @@ const ExtendedPanelSelector = () => {
 
   
 
-  const horizontalPanels = [
-    {
-      name: "Extended Panel, Horizontal, 1 Socket",
-      image: X1LS,
-      path: "/customizer/x1h",
-      subtype: 'X1H' as const,
-    },
-    {
-      name: "Extended 2 Horizontal",
-      image: X2LS,
-      path: "/customizer/x2h",
-      subtype: 'X2H' as const,
-    },
-  ];
-  const verticalPanels = [
-    {
-      name: "Extended 1 Vertical",
-      image: X1V,
-      path: "/customizer/x1v",
-      subtype: 'X1V' as const,
-    },
-    {
-      name: "Extended 2 Vertical",
-      image: X2V,
-      path: "/customizer/x2v",
-      subtype: 'X2V' as const,
-    },
-  ];
+	// Group by socket count instead of orientation
+	const oneSocketPanels = [
+		{
+			name: "Horizontal, 1 Socket",
+			image: X1LS,
+			path: "/customizer/x1h",
+			subtype: 'X1H' as const,
+		},
+		{
+			name: "Vertical, 1 Socket",
+			image: X1V,
+			path: "/customizer/x1v",
+			subtype: 'X1V' as const,
+		},
+	];
+	const twoSocketPanels = [
+		{
+			name: "Horizontal, 2 Sockets",
+			image: X2LS,
+			path: "/customizer/x2h",
+			subtype: 'X2H' as const,
+		},
+		{
+			name: "Vertical, 2 Sockets",
+			image: X2V,
+			path: "/customizer/x2v",
+			subtype: 'X2V' as const,
+		},
+	];
+
+  // Get socket category from navigation state
+  const socketCategory = location.state?.socketCategory;
+  console.log('ExtendedPanelSelector - location.state:', location.state);
+  console.log('ExtendedPanelSelector - socketCategory:', socketCategory);
 
   // Determine which extended subtypes are allowed from BOQ selections
   const allowedEXTSubtypes = useMemo(() => {
     if (!hasBOQEffective || !boqData.allowedSubtypes) {
-      return ['X1H','X1V','X2H','X2V']; // Show all if no BOQ data
+      // If no BOQ data, filter based on socket category if provided
+      if (socketCategory === 'EXT1') {
+        return ['X1H', 'X1V']; // Only show 1-socket panels
+      } else if (socketCategory === 'EXT2') {
+        return ['X2H', 'X2V']; // Only show 2-socket panels
+      }
+      return ['X1H','X1V','X2H','X2V']; // Show all if no socket category specified
     }
     
     // Special logic: if X2H_X2V is in the data, show both X2H and X2V
@@ -258,18 +269,25 @@ const ExtendedPanelSelector = () => {
       }
     });
     
+    // Filter based on socket category if provided
+    if (socketCategory === 'EXT1') {
+      return Array.from(subtypes).filter(subtype => subtype.startsWith('X1'));
+    } else if (socketCategory === 'EXT2') {
+      return Array.from(subtypes).filter(subtype => subtype.startsWith('X2'));
+    }
+    
     return Array.from(subtypes);
-  }, [hasBOQEffective, boqData]);
+  }, [hasBOQEffective, boqData, socketCategory]);
 
-  // Filter panels to only show selected subtypes
-  const filteredHorizontal = useMemo(() => 
-    horizontalPanels.filter(panel => allowedEXTSubtypes.includes(panel.subtype)), 
-    [allowedEXTSubtypes]
-  );
-  const filteredVertical = useMemo(() => 
-    verticalPanels.filter(panel => allowedEXTSubtypes.includes(panel.subtype)), 
-    [allowedEXTSubtypes]
-  );
+	// Filter panels to only show selected subtypes
+	const filteredOneSocket = useMemo(() => 
+		oneSocketPanels.filter(panel => allowedEXTSubtypes.includes(panel.subtype)), 
+		[allowedEXTSubtypes]
+	);
+	const filteredTwoSocket = useMemo(() => 
+		twoSocketPanels.filter(panel => allowedEXTSubtypes.includes(panel.subtype)), 
+		[allowedEXTSubtypes]
+	);
 
   // Per-subtype remaining function
   const remainingForSubtype = (subtype: 'X1H' | 'X1V' | 'X2H' | 'X2V') => undefined;
@@ -445,8 +463,8 @@ const ExtendedPanelSelector = () => {
             animate="visible"
             style={{ width: '100%' }}
           >
-            {/* Show message if no extended panels are available */}
-            {hasBOQEffective && filteredHorizontal.length === 0 && filteredVertical.length === 0 && (
+			{/* Show message if no extended panels are available */}
+			{hasBOQEffective && filteredOneSocket.length === 0 && filteredTwoSocket.length === 0 && (
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Typography sx={{ 
                   color: 'rgba(255,255,255,0.9)', 
@@ -466,9 +484,9 @@ const ExtendedPanelSelector = () => {
               </Box>
             )}
 
-            {filteredHorizontal.length > 0 && (
+			{filteredOneSocket.length > 0 && (
               <>
-                {/* Horizontal Panels Section */}
+					{/* One-socket Panels Section */}
                 <Box sx={{ mt: 6, mb: 2 }}>
                   <Typography
                     variant="h5"
@@ -482,12 +500,12 @@ const ExtendedPanelSelector = () => {
                       mb: 0.5,
                     }}
                   >
-                    Horizontal Panels
+						Extended Panels — 1 Socket
                   </Typography>
                   <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
                 </Box>
-            <Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
-              {filteredHorizontal.map((panel) => (
+				<Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
+					{filteredOneSocket.map((panel) => (
                 <Grid
                   key={panel.name}
                   item
@@ -498,7 +516,16 @@ const ExtendedPanelSelector = () => {
                 >
                   <StyledPanel variants={itemVariants}>
                     <PanelContainer
-                      onClick={() => navigate(panel.path)}
+                      onClick={() => navigate(panel.path, { 
+                        state: { 
+                          proximityFlag: location.state?.proximityFlag,
+                          motionFlagData: location.state?.motionFlagData,
+                          selectedDesignId: location.state?.selectedDesignId,
+                          fromBOQ: location.state?.fromBOQ,
+                          projectIds: location.state?.projectIds,
+                          importResults: location.state?.importResults
+                        } 
+                      })}
                       sx={{
                         cursor: 'pointer',
                         display: 'flex',
@@ -524,7 +551,16 @@ const ExtendedPanelSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
-                        onClick={() => navigate(panel.path)}
+                        onClick={() => navigate(panel.path, { 
+                        state: { 
+                          proximityFlag: location.state?.proximityFlag,
+                          motionFlagData: location.state?.motionFlagData,
+                          selectedDesignId: location.state?.selectedDesignId,
+                          fromBOQ: location.state?.fromBOQ,
+                          projectIds: location.state?.projectIds,
+                          importResults: location.state?.importResults
+                        } 
+                      })}
                         sx={{
                           color: 'rgba(255, 255, 255, 0.7)',
                           textTransform: 'none',
@@ -550,9 +586,9 @@ const ExtendedPanelSelector = () => {
               </>
             )}
 
-            {filteredVertical.length > 0 && (
+			{filteredTwoSocket.length > 0 && (
               <>
-                {/* Vertical Panels Section */}
+					{/* Two-socket Panels Section */}
                 <Box sx={{ mt: 6, mb: 2 }}>
                   <Typography
                     variant="h5"
@@ -566,12 +602,12 @@ const ExtendedPanelSelector = () => {
                       mb: 0.5,
                     }}
                   >
-                    Vertical Panels
+						Extended Panels — 2 Sockets
                   </Typography>
                   <Box sx={{ width: 32, height: 2, bgcolor: '#1976d2', borderRadius: 1, mt: 0.5 }} />
                 </Box>
-                <Grid container spacing={4} justifyContent="center">
-              {filteredVertical.map((panel) => (
+					<Grid container spacing={4} justifyContent="center">
+				{filteredTwoSocket.map((panel) => (
                 <Grid
                   key={panel.name}
                   item
@@ -582,7 +618,16 @@ const ExtendedPanelSelector = () => {
                 >
                   <StyledPanel variants={itemVariants}>
                     <PanelContainer
-                      onClick={() => navigate(panel.path)}
+                      onClick={() => navigate(panel.path, { 
+                        state: { 
+                          proximityFlag: location.state?.proximityFlag,
+                          motionFlagData: location.state?.motionFlagData,
+                          selectedDesignId: location.state?.selectedDesignId,
+                          fromBOQ: location.state?.fromBOQ,
+                          projectIds: location.state?.projectIds,
+                          importResults: location.state?.importResults
+                        } 
+                      })}
                       sx={{
                         cursor: 'pointer',
                         display: 'flex',
@@ -608,7 +653,16 @@ const ExtendedPanelSelector = () => {
                         variant="text"
                         size="large"
                         className="panel-button"
-                        onClick={() => navigate(panel.path)}
+                        onClick={() => navigate(panel.path, { 
+                        state: { 
+                          proximityFlag: location.state?.proximityFlag,
+                          motionFlagData: location.state?.motionFlagData,
+                          selectedDesignId: location.state?.selectedDesignId,
+                          fromBOQ: location.state?.fromBOQ,
+                          projectIds: location.state?.projectIds,
+                          importResults: location.state?.importResults
+                        } 
+                      })}
                         sx={{
                           color: 'rgba(255, 255, 255, 0.7)',
                           textTransform: 'none',

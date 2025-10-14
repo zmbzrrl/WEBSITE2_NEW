@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { supabase } from "../../utils/supabaseClient";
 import "./Customizer.css";
+import { getBackboxOptions } from "../../utils/backboxOptions";
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -458,11 +459,9 @@ const InformationBox = ({
               style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
             >
               <option value="">Select a backbox...</option>
-              <option value="Backbox 1">Backbox 1</option>
-              <option value="Backbox 2">Backbox 2</option>
-              <option value="Backbox 3">Backbox 3</option>
-              <option value="Backbox 4">Backbox 4</option>
-              <option value="Backbox 5">Backbox 5</option>
+              {getBackboxOptions('TAG').map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
           </Box>
@@ -616,6 +615,7 @@ const TAGCustomizer: React.FC = () => {
   const editPanelIndex = location.state?.panelIndex;
   const editPanelData = location.state?.panelData;
   const isAddingToExistingProject = location.state?.isAddingToExistingProject || false;
+  const isFreeDesignMode = location.state?.fromFreeDesign || false;
   
   // Debug logging for edit mode
   console.log('🔍 SPCustomizer Edit Mode Debug:');
@@ -977,11 +977,13 @@ const TAGCustomizer: React.FC = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      
+      // In free design mode, use default values instead of BOQ values
       const enhancedDesign = {
         ...design,
-        panelName: selectedDesignName || getPanelTypeLabel(design.type),
-        quantity: selectedDesignQuantity, // Use BOQ allocated quantity
-        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
+        panelName: isFreeDesignMode ? getPanelTypeLabel(design.type) : (selectedDesignName || getPanelTypeLabel(design.type)),
+        quantity: isFreeDesignMode ? 1 : selectedDesignQuantity, // Use 1 for free design, BOQ quantity for import mode
+        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined)
       };
 
       if (panelAddedToProject) {
@@ -995,42 +997,48 @@ const TAGCustomizer: React.FC = () => {
           addToCart(enhancedDesign);
         }
     } else {
-      // Add new panel with quantity prompt constrained by BOQ remaining
-      const category = mapTypeToCategory(design.type);
+      // Add new panel with quantity prompt constrained by BOQ remaining (only in BOQ mode)
+      if (!isFreeDesignMode) {
+        const category = mapTypeToCategory(design.type);
 
-      const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
+        const used = projPanels.reduce((sum, p) => sum + (mapTypeToCategory(p.type) === category ? (p.quantity || 1) : 0), 0);
 
-      const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
-        if (!boqQuantities) return undefined;
-        if (cat === 'EXT') {
-          const keys = ['X1H','X1V','X2H','X2V'] as const;
-          const total = keys
-            .map(k => undefined)
-            .reduce((a,b)=>a+b,0);
-          return total;
-        }
-        const cap = undefined as any;
-        return typeof cap === 'number' ? cap : undefined;
-      };
+        const getCategoryCap = (cat: 'SP'|'TAG'|'IDPG'|'DP'|'EXT'): number | undefined => {
+          if (!boqQuantities) return undefined;
+          if (cat === 'EXT') {
+            const keys = ['X1H','X1V','X2H','X2V'] as const;
+            const total = keys
+              .map(k => 0)
+              .reduce((a: number, b: number) => a + b, 0);
+            return total;
+          }
+          const cap = undefined as any;
+          return typeof cap === 'number' ? cap : undefined;
+        };
 
-      const cap = getCategoryCap(category);
-      const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
+        const cap = getCategoryCap(category);
+        const remaining = cap === undefined ? undefined : Math.max(0, cap - used);
 
-      if (remaining !== undefined) {
-        if (remaining <= 0) {
-          alert(`You have reached the BOQ limit for ${category}.`);
+        if (remaining !== undefined) {
+          if (remaining <= 0) {
+            alert(`You have reached the BOQ limit for ${category}.`);
+            return;
+          }
+          setPendingDesign(design);
+          setPendingCategory(category);
+          setQtyRemaining(remaining);
+          setQtyOpen(true);
           return;
         }
-        setPendingDesign(design);
-        setPendingCategory(category);
-        setQtyRemaining(remaining);
-        setQtyOpen(true);
-        return;
-      }
 
-      addToCart(enhancedDesign);
+        addToCart(enhancedDesign);
+        setPanelAddedToProject(true); // Mark panel as added to project
+      } else {
+        // Free design mode - add directly without BOQ constraints
+        addToCart(enhancedDesign);
         setPanelAddedToProject(true); // Mark panel as added to project
       }
+    }
     }
   };
 
@@ -1290,21 +1298,45 @@ const TAGCustomizer: React.FC = () => {
   };
 
   const renderAbsoluteCell = (index: number) => {
+    console.log(`🔍 TAG renderAbsoluteCell called for index ${index}, dimensionKey: ${dimensionKey}`);
     const icon = placedIcons.find((i) => i.position === index);
     const text = iconTexts[index];
     const isPIR = icon?.category === "PIR";
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = panelDesign.iconSize || '47px';
-    const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
+    // Special sizing for different icon types
+    let iconSize = panelDesign.iconSize || '47px';
+    let actualIconSize = iconSize; // Size for the actual icon image
+    
+    if (isPIR) {
+      actualIconSize = '35px'; // PIR icons should be a little smaller
+    } else if (icon && (icon.iconId === 'C' || icon.iconId === 'F')) {
+      actualIconSize = '37px'; // C and F icons fixed at 37px
+    } else if (icon?.category === 'Bathroom') {
+      actualIconSize = panelDesign.iconSize || '14mm';
+    }
+    let pos = activeIconPositions?.[index];
+    
+    
+    // Final fallback
+    if (!pos) pos = { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
     const rowIndex = Math.floor(index / 3);
-    // Lower rows 2 and 3 by 30px
-    const lowerRowsOffset = (rowIndex === 1 || rowIndex === 2) ? 30 : 0;
-    // Apply per-row offsets only for tall: row 1 -20px, row 2 +10px, row 3 +40px
-    const perRowOffset = (dimensionKey === 'tall') ? ((rowIndex === 0 ? -20 : 0) + (rowIndex === 1 ? 10 : 0) + (rowIndex === 2 ? 40 : 0)) : 0;
-    const adjustedTop = `${baseTop + perRowOffset + lowerRowsOffset}px`;
+    
+    // Keep TAG grid consistent across dimensions (no per-row offsets)
+    const adjustedTop = `${baseTop}px`;
+    
+    // Debug logging
+    if (dimensionKey === 'tall' && index < 3) {
+      console.log(`🔍 TAG Position ${index}:`, {
+        pos,
+        baseTop,
+        adjustedTop,
+        dimensionKey,
+        gridOffsetY
+      });
+    }
     return (
       <div
         key={index}
@@ -1353,8 +1385,8 @@ const TAGCustomizer: React.FC = () => {
               onDragStart={(e) => handleDragStart(e, icon)}
               onDragEnd={() => { setIsDraggingIcon(false); setRestrictedCells([]); }}
               style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || '47px'),
+                width: actualIconSize,
+                height: actualIconSize,
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -1616,13 +1648,35 @@ const TAGCustomizer: React.FC = () => {
     return 7; // TAG panels always use position 7 for PIR
   };
 
+  // Helper function to convert mm to px (same as PanelPreview)
+  const convertMmToPx = (value: string): string => {
+    if (value.endsWith('mm')) {
+      const mm = parseFloat(value);
+      const px = Math.round(mm * (350 / 95)); // 95mm = 350px
+      return `${px}px`;
+    }
+    return value; // Return as-is if already in px or other format
+  };
+
   // Derive active dimensions and positions by selected key (fallback to defaults)
   const activeDimension = (dimensionConfigs && dimensionConfigs[dimensionKey]) ? dimensionConfigs[dimensionKey] : dimensions;
   const activeIconPositions = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
     ? dimensionConfigs[dimensionKey].iconPositions
     : (iconPositions || []);
-  const gridOffsetX = dimensionKey === 'wide' ? 40 : (dimensionKey === 'standard' ? 20 : (dimensionKey === 'tall' ? 25 : 0));
-  const gridOffsetY = dimensionKey === 'tall' ? 58 : 15;
+
+  // Convert dimensions to pixels for consistent rendering
+  const convertedDimensions = {
+    width: convertMmToPx(activeDimension.width || dimensions.width),
+    height: convertMmToPx(activeDimension.height || dimensions.height)
+  };
+  // Keep base offsets consistent across dimensions; apply requested TAG shifts
+  let gridOffsetX = 20;
+  let gridOffsetY = 15;
+  // For TAG wide: shift grid 60px right
+  if (dimensionKey === 'wide') gridOffsetX += 60;
+  // For TAG tall: shift grid 50px down
+  if (dimensionKey === 'tall') gridOffsetY += 50;
+  
 
   const getAutoTextColor = (backgroundColor: string): string => {
     const hex = (backgroundColor || '#ffffff').replace('#', '');
@@ -1642,7 +1696,8 @@ const TAGCustomizer: React.FC = () => {
     const iconCategory = icon.category?.toLowerCase() || '';
     
     // Block text for any icon from TAG_icons folder
-    if (iconId.startsWith('tag_') || iconCategory === 'tag') {
+    // TAG icons from TAG_icons folder are categorized as "Thermostat"
+    if (iconId.startsWith('tag_') || iconCategory === 'tag' || iconCategory === 'thermostat') {
       console.log('🚫 Text blocked for TAG icon:', icon.label, 'ID:', icon.iconId, 'Category:', icon.category);
       return false;
     }
@@ -1720,6 +1775,49 @@ const TAGCustomizer: React.FC = () => {
         </Box>
 
         <ProgressBar />
+
+        {/* Free Design: Motion Sensor Toggle */}
+        {location.state?.fromFreeDesign && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, gap: 24 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={placedIcons.some(icon => icon.category === 'PIR')}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  if (enabled) {
+                    const pirIcon = (icons as any)['PIR'];
+                    const exists = placedIcons.some(icon => icon.category === 'PIR');
+                    if (pirIcon && !exists && !placedIcons.some(icon => icon.position === 7)) {
+                      const newPir = { id: Date.now(), iconId: 'PIR', src: pirIcon.src || '', label: 'PIR', position: 7, category: 'PIR' } as any;
+                      setPlacedIcons(prev => [...prev, newPir]);
+                    }
+                  } else {
+                    setPlacedIcons(prev => prev.filter(icon => icon.category !== 'PIR'));
+                    setIconTexts(prev => ({ ...prev }));
+                  }
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Motion Sensor</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={showProximityIndicators}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setShowProximityIndicators(enabled);
+                  setPanelDesign((prev: any) => ({
+                    ...prev,
+                    features: { ...(prev?.features || {}), Proximity: enabled },
+                    Proximity: enabled,
+                  }));
+                }}
+              />
+              <span style={{ color: '#1a1f2c' }}>Add Proximity</span>
+            </label>
+          </Box>
+        )}
 
         {/* Step Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
@@ -1867,8 +1965,8 @@ const TAGCustomizer: React.FC = () => {
                 <div
                   style={{
                     position: 'relative',
-                    width: activeDimension.width || dimensions.width,
-                    height: activeDimension.height || dimensions.height,
+                    width: convertedDimensions.width,
+                    height: convertedDimensions.height,
                     background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
                     padding: '0',
                     border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -1926,22 +2024,24 @@ const TAGCustomizer: React.FC = () => {
                     pointerEvents: 'none',
                     zIndex: 1,
                   }} />
+                  {/* DISPLAY overlay - positioned outside grid transform */}
+                  <img
+                    src={DISPLAY}
+                    alt="DISPLAY"
+                    style={{
+                      position: 'absolute',
+                      top: (dimensionKey === 'tall') ? '140px' : '90px',
+                      left: '45%',
+                      transform: 'translateX(-50%)',
+                      width: '220px',
+                      height: '50px',
+                      objectFit: 'contain',
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
+                      pointerEvents: 'none',
+                      zIndex: 3,
+                    }}
+                  />
                   <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
-                    <img
-                      src={DISPLAY}
-                      alt="DISPLAY"
-                      style={{
-                        position: 'absolute',
-                        top: '90px',
-                        left: '45%',
-                        transform: 'translateX(-50%)',
-                        width: '220px',
-                        height: '50px',
-                        objectFit: 'contain',
-                        filter: getIconColorFilter(panelDesign.backgroundColor),
-                        pointerEvents: 'none',
-                      }}
-                    />
                     {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
                 </div>
@@ -2097,11 +2197,9 @@ const TAGCustomizer: React.FC = () => {
                       style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
                     >
                       <option value="">Select a backbox...</option>
-                      <option value="Backbox 1">Backbox 1</option>
-                      <option value="Backbox 2">Backbox 2</option>
-                      <option value="Backbox 3">Backbox 3</option>
-                      <option value="Backbox 4">Backbox 4</option>
-                      <option value="Backbox 5">Backbox 5</option>
+                      {getBackboxOptions('TAG').map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                 {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
               </Box>
@@ -2171,22 +2269,24 @@ const TAGCustomizer: React.FC = () => {
                     pointerEvents: 'none',
                     zIndex: 1,
                   }} />
+                  {/* DISPLAY overlay - positioned outside grid transform */}
+                  <img
+                    src={DISPLAY}
+                    alt="DISPLAY"
+                    style={{
+                      position: 'absolute',
+                      top: (dimensionKey === 'tall') ? '140px' : '90px',
+                      left: '45%',
+                      transform: 'translateX(-50%)',
+                      width: '220px',
+                      height: '50px',
+                      objectFit: 'contain',
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
+                      pointerEvents: 'none',
+                      zIndex: 3,
+                    }}
+                  />
                   <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%', transform: `translate(${gridOffsetX}px, ${gridOffsetY}px)` }}>
-                    <img
-                      src={DISPLAY}
-                      alt="DISPLAY"
-                      style={{
-                        position: 'absolute',
-                        top: '90px',
-                        left: '45%',
-                        transform: 'translateX(-50%)',
-                    width: '220px',
-                    height: '50px',
-                        objectFit: 'contain',
-                        filter: getIconColorFilter(panelDesign.backgroundColor),
-                        pointerEvents: 'none',
-                      }}
-                    />
                     {Array.from({ length: 9 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
                 </div>
