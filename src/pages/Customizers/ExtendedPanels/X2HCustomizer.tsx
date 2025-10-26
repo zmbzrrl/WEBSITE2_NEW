@@ -19,6 +19,20 @@ const getPanelTypeLabel = (type: string) => {
     default: return "Panel";
   }
 };
+
+// Function to get auto text color based on background
+const getAutoTextColor = (backgroundColor: string): string => {
+  const hex = (backgroundColor || '#ffffff').replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate brightness (0-255)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  
+  // Use white text for dark backgrounds, dark grey (#808080) for light to match icons
+  return brightness < 150 ? '#ffffff' : '#808080';
+};
 import CartButton from '../../../components/CartButton';
 import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from '../../../assets/logo.png';
@@ -44,6 +58,7 @@ import { ProjectContext } from '../../../App';
 import { motion } from 'framer-motion';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import iconLibrary from '../../../assets/iconLibrary2';
+import DISPLAY from '../../../assets/icons/DISPLAY.png';
 
 const ProgressContainer = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -579,6 +594,7 @@ const X2HCustomizer: React.FC = () => {
   // Add swap and mirror state
   const [swapUpDown, setSwapUpDown] = useState(false); // NEW: swap state
   const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
+  const [useTagLayout, setUseTagLayout] = useState(false);
   
   // Icon size conversion function (mm to px)
   const convertIconSize = (size: string): string => {
@@ -1026,19 +1042,34 @@ const X2HCustomizer: React.FC = () => {
     const iconSize = convertIconSize(panelDesign.iconSize || '14mm');
     // Default position
     let pos = iconPositions[index] || { top: '0px', left: '0px' };
+    if (useTagLayout && index >= 0 && index <= 8) {
+      const tagConfig = getPanelLayoutConfig('TAG');
+      const tagPos = tagConfig.iconPositions?.[index];
+      if (tagPos) {
+        pos = { ...pos, top: tagPos.top, left: tagPos.left } as any;
+        const rowIdx = Math.floor(index / 3);
+        if (rowIdx === 1) pos = { ...pos, top: (parseInt((pos as any).top) + 25) + 'px' } as any;
+        if (rowIdx === 2) pos = { ...pos, top: (parseInt((pos as any).top) + 50) + 'px' } as any;
+      }
+    }
     
     // If swapUpDown (horizontal swap) is true, swap left/right: move 3x3 grid to right, big icons to left
     if (swapUpDown) {
       if (index >= 0 && index <= 8) {
-        const swappedGridOffsetX = 550 // shift grid much further to right side
+        const swappedGridOffsetX = 530 // shift grid to right side, moved 20px left from 550
         pos = { ...pos, left: (parseInt(pos.left) + swappedGridOffsetX) + 'px' } as any;
       } else if (index === 9) {
         // Move first big icon to left side
         pos = { ...pos, left: '36px' } as any;
         } else if (index === 10) {
-          // Move second big icon to right side to maintain proper spacing
+          // Move second big icon to left side with spacing, moved 50px to the right
           pos = { ...pos, left: '300px' } as any;
         }
+    } else {
+      // When swap is not pressed, move 3x3 grid 20px to the right
+      if (index >= 0 && index <= 8) {
+        pos = { ...pos, left: (parseInt(pos.left) + 20) + 'px' } as any;
+      }
     }
     
     // If mirrorVertical is true, mirror the 3x3 grid horizontally (column 0<->2)
@@ -1058,7 +1089,14 @@ const X2HCustomizer: React.FC = () => {
     }
     
     // Calculate container size to match icon size
-    const containerSize = ((index === 9 || index === 10) ? '204px' : convertIconSize(panelDesign.iconSize || '14mm'));
+    let containerSize;
+    if (index === 9 || index === 10) {
+      containerSize = '204px'; // Big icon slots
+    } else if (isPIR) {
+      containerSize = '35px'; // PIR special size from config
+    } else {
+      containerSize = convertIconSize(panelDesign.iconSize || '14mm'); // Regular icons
+    }
     
     return (
         <div
@@ -1143,23 +1181,23 @@ const X2HCustomizer: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    {isEditing ? (
+                    {(useTagLayout && index >= 0 && index <= 2 && !!icon) ? null : (isEditing ? (
                       <input
                         type="text"
                         value={text || ''}
                         onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.backgroundColor ? (getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#ffffff' : '#2c2c2c') : '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: getAutoTextColor(panelDesign.backgroundColor), marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div
                         onClick={() => handleTextClick(index)}
-                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? (panelDesign.backgroundColor ? (getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#ffffff' : '#2c2c2c') : '#000000') : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                       >
                         {text || 'Add text'}
                       </div>
-                    )}
+                    ))}
                   </>
                 )}
               </div>
@@ -1701,9 +1739,7 @@ const X2HCustomizer: React.FC = () => {
         </div>
       </div>
 
-              {/* Typography font controls removed for step 3 */}
-              
-              {/* Font Size Section */}
+              {/* Backbox Details Section */}
               <div style={{ 
                 marginBottom: '28px',
                 background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
@@ -1728,36 +1764,44 @@ const X2HCustomizer: React.FC = () => {
                     background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
                     borderRadius: '2px'
                   }} />
-                  Font Size
+                  Backbox Details *
                 </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  {['10px', '12px', '14px', '16px'].map((size) => (
-      <button
-                      key={size}
-                      onClick={() => setPanelDesign(prev => ({ ...prev, fontSize: size }))}
-        style={{
-                        padding: '10px 16px',
-                        borderRadius: '8px',
-                        border: panelDesign.fontSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
-                        background: panelDesign.fontSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                        color: panelDesign.fontSize === size ? '#ffffff' : '#495057',
-                        cursor: 'pointer',
-                        fontSize: size,
-                        fontWeight: panelDesign.fontSize === size ? '700' : '600',
-                        transition: 'all 0.2s ease',
-                        minWidth: '45px',
-                        textAlign: 'center',
-                        boxShadow: panelDesign.fontSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        transform: panelDesign.fontSize === size ? 'translateY(-1px)' : 'translateY(0)',
-        }}
-      >
-                      {size.replace('px', '')}
-      </button>
+                <select
+                  value={backbox}
+                  onChange={e => {
+                    setBackbox(e.target.value);
+                    setBackboxError(''); // Clear error when user selects
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    border: backboxError ? '2px solid #dc3545' : '1px solid #dee2e6', 
+                    borderRadius: '8px', 
+                    background: '#fff',
+                    fontSize: '14px',
+                    color: '#495057',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                >
+                  <option value="">Select a backbox...</option>
+                  {getBackboxOptions('X2H').map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </div>
+                </select>
+                {backboxError && (
+                  <div style={{ 
+                    color: '#dc3545', 
+                    fontSize: '12px', 
+                    marginTop: '8px',
+                    fontWeight: '500'
+                  }}>
+                    {backboxError}
+                  </div>
+                )}
               </div>
-              
-              {/* Colors Section */}
+
+              {/* Extra Comments Section */}
               <div style={{ 
                 marginBottom: '28px',
                 background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
@@ -1782,83 +1826,37 @@ const X2HCustomizer: React.FC = () => {
                     background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
                     borderRadius: '2px'
                   }} />
-                  Colors
+                  Extra Comments
                 </div>
-                <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-              <div>
-                    <div style={{ 
-                      fontWeight: '600', 
-                      marginBottom: '12px', 
-                      color: '#495057',
-                      fontSize: '13px',
-                      letterSpacing: '0.3px'
-                    }}>
-                      Icon Color: Auto-colored based on background
-                    </div>
-                </div>
+                <textarea
+                  value={extraComments}
+                  onChange={e => setExtraComments(e.target.value)}
+                  placeholder="Add any additional comments or notes..."
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    border: '1px solid #dee2e6', 
+                    borderRadius: '8px', 
+                    background: '#fff',
+                    fontSize: '14px',
+                    color: '#495057',
+                    outline: 'none',
+                    resize: 'vertical',
+                    minHeight: '80px',
+                    fontFamily: 'inherit',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                />
               </div>
-            </div>
-          </div>
 
-            {/* Icon Size Section */}
-            <div style={{ 
-              marginBottom: '28px',
-              background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-              padding: '20px',
-              borderRadius: '10px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
-              border: '1px solid #e9ecef'
-            }}>
-              <div style={{ 
-                fontWeight: '600', 
-                marginBottom: '16px', 
-                color: '#1a1f2c',
-                fontSize: '15px',
-                letterSpacing: '0.3px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <div style={{
-                  width: '4px',
-                  height: '16px',
-                  background: 'linear-gradient(180deg, #0056b3 0%, #007bff 100%)',
-                  borderRadius: '2px'
-                }} />
-                Icon Size
-              </div>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {['10mm', '14mm'].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setPanelDesign(prev => ({ ...prev, iconSize: size }))}
-                    style={{
-                      padding: '10px 16px',
-                      borderRadius: '8px',
-                      border: panelDesign.iconSize === size ? '2px solid #0056b3' : '1px solid #dee2e6',
-                      background: panelDesign.iconSize === size ? 'linear-gradient(145deg, #0056b3 0%, #007bff 100%)' : 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                      color: panelDesign.iconSize === size ? '#ffffff' : '#495057',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: panelDesign.iconSize === size ? '700' : '600',
-                      transition: 'all 0.2s ease',
-                      minWidth: '60px',
-                      textAlign: 'center',
-                      boxShadow: panelDesign.iconSize === size ? '0 4px 12px rgba(0, 86, 179, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : '0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                      transform: panelDesign.iconSize === size ? 'translateY(-1px)' : 'translateY(0)',
-                    }}
-                  >
-                    {size.replace('px', '')}
-                  </button>
-                ))}
-              </div>
+              {/* Typography font controls removed for step 3 */}
             </div>
           {/* Right side - Panel Template */}
           <div style={{ flex: '0 0 auto', marginTop: '100px' }}>
             <div
               style={{
                 position: 'relative',
-                width: '900px', // updated to match new panel width
+                width: '850px', // updated to match new panel width
                 height: '320px', // keep height unchanged
                 background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
                 padding: '0',
@@ -1924,6 +1922,24 @@ const X2HCustomizer: React.FC = () => {
                 </>
               )}
               <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+                {useTagLayout && (
+                  <img
+                    src={DISPLAY}
+                    alt="DISPLAY"
+                    style={{
+                      position: 'absolute',
+                      top: '90px',
+                      left: '25%',
+                      transform: 'translateX(-50%)',
+                      width: '220px',
+                      height: '50px',
+                      objectFit: 'contain',
+                      filter: getIconColorFilter(panelDesign.backgroundColor),
+                      pointerEvents: 'none',
+                      zIndex: 3,
+                    }}
+                  />
+                )}
                 {Array.from({ length: iconPositions.length }).map((_, index) => renderAbsoluteCell(index))}
               </div>
               </div>
@@ -1936,7 +1952,7 @@ const X2HCustomizer: React.FC = () => {
             <div
               style={{
                     position: 'relative',
-                width: '900px', // In step 2, update the width of the panel template background to 900px
+                width: '850px', // In step 2, update the width of the panel template background to 850px
                 height: dimensions.height,
                 background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
                 padding: '0',
@@ -1992,6 +2008,14 @@ const X2HCustomizer: React.FC = () => {
               startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} fontSize="small" />}
             >
               {mirrorVertical ? 'Unmirror' : 'Mirror'}
+            </Button>
+            <Button
+              variant="contained"
+              color={useTagLayout ? 'primary' : 'inherit'}
+              onClick={() => setUseTagLayout(v => !v)}
+              size="small"
+            >
+              {useTagLayout ? 'Use 3x3 grid' : 'Use TAG layout'}
             </Button>
           </div>
         )}

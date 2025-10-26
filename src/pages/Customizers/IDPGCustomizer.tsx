@@ -389,34 +389,6 @@ const IDPGCustomizer = () => {
     });
   }, []);
 
-  // Check for Proximity flag and set state for visual indicators
-  const [showProximityIndicators, setShowProximityIndicators] = useState(false);
-  useEffect(() => {
-    const checkProximityFlag = async () => {
-      if (!isEditMode && location.state?.selectedDesignId) {
-        try {
-          const { data: designData, error } = await supabase
-            .from('user_designs')
-            .select('design_data')
-            .eq('id', location.state.selectedDesignId)
-            .single();
-          if (designData && !error) {
-            const proximityFlag = designData.design_data?.originalRow?.Proximity || designData.design_data?.features?.Proximity;
-            if (proximityFlag === true) {
-              setShowProximityIndicators(true);
-              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: true }, Proximity: true }));
-            } else {
-              setShowProximityIndicators(false);
-              setPanelDesign((prev: any) => ({ ...prev, features: { ...(prev?.features || {}), Proximity: false }, Proximity: false }));
-            }
-          }
-        } catch (error) {
-          console.error('Error checking proximity flag:', error);
-        }
-      }
-    };
-    checkProximityFlag();
-  }, [location.state?.selectedDesignId, isEditMode]);
 
   // Initialize from flags passed via navigation (override UI checkboxes)
   useEffect(() => {
@@ -565,7 +537,7 @@ const IDPGCustomizer = () => {
           <div style={{
             width: "20%",
             height: "8px",
-            background: "transparent",
+            background: `${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
             margin: "auto",
@@ -723,7 +695,7 @@ const IDPGCustomizer = () => {
           <div style={{
             width: "20%",
             height: "8px",
-            background: "transparent",
+            background: `${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
             margin: "10px auto",
@@ -820,7 +792,7 @@ const IDPGCustomizer = () => {
           <div style={{
             width: "20%",
             height: "8px",
-            background: "transparent",
+            background: `${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
             borderRadius: "4px",
             margin: "0 auto 20px auto",
@@ -995,7 +967,7 @@ const IDPGCustomizer = () => {
             <div style={{
               width: "20%",
               height: "8px",
-              background: "transparent",
+              background: `${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
               border: `2px solid ${getTextColorFromBackground(panelDesign.backgroundColor) === '#FFFFFF' ? '#FFFFFF' : '#808080'}`,
               borderRadius: "4px",
               margin: "10px auto",
@@ -1083,9 +1055,73 @@ const IDPGCustomizer = () => {
       return;
     }
 
+    // Create icons array based on IDPG configuration
+    const iconsArray = [];
+    
+    // Add Card Reader icon if enabled
+    if (cardReader) {
+      iconsArray.push({
+        iconId: 'CR',
+        src: icons['Card Reader']?.src || '',
+        label: 'Card Reader',
+        position: 0,
+        text: '',
+        category: 'Card Reader',
+      });
+    }
+    
+    // Add Room Number if enabled
+    if (roomNumber) {
+      iconsArray.push({
+        iconId: 'RN',
+        src: '', // Room number is text-based, no icon
+        label: 'Room Number',
+        position: 1,
+        text: roomNumberText,
+        category: 'Room Number',
+      });
+    }
+    
+    // Add status icons based on mode
+    if (statusMode === 'icons') {
+      // Add selected icon 1
+      if (selectedIcon1 && icons[selectedIcon1]) {
+        iconsArray.push({
+          iconId: selectedIcon1.replace(/\s+/g, '_'),
+          src: icons[selectedIcon1].src || '',
+          label: selectedIcon1,
+          position: 2,
+          text: '',
+          category: 'Status',
+        });
+      }
+      
+      // Add selected icon 2
+      if (selectedIcon2 && icons[selectedIcon2]) {
+        iconsArray.push({
+          iconId: selectedIcon2.replace(/\s+/g, '_'),
+          src: icons[selectedIcon2].src || '',
+          label: selectedIcon2,
+          position: 3,
+          text: '',
+          category: 'Status',
+        });
+      }
+    } else {
+      // Status bar mode - add a generic status bar icon
+      iconsArray.push({
+        iconId: 'STATUS_BAR',
+        src: '',
+        label: 'Status Bar',
+        position: 2,
+        text: 'Status Bar',
+        category: 'Status',
+      });
+    }
+
     const design = {
       type: 'IDPG',
-      icons: [], // Add icon logic if needed
+      icons: iconsArray,
       quantity: 1,
       panelDesign: { 
         ...panelDesign, 

@@ -52,6 +52,78 @@ const hexToRal = (hex: string): string => {
   return hex; // fallback to hex string
 };
 
+// Helper function to convert mm to px (same as PanelPreview)
+const convertMmToPx = (value: string): number => {
+  if (value.endsWith('mm')) {
+    const mm = parseFloat(value);
+    return Math.round(mm * (350 / 95)); // 95mm = 350px
+  }
+  return parseFloat(value);
+};
+
+// Helper function to get actual panel dimensions in pixels
+const getPanelDimensions = (config: PanelConfig) => {
+  const { panelDesign, type } = config;
+  
+  // Default dimensions for each panel type
+  const defaultDimensions = {
+    'SP': { width: 95, height: 95 }, // mm
+    'DPH': { width: 640, height: 320 }, // px (already converted)
+    'DPV': { width: 320, height: 640 }, // px (already converted)
+    'IDPG': { width: 350, height: 350 }, // px (default square)
+    'TAG': { width: 95, height: 95 }, // mm
+    'X1H': { width: 130, height: 95 }, // mm
+    'X1V': { width: 95, height: 130 }, // mm
+    'X2H': { width: 224, height: 95 }, // mm
+    'X2V': { width: 95, height: 224 }, // mm
+  };
+  
+  let dimensions = defaultDimensions[type as keyof typeof defaultDimensions] || defaultDimensions['SP'];
+  
+  // Handle SP panel dimensions based on configuration
+  if (type === 'SP' && panelDesign?.spConfig?.dimension) {
+    const { dimension } = panelDesign.spConfig;
+    if (dimension === 'wide') {
+      dimensions = { width: 130, height: 95 };
+    } else if (dimension === 'tall') {
+      dimensions = { width: 95, height: 130 };
+    }
+  }
+  
+  // Handle TAG panel dimensions based on configuration
+  if (type === 'TAG' && (panelDesign as any)?.tagConfig?.dimension) {
+    const { dimension } = (panelDesign as any).tagConfig;
+    if (dimension === 'wide') {
+      dimensions = { width: 130, height: 95 };
+    } else if (dimension === 'tall') {
+      dimensions = { width: 95, height: 130 };
+    }
+  }
+  
+  // Handle IDPG panel dimensions based on configuration
+  if (type === 'IDPG' && panelDesign?.idpgConfig) {
+    const { cardReader, roomNumber } = panelDesign.idpgConfig;
+    
+    if (!cardReader && !roomNumber) {
+      dimensions = { width: 350, height: 350 };
+    } else if (!cardReader && roomNumber) {
+      dimensions = { width: 350, height: 450 };
+    } else if (cardReader && !roomNumber) {
+      dimensions = { width: 350, height: 500 };
+    } else if (cardReader && roomNumber) {
+      dimensions = { width: 350, height: 600 };
+    }
+  }
+  
+  // Convert mm to px if needed
+  const widthPx = type === 'DPH' || type === 'DPV' || type === 'IDPG' ? 
+    dimensions.width : convertMmToPx(`${dimensions.width}mm`);
+  const heightPx = type === 'DPH' || type === 'DPV' || type === 'IDPG' ? 
+    dimensions.height : convertMmToPx(`${dimensions.height}mm`);
+  
+  return { width: widthPx, height: heightPx };
+};
+
 // Helper function to get panel details
 const getPanelDetails = (config: PanelConfig) => {
   const { panelDesign, type, name } = config;
@@ -216,7 +288,7 @@ const ProjectValue = styled(Typography)(({ theme }) => ({
 
 // Cover page component
 const CoverPage = styled(Paper)(({ theme }) => ({
-  width: '210mm', // A4 width
+  width: '250mm', // Increased width to match other pages
   minHeight: '297mm', // A4 height
   padding: '30mm', // Larger margins for cover
   margin: '12.7mm auto 20px auto', // 0.5 inch top margin, auto left/right, 20px bottom
@@ -297,7 +369,7 @@ const CoverFooter = styled(Box)(({ theme }) => ({
 
 // A4 page container - fits 2 panels per page
 const A4Page = styled(Paper)(({ theme }) => ({
-  width: '210mm', // A4 width
+  width: '250mm', // Increased width for better content fitting
   minHeight: '297mm', // A4 height
   padding: '0', // Remove padding to accommodate header
   margin: '12.7mm auto 20px auto', // 0.5 inch top margin, auto left/right, 20px bottom
@@ -331,10 +403,10 @@ const PanelGrid = styled(Box)(({ theme }) => ({
   gap: '10mm',
   flex: 1,
   alignItems: 'start',
-  padding: '0 12.7mm 12.7mm 12.7mm',
+  padding: '0 15mm 12.7mm 15mm', // Increased side padding to match wider page
   '@media print': {
     gap: '5mm',
-    padding: '12.7mm', // Add padding back since pages don't have it
+    padding: '12.7mm 15mm', // Increased side padding for wider page
     height: 'auto',
     minHeight: 'auto',
     alignSelf: 'flex-start'
@@ -346,18 +418,18 @@ const PanelContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'row', // Changed to row to accommodate panel and details side by side
   alignItems: 'flex-start',
-  justifyContent: 'center',
+  justifyContent: 'flex-start', // Changed to flex-start for better space utilization
   minHeight: '100mm', // Reduced minimum height
   maxHeight: '200mm', // Added maximum height constraint
   padding: '3mm', // Reduced padding
-  gap: '10mm', // Add gap between panel and details
+  gap: '15mm', // Increased gap to better utilize wider page
   
   '@media print': {
     padding: '2mm',
     minHeight: '60mm',
     maxHeight: 'none', // Remove max height constraint for print
     height: '100%',
-    gap: '8mm'
+    gap: '8mm' // Reduced gap for print to accommodate vertical layout for extended panels
   }
 }));
 
@@ -589,6 +661,9 @@ interface PanelConfig {
       roomNumberText: string;
     };
     spConfig?: {
+      dimension: 'standard' | 'wide' | 'tall';
+    };
+    tagConfig?: {
       dimension: 'standard' | 'wide' | 'tall';
     };
   };
@@ -1370,7 +1445,9 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
               {pagePanels.map((config, panelIndex) => {
                 const details = getPanelDetails(config);
                 return (
-                  <PanelContainer key={panelIndex}>
+                  <PanelContainer key={panelIndex} sx={{
+                    flexDirection: config.type?.includes('X1H') || config.type?.includes('X2H') ? 'column' : 'row'
+                  }}>
                     <PanelVisualContainer>
                       {/* Dimension lines and panel preview */}
                       <Box sx={{ 
@@ -1382,132 +1459,147 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         transform: 'scale(0.9) translate(50px, 30px)',
                         transformOrigin: 'top left'
                       }}>
-                        {/* Width dimension line (top) - split into two segments with gap for text */}
-                        {/* Left segment */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '-25px',
-                          left: '0',
-                          right: '50%',
-                          height: '2px',
-                          backgroundColor: '#999',
-                          marginRight: '40px'
-                        }} />
-                        {/* Right segment */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '-25px',
-                          left: '50%',
-                          right: '0',
-                          height: '2px',
-                          backgroundColor: '#999',
-                          marginLeft: '40px'
-                        }} />
-                        {/* Text in the gap */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '-25px',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
-                          fontSize: '14px',
-                          color: '#999',
-                          fontWeight: 'bold',
-                          backgroundColor: 'white',
-                          padding: '0 4px',
-                          height: '2px',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}>
-                          {config.type === 'SP' ? 
-                            (config.panelDesign?.spConfig?.dimension === 'wide' ? '130 mm' : 
-                             config.panelDesign?.spConfig?.dimension === 'tall' ? '95 mm' : '95 mm') :
-                            config.type?.includes('X2') ? '224 mm' : 
-                            config.type?.includes('X1') ? '130 mm' : '95 mm'}
-                        </Box>
+                        {/* Width dimension line (top) - using actual panel width */}
+                        {(() => {
+                          const panelDims = getPanelDimensions(config);
+                          const widthPx = panelDims.width;
+                          const heightPx = panelDims.height;
+                          const gapWidth = 50; // Space for dimension text
+                          
+                          return (
+                            <>
+                              {/* Left segment */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '-25px',
+                                left: '0',
+                                width: `${(widthPx - gapWidth) / 2}px`,
+                                height: '2px',
+                                backgroundColor: '#999'
+                              }} />
+                              {/* Right segment */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '-25px',
+                                left: `${(widthPx + gapWidth) / 2}px`,
+                                width: `${(widthPx - gapWidth) / 2}px`,
+                                height: '2px',
+                                backgroundColor: '#999'
+                              }} />
+                              {/* Text in the gap */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '-25px',
+                                left: `${widthPx / 2}px`,
+                                transform: 'translateX(-50%)',
+                                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                                fontSize: '14px',
+                                color: '#999',
+                                fontWeight: 'bold',
+                                backgroundColor: 'white',
+                                padding: '0 4px',
+                                height: '2px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}>
+                                {config.type === 'SP' ? 
+                                  (config.panelDesign?.spConfig?.dimension === 'wide' ? '130 mm' : 
+                                   config.panelDesign?.spConfig?.dimension === 'tall' ? '95 mm' : '95 mm') :
+                                  config.type?.includes('X2') ? '224 mm' : 
+                                  config.type?.includes('X1') ? '130 mm' : 
+                                  config.type === 'DPH' ? '640px' :
+                                  config.type === 'DPV' ? '320px' :
+                                  config.type === 'IDPG' ? '350px' : '95 mm'}
+                              </Box>
 
-                        {/* Width dimension endpoint lines (vertical lines at ends) */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '-32px',
-                          left: '0',
-                          width: '3px',
-                          height: '15px',
-                          backgroundColor: '#999'
-                        }} />
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '-32px',
-                          right: '0',
-                          width: '3px',
-                          height: '15px',
-                          backgroundColor: '#999'
-                        }} />
+                              {/* Width dimension endpoint lines (vertical lines at ends) */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '-32px',
+                                left: '0',
+                                width: '3px',
+                                height: '15px',
+                                backgroundColor: '#999'
+                              }} />
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '-32px',
+                                left: `${widthPx - 3}px`,
+                                width: '3px',
+                                height: '15px',
+                                backgroundColor: '#999'
+                              }} />
 
-                        {/* Height dimension line (left) - split into two segments with gap for text */}
-                        {/* Top segment */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '0',
-                          left: '-25px',
-                          bottom: '50%',
-                          width: '2px',
-                          backgroundColor: '#999',
-                          marginBottom: '40px'
-                        }} />
-                        {/* Bottom segment */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: '-25px',
-                          bottom: '0',
-                          width: '2px',
-                          backgroundColor: '#999',
-                          marginTop: '40px'
-                        }} />
-                        {/* Text in the gap */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: '-25px',
-                          transform: 'translateY(-50%)',
-                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
-                          fontSize: '14px',
-                          color: '#999',
-                          fontWeight: 'bold',
-                          backgroundColor: 'white',
-                          padding: '4px 0',
-                          width: '2px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          writingMode: 'vertical-rl',
-                          textOrientation: 'mixed'
-                        }}>
-                          {config.type === 'SP' ? 
-                            (config.panelDesign?.spConfig?.dimension === 'wide' ? '95 mm' : 
-                             config.panelDesign?.spConfig?.dimension === 'tall' ? '130 mm' : '95 mm') :
-                            config.type?.includes('X2') ? '95 mm' : 
-                            config.type?.includes('X1') ? '95 mm' : '95 mm'}
-                        </Box>
+                              {/* Height dimension line (left) - using actual panel height */}
+                              {/* Top segment */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '0',
+                                left: '-25px',
+                                width: '2px',
+                                height: `${(heightPx - gapWidth) / 2}px`,
+                                backgroundColor: '#999'
+                              }} />
+                              {/* Bottom segment */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: `${(heightPx + gapWidth) / 2}px`,
+                                left: '-25px',
+                                width: '2px',
+                                height: `${(heightPx - gapWidth) / 2}px`,
+                                backgroundColor: '#999'
+                              }} />
+                              {/* Text in the gap */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: `${heightPx / 2}px`,
+                                left: '-25px',
+                                transform: 'translateY(-50%)',
+                                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                                fontSize: '14px',
+                                color: '#999',
+                                fontWeight: 'bold',
+                                backgroundColor: 'white',
+                                padding: '4px 0',
+                                width: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                writingMode: 'vertical-rl',
+                                textOrientation: 'mixed'
+                              }}>
+                                {config.type === 'SP' ? 
+                                  (config.panelDesign?.spConfig?.dimension === 'wide' ? '95 mm' : 
+                                   config.panelDesign?.spConfig?.dimension === 'tall' ? '130 mm' : '95 mm') :
+                                  config.type?.includes('X2') ? '95 mm' : 
+                                  config.type?.includes('X1') ? '95 mm' : 
+                                  config.type === 'DPH' ? '320px' :
+                                  config.type === 'DPV' ? '640px' :
+                                  config.type === 'IDPG' ? (config.panelDesign?.idpgConfig?.cardReader && config.panelDesign?.idpgConfig?.roomNumber ? '600px' :
+                                                           config.panelDesign?.idpgConfig?.cardReader ? '500px' :
+                                                           config.panelDesign?.idpgConfig?.roomNumber ? '450px' : '350px') : '95 mm'}
+                              </Box>
 
-                        {/* Height dimension endpoint lines (horizontal lines at ends) */}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '0',
-                          left: '-32px',
-                          width: '15px',
-                          height: '3px',
-                          backgroundColor: '#999'
-                        }} />
-                        <Box sx={{
-                          position: 'absolute',
-                          bottom: '0',
-                          left: '-32px',
-                          width: '15px',
-                          height: '3px',
-                          backgroundColor: '#999'
-                        }} />
+                              {/* Height dimension endpoint lines (horizontal lines at ends) */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '0',
+                                left: '-32px',
+                                width: '15px',
+                                height: '3px',
+                                backgroundColor: '#999'
+                              }} />
+                              <Box sx={{
+                                position: 'absolute',
+                                top: `${heightPx - 3}px`,
+                                left: '-32px',
+                                width: '15px',
+                                height: '3px',
+                                backgroundColor: '#999'
+                              }} />
+                            </>
+                          );
+                        })()}
 
                         <PanelPreview
                           icons={config.icons}
@@ -1518,7 +1610,11 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                       </Box>
                     </PanelVisualContainer>
 
-                    <PanelDetailsContainer>
+                    <PanelDetailsContainer sx={{
+                      marginLeft: config.type?.includes('X1H') || config.type?.includes('X2H') ? '0' : '15mm',
+                      marginTop: config.type?.includes('X1H') || config.type?.includes('X2H') ? '5mm' : '0',
+                      width: config.type?.includes('X1H') || config.type?.includes('X2H') ? '100%' : 'auto'
+                    }}>
                       <DetailRow>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <DetailValue sx={{ 

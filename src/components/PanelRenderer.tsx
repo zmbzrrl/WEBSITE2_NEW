@@ -330,6 +330,17 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
                 text: 'DISPLAY',
               };
             }
+            // X2V panels with TAG layout also have DISPLAY icon in position 0 (top-left)
+            if (isX2V && (panelDesign as any).useTagLayout && index === 0) {
+              forceIcon = {
+                src: DISPLAY,
+                label: 'DISPLAY',
+                iconId: 'DISPLAY',
+                category: 'TAG',
+                position: index,
+                text: 'DISPLAY',
+              };
+            }
             
             const isPIR = icon?.category === 'PIR';
             const text = (iconTexts && iconTexts[index]) || icon?.text;
@@ -436,7 +447,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: hasIcon ? 'flex-start' : 'center',
+                  justifyContent: 'flex-start',
                 zIndex: 2,
                 }}
               >

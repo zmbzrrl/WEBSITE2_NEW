@@ -71,6 +71,7 @@ import { motion } from 'framer-motion';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 
 import iconLibrary from '../../../assets/iconLibrary2';
+import DISPLAY from '../../../assets/icons/DISPLAY.png';
 
 
 
@@ -1020,6 +1021,8 @@ const X2VCustomizer: React.FC = () => {
   // Add swap and mirror state
   const [swapUpDown, setSwapUpDown] = useState(false); // NEW: swap state
   const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
+  // Toggle to replace 3x3 grid with TAG thermostat layout
+  const [useTagLayout, setUseTagLayout] = useState(false);
 
   // PIR helpers (toggle-controlled motion sensor)
 
@@ -1253,6 +1256,7 @@ const X2VCustomizer: React.FC = () => {
         // Load swap states
         setSwapUpDown(editPanelData.panelDesign.swapUpDown || false);
         setMirrorVertical(editPanelData.panelDesign.mirrorVertical || false);
+        setUseTagLayout(editPanelData.panelDesign.useTagLayout || false);
 
       }
 
@@ -1490,7 +1494,7 @@ const X2VCustomizer: React.FC = () => {
 
 
 
-    const design: Design & { panelDesign: typeof panelDesign & { swapUpDown?: boolean; mirrorVertical?: boolean } } = {
+    const design: Design & { panelDesign: typeof panelDesign & { swapUpDown?: boolean; mirrorVertical?: boolean; useTagLayout?: boolean } } = {
 
       type: "X2V",
 
@@ -1522,7 +1526,7 @@ const X2VCustomizer: React.FC = () => {
 
       quantity: 1,
 
-      panelDesign: { ...panelDesign, backbox, extraComments, swapUpDown, mirrorVertical },
+      panelDesign: { ...panelDesign, backbox, extraComments, swapUpDown, mirrorVertical, useTagLayout },
 
     };
 
@@ -1941,19 +1945,80 @@ const X2VCustomizer: React.FC = () => {
     // Default position
     let pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     
-    // If swapUpDown is true, swap top 3x3 grid with bottom single slot
+    // Force DISPLAY icon for X2V TAG layout in position 0
+    let forceIcon = null;
+    if (useTagLayout && index === 0) {
+      forceIcon = {
+        src: DISPLAY,
+        label: 'DISPLAY',
+        iconId: 'DISPLAY',
+        category: 'TAG',
+        position: index,
+        text: 'DISPLAY',
+      };
+    }
+    
+    // If TAG layout toggle is on, override positions 0-8 with TAG layout positions
+    if (useTagLayout && index >= 0 && index <= 8) {
+      const tagConfig = getPanelLayoutConfig('TAG');
+      // Map TAG 3x3 positions directly (0..8)
+      const tagPos = tagConfig.iconPositions?.[index];
+      if (tagPos) {
+        pos = { ...pos, top: tagPos.top, left: tagPos.left } as any;
+        // Increase vertical spacing between rows for TAG layout in X2V
+        // Add +25px between Row 1->Display and Display->Row 2, and +25px between Row 2->Row 3 (total +50 for Row 3)
+        const rowIdx = Math.floor(index / 3);
+        if (rowIdx === 1) {
+          pos = { ...pos, top: (parseInt((pos as any).top) + 25) + 'px' } as any;
+        } else if (rowIdx === 2) {
+          pos = { ...pos, top: (parseInt((pos as any).top) + 50) + 'px' } as any;
+        }
+      }
+    }
+    
+    // Move both big icons to the left by 95px in all states, then adjust for normal state
+    if (index === 9 || index === 10) {
+      pos = { ...pos, left: (parseInt(pos.left) - 95) + 'px' };
+      // When up button is NOT pressed, move big icons right by 23px and adjust vertical position
+      if (!swapUpDown) {
+        pos = { ...pos, left: (parseInt(pos.left) + 23) + 'px' };
+        // Move middle big icon up by 90px and outer big icon up by 165px
+        if (index === 9) {
+          pos = { ...pos, top: (parseInt(pos.top) - 90) + 'px' };
+        } else if (index === 10) {
+          pos = { ...pos, top: (parseInt(pos.top) - 165) + 'px' };
+        }
+      }
+    }
+    
+    // If swapUpDown is true, swap top 3x3 grid with first big icon (position 10)
     if (swapUpDown) {
       if (index >= 0 && index <= 8) {
         // Move the 3x3 grid to the bottom half
-        // Panel is 640px tall, so move grid to bottom half (320px offset)
-        const swappedGridOffset = 320;
+         // Panel is 900px tall, so move grid to bottom half (around 550px offset)
+         const swappedGridOffset = 550;
         pos = { ...pos, top: (parseInt(pos.top) + swappedGridOffset) + 'px' };
       } else if (index === 9) {
-        // Move the single slot to the top half, positioned more centrally
-        // Original position is 328px top, 36px left
+         // Move the middle big icon up by 120px when swap is active
+         pos = { ...pos, top: (parseInt(pos.top) - 120) + 'px' };
+         // Move big icons 23px to the right when up button is pressed
+         pos = { ...pos, left: (parseInt(pos.left) + 23) + 'px' };
+       } else if (index === 10) {
+         // Move the first big icon to the top half, positioned more centrally
+         // Original position is 800px top, 136px left
         // Move it to center of top half (around 55px from top)
         pos = { ...pos, top: '55px' };
+        // Move big icons 23px to the right when up button is pressed
+        pos = { ...pos, left: (parseInt(pos.left) + 23) + 'px' };
       }
+    }
+
+    // Debug: verify computed positions for big icons
+    if (index === 9 || index === 10) {
+      try {
+        // eslint-disable-next-line no-console
+        console.debug('[X2V] computed pos', { index, swapUpDown, pos });
+      } catch {}
     }
     
     // If mirrorVertical is true, mirror the 3x3 grid horizontally (column 0<->2)
@@ -1976,7 +2041,7 @@ const X2VCustomizer: React.FC = () => {
 
     // Calculate container size to match icon size
 
-    const containerSize = ((index === 9 || index === 10) ? '240px' : (panelDesign.iconSize || '14mm'));
+    const containerSize = ((index === 9 || index === 10) ? '190px' : (panelDesign.iconSize || '14mm'));
 
     
 
@@ -2014,7 +2079,7 @@ const X2VCustomizer: React.FC = () => {
 
         >
 
-          {icon && (
+          {(icon || forceIcon) && (
 
             <div
 
@@ -2028,19 +2093,19 @@ const X2VCustomizer: React.FC = () => {
 
               <img
 
-                src={icon.src}
+                src={(forceIcon || icon).src}
 
-                alt={icon.label}
+                alt={(forceIcon || icon).label}
 
-                draggable={true}
+                draggable={!forceIcon}
 
-                onDragStart={(e) => handleDragStart(e, icon)}
+                onDragStart={!forceIcon ? (e) => handleDragStart(e, icon) : undefined}
 
                 style={{
 
-                width: (index === 9 || index === 10) ? '240px' : (panelDesign.iconSize || '14mm'),
+                width: (index === 9 || index === 10) ? '190px' : (panelDesign.iconSize || '14mm'),
 
-                height: (index === 9 || index === 10) ? '240px' : (panelDesign.iconSize || '14mm'),
+                height: (index === 9 || index === 10) ? '190px' : (panelDesign.iconSize || '14mm'),
 
                 objectFit: 'contain',
 
@@ -2837,6 +2902,28 @@ const X2VCustomizer: React.FC = () => {
 
         </div>
 
+        {/* Swap/Mirror Buttons - above panel template */}
+        {currentStep === 2 && (
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, margin: '8px 0 12px 0' }}>
+            <Button
+              variant="outlined"
+              onClick={handleSwapUpDown}
+              size="small"
+              startIcon={!swapUpDown ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
+            >
+              {!swapUpDown ? 'Up' : 'Down'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleMirrorVertical}
+              size="small"
+              startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} fontSize="small" />}
+            >
+              {mirrorVertical ? 'Unmirror' : 'Mirror'}
+            </Button>
+          </div>
+        )}
+
         {/* Panel Preview for Step 2 (only this one should render) */}
 
         <div style={{ flex: '0 0 340px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginTop: 0 }}>
@@ -2931,6 +3018,25 @@ const X2VCustomizer: React.FC = () => {
               </>
             )}
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
+              {useTagLayout && (
+                <img
+                  src={DISPLAY}
+                  alt="DISPLAY"
+                  style={{
+                    position: 'absolute',
+                    // Follow grid swap: move with grid when up button pressed
+                    top: swapUpDown ? '630px' : '80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '220px',
+                    height: '50px',
+                    objectFit: 'contain',
+                    filter: getIconColorFilter(panelDesign.backgroundColor),
+                    pointerEvents: 'none',
+                    zIndex: 3,
+                  }}
+                />
+              )}
 
               {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
 
@@ -2944,27 +3050,6 @@ const X2VCustomizer: React.FC = () => {
 
         )}
 
-        {/* Swap/Mirror Buttons - compact toolbar above template on step 2 */}
-        {currentStep === 2 && (
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, margin: '8px 0 12px 0' }}>
-            <Button
-              variant="outlined"
-              onClick={handleSwapUpDown}
-              size="small"
-              startIcon={!swapUpDown ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
-            >
-              {!swapUpDown ? 'Up' : 'Down'}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleMirrorVertical}
-              size="small"
-              startIcon={<FlipIcon sx={{ transform: 'rotate(90deg)' }} fontSize="small" />}
-            >
-              {mirrorVertical ? 'Unmirror' : 'Mirror'}
-            </Button>
-          </div>
-        )}
 
         {/* Step 3: Panel Design */}
 
@@ -3486,6 +3571,7 @@ const X2VCustomizer: React.FC = () => {
 
 
           </div>
+
 
 
 

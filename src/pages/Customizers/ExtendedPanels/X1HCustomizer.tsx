@@ -19,6 +19,20 @@ const getPanelTypeLabel = (type: string) => {
     default: return "Panel";
   }
 };
+
+// Function to get auto text color based on background
+const getAutoTextColor = (backgroundColor: string): string => {
+  const hex = (backgroundColor || '#ffffff').replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate brightness (0-255)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  
+  // Use white text for dark backgrounds, dark grey (#808080) for light to match icons
+  return brightness < 150 ? '#ffffff' : '#808080';
+};
 import CartButton from '../../../components/CartButton';
 import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from '../../../assets/logo.png';
@@ -42,6 +56,7 @@ import { motion } from 'framer-motion';
 import logo from '../../../assets/logo.png';
 
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
+import DISPLAY from '../../../assets/icons/DISPLAY.png';
 import iconLibrary from '../../../assets/iconLibrary2';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -611,6 +626,7 @@ const X1HCustomizer: React.FC = () => {
   // Add swap and mirror state
   const [swapLeftRight, setSwapLeftRight] = useState(false); // NEW: swap state for X1H (left/right)
   const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
+  const [useTagLayout, setUseTagLayout] = useState(false);
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -815,7 +831,7 @@ const X1HCustomizer: React.FC = () => {
             const keys = ['X1H','X1V','X2H','X2V'] as const;
             const total = keys
               .map(k => undefined)
-              .reduce((a,b)=>a+b,0);
+              .reduce((a,b)=>(a||0)+(b||0),0);
             return total;
           }
           const cap = undefined as any;
@@ -1040,9 +1056,22 @@ const X1HCustomizer: React.FC = () => {
     const iconSize = panelDesign.iconSize || '40px';
     // Default position
     let pos = iconPositions?.[index] || { top: '0px', left: '0px' };
+
+    // Apply TAG layout override for 0-8 when toggled
+    if (useTagLayout && index >= 0 && index <= 8) {
+      const tagConfig = getPanelLayoutConfig('TAG');
+      const tagPos = tagConfig.iconPositions?.[index];
+      if (tagPos) {
+        pos = { ...pos, top: tagPos.top, left: tagPos.left } as any;
+        const rowIdx = Math.floor(index / 3);
+        if (rowIdx === 1) pos = { ...pos, top: (parseInt((pos as any).top) + 25) + 'px' } as any;
+        if (rowIdx === 2) pos = { ...pos, top: (parseInt((pos as any).top) + 50) + 'px' } as any;
+      }
+    }
     
-    // If swapLeftRight is true, swap left 3x3 grid with right single slot
+    // Position adjustments based on swapLeftRight state
     if (swapLeftRight) {
+      // If swapLeftRight is true, swap left 3x3 grid with right single slot
       if (index >= 0 && index <= 8) {
         // Move the left 3x3 grid to the right side
         // Panel is 731px wide, so move grid to right half (around 340px offset)
@@ -1051,7 +1080,18 @@ const X1HCustomizer: React.FC = () => {
       } else if (index === 9) {
         // Move the right single slot to the left side, positioned more centrally
         // Original position is left: '341px', move it to left side (around 33px from left)
-        pos = { ...pos, left: '33px', top: '123px' }; // Center it vertically on the left
+        pos = { ...pos, left: '33px', top: '53px' }; // Center it vertically on the left, moved up 70px
+      }
+    } else {
+      // When right button is NOT pressed, apply default offsets
+      if (index >= 0 && index <= 8) {
+        // Move 3x3 grid 20px to the right
+        const gridOffset = 20;
+        pos = { ...pos, left: (parseInt(pos.left) + gridOffset) + 'px' };
+      } else if (index === 9) {
+        // Move big icon 100px to the left
+        const iconOffset = -100;
+        pos = { ...pos, left: (parseInt(pos.left) + iconOffset) + 'px' };
       }
     }
     
@@ -1072,7 +1112,7 @@ const X1HCustomizer: React.FC = () => {
     }
     
     // Calculate container size to match icon size
-    const containerSize = (index === 9 ? '240px' : (panelDesign.iconSize || '14mm'));
+    const containerSize = (index === 9 ? '220px' : (panelDesign.iconSize || '14mm'));
     
     return (
         <div
@@ -1103,8 +1143,8 @@ const X1HCustomizer: React.FC = () => {
                 draggable={currentStep !== 3}
                 onDragStart={currentStep !== 3 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: index === 9 ? '240px' : (panelDesign.iconSize || '14mm'),
-                height: index === 9 ? '240px' : (panelDesign.iconSize || '14mm'),
+                width: index === 9 ? '220px' : (panelDesign.iconSize || '14mm'),
+                height: index === 9 ? '220px' : (panelDesign.iconSize || '14mm'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -1163,30 +1203,30 @@ const X1HCustomizer: React.FC = () => {
                       width: '100%',
                       textAlign: 'center',
                       fontSize: panelDesign.fontSize || '12px',
-                      color: panelDesign.iconColor || '#000000',
+                      color: getAutoTextColor(panelDesign.backgroundColor),
                       fontFamily: panelDesign.fonts || undefined,
                       wordBreak: 'break-word',
                     }}>{text}</div>
                   )
                 ) : (
                   <>
-                    {isEditing ? (
+                    {(useTagLayout && index >= 0 && index <= 2 && !!icon) ? null : (isEditing ? (
                       <input
                         type="text"
                         value={text || ''}
                         onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: getAutoTextColor(panelDesign.backgroundColor), marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div
                         onClick={() => handleTextClick(index)}
-                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                       >
                         {text || 'Add text'}
                       </div>
-                    )}
+                    ))}
                   </>
                 )}
               </div>
@@ -1652,6 +1692,14 @@ const X1HCustomizer: React.FC = () => {
           >
             {mirrorVertical ? 'Unmirror' : 'Mirror'}
           </Button>
+          <Button
+            variant="contained"
+            color={useTagLayout ? 'primary' : 'inherit'}
+            onClick={() => setUseTagLayout(v => !v)}
+            size="small"
+          >
+            {useTagLayout ? 'Use 3x3 grid' : 'Use TAG layout'}
+          </Button>
         </div>
               {/* Panel Preview */}
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
@@ -1679,10 +1727,10 @@ const X1HCustomizer: React.FC = () => {
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: '18px',
-                    right: '62px',
-                    width: '9px',
-                    height: '9px',
+                    bottom: '22px',
+                    right: '59px',
+                    width: '7.65px',
+                    height: '7.65px',
                     borderRadius: '50%',
                     backgroundColor: '#ff9800',
                     filter: getIconColorFilter(panelDesign.backgroundColor),
@@ -1693,8 +1741,8 @@ const X1HCustomizer: React.FC = () => {
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: '18px',
-                    right: '32px',
+                    bottom: '22px',
+                    right: '34px',
                     width: '9px',
                     height: '9px',
                     borderRadius: '50%',
@@ -2012,10 +2060,10 @@ const X1HCustomizer: React.FC = () => {
                     <div
                       style={{
                         position: 'absolute',
-                        bottom: '18px',
-                        right: '62px',
-                        width: '9px',
-                        height: '9px',
+                        bottom: '22px',
+                        right: '59px',
+                        width: '7.65px',
+                        height: '7.65px',
                         borderRadius: '50%',
                         backgroundColor: '#ff9800',
                         filter: getIconColorFilter(panelDesign.backgroundColor),
@@ -2026,8 +2074,8 @@ const X1HCustomizer: React.FC = () => {
                     <div
                       style={{
                         position: 'absolute',
-                        bottom: '18px',
-                        right: '32px',
+                        bottom: '22px',
+                        right: '34px',
                         width: '9px',
                         height: '9px',
                         borderRadius: '50%',

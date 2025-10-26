@@ -38,6 +38,10 @@ interface CartItem {
     backbox?: string;
     extraComments?: string;
     isLayoutReversed?: boolean;
+    features?: {
+      Proximity?: boolean;
+    };
+    Proximity?: boolean;
   };
   iconTexts?: { [key: number]: string };
 }

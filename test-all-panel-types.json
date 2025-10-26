@@ -59,7 +59,7 @@
       "DesignId": "005",
       "Panel Name": "Corridor Panel - Basic",
       "Panel Code": "IDPG",
-      "Room Number": true,
+      "Room Number": false,
       "Card reader": false,
       "Motion": false,
       "Proximity": false,
@@ -70,10 +70,10 @@
     },
     {
       "DesignId": "006",
-      "Panel Name": "Corridor Panel - With Card Reader",
+      "Panel Name": "Corridor Panel - Room Number Only",
       "Panel Code": "IDPG",
       "Room Number": true,
-      "Card reader": true,
+      "Card reader": false,
       "Motion": false,
       "Proximity": false,
       "Extended 1-socket": false,
@@ -83,12 +83,12 @@
     },
     {
       "DesignId": "007",
-      "Panel Name": "Corridor Panel - With Proximity Only",
+      "Panel Name": "Corridor Panel - Card Reader Only",
       "Panel Code": "IDPG",
-      "Room Number": true,
-      "Card reader": false,
+      "Room Number": false,
+      "Card reader": true,
       "Motion": false,
-      "Proximity": true,
+      "Proximity": false,
       "Extended 1-socket": false,
       "Extended 2-socket": false,
       "Allocated Quantity": 30,
@@ -96,12 +96,12 @@
     },
     {
       "DesignId": "008",
-      "Panel Name": "Corridor Panel - Card Reader + Proximity",
+      "Panel Name": "Corridor Panel - Room Number + Card Reader",
       "Panel Code": "IDPG",
       "Room Number": true,
       "Card reader": true,
       "Motion": false,
-      "Proximity": true,
+      "Proximity": false,
       "Extended 1-socket": false,
       "Extended 2-socket": false,
       "Allocated Quantity": 25,
@@ -134,7 +134,7 @@
       "Max Quantity": 40
     },
     {
-      "DesignId": "011",
+      "DesignId": "019",
       "Panel Name": "Double Panel - Vertical",
       "Panel Code": "DPV",
       "Room Number": false,
@@ -147,7 +147,7 @@
       "Max Quantity": 50
     },
     {
-      "DesignId": "012",
+      "DesignId": "020",
       "Panel Name": "Double Panel - Vertical with Motion and Proximity",
       "Panel Code": "DPV",
       "Room Number": false,
@@ -160,7 +160,7 @@
       "Max Quantity": 40
     },
     {
-      "DesignId": "013",
+      "DesignId": "019",
       "Panel Name": "Extended Panel - Horizontal 1 Socket",
       "Panel Code": "X1H",
       "Room Number": false,
@@ -173,7 +173,7 @@
       "Max Quantity": 40
     },
     {
-      "DesignId": "014",
+      "DesignId": "020",
       "Panel Name": "Extended Panel - Horizontal 1 Socket with Motion and Proximity",
       "Panel Code": "X1H",
       "Room Number": false,
@@ -186,7 +186,7 @@
       "Max Quantity": 30
     },
     {
-      "DesignId": "015",
+      "DesignId": "019",
       "Panel Name": "Extended Panel - Vertical 1 Socket",
       "Panel Code": "X1V",
       "Room Number": false,
@@ -199,7 +199,7 @@
       "Max Quantity": 40
     },
     {
-      "DesignId": "016",
+      "DesignId": "020",
       "Panel Name": "Extended Panel - Vertical 1 Socket with Motion and Proximity",
       "Panel Code": "X1V",
       "Room Number": false,
@@ -212,7 +212,7 @@
       "Max Quantity": 30
     },
     {
-      "DesignId": "017",
+      "DesignId": "019",
       "Panel Name": "Extended Panel - Horizontal 2 Sockets",
       "Panel Code": "X2H",
       "Room Number": false,
@@ -225,7 +225,7 @@
       "Max Quantity": 36
     },
     {
-      "DesignId": "018",
+      "DesignId": "020",
       "Panel Name": "Extended Panel - Horizontal 2 Sockets with Motion and Proximity",
       "Panel Code": "X2H",
       "Room Number": false,

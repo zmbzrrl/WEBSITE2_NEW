@@ -68,10 +68,13 @@ const PanelContainer = styled(Box)(({ theme }) => ({
 const PanelImage = styled('img')(({ theme }) => ({
   width: '100%',
   height: 'auto',
-  maxHeight: 280,
+  maxHeight: 250,
   objectFit: 'contain',
   transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
   marginBottom: theme.spacing(2),
+  '&.extended-panel': {
+    maxHeight: '250px !important',
+  },
 }));
 
 const PanelTitle = styled(Typography)(({ theme }) => ({
@@ -711,7 +714,7 @@ const PanelTypeSelector = () => {
                       <PanelImage
                         src={panel.image}
                         alt={panel.name}
-                        className="panel-image"
+                        className={`panel-image ${panel.name.startsWith('Extended Panels') ? 'extended-panel' : ''}`}
                         style={{
                           maxHeight:
                             panel.name === 'Single Panel' || panel.name === 'Thermostat'
@@ -721,7 +724,7 @@ const PanelTypeSelector = () => {
                               : panel.name === 'Double Panel'
                               ? 250
                               : panel.name.startsWith('Extended Panels')
-                              ? 276
+                              ? 250
                               : 288,
                           width:
                             panel.name === 'Single Panel' || panel.name === 'Thermostat'

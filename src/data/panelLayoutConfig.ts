@@ -80,9 +80,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
           { top: '133px', left: '47px' },
           { top: '133px', left: '136px' },
           { top: '133px', left: '226px' },
-          { top: '225px', left: '47px' },
-          { top: '225px', left: '136px' },
-          { top: '225px', left: '226px' },
+          { top: '221px', left: '47px' },
+          { top: '221px', left: '136px' },
+          { top: '221px', left: '226px' },
         ]
       },
       tall: {
@@ -96,9 +96,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
           { top: '133px', left: '47px' },
           { top: '133px', left: '136px' },
           { top: '133px', left: '226px' },
-          { top: '225px', left: '47px' },
-          { top: '225px', left: '136px' },
-          { top: '225px', left: '226px' },
+          { top: '221px', left: '47px' },
+          { top: '221px', left: '136px' },
+          { top: '221px', left: '226px' },
         ]
       }
     },
@@ -110,9 +110,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       { top: '133px', left: '47px' },  // Icon 3 (middle-left) - aligned with cell 0
       { top: '133px', left: '136px' }, // Icon 4 (middle-center) - moved down 10px
       { top: '133px', left: '226px' }, // Icon 5 (middle-right) - moved left 7px, down 10px
-      { top: '225px', left: '47px' },  // Icon 6 (bottom-left) - aligned with cell 0
-      { top: '225px', left: '136px' }, // Icon 7 (bottom-center) - moved down 10px, up 3px
-      { top: '225px', left: '226px' }, // Icon 8 (bottom-right) - moved left 7px, down 10px, up 3px
+      { top: '221px', left: '47px' },  // Icon 6 (bottom-left) - consistent spacing
+      { top: '221px', left: '136px' }, // Icon 7 (bottom-center) - consistent spacing
+      { top: '221px', left: '226px' }, // Icon 8 (bottom-right) - consistent spacing
     ],
     iconLayout: {
       size: '38px',
@@ -131,7 +131,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         marginTop: '0'
       },
       Bathroom: {
-        iconSize: '47px' // 14mm equivalent (95mm panel = 320px, so 14mm = 47px)
+        iconSize: '38px' // Match standard SP icon size for consistency
       }
     }
   },
@@ -232,37 +232,46 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       height: '320px'
     },
     iconPositions: [
-      // Left SP (first 9 slots) - matches customizer baseIconPositions
-      { top: '23px', left: '33px' },   // 0
-      { top: '23px', left: '136px' },  // 1
-      { top: '23px', left: '233px' },  // 2
-      { top: '123px', left: '33px' },  // 3
-      { top: '123px', left: '136px' }, // 4
-      { top: '123px', left: '233px' }, // 5
-      { top: '218px', left: '33px' },  // 6
-      { top: '218px', left: '136px' }, // 7
-      { top: '218px', left: '233px' }, // 8
-      // Right SP (next 9 slots, left + 320px) - matches customizer rightIconPositions
-      { top: '23px', left: '353px' },   // 9
-      { top: '23px', left: '456px' },   // 10
-      { top: '23px', left: '553px' },   // 11
-      { top: '123px', left: '353px' },  // 12
-      { top: '123px', left: '456px' },  // 13
-      { top: '123px', left: '553px' },  // 14
-      { top: '218px', left: '353px' },  // 15
-      { top: '218px', left: '456px' },  // 16
-      { top: '218px', left: '553px' },  // 17
+      // Left SP (first 9 slots) - matches SP standard positions exactly
+      { top: '45px', left: '47px' },   // 0 - matches SP position 0
+      { top: '45px', left: '136px' },  // 1 - matches SP position 1
+      { top: '45px', left: '226px' },  // 2 - matches SP position 2
+      { top: '133px', left: '47px' },  // 3 - matches SP position 3
+      { top: '133px', left: '136px' }, // 4 - matches SP position 4
+      { top: '133px', left: '226px' }, // 5 - matches SP position 5
+      { top: '221px', left: '47px' },  // 6 - matches SP position 6 with consistent spacing
+      { top: '221px', left: '136px' }, // 7 - matches SP position 7 with consistent spacing
+      { top: '221px', left: '226px' }, // 8 - matches SP position 8 with consistent spacing
+      // Right SP (next 9 slots, left + 320px) - matches SP standard positions with offset
+      { top: '45px', left: '367px' },   // 9 - matches SP position 0 + 320px offset
+      { top: '45px', left: '456px' },   // 10 - matches SP position 1 + 320px offset
+      { top: '45px', left: '546px' },   // 11 - matches SP position 2 + 320px offset
+      { top: '133px', left: '367px' },  // 12 - matches SP position 3 + 320px offset
+      { top: '133px', left: '456px' },  // 13 - matches SP position 4 + 320px offset
+      { top: '133px', left: '546px' },  // 14 - matches SP position 5 + 320px offset
+      { top: '221px', left: '367px' },  // 15 - matches SP position 6 + 320px offset
+      { top: '221px', left: '456px' },  // 16 - matches SP position 7 + 320px offset
+      { top: '221px', left: '546px' },  // 17 - matches SP position 8 + 320px offset
     ],
     iconLayout: {
-      size: '40px',
-      spacing: '5px',
+      size: '38px', // Match SP icon size
+      spacing: '5px', // Match SP spacing
       position: 'top'
     },
     textLayout: {
-      fontSize: '12px',
+      fontSize: '12px', // Match SP font size
       position: 'absolute',
-      bottom: '13px',
-      padding: '-1px'
+      bottom: '13px', // Match SP bottom position
+      padding: '-1px' // Match SP padding
+    },
+    specialLayouts: {
+      PIR: {
+        iconSize: '38px', // Match standard icon size for consistency
+        marginTop: '0'
+      },
+      Bathroom: {
+        iconSize: '38px' // Match standard icon size for consistency
+      }
     }
   },
 
@@ -273,61 +282,70 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       height: '640px' // double panel height
     },
     iconPositions: [
-      // Top SP (first 9 slots)
-      { top: '23px', left: '33px' },   // 0
-      { top: '23px', left: '136px' },  // 1
-      { top: '23px', left: '233px' },  // 2
-      { top: '123px', left: '33px' },  // 3
-      { top: '123px', left: '136px' }, // 4
-      { top: '123px', left: '233px' }, // 5
-      { top: '218px', left: '33px' },  // 6
-      { top: '218px', left: '136px' }, // 7
-      { top: '218px', left: '233px' }, // 8
-      // Bottom SP (next 9 slots, top + 320px)
-      { top: '343px', left: '33px' },   // 9
-      { top: '343px', left: '136px' },  // 10
-      { top: '343px', left: '233px' },  // 11
-      { top: '443px', left: '33px' },   // 12
-      { top: '443px', left: '136px' },  // 13
-      { top: '443px', left: '233px' },  // 14
-      { top: '538px', left: '33px' },   // 15
-      { top: '538px', left: '136px' },  // 16
-      { top: '538px', left: '233px' },  // 17
+      // Top SP (first 9 slots) - matches SP standard positions exactly
+      { top: '45px', left: '47px' },   // 0 - matches SP position 0
+      { top: '45px', left: '136px' },  // 1 - matches SP position 1
+      { top: '45px', left: '226px' },  // 2 - matches SP position 2
+      { top: '133px', left: '47px' },  // 3 - matches SP position 3
+      { top: '133px', left: '136px' }, // 4 - matches SP position 4
+      { top: '133px', left: '226px' }, // 5 - matches SP position 5
+      { top: '225px', left: '47px' },  // 6 - matches SP position 6
+      { top: '225px', left: '136px' }, // 7 - matches SP position 7
+      { top: '225px', left: '226px' }, // 8 - matches SP position 8
+      // Bottom SP (next 9 slots, top + 320px) - matches SP standard positions with offset
+      { top: '365px', left: '47px' },   // 9 - matches SP position 0 + 320px offset
+      { top: '365px', left: '136px' },  // 10 - matches SP position 1 + 320px offset
+      { top: '365px', left: '226px' },  // 11 - matches SP position 2 + 320px offset
+      { top: '453px', left: '47px' },   // 12 - matches SP position 3 + 320px offset
+      { top: '453px', left: '136px' },  // 13 - matches SP position 4 + 320px offset
+      { top: '453px', left: '226px' },  // 14 - matches SP position 5 + 320px offset
+      { top: '545px', left: '47px' },   // 15 - matches SP position 6 + 320px offset
+      { top: '545px', left: '136px' },  // 16 - matches SP position 7 + 320px offset
+      { top: '545px', left: '226px' },  // 17 - matches SP position 8 + 320px offset
     ],
     iconLayout: {
-      size: '40px',
-      spacing: '5px',
+      size: '38px', // Match SP icon size
+      spacing: '5px', // Match SP spacing
       position: 'top'
     },
     textLayout: {
-      fontSize: '12px',
+      fontSize: '12px', // Match SP font size
       position: 'absolute',
-      bottom: '13px',
-      padding: '-1px'
+      bottom: '13px', // Match SP bottom position
+      padding: '-1px' // Match SP padding
+    },
+    specialLayouts: {
+      PIR: {
+        iconSize: '40px', // Match SP PIR size
+        marginTop: '0'
+      },
+      Bathroom: {
+        iconSize: '38px' // Match SP Bathroom size
+      }
     }
   },
 
   // Extended Panel Horizontal 2 (X2H)
   X2H: {
     dimensions: {
-      width: '900px',
+      width: '850px',
       height: '300px'
     },
     iconPositions: [
-      // Left SP (first 9 slots)
-      { top: '23px', left: '33px' },   // 0
-      { top: '23px', left: '136px' },  // 1
-      { top: '23px', left: '233px' },  // 2
-      { top: '123px', left: '33px' },  // 3
-      { top: '123px', left: '136px' }, // 4
-      { top: '123px', left: '233px' }, // 5
-      { top: '218px', left: '33px' },  // 6
-      { top: '218px', left: '136px' }, // 7
-      { top: '218px', left: '233px' }, // 8
-      // Right SP (single slot, centered)
-      { top: '43px', left: '356px' }, // 9 (moved 25px right)
-      // New slot in added width, centered
-      { top: '43px', left: '635px' }, // 10 (moved 20px right)
+      // Left SP (first 9 slots) - matching SP standard positions exactly
+      { top: '45px', left: '47px' },   // 0 - matches SP position 0
+      { top: '45px', left: '136px' },  // 1 - matches SP position 1  
+      { top: '45px', left: '226px' },  // 2 - matches SP position 2
+      { top: '133px', left: '47px' },  // 3 - matches SP position 3
+      { top: '133px', left: '136px' }, // 4 - matches SP position 4
+      { top: '133px', left: '226px' }, // 5 - matches SP position 5
+      { top: '225px', left: '47px' },  // 6 - matches SP position 6
+      { top: '225px', left: '136px' }, // 7 - matches SP position 7
+      { top: '225px', left: '226px' }, // 8 - matches SP position 8
+      // Right SP (first big icon slot, moved 40px to the left)
+      { top: '43px', left: '330px' }, // 9 (moved 40px left from 370px)
+      // Second big icon slot, moved 60px to the left
+      { top: '43px', left: '580px' }, // 10 (moved 60px left from 640px)
     ],
     gridLayout: {
       rows: 3,
@@ -336,8 +354,8 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       padding: '12px'
     },
     iconLayout: {
-      size: '35px',
-      spacing: '6px',
+      size: '38px', // Match SP icon size
+      spacing: '5px', // Match SP spacing
       position: 'top'
     },
     bigIconLayout: {
@@ -347,34 +365,43 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       height: '100%'
     },
     textLayout: {
-      fontSize: '11px',
+      fontSize: '12px', // Match SP font size
       position: 'absolute',
-      bottom: '10px',
-      padding: '3px'
+      bottom: '13px', // Match SP bottom position
+      padding: '-1px' // Match SP padding
+    },
+    specialLayouts: {
+      PIR: {
+        iconSize: '40px', // Match SP PIR size
+        marginTop: '0'
+      },
+      Bathroom: {
+        iconSize: '38px' // Match SP Bathroom size
+      }
     }
   },
 
   // Extended Panel Vertical 2 (X2V)
   X2V: {
     dimensions: {
-      width: '400px',
+      width: '320px',
       height: '900px'
     },
     iconPositions: [
-      // Top SP (first 9 slots)
-      { top: '23px', left: '33px' },   // 0
-      { top: '23px', left: '136px' },  // 1
-      { top: '23px', left: '233px' },  // 2
-      { top: '123px', left: '33px' },  // 3
-      { top: '123px', left: '136px' }, // 4
-      { top: '123px', left: '233px' }, // 5
-      { top: '218px', left: '33px' },  // 6
-      { top: '218px', left: '136px' }, // 7
-      { top: '218px', left: '233px' }, // 8
+      // Top SP (first 9 slots) - matching SP standard positions exactly
+      { top: '45px', left: '47px' },   // 0 - matches SP position 0
+      { top: '45px', left: '136px' },  // 1 - matches SP position 1  
+      { top: '45px', left: '226px' },  // 2 - matches SP position 2
+      { top: '133px', left: '47px' },  // 3 - matches SP position 3
+      { top: '133px', left: '136px' }, // 4 - matches SP position 4
+      { top: '133px', left: '226px' }, // 5 - matches SP position 5
+      { top: '225px', left: '47px' },  // 6 - matches SP position 6
+      { top: '225px', left: '136px' }, // 7 - matches SP position 7
+      { top: '225px', left: '226px' }, // 8 - matches SP position 8
       // Bottom SP (center of bottom half)
-      { top: '443px', left: '136px' }, // 9
+      { top: '443px', left: '160px' }, // 9 (centered horizontally: 320/2)
       // New slot in added height, centered
-      { top: '800px', left: '136px' }, // 10
+      { top: '800px', left: '160px' }, // 10 (centered horizontally: 320/2)
     ],
     gridLayout: {
       rows: 3,
@@ -398,6 +425,15 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       position: 'absolute',
       bottom: '10px',
       padding: '3px'
+    },
+    specialLayouts: {
+      PIR: {
+        iconSize: '35px',
+        marginTop: '0'
+      },
+      Bathroom: {
+        iconSize: '35px'
+      }
     }
   },
 
@@ -408,21 +444,21 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       height: '320px' // 95mm converted to pixels (95 * 3.37)
     },
     iconPositions: [
-      // Left SP (first 9 slots)
-      { top: '23px', left: '33px' },   // 0
-      { top: '23px', left: '136px' },  // 1
-      { top: '23px', left: '233px' },  // 2
-      { top: '123px', left: '33px' },  // 3
-      { top: '123px', left: '136px' }, // 4
-      { top: '123px', left: '233px' }, // 5
-      { top: '218px', left: '33px' },  // 6
-      { top: '218px', left: '136px' }, // 7
-      { top: '218px', left: '233px' }, // 8
+      // Left SP (first 9 slots) - moved up 20px from SP standard positions
+      { top: '25px', left: '47px' },   // 0 - moved up 20px from SP position 0
+      { top: '25px', left: '136px' },  // 1 - moved up 20px from SP position 1  
+      { top: '25px', left: '226px' },  // 2 - moved up 20px from SP position 2
+      { top: '113px', left: '47px' },  // 3 - moved up 20px from SP position 3
+      { top: '113px', left: '136px' }, // 4 - moved up 20px from SP position 4
+      { top: '113px', left: '226px' }, // 5 - moved up 20px from SP position 5
+      { top: '205px', left: '47px' },  // 6 - moved up 20px from SP position 6
+      { top: '205px', left: '136px' }, // 7 - moved up 20px from SP position 7
+      { top: '205px', left: '226px' }, // 8 - moved up 20px from SP position 8
       // Right SP (single slot, centered)
-      { top: '33px', left: '341px', width: '120px', height: '120px' }, // 9 (center of right half, moved left by 20px)
+      { top: '33px', left: '548px', width: '120px', height: '120px' }, // 9 (centered in right half: 365.5 + 182.75)
     ],
     iconLayout: {
-      size: '40px',
+      size: '38px',
       spacing: '5px',
       position: 'top'
     },
@@ -431,6 +467,21 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       position: 'absolute',
       bottom: '13px',
       padding: '-1px'
+    },
+    bigIconLayout: {
+      size: '120px',
+      position: 'right',
+      width: '50%',
+      height: '100%'
+    },
+    specialLayouts: {
+      PIR: {
+        iconSize: '40px',
+        marginTop: '0'
+      },
+      Bathroom: {
+        iconSize: '47px'
+      }
     }
   },
 
@@ -441,18 +492,18 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       height: '640px'
     },
     iconPositions: [
-      // Top SP (first 9 slots)
-      { top: '23px', left: '33px' },   // 0
-      { top: '23px', left: '136px' },  // 1
-      { top: '23px', left: '233px' },  // 2
-      { top: '123px', left: '33px' },  // 3
-      { top: '123px', left: '136px' }, // 4
-      { top: '123px', left: '233px' }, // 5
-      { top: '218px', left: '33px' },  // 6
-      { top: '218px', left: '136px' }, // 7
-      { top: '218px', left: '233px' }, // 8
+      // Top SP (first 9 slots) - matching SP standard positions exactly
+      { top: '45px', left: '47px' },   // 0 - matches SP position 0
+      { top: '45px', left: '136px' },  // 1 - matches SP position 1  
+      { top: '45px', left: '226px' },  // 2 - matches SP position 2
+      { top: '133px', left: '47px' },  // 3 - matches SP position 3
+      { top: '133px', left: '136px' }, // 4 - matches SP position 4
+      { top: '133px', left: '226px' }, // 5 - matches SP position 5
+      { top: '225px', left: '47px' },  // 6 - matches SP position 6
+      { top: '225px', left: '136px' }, // 7 - matches SP position 7
+      { top: '225px', left: '226px' }, // 8 - matches SP position 8
       // Bottom SP (single slot, centered)
-      { top: '328px', left: '36px' }, // 9 (center of bottom half, moved 100px left and 115px up)
+      { top: '328px', left: '160px' }, // 9 (centered horizontally: 320/2)
     ],
     iconLayout: {
       size: '40px',
@@ -464,6 +515,21 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       position: 'absolute',
       bottom: '13px',
       padding: '-1px'
+    },
+    bigIconLayout: {
+      size: '120px',
+      position: 'bottom',
+      width: '100%',
+      height: '50%'
+    },
+    specialLayouts: {
+      PIR: {
+        iconSize: '40px',
+        marginTop: '0'
+      },
+      Bathroom: {
+        iconSize: '47px'
+      }
     }
   },
 

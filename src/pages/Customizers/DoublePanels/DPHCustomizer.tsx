@@ -19,6 +19,20 @@ const getPanelTypeLabel = (type: string) => {
     default: return "Panel";
   }
 };
+
+// Function to get auto text color based on background
+const getAutoTextColor = (backgroundColor: string): string => {
+  const hex = (backgroundColor || '#ffffff').replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate brightness (0-255)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  
+  // Use white text for dark backgrounds, dark grey (#808080) for light to match icons
+  return brightness < 150 ? '#ffffff' : '#808080';
+};
 import CartButton from '../../../components/CartButton';
 import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from '../../../assets/logo.png';
@@ -535,7 +549,7 @@ const DPHCustomizer: React.FC = () => {
     plasticColor: '',
     textColor: '#000000',
     fontSize: '9px',
-    iconSize: '14mm',
+    iconSize: '38px',
   });
   const [backbox, setBackbox] = useState('');
   const [extraComments, setExtraComments] = useState('');
@@ -1016,7 +1030,7 @@ const DPHCustomizer: React.FC = () => {
     const isEditing = editingCell === index;
     const isHovered = hoveredCell === index;
     const isIconHovered = !!iconHovered[index];
-    const iconSize = '14mm';
+    const iconSize = '38px';
     const pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     return (
         <div
@@ -1047,8 +1061,8 @@ const DPHCustomizer: React.FC = () => {
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, icon)}
                 style={{
-                width: '14mm',
-                height: '14mm',
+                width: '38px',
+                height: '38px',
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -1103,7 +1117,7 @@ const DPHCustomizer: React.FC = () => {
                   width: '100%',
                   textAlign: 'center',
                   fontSize: '9px',
-                  color: panelDesign.iconColor || '#000000',
+                  color: getAutoTextColor(panelDesign.backgroundColor),
                         fontFamily: panelDesign.fonts || undefined,
                   wordBreak: 'break-word',
                 }}>{text}</div>
@@ -1117,12 +1131,12 @@ const DPHCustomizer: React.FC = () => {
                     onChange={e => handleTextChange(e, index)}
                     onBlur={handleTextBlur}
                     autoFocus
-                                            style={{ width: '100%', padding: '4px', fontSize: '9px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                                            style={{ width: '100%', padding: '4px', fontSize: '9px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: getAutoTextColor(panelDesign.backgroundColor), marginTop: '0px', marginLeft: '-40px' }}
                   />
                 ) : (
                   <div
                     onClick={() => handleTextClick(index)}
-                    style={{ fontSize: '9px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px', marginLeft: '-40px' }}
+                    style={{ fontSize: '9px', color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginTop: '0px', marginLeft: '-40px' }}
                   >
                     {text || 'Add text'}
                   </div>
@@ -1867,6 +1881,21 @@ const DPHCustomizer: React.FC = () => {
                 </div>
               </div>
               
+              {/* Information Box for backbox and comments */}
+              <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                <InformationBox
+                  backbox={backbox}
+                  setBackbox={setBackbox}
+                  backboxError={backboxError}
+                  setBackboxError={setBackboxError}
+                  extraComments={extraComments}
+                  setExtraComments={setExtraComments}
+                  panelDesign={panelDesign}
+                  placedIcons={placedIcons}
+                  ralColors={ralColors}
+                />
+              </Box>
+              
               {/* Add to Project Button positioned under the panel template */}
               <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
                 {/* Add to Project Button */}
@@ -1911,7 +1940,7 @@ const DPHCustomizer: React.FC = () => {
                       setPanelDesign({
                         ...panelDesign,
                         fontSize: '9pt',
-                        iconSize: '14mm',
+                        iconSize: '38px',
                         fonts: 'Myriad Pro SemiBold SemiCondensed'
                       });
                       setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
@@ -2083,7 +2112,7 @@ const DPHCustomizer: React.FC = () => {
                     Icon Size
                   </div>
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                    {['14mm', '10mm'].map((size) => (
+                    {['38px', '28px'].map((size) => (
                       <button
                         key={size}
                         onClick={() => setPanelDesign({ ...panelDesign, iconSize: size })}

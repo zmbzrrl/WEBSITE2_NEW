@@ -19,6 +19,20 @@ const getPanelTypeLabel = (type: string) => {
     default: return "Panel";
   }
 };
+
+// Function to get auto text color based on background
+const getAutoTextColor = (backgroundColor: string): string => {
+  const hex = (backgroundColor || '#ffffff').replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate brightness (0-255)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  
+  // Use white text for dark backgrounds, dark grey (#808080) for light to match icons
+  return brightness < 150 ? '#ffffff' : '#808080';
+};
 import CartButton from '../../../components/CartButton';
 import { useNavigate, useLocation } from "react-router-dom";
 import logo2 from '../../../assets/logo.png';
@@ -1022,9 +1036,12 @@ const X1VCustomizer: React.FC = () => {
       } else if (index === 9) {
         // Move the single slot to the top half, positioned more centrally
         // Original position is 328px top, 36px left
-        // Move it to center of top half (around 55px from top)
-        pos = { ...pos, top: '55px' };
+        // Move it to center of top half (around 55px from top) and 115px to the left
+        pos = { ...pos, top: '55px', left: (parseInt(pos.left) - 115) + 'px' };
       }
+    } else if (index === 9) {
+      // When up button is not pressed, move the big icon 125px to the left (60px + 50px + 15px)
+      pos = { ...pos, left: (parseInt(pos.left) - 125) + 'px' };
     }
     
     // If mirrorVertical is true, mirror the 3x3 grid horizontally (column 0<->2)
@@ -1135,7 +1152,7 @@ const X1VCustomizer: React.FC = () => {
                       width: '100%',
                       textAlign: 'center',
                       fontSize: panelDesign.fontSize || '12px',
-                      color: panelDesign.iconColor || '#000000',
+                      color: getAutoTextColor(panelDesign.backgroundColor),
                       fontFamily: panelDesign.fonts || undefined,
                       wordBreak: 'break-word',
                     }}>{text}</div>
@@ -1149,12 +1166,12 @@ const X1VCustomizer: React.FC = () => {
                         onChange={e => handleTextChange(e, index)}
                         onBlur={handleTextBlur}
                         autoFocus
-                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: panelDesign.iconColor || '#000000', marginTop: '0px', marginLeft: '-40px' }}
+                        style={{ width: '100%', padding: '4px', fontSize: panelDesign.fontSize || '12px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '4px', outline: 'none', background: 'rgba(255, 255, 255, 0.1)', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, color: getAutoTextColor(panelDesign.backgroundColor), marginTop: '0px', marginLeft: '-40px' }}
                       />
                     ) : (
                       <div
                         onClick={() => handleTextClick(index)}
-                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? panelDesign.iconColor || '#000000' : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
+                        style={{ fontSize: panelDesign.fontSize || '12px', color: text ? getAutoTextColor(panelDesign.backgroundColor) : '#999999', wordBreak: 'break-word', width: '120px', textAlign: 'center', padding: '4px', cursor: 'pointer', borderRadius: '4px', backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent', transition: 'all 0.2s ease', fontFamily: panelDesign.fonts || undefined, marginLeft: '-40px' }}
                       >
                         {text || 'Add text'}
                       </div>

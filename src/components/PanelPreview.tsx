@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { ralColors } from '../data/ralColors';
 import { getIconColorName } from '../data/iconColors';
 import { allIcons } from '../assets/iconLibrary';
-import DISPLAY from '../assets/icons/DISPLAY2.png';
+import DISPLAY from '../assets/icons/DISPLAY.png';
 import FAN from '../assets/icons/FAN.png';
 import { getPanelLayoutConfig, PanelLayoutConfig } from '../data/panelLayoutConfig';
 import g18Icon from '../assets/icons/G-GuestServices/G18.png';
@@ -65,6 +65,45 @@ const getAutoTextColor = (backgroundColor: string): string => {
   return brightness < 150 ? '#ffffff' : '#808080';
 };
 
+// Function to get proximity indicator positioning based on panel type and dimensions
+const getProximityPositioning = (panelType: string, dimensions: { width: string | number; height: string | number }) => {
+  const width = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+  const height = typeof dimensions.height === 'string' ? parseInt(dimensions.height.replace('px', '')) : dimensions.height;
+  
+  // Match customizer implementations with adjusted spacing
+  let right1 = '59px';   // Left circle position (62px - 3px = 59px)
+  let right2 = '34px';   // Right circle position (32px + 2px = 34px, moved 2px left)
+  let bottom = '22px';   // Bottom position (18px + 4px = 22px, moved 4px higher)
+  let size1 = '7.65px';  // Left circle 15% smaller (9px * 0.85 = 7.65px)
+  let size2 = '9px';     // Right circle same size
+  
+  // Adjust positioning based on panel type - match customizer patterns
+  if (panelType === 'SP' || panelType === 'TAG') {
+    // Use standard positioning for smaller panels with adjusted spacing
+    right1 = '59px';  // 62px - 3px
+    right2 = '34px';  // 32px + 2px (moved 2px left)
+    bottom = '22px';  // 18px + 4px (moved 4px higher)
+    size1 = '7.65px'; // Left circle 15% smaller
+    size2 = '9px';    // Right circle same size
+  } else if (panelType === 'DPH' || panelType === 'DPV') {
+    // Double panels use slightly different positioning with adjusted spacing
+    right1 = '55px';  // 58px - 3px
+    right2 = '30px';  // 28px + 2px (moved 2px left)
+    bottom = '18px';  // 14px + 4px (moved 4px higher)
+    size1 = '7.65px'; // Left circle 15% smaller
+    size2 = '9px';    // Right circle same size
+  } else if (panelType.startsWith('X')) {
+    // Extended panels use standard positioning with adjusted spacing
+    right1 = '59px';  // 62px - 3px
+    right2 = '34px';  // 32px + 2px (moved 2px left)
+    bottom = '22px';  // 18px + 4px (moved 4px higher)
+    size1 = '7.65px'; // Left circle 15% smaller
+    size2 = '9px';    // Right circle same size
+  }
+  
+  return { right1, right2, bottom, size1, size2 };
+};
+
 interface PanelPreviewIcon {
   src: string;
   label: string;
@@ -89,6 +128,8 @@ interface PanelPreviewProps {
     mirrorGrid?: boolean;
     swapUpDown?: boolean;
     mirrorVertical?: boolean;
+    swapLeftRight?: boolean;
+    useTagLayout?: boolean;
     idpgConfig?: {
       cardReader: boolean;
       roomNumber: boolean;
@@ -96,6 +137,10 @@ interface PanelPreviewProps {
       selectedIcon1: string;
       roomNumberText: string;
     };
+    features?: {
+      Proximity?: boolean;
+    };
+    Proximity?: boolean;
     spConfig?: {
       dimension: 'standard' | 'wide' | 'tall';
     };
@@ -118,7 +163,6 @@ interface PanelPreviewProps {
   gridOffsetY?: number;
   activeIconPositions?: Array<{ top: string; left: string; width?: string; height?: string }>;
   dimensionKey?: string;
-  showProximityIndicators?: boolean;
   // Interactive props (optional - for customizer mode)
   editingCell?: number | null;
   hoveredCell?: number | null;
@@ -160,7 +204,6 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   gridOffsetY = 0,
   activeIconPositions,
   dimensionKey,
-  showProximityIndicators = false,
   editingCell,
   hoveredCell,
   iconHovered = {},
@@ -248,8 +291,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               onDragStart={onDragStart ? (e) => onDragStart(e, icon) : undefined}
               onDragEnd={onDragEnd ? onDragEnd : undefined}
               style={{
-                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || iconLayout?.size || '47px'),
-                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '47px' : panelDesign.iconSize || iconLayout?.size || '47px'),
+                width: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '38px' : panelDesign.iconSize || iconLayout?.size || '47px'),
+                height: isPIR ? '40px' : (icon?.category === 'Bathroom' ? '38px' : panelDesign.iconSize || iconLayout?.size || '47px'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -462,7 +505,6 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   };
 
   // Global feature flags (persisted in panelDesign by customizers)
-  const proximityEnabled = (panelDesign as any)?.features?.Proximity === true || (panelDesign as any)?.Proximity === true;
 
   // Get layout configuration for this panel type
   const config = getPanelLayoutConfig(type);
@@ -492,9 +534,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     if (!cardReader && !roomNumber) {
       dimensions = { width: '350px', height: '350px' };
     }
-    // Rectangle vertical template (350x450) - when room number only
+    // Rectangle vertical template (330x470) - when room number only
     else if (!cardReader && roomNumber) {
-      dimensions = { width: '350px', height: '450px' };
+      dimensions = { width: '330px', height: '470px' };
     }
     // Rectangle vertical template (350x500) - when card reader only
     else if (cardReader && !roomNumber) {
@@ -504,6 +546,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     else if (cardReader && roomNumber) {
       dimensions = { width: '350px', height: '600px' };
     }
+  }
+  
+  // Special handling for DPV panels - increase height by 10%
+  if (isDPV) {
+    const currentHeight = typeof dimensions.height === 'string' ? parseInt(dimensions.height.replace('px', '')) : dimensions.height;
+    dimensions.height = `${Math.round(currentHeight * 1.1)}px`;
   }
   
   // Calculate grid offsets for SP and TAG panels (use prop values or calculate defaults)
@@ -621,7 +669,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     
     // Return larger size for single icon slots
     if (isSingleIconSlot) {
-      return '240px';
+      return '220px';
     }
     if (isX2SingleIconSlot) {
       return '204px'; // Match X2HCustomizer step 4 preview
@@ -656,7 +704,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       <div
         style={{
           position: 'relative',
-          width: isDPH ? '640px' : dimensions.width,
+          width: isDPH ? '704px' : dimensions.width,
           height: dimensions.height,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
           padding: '0',
@@ -690,39 +738,43 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             }}
           />
         )}
+        
         {/* Proximity indicators overlay */}
-        {proximityEnabled && (
-          <>
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '9px',
-                right: '59px',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: '#ff9800',
-                filter: computedIconFilter,
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                zIndex: 10
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '8px',
-                right: '37px',
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: '#ff9800',
-                filter: computedIconFilter,
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                zIndex: 10
-              }}
-            />
-          </>
-        )}
+        {(panelDesign.features?.Proximity || panelDesign.Proximity) && (() => {
+          const positioning = getProximityPositioning(type, dimensions);
+          return (
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: positioning.bottom,
+                  right: positioning.right1,
+                  width: positioning.size1,
+                  height: positioning.size1,
+                  borderRadius: '50%',
+                  backgroundColor: '#ff9800',
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                  zIndex: 10
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: positioning.bottom,
+                  right: positioning.right2,
+                  width: positioning.size2,
+                  height: positioning.size2,
+                  borderRadius: '50%',
+                  backgroundColor: '#ff9800',
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                  zIndex: 10
+                }}
+              />
+            </>
+          );
+        })()}
         <div style={{
             position: 'absolute',
             top: '2px',
@@ -741,32 +793,58 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             const hasIcon = icon && icon.src;
             const iconSize = getIconSize(icon);
             const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
-            const adjustedFontSize = text ? calculateFontSize(text, parseInt(isDPH ? '640' : dimensions.width) / 6, baseFontSize) : baseFontSize;
+            const adjustedFontSize = text ? calculateFontSize(text, parseInt(isDPH ? '704' : dimensions.width) / 6, baseFontSize) : baseFontSize;
             
             // Apply swap and mirror logic for X1H panels
             let adjustedPos = pos;
             
             // Apply mirror logic first (if enabled)
-            if (isX1H && panelDesign.mirrorGrid && index >= 0 && index <= 8) {
-              // Mirror the grid: columns 0,1,2 become 2,1,0
-              // Original positions: 0,1,2 | 3,4,5 | 6,7,8
-              // Mirrored positions: 2,1,0 | 5,4,3 | 8,7,6
-              const mirrorMap = [2, 1, 0, 5, 4, 3, 8, 7, 6];
-              const mirroredIndex = mirrorMap[index];
-              const mirroredPos = (dimensionIconPositions || iconPositions)[mirroredIndex];
-              if (mirroredPos) {
-                adjustedPos = { ...mirroredPos };
+            if (isX1H && panelDesign.mirrorVertical && index >= 0 && index <= 8) {
+              // Mirror the grid horizontally: column 0<->2, column 1 stays
+              const row = Math.floor(index / 3);
+              const col = index % 3;
+              if (col === 0) {
+                // Column 0 moves to column 2 position
+                const col2Pos = (dimensionIconPositions || iconPositions)[row * 3 + 2];
+                if (col2Pos) {
+                  adjustedPos = { ...col2Pos };
+                }
+              } else if (col === 2) {
+                // Column 2 moves to column 0 position
+                const col0Pos = (dimensionIconPositions || iconPositions)[row * 3];
+                if (col0Pos) {
+                  adjustedPos = { ...col0Pos };
+                }
               }
+              // Column 1 stays in place
             }
             
-            // Apply swap logic (if enabled)
-            if (isX1H && panelDesign.swapSides) {
-              if (index === 9) {
-                // Move single icon slot to left side
-                adjustedPos = { ...adjustedPos, left: '40px' };
-              } else if (index >= 0 && index <= 8) {
-                // Move 3x3 grid to right side
-                adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + 320) + 'px' };
+            // Apply position adjustments based on swapLeftRight state
+            if (isX1H) {
+              const swapLeftRight = (panelDesign as any).swapLeftRight || false;
+              if (swapLeftRight) {
+                // If swapLeftRight is true, swap left 3x3 grid with right single slot
+                if (index >= 0 && index <= 8) {
+                  // Move the left 3x3 grid to the right side
+                  // Panel is 731px wide, so move grid to right half (around 340px offset)
+                  const swappedGridOffset = 340;
+                  adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + swappedGridOffset) + 'px' };
+                } else if (index === 9) {
+                  // Move the right single slot to the left side, positioned more centrally
+                  // Original position is left: '341px', move it to left side (around 53px from left, moved up 60px total)
+                  adjustedPos = { ...adjustedPos, left: '53px', top: '63px' }; // Center it vertically on the left, moved up 60px total and right 20px
+                }
+              } else {
+                // When right button is NOT pressed, apply default offsets
+                if (index >= 0 && index <= 8) {
+                  // Move 3x3 grid 20px to the right
+                  const gridOffset = 20;
+                  adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + gridOffset) + 'px' };
+                } else if (index === 9) {
+                  // Move big icon 160px to the left
+                  const iconOffset = -160;
+                  adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + iconOffset) + 'px' };
+                }
               }
             }
             
@@ -796,13 +874,26 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               if (index >= 0 && index <= 8) {
                 // Move the 3x3 grid to the bottom half
                 // Panel is 640px tall, so move grid to bottom half (320px offset)
+                // Also move 7px to the left and 50px to the top (30px + 20px)
                 const swappedGridOffset = 320;
-                adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) + swappedGridOffset) + 'px' };
+                adjustedPos = { 
+                  ...adjustedPos, 
+                  top: (parseInt(adjustedPos.top) + swappedGridOffset - 50) + 'px',
+                  left: (parseInt(adjustedPos.left) - 7) + 'px'
+                };
               } else if (index === 9) {
                 // Move the single slot to the top half, positioned more centrally
                 // Original position is 328px top, 36px left
-                // Move it to center of top half (around 55px from top)
-                adjustedPos = { ...adjustedPos, top: '55px' };
+                // Move it to center of top half (around 55px from top) and 130px to the left (110px + 20px)
+                adjustedPos = { ...adjustedPos, top: '55px', left: (parseInt(adjustedPos.left) - 130) + 'px' };
+              }
+            } else if (isX1V) {
+              if (index === 9) {
+                // When big icon is at the bottom (swapUpDown is false), move it 125px to the left (110px + 15px)
+                adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) - 125) + 'px' };
+              } else if (index >= 0 && index <= 8) {
+                // Move the 3x3 grid 7px to the left when big icon is at the bottom
+                adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) - 7) + 'px' };
               }
             }
             
@@ -837,6 +928,34 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               adjustedPos = { ...adjustedPos, left: (baseLeft + dx) + 'px', top: (baseTop + dy) + 'px' } as any;
             }
             
+            // X2V: apply big icon positioning logic to match customizer
+            if (isX2V && (index === 9 || index === 10)) {
+              const swapUpDown = (panelDesign as any).swapUpDown || false;
+              // Move both big icons to the left by 40px in all states
+              adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) - 40) + 'px' };
+              
+              // Apply vertical positioning adjustments
+              if (!swapUpDown) {
+                // Move middle big icon up by 120px (90px + 30px) and outer big icon up by 215px (165px + 50px)
+                if (index === 9) {
+                  adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) - 120) + 'px' };
+                } else if (index === 10) {
+                  adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) - 215) + 'px' };
+                }
+              }
+              
+              // If swapUpDown is true, apply swap logic
+              if (swapUpDown) {
+                if (index === 9) {
+                  // Move the middle big icon up by 120px when swap is active
+                  adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) - 120) + 'px' };
+                } else if (index === 10) {
+                  // Move the first big icon to the top half, positioned more centrally
+                  adjustedPos = { ...adjustedPos, top: '55px' };
+                }
+              }
+            }
+            
             return (
               <div
                 key={index}
@@ -848,7 +967,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: hasIcon ? 'flex-start' : 'center',
+                  justifyContent: 'flex-start',
                 zIndex: 2,
                 }}
               >
@@ -873,7 +992,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                     <div
                       style={{
                         fontSize: adjustedFontSize,
-                        color: panelDesign.textColor || '#000000',
+                        color: getAutoTextColor(panelDesign.backgroundColor),
                         wordBreak: 'break-word',
                         maxWidth: '100%',
                         textAlign: 'center',
@@ -1067,7 +1186,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                       <div
                         style={{
                           fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
-                          color: panelDesign.textColor || '#000000',
+                          color: getAutoTextColor(panelDesign.backgroundColor),
                           wordBreak: 'break-word',
                           maxWidth: '100%',
                           textAlign: 'center',
@@ -1152,7 +1271,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                       <div
                         style={{
                           fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
-                          color: panelDesign.textColor || '#000000',
+                          color: getAutoTextColor(panelDesign.backgroundColor),
                           wordBreak: 'break-word',
                           maxWidth: '100%',
                           textAlign: 'center',
@@ -1251,7 +1370,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                       <div
                         style={{
                           fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
-                          color: panelDesign.textColor || '#000000',
+                          color: getAutoTextColor(panelDesign.backgroundColor),
                           wordBreak: 'break-word',
                           maxWidth: '100%',
                           textAlign: 'center',
@@ -1336,7 +1455,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                       <div
                         style={{
                           fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
-                          color: panelDesign.textColor || '#000000',
+                          color: getAutoTextColor(panelDesign.backgroundColor),
                           wordBreak: 'break-word',
                           maxWidth: '100%',
                           textAlign: 'center',
@@ -1433,7 +1552,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                       <div
                         style={{
                           fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
-                          color: panelDesign.textColor || '#000000',
+                          color: getAutoTextColor(panelDesign.backgroundColor),
                           wordBreak: 'break-word',
                           maxWidth: '100%',
                           textAlign: 'center',
@@ -1518,7 +1637,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                       <div
                         style={{
                           fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
-                          color: panelDesign.textColor || '#000000',
+                          color: getAutoTextColor(panelDesign.backgroundColor),
                           wordBreak: 'break-word',
                           maxWidth: '100%',
                           textAlign: 'center',
@@ -1543,8 +1662,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     return (
       <div
         style={{
-          width: bigIconLayout ? (isVerticalPanel ? '100%' : '60%') : '100%',
-          height: bigIconLayout ? (isVerticalPanel ? '50%' : '100%') : '100%',
+          width: bigIconLayout ? (isVerticalPanel ? '100%' : `calc(100% - ${bigIconLayout.width})`) : '100%',
+          height: bigIconLayout ? (isVerticalPanel ? `calc(100% - ${bigIconLayout.height})` : '100%') : '100%',
           display: 'flex', 
           flexWrap: 'wrap', 
           gap: gridLayout?.gap || '5px',
@@ -1609,7 +1728,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                     <div
                       style={{
                       fontSize: textLayout?.fontSize || panelDesign.fontSize || '12px',
-                        color: panelDesign.textColor || '#000000',
+                        color: getAutoTextColor(panelDesign.backgroundColor),
                         wordBreak: 'break-word',
                         maxWidth: '100%',
                         textAlign: 'center',
@@ -1683,39 +1802,6 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             fontFamily: panelDesign.fonts || undefined,
           }}
         >
-          {/* Proximity indicators - two small circles in bottom right */}
-          {showProximityIndicators && (
-            <>
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '18px',
-                  right: '62px',
-                  width: '9px',
-                  height: '9px',
-                  borderRadius: '50%',
-                  backgroundColor: '#ff9800',
-                  filter: getIconColorFilter(panelDesign.backgroundColor),
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                  zIndex: 10
-                }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '18px',
-                  right: '32px',
-                  width: '9px',
-                  height: '9px',
-                  borderRadius: '50%',
-                  backgroundColor: '#ff9800',
-                  filter: getIconColorFilter(panelDesign.backgroundColor),
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                  zIndex: 10
-                }}
-              />
-            </>
-          )}
           
           <div style={{ 
             position: 'absolute',
@@ -1772,6 +1858,29 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             height: '100%', 
             transform: `translate(${calculatedGridOffsetX}px, ${calculatedGridOffsetY}px)` 
           }}>
+            {/* X2V TAG layout DISPLAY image - render separately like in customizer */}
+            {isX2V && (panelDesign.useTagLayout || (panelDesign as any).useTagLayout) && (() => {
+              console.log('X2V TAG layout rendering:', { isX2V, useTagLayout: panelDesign.useTagLayout, swapUpDown: panelDesign.swapUpDown });
+              return true;
+            })() && (
+              <img
+                src={DISPLAY}
+                alt="DISPLAY"
+                style={{
+                  position: 'absolute',
+                  // Follow grid swap: move with grid when up button pressed
+                  top: panelDesign.swapUpDown ? '630px' : '80px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '220px',
+                  height: '50px',
+                  objectFit: 'contain',
+                  filter: computedIconFilter,
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                }}
+              />
+            )}
             {(isTAG ? Array.from({ length: 9 }) : (dimensionIconPositions || iconPositions || [])).map((_, index) => {
               let pos = (dimensionIconPositions || iconPositions || [])[index];
               
@@ -1781,6 +1890,17 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               let forceIcon = null;
               // TAG panels always have DISPLAY icon in position 0 (top-left)
               if (isTAG && index === 0) {
+                forceIcon = {
+                  src: DISPLAY,
+                  label: 'DISPLAY',
+                  iconId: 'DISPLAY',
+                  category: 'TAG',
+                  position: index,
+                  text: 'DISPLAY',
+                };
+              }
+              // X2V panels with TAG layout also have DISPLAY icon in position 0 (top-left)
+              if (isX2V && panelDesign.useTagLayout && index === 0) {
                 forceIcon = {
                   src: DISPLAY,
                   label: 'DISPLAY',
@@ -1840,7 +1960,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                     <div
                       style={{
                         fontSize: adjustedFontSize,
-                        color: panelDesign.textColor || '#000000',
+                        color: getAutoTextColor(panelDesign.backgroundColor),
                         wordBreak: 'break-word',
                         maxWidth: '100%',
                         textAlign: 'center',
@@ -1881,7 +2001,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
         >
           <div style={innerGlowStyle} />
           <div style={{
-            color: panelDesign.textColor,
+            color: getAutoTextColor(panelDesign.backgroundColor),
             fontSize: panelDesign.fontSize,
             fontFamily: panelDesign.fonts || undefined,
             fontWeight: "500",
@@ -1898,7 +2018,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     // Calculate panel height based on configuration (same as customizer)
     let panelHeight = "350px"; // Default
     if (!cardReader && !roomNumber) panelHeight = "350px"; // Basic template
-    else if (!cardReader && roomNumber) panelHeight = "450px"; // Room Number only
+    else if (!cardReader && roomNumber) panelHeight = "470px"; // Room Number only
     else if (cardReader && !roomNumber) panelHeight = "500px"; // Card Reader only
     else if (cardReader && roomNumber) panelHeight = "600px"; // Card Reader + Room Number
 
@@ -2001,11 +2121,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               {/* Middle bar */}
               <div style={{
                 width: "20%",
-                height: "8px",
-                background: "transparent",
-                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
-                borderRadius: "4px",
+                height: "2px",
+                background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
+                borderRadius: "1px",
                 margin: "auto",
+                marginTop: "calc(50% - 98px)",
+                transform: "translateY(-50%)",
               }} />
               {/* G18 icon in bottom center */}
               <div style={{
@@ -2014,13 +2135,15 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 alignItems: "center",
                 marginTop: "auto",
                 paddingBottom: "10px",
+                marginBottom: "100px",
               }}>
                 <img 
                   src={g18Icon} 
                   alt="G18 Icon" 
                   style={{
-                    width: panelDesign.iconSize,
-                    height: panelDesign.iconSize,
+                    width: `calc(${panelDesign.iconSize} * 0.9775)`, // 15% smaller (1.15 * 0.85 = 0.9775)
+                    height: `calc(${panelDesign.iconSize} * 0.9775)`, // 15% smaller (1.15 * 0.85 = 0.9775)
+                    objectFit: "contain",
                     filter: getIconColorFilter(panelDesign.backgroundColor),
                   }}
                 />
@@ -2050,7 +2173,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             }}>
               <div style={{
                 color: getAutoTextColor(panelDesign.backgroundColor),
-                fontSize: "48px",
+                fontSize: "97.92px", // 20% bigger (81.6px * 1.2 = 97.92px)
                 fontWeight: 'bold',
                 fontFamily: panelDesign.fonts || undefined,
                 textAlign: 'center',
@@ -2115,12 +2238,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             ) : (
               /* Status bar */
               <div style={{
-                width: "20%",
-                height: "8px",
-                background: "transparent",
-                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
-                borderRadius: "4px",
+                width: "15%", // Reduced from 20% to 15% (5px shorter)
+                height: "2px",
+                background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
+                borderRadius: "1px",
                 margin: "10px auto",
+                marginTop: "54px", // Brought up by 26px (80px - 26px = 54px)
               }} />
             )}
             
@@ -2131,13 +2254,15 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               alignItems: "center",
               marginTop: "auto",
               paddingBottom: "10px",
+              marginBottom: "50px", // Brought up by 20px (30px + 20px = 50px)
             }}>
               <img 
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: panelDesign.iconSize,
-                  height: panelDesign.iconSize,
+                  width: `calc(${panelDesign.iconSize} * 0.9775)`, // 15% smaller (1.15 * 0.85 = 0.9775)
+                  height: `calc(${panelDesign.iconSize} * 0.9775)`, // 15% smaller (1.15 * 0.85 = 0.9775)
+                  objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
@@ -2213,10 +2338,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               /* Status bar at top */
               <div style={{
                 width: "20%",
-                height: "8px",
-                background: "transparent",
-                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
-                borderRadius: "4px",
+                height: "2px",
+                background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
+                borderRadius: "1px",
                 margin: "0 auto 20px auto",
               }} />
             )}
@@ -2227,13 +2351,15 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               justifyContent: "center",
               alignItems: "center",
               flex: "1",
+              marginBottom: "100px",
             }}>
               <img 
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: panelDesign.iconSize,
-                  height: panelDesign.iconSize,
+                  width: `calc(${panelDesign.iconSize} * 1.15)`,
+                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                  objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
@@ -2249,8 +2375,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: panelDesign.iconSize,
-                  height: panelDesign.iconSize,
+                  width: `calc(${panelDesign.iconSize} * 1.15)`,
+                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                  objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
@@ -2279,7 +2406,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             }}>
               <div style={{
                 color: getAutoTextColor(panelDesign.backgroundColor),
-                fontSize: "48px",
+                fontSize: "81.6px",
                 fontWeight: 'bold',
                 fontFamily: panelDesign.fonts || undefined,
                 textAlign: 'center',
@@ -2345,10 +2472,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               /* Status bar right below the number */
               <div style={{
                 width: "20%",
-                height: "8px",
-                background: "transparent",
-                border: `2px solid ${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
-                borderRadius: "4px",
+                height: "2px",
+                background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
+                borderRadius: "1px",
                 margin: "10px auto",
               }} />
             )}
@@ -2359,13 +2485,15 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               justifyContent: "center",
               alignItems: "center",
               flex: "1",
+              marginBottom: "100px",
             }}>
               <img 
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: panelDesign.iconSize,
-                  height: panelDesign.iconSize,
+                  width: `calc(${panelDesign.iconSize} * 1.15)`,
+                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                  objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
@@ -2381,8 +2509,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: panelDesign.iconSize,
-                  height: panelDesign.iconSize,
+                  width: `calc(${panelDesign.iconSize} * 1.15)`,
+                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                  objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
@@ -2399,7 +2528,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
           justifyContent: "center",
           width: "100%",
           height: "100%",
-          color: panelDesign.textColor,
+          color: getAutoTextColor(panelDesign.backgroundColor),
           fontSize: panelDesign.fontSize,
           fontFamily: panelDesign.fonts || undefined,
           fontWeight: "500",
@@ -2503,6 +2632,43 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             {getBigIconContainer(false)}
           </>
         )}
+        
+        {/*replace_all Proximity indicators overlay */}
+        {(panelDesign.features?.Proximity || panelDesign.Proximity) && (() => {
+          const positioning = getProximityPositioning(type, dimensions);
+          return (
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: positioning.bottom,
+                  right: positioning.right1,
+                  width: positioning.size1,
+                  height: positioning.size1,
+                  borderRadius: '50%',
+                  backgroundColor: '#ff9800',
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                  zIndex: 10
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: positioning.bottom,
+                  right: positioning.right2,
+                  width: positioning.size2,
+                  height: positioning.size2,
+                  borderRadius: '50%',
+                  backgroundColor: '#ff9800',
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                  zIndex: 10
+                }}
+              />
+            </>
+          );
+        })()}
       </div>
     );
   }
@@ -2521,6 +2687,43 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     >
       <div style={innerGlowStyle} />
       {renderGrid()}
+      
+      {/* Proximity indicators overlay */}
+      {(panelDesign.features?.Proximity || panelDesign.Proximity) && (() => {
+        const positioning = getProximityPositioning(type, dimensions);
+        return (
+          <>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: positioning.bottom,
+                right: positioning.right1,
+                width: positioning.size1,
+                height: positioning.size1,
+                borderRadius: '50%',
+                backgroundColor: '#ff9800',
+                filter: getIconColorFilter(panelDesign.backgroundColor),
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                zIndex: 10
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: positioning.bottom,
+                right: positioning.right2,
+                width: positioning.size2,
+                height: positioning.size2,
+                borderRadius: '50%',
+                backgroundColor: '#ff9800',
+                filter: getIconColorFilter(panelDesign.backgroundColor),
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                zIndex: 10
+              }}
+            />
+          </>
+        );
+      })()}
     </div>
   );
 };
