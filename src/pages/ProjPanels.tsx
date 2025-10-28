@@ -1138,7 +1138,14 @@ const ProjPanels: React.FC = () => {
                       category: icon.category || '',
                       iconId: icon.iconId || undefined,
                     }))}
-                    panelDesign={item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }}
+                    panelDesign={
+                      item.type === 'TAG'
+                        ? {
+                            ...(item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }),
+                            tagConfig: { dimension: 'wide', ...(item.panelDesign?.tagConfig || {}) },
+                          }
+                        : (item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' })
+                    }
                     type={item.type}
                     iconTexts={item.iconTexts}
                   />

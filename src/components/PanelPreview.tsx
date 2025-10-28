@@ -498,8 +498,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   const convertMmToPx = (value: string): string => {
     if (value.endsWith('mm')) {
       const mm = parseFloat(value);
+      // For wide TAG panels, reduce width by 35px (130mm → 444px instead of 479px)
       const px = Math.round(mm * (350 / 95)); // 95mm = 350px (wider than 320px)
-      return `${px}px`;
+      // Apply 35px reduction for wide TAG panels (130mm)
+      const adjustedPx = mm === 130 ? px - 24.5 : px; // Back to original -24.5px
+      if (mm === 130) {
+        console.log('🔍 Converting 130mm to px:', { original: px, adjusted: adjustedPx, reduction: px - adjustedPx });
+      }
+      return `${adjustedPx}px`;
     }
     return value; // Return as-is if already in px or other format
   };
@@ -538,6 +544,22 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     width: convertMmToPx(config.dimensions.width),
     height: convertMmToPx(config.dimensions.height)
   };
+  
+  // For TAG panels without tagConfig, use wide dimensions
+  if (isTAG && !panelDesign.tagConfig) {
+    console.log('🔍 TAG panel without tagConfig - using wide dimensions');
+    dimensions = {
+      width: convertMmToPx('130mm'), // wide TAG
+      height: convertMmToPx('95mm')
+    };
+    console.log('🔍 TAG dimensions set to:', dimensions);
+  }
+  
+  // Debug: log final dimensions for TAG panels
+  if (isTAG) {
+    console.log('🔍 Final TAG dimensions:', dimensions);
+    console.log('🔍 TAG panelDesign.tagConfig:', panelDesign.tagConfig);
+  }
   if (isIDPG && panelDesign.idpgConfig) {
     const { cardReader, roomNumber } = panelDesign.idpgConfig;
     
@@ -612,17 +634,24 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     if (!gridOffsetX && !gridOffsetY) {
       let offsetX = 20;
       let offsetY = 15;
-      // For TAG wide: shift grid 60px right
-      if (dimension === 'wide') offsetX += 60;
+      // For TAG wide: shift grid 60px right, plus 20px extra; and 7px down
+      if (dimension === 'wide') {
+        console.log('🔍 TAG wide dimension detected - applying offsets');
+        offsetX = 30; // Set to exactly 30px right
+        offsetY = 15;  // Keep original Y
+        console.log('🔍 TAG wide offsets applied:', { offsetX, offsetY });
+      }
       // For TAG tall: shift grid 50px down
       if (dimension === 'tall') offsetY += 50;
       calculatedGridOffsetX = offsetX;
       calculatedGridOffsetY = offsetY;
     }
   } else if (isTAG && !gridOffsetX && !gridOffsetY) {
-    // Default TAG grid offsets when no config is provided
-    calculatedGridOffsetX = 20; // standard dimension default
-    calculatedGridOffsetY = 15;
+    // Default TAG grid offsets when no config is provided - treat as wide
+    console.log('🔍 TAG panel using default wide offsets');
+    calculatedGridOffsetX = 100; // 20 + 80 for wide TAG
+    calculatedGridOffsetY = 22;  // 15 + 7 for wide TAG
+    console.log('🔍 TAG grid offsets set to:', calculatedGridOffsetX, calculatedGridOffsetY);
   }
   const isDoublePanel = isDPH || isDPV;
   const isExtendedPanel = isX2V || isX1H || isX1V || isX2H;
@@ -1670,6 +1699,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     }
 
     // Default grid rendering for other panels
+  console.log('🔍 Using default grid rendering for:', type);
     return (
       <div
         style={{
@@ -1788,11 +1818,13 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   };
 
   // Render different panel layouts based on type
+  console.log('🔍 Panel type check:', { isSP, isTAG, type, activeDimension, activeIconPositions });
     if (isSP || isTAG) {
     // SP and TAG Panels - Use customizer rendering if props are provided, otherwise use standard rendering
     const useCustomizerRendering = activeDimension && activeIconPositions;
     
     if (useCustomizerRendering) {
+      console.log('🔍 Using customizer rendering path');
       // Use customizer-specific rendering (copied from SPCustomizer)
       return (
         <div
@@ -1830,6 +1862,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
         </div>
       );
     } else {
+      console.log('🔍 Using standard rendering path for ProjPanels');
+      console.log('🔍 calculatedGridOffsetX:', calculatedGridOffsetX, 'calculatedGridOffsetY:', calculatedGridOffsetY);
       // Use customizer-style rendering for standard mode (ProjPanels) to match customizer appearance
       return (
         <div
@@ -1867,7 +1901,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             zIndex: 2, 
             width: '100%', 
             height: '100%', 
-            transform: `translate(${calculatedGridOffsetX}px, ${calculatedGridOffsetY}px)` 
+            transform: `translate(${calculatedGridOffsetX}px, ${calculatedGridOffsetY}px)`,
+            backgroundColor: 'rgba(255, 0, 0, 0.3)' // TEMPORARY: Make it red to see if this div is visible
           }}>
             {/* X2V TAG layout DISPLAY image - render separately like in customizer */}
             {isX2V && (panelDesign.useTagLayout || (panelDesign as any).useTagLayout) && (() => {
