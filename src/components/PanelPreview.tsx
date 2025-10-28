@@ -80,10 +80,10 @@ const getProximityPositioning = (panelType: string, dimensions: { width: string 
   // Adjust positioning based on panel type - match customizer patterns
   if (panelType === 'SP') {
     // Single Panel default proximity positioning
-    right1 = '59px';
-    right2 = '34px';
-    bottom = '22px';
-    size1 = '7.65px';
+    right1 = '52px'; // 54px -> 52px (another 2px to the right)
+    right2 = '33px'; // 35px -> 33px (another 2px to the right)
+    bottom = '8px';  // 11px -> 8px (3px down)
+    size1 = '7.27px'; // 7.65px reduced by ~5%
     size2 = '9px';
   } else if (panelType === 'TAG') {
     // TAG panel: lower circles by 5px vs SP

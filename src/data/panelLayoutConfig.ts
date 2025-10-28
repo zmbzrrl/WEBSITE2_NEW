@@ -58,15 +58,15 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         width: '95mm',
         height: '95mm',
         iconPositions: [
-          { top: '45px', left: '47px' },   // Icon 0 (top-left) - moved down 25px, right 17px, up 3px, left 3px
-          { top: '45px', left: '136px' },  // Icon 1 (top-center) - moved down 25px total, up 3px
-          { top: '45px', left: '226px' },  // Icon 2 (top-right) - moved down 25px, left 7px, up 3px
-          { top: '133px', left: '47px' },  // Icon 3 (middle-left) - aligned with cell 0
-          { top: '133px', left: '136px' }, // Icon 4 (middle-center) - moved down 10px
-          { top: '133px', left: '226px' }, // Icon 5 (middle-right) - moved left 7px, down 10px
-          { top: '225px', left: '47px' },  // Icon 6 (bottom-left) - aligned with cell 0
-          { top: '225px', left: '136px' }, // Icon 7 (bottom-center) - moved down 10px, up 3px
-          { top: '225px', left: '226px' }, // Icon 8 (bottom-right) - moved left 7px, down 10px, up 3px
+          { top: '51px', left: '52px' },   // +6px down, +5px right
+          { top: '51px', left: '141px' },
+          { top: '51px', left: '231px' },
+          { top: '139px', left: '52px' },
+          { top: '139px', left: '141px' },
+          { top: '139px', left: '231px' },
+          { top: '231px', left: '52px' },
+          { top: '231px', left: '141px' },
+          { top: '231px', left: '231px' },
         ]
       },
       wide: {
@@ -74,15 +74,15 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         height: '95mm',
         // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '45px', left: '47px' },
-          { top: '45px', left: '136px' },
-          { top: '45px', left: '226px' },
-          { top: '133px', left: '47px' },
-          { top: '133px', left: '136px' },
-          { top: '133px', left: '226px' },
-          { top: '221px', left: '47px' },
-          { top: '221px', left: '136px' },
-          { top: '221px', left: '226px' },
+          { top: '51px', left: '52px' },
+          { top: '51px', left: '141px' },
+          { top: '51px', left: '231px' },
+          { top: '139px', left: '52px' },
+          { top: '139px', left: '141px' },
+          { top: '139px', left: '231px' },
+          { top: '227px', left: '52px' },
+          { top: '227px', left: '141px' },
+          { top: '227px', left: '231px' },
         ]
       },
       tall: {
@@ -90,32 +90,32 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         height: '130mm',
         // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '45px', left: '47px' },
-          { top: '45px', left: '136px' },
-          { top: '45px', left: '226px' },
-          { top: '133px', left: '47px' },
-          { top: '133px', left: '136px' },
-          { top: '133px', left: '226px' },
-          { top: '221px', left: '47px' },
-          { top: '221px', left: '136px' },
-          { top: '221px', left: '226px' },
+          { top: '51px', left: '52px' },
+          { top: '51px', left: '141px' },
+          { top: '51px', left: '231px' },
+          { top: '139px', left: '52px' },
+          { top: '139px', left: '141px' },
+          { top: '139px', left: '231px' },
+          { top: '227px', left: '52px' },
+          { top: '227px', left: '141px' },
+          { top: '227px', left: '231px' },
         ]
       }
     },
     // Default icon positions (for backward compatibility)
     iconPositions: [
-      { top: '45px', left: '47px' },   // Icon 0 (top-left) - moved down 25px, right 17px, up 3px, left 3px
-      { top: '45px', left: '136px' },  // Icon 1 (top-center) - moved down 25px total, up 3px
-      { top: '45px', left: '226px' },  // Icon 2 (top-right) - moved down 25px, left 7px, up 3px
-      { top: '133px', left: '47px' },  // Icon 3 (middle-left) - aligned with cell 0
-      { top: '133px', left: '136px' }, // Icon 4 (middle-center) - moved down 10px
-      { top: '133px', left: '226px' }, // Icon 5 (middle-right) - moved left 7px, down 10px
-      { top: '221px', left: '47px' },  // Icon 6 (bottom-left) - consistent spacing
-      { top: '221px', left: '136px' }, // Icon 7 (bottom-center) - consistent spacing
-      { top: '221px', left: '226px' }, // Icon 8 (bottom-right) - consistent spacing
+      { top: '51px', left: '52px' },
+      { top: '51px', left: '141px' },
+      { top: '51px', left: '231px' },
+      { top: '139px', left: '52px' },
+      { top: '139px', left: '141px' },
+      { top: '139px', left: '231px' },
+      { top: '227px', left: '52px' },
+      { top: '227px', left: '141px' },
+      { top: '227px', left: '231px' },
     ],
     iconLayout: {
-      size: '38px',
+      size: '52.16px',
       spacing: '5px',
       position: 'top'
     },
