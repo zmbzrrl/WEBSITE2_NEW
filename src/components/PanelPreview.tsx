@@ -2169,7 +2169,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               justifyContent: "center",
               alignItems: "center",
               padding: "10px",
-              marginBottom: "10px",
+            marginBottom: "10px",
+            marginTop: "-15px",
             }}>
               <div style={{
                 color: getAutoTextColor(panelDesign.backgroundColor),
@@ -2275,20 +2276,30 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       if (cardReader && !roomNumber) {
         return (
           <div style={{
-            display: "flex",
-            flexDirection: "column",
+            position: "relative",
             width: "100%",
             height: "100%",
             padding: "15px",
-          }}>
+            // CSS custom properties for flexible positioning
+            '--status-top': '25px',
+            '--status-width': '15%',
+            '--bell-top': 'calc(50% - 120px)',
+            '--bell-size': '0.87975',
+            '--cr-bottom': '60px',
+            '--cr-size': '1.8975',
+          } as React.CSSProperties}>
             {statusMode === 'icons' ? (
               /* Two icon fields at top */
               <div style={{
+                position: "absolute",
+                top: "var(--status-top)",
+                left: "50%",
+                transform: "translateX(-50%)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 height: "60px",
-                margin: "10px 0",
+                width: "calc(100% - 30px)",
                 gap: "20px",
               }}>
                 {/* Left icon */}
@@ -2337,46 +2348,55 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             ) : (
               /* Status bar at top */
               <div style={{
-                width: "20%",
+                position: "absolute",
+                top: "var(--status-top)",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "var(--status-width)",
                 height: "2px",
                 background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "1px",
-                margin: "0 auto 20px auto",
               }} />
             )}
             
             {/* G18 icon in center */}
             <div style={{
+              position: "absolute",
+              top: "var(--bell-top)",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              flex: "1",
-              marginBottom: "100px",
             }}>
               <img 
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize} * 1.15)`,
-                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                  width: `calc(${panelDesign.iconSize} * var(--bell-size))`,
+                  height: `calc(${panelDesign.iconSize} * var(--bell-size))`,
                   objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
               />
             </div>
+            
             {/* CR icon in bottom center */}
             <div style={{
+              position: "absolute",
+              bottom: "var(--cr-bottom)",
+              left: "50%",
+              transform: "translateX(-50%)",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              paddingBottom: "10px",
             }}>
               <img 
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize} * 1.15)`,
-                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                  width: `calc(${panelDesign.iconSize} * var(--cr-size))`,
+                  height: `calc(${panelDesign.iconSize} * var(--cr-size))`,
                   objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
@@ -2469,13 +2489,13 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 </div>
               </div>
             ) : (
-              /* Status bar right below the number */
+            /* Status bar right below the number */
               <div style={{
-                width: "20%",
+              width: "20%",
                 height: "2px",
                 background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
                 borderRadius: "1px",
-                margin: "10px auto",
+              margin: "45px auto 10px",
               }} />
             )}
             
@@ -2485,14 +2505,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               justifyContent: "center",
               alignItems: "center",
               flex: "1",
-              marginBottom: "100px",
+              marginBottom: "120px",
             }}>
               <img 
                 src={g18Icon} 
                 alt="G18 Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize} * 1.15)`,
-                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                width: `calc(${panelDesign.iconSize} * 0.805)`,
+                height: `calc(${panelDesign.iconSize} * 0.805)`,
                   objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
@@ -2503,7 +2523,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              paddingBottom: "10px",
+              paddingBottom: "40px",
             }}>
               <img 
                 src={crIcon} 
@@ -2541,7 +2561,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     return (
       <div
         style={{
-          width: "350px",
+          width: "295px",
           height: panelHeight,
           background: `linear-gradient(135deg, 
             rgba(255, 255, 255, 0.3) 0%, 
