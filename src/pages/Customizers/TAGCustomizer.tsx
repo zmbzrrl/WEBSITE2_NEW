@@ -1283,6 +1283,10 @@ const TAGCustomizer: React.FC = () => {
   };
 
   const handleTextClick = (index: number) => {
+    // Suppress text on first row (indices 0,1,2)
+    const rowIndex = Math.floor(index / 3);
+    if (rowIndex === 0) return;
+
     // Check if there's an icon at this position
     const icon = placedIcons.find((i) => i.position === index);
     if (!icon) return;
@@ -1432,8 +1436,9 @@ const TAGCustomizer: React.FC = () => {
             )}
           </div>
         )}
-        {/* Text field - centered when no icon, below icon when icon exists */}
+        {/* Text field or icon indicator */}
         {!isPIR && (
+          rowIndex > 0 ? (
           <div style={{ 
             width: '100%', 
             textAlign: 'center', 
@@ -1541,6 +1546,34 @@ const TAGCustomizer: React.FC = () => {
               </>
             )}
           </div>
+          ) : (
+            // First row: no text allowed, but show icon indicator on Step 2 when empty
+            !icon && currentStep === 2 ? (
+              <div
+                title="Add icon"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  margin: '0 auto',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '50%',
+                  color: '#94a3b8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px',
+                  lineHeight: 1,
+                  opacity: 0.7,
+                  transition: 'opacity 0.2s ease-in-out',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.7'; }}
+              >
+                +
+              </div>
+            ) : null
+          )
         )}
       </div>
     );

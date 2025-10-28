@@ -78,13 +78,20 @@ const getProximityPositioning = (panelType: string, dimensions: { width: string 
   let size2 = '9px';     // Right circle same size
   
   // Adjust positioning based on panel type - match customizer patterns
-  if (panelType === 'SP' || panelType === 'TAG') {
-    // Use standard positioning for smaller panels with adjusted spacing
-    right1 = '59px';  // 62px - 3px
-    right2 = '34px';  // 32px + 2px (moved 2px left)
-    bottom = '22px';  // 18px + 4px (moved 4px higher)
-    size1 = '7.65px'; // Left circle 15% smaller
-    size2 = '9px';    // Right circle same size
+  if (panelType === 'SP') {
+    // Single Panel default proximity positioning
+    right1 = '59px';
+    right2 = '34px';
+    bottom = '22px';
+    size1 = '7.65px';
+    size2 = '9px';
+  } else if (panelType === 'TAG') {
+    // TAG panel: lower circles by 5px vs SP
+    right1 = '56px';
+    right2 = '38px';
+    bottom = '12px';
+    size1 = '7.65px';
+    size2 = '9px';
   } else if (panelType === 'DPH' || panelType === 'DPV') {
     // Double panels use slightly different positioning with adjusted spacing
     right1 = '55px';  // 58px - 3px
@@ -240,8 +247,12 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
     const rowIndex = Math.floor(index / 3);
-    // Do not adjust rows based on dimension; keep SP-style grid consistent
-    const adjustedTop = `${baseTop}px`;
+    // Apply TAG-specific first-row offset in preview
+    let adjustedTopPx = baseTop;
+    if (type === 'TAG' && rowIndex === 0) {
+      adjustedTopPx += 25;
+    }
+    const adjustedTop = `${adjustedTopPx}px`;
     
     return (
       <div
@@ -339,7 +350,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
           </div>
         )}
         {/* Text field - centered when no icon, below icon when icon exists */}
-        {!isPIR && (
+        {!isPIR && (type !== 'TAG' || rowIndex > 0) && (
           <div style={{ 
             width: '100%', 
             textAlign: 'center', 

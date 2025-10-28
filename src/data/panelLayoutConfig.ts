@@ -147,9 +147,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         width: '95mm',
         height: '95mm',
         iconPositions: [
-          { top: '33px', left: '80px' },  // Cell 0 - moved right by 30px total (10px + 20px)
-          { top: '33px', left: '140px' },
-          { top: '33px', left: '200px' },
+          { top: '38px', left: '80px' },  // Cell 0 - raised by 15px from 53px
+          { top: '38px', left: '140px' },
+          { top: '38px', left: '200px' },
           { top: '123px', left: '49px' },  // Cell 3 - moved right by 13px total + 3px
           { top: '123px', left: '136px' },
           { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
@@ -163,9 +163,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         height: '95mm',
         // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '33px', left: '80px' },
-          { top: '33px', left: '140px' },
-          { top: '33px', left: '200px' },
+          { top: '38px', left: '80px' },
+          { top: '38px', left: '140px' },
+          { top: '38px', left: '200px' },
           { top: '123px', left: '49px' },
           { top: '123px', left: '136px' },
           { top: '123px', left: '225px' },
@@ -179,9 +179,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
         height: '130mm',
         // Use the same 3x3 grid positions as standard
         iconPositions: [
-          { top: '33px', left: '80px' },
-          { top: '33px', left: '140px' },
-          { top: '33px', left: '200px' },
+          { top: '38px', left: '80px' },
+          { top: '38px', left: '140px' },
+          { top: '38px', left: '200px' },
           { top: '123px', left: '49px' },
           { top: '123px', left: '136px' },
           { top: '123px', left: '225px' },
@@ -193,9 +193,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
     },
     // Default to 3x3 grid positions matching standard
     iconPositions: [
-      { top: '33px', left: '80px' },
-      { top: '33px', left: '140px' },
-      { top: '33px', left: '200px' },
+      { top: '38px', left: '80px' },
+      { top: '38px', left: '140px' },
+      { top: '38px', left: '200px' },
       { top: '123px', left: '49px' },
       { top: '123px', left: '136px' },
       { top: '123px', left: '225px' },
