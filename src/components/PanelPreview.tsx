@@ -2170,7 +2170,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               alignItems: "center",
               padding: "10px",
             marginBottom: "10px",
-            marginTop: "-15px",
+            marginTop: "-18px",
             }}>
               <div style={{
                 color: getAutoTextColor(panelDesign.backgroundColor),
@@ -2490,13 +2490,13 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               </div>
             ) : (
             /* Status bar right below the number */
-              <div style={{
-              width: "20%",
-                height: "2px",
-                background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
-                borderRadius: "1px",
-              margin: "45px auto 10px",
-              }} />
+            <div style={{
+              width: "calc(20% - 8px)",
+              height: "2px",
+              background: `${getIconColorFilter(panelDesign.backgroundColor) === 'brightness(0) saturate(100%) invert(1)' ? '#FFFFFF' : '#808080'}`,
+              borderRadius: "1px",
+              margin: "43.5px auto 10px",
+            }} />
             )}
             
             {/* G18 icon in center */}
@@ -2505,7 +2505,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               justifyContent: "center",
               alignItems: "center",
               flex: "1",
-              marginBottom: "120px",
+              marginBottom: "112px",
             }}>
               <img 
                 src={g18Icon} 
@@ -2523,14 +2523,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              paddingBottom: "40px",
+              paddingBottom: "25px",
             }}>
               <img 
                 src={crIcon} 
                 alt="CR Icon" 
                 style={{
-                  width: `calc(${panelDesign.iconSize} * 1.15)`,
-                  height: `calc(${panelDesign.iconSize} * 1.15)`,
+                  width: `calc(${panelDesign.iconSize} * 1.656)`,
+                  height: `calc(${panelDesign.iconSize} * 1.656)`,
                   objectFit: "contain",
                   filter: getIconColorFilter(panelDesign.backgroundColor),
                 }}
