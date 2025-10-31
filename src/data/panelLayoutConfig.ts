@@ -71,7 +71,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       },
       wide: {
         width: '130mm',
-        height: '95mm',
+        height: '88mm',
         // Use the same 3x3 grid positions as standard
         iconPositions: [
           { top: '51px', left: '52px' },
