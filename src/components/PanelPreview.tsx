@@ -592,6 +592,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     dimensions.height = `${Math.round(currentHeight * 1.1)}px`;
   }
   
+  // Special handling for DPH panels on ProjPanels page - reduce height by 20px and increase width by 5px
+  if (isDPH && isProjPanelsPage) {
+    const currentHeight = typeof dimensions.height === 'string' ? parseInt(dimensions.height.replace('px', '')) : dimensions.height;
+    dimensions.height = `${currentHeight - 20}px`;
+    const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+    dimensions.width = `${currentWidth + 5}px`;
+  }
+  
   // Calculate grid offsets for SP and TAG panels (use prop values or calculate defaults)
   let calculatedGridOffsetX = gridOffsetX !== undefined ? gridOffsetX : (gridOffsetY !== undefined ? 0 : undefined);
   let calculatedGridOffsetY = gridOffsetY !== undefined ? gridOffsetY : undefined;
@@ -742,6 +750,37 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     const isSingleIconSlot = (isX1H || isX1V) && icon.position === 9;
     const isX2SingleIconSlot = (isX2H || isX2V) && (icon.position === 9 || icon.position === 10);
     
+    // Special handling for DPH panels on ProjPanels page - use bathroom icon size for all icons
+    if (isDPH && isProjPanelsPage) {
+      return specialLayouts?.Bathroom?.iconSize || '38px';
+    }
+    
+    // Special handling for DPV panels on ProjPanels page - reduce all icon sizes by 10%, except bathroom icons get only one 10% reduction
+    if (isDPV && isProjPanelsPage) {
+      // Calculate base size first
+      let baseSize = '40px';
+      if (isPIR) {
+        baseSize = specialLayouts?.PIR?.iconSize || '40px';
+      } else if (isBathroom) {
+        baseSize = specialLayouts?.Bathroom?.iconSize || '47px';
+      } else {
+        baseSize = convertMmToPx(panelDesign.iconSize || iconLayout?.size || '40px');
+      }
+      // Reduce by 10% (multiply by 0.9)
+      const sizeValue = typeof baseSize === 'string' ? parseInt(baseSize.replace('px', '')) : baseSize;
+      const firstReduction = Math.round(sizeValue * 0.9);
+      // For non-bathroom icons, apply another 10% reduction, then another 3.5% reduction
+      let finalSize = firstReduction;
+      if (!isBathroom) {
+        const secondReduction = Math.round(firstReduction * 0.9);
+        // Apply another 3.5% reduction (multiply by 0.965)
+        finalSize = Math.round(secondReduction * 0.965);
+      }
+      // Apply final 3% reduction to all icons (multiply by 0.97), then another 3.5% reduction (multiply by 0.965)
+      const afterThreePercent = Math.round(finalSize * 0.97);
+      return `${Math.round(afterThreePercent * 0.965)}px`;
+    }
+    
     // Special handling for TAG panel - use special sizes for DISPLAY and FAN icons
     if (isTAG) {
       if (icon?.iconId === 'DISPLAY') {
@@ -752,14 +791,23 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
         const baseSize = 40; // Base size for TAG icons
         return `${Math.round(baseSize * 0.5)}px`; // 20px
       }
-      // First row icons (positions 0, 1, 2) are 35px
+      // Special handling for TAG tall on ProjPanels page
+      const isTAGTallOnProjPanels = isTAG && panelDesign.tagConfig?.dimension === 'tall' && isProjPanelsPage;
+      
+      // First row icons (positions 0, 1, 2) - make 5% smaller on ProjPanels for tall TAG
       if (icon && (icon.position === 0 || icon.position === 1 || icon.position === 2)) {
+        if (isTAGTallOnProjPanels) {
+          return `${Math.round(35 * 0.95)}px`; // 5% smaller: 33.25px ≈ 33px
+        }
         return '35px';
       }
-      // Rows 2 and 3 icons (positions 3, 4, 5, 6, 7, 8) are 45px
-      if (icon && (icon.position === 3 || icon.position === 4 || icon.position === 5 ||
-                   icon.position === 6 || icon.position === 7 || icon.position === 8)) {
-        return '45px';
+      // Last row icons (positions 6, 7, 8) - 33px
+      if (icon && (icon.position === 6 || icon.position === 7 || icon.position === 8)) {
+        return '33px';
+      }
+      // Rows 2 icons (positions 3, 4, 5) are 33px
+      if (icon && (icon.position === 3 || icon.position === 4 || icon.position === 5)) {
+        return '33px';
       }
       if (icon?.iconId === 'FAN') {
         // All FAN icons now 40px
@@ -814,11 +862,18 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
 
   // Absolute layout rendering
   if (iconPositions && iconPositions.length > 0) {
+    // Calculate width for DPV on ProjPanels page (reduce by 17px)
+    let finalWidth = dimensions.width;
+    if (isDPV && isProjPanelsPage) {
+      const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+      finalWidth = `${currentWidth - 17}px`;
+    }
+    
     return (
       <div
         style={{
           position: 'relative',
-          width: isDPH ? '704px' : dimensions.width,
+          width: isDPH ? (isProjPanelsPage ? '709px' : '704px') : finalWidth,
           height: dimensions.height,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
           padding: '0',
@@ -840,7 +895,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             alt="DISPLAY"
             style={{
               position: 'absolute',
-              top: (panelDesign.tagConfig?.dimension === 'tall') ? '140px' : (panelDesign.tagConfig?.dimension === 'wide') ? '93px' : '90px',
+              top: (panelDesign.tagConfig?.dimension === 'tall') 
+                ? (isProjPanelsPage ? '145px' : '140px') 
+                : (panelDesign.tagConfig?.dimension === 'wide') ? '93px' : '90px',
               left: (panelDesign.tagConfig?.dimension === 'wide') ? 'calc(45% + 23px)' : 'calc(45% + 15px)',
               transform: 'translateX(-50%)',
               width: '237px',
@@ -918,7 +975,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             const hasIcon = icon && icon.src;
             const iconSize = getIconSize(icon);
             const baseFontSize = textLayout?.fontSize || panelDesign.fontSize || '12px';
-            const adjustedFontSize = text ? calculateFontSize(text, parseInt(isDPH ? '704' : dimensions.width) / 6, baseFontSize) : baseFontSize;
+            const adjustedFontSize = text ? calculateFontSize(text, parseInt(isDPH ? (isProjPanelsPage ? '709' : '704') : dimensions.width) / 6, baseFontSize) : baseFontSize;
             
             // Apply swap and mirror logic for X1H panels
             let adjustedPos = pos;
@@ -1022,6 +1079,75 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               }
             }
             
+            // DPH: Adjust left panel columns on ProjPanels page
+            if (isDPH && isProjPanelsPage && index >= 0 && index <= 8) {
+              const col = index % 3; // Column within left panel: 0=col1, 1=col2, 2=col3
+              let columnOffset = 0;
+              if (col === 0) {
+                // Left column 1 (positions 0, 3, 6): move 50.5px right (53px - 2.5px)
+                columnOffset = 50.5;
+              } else if (col === 1) {
+                // Left column 2 (positions 1, 4, 7): move 38.7px right (35px + 3.7px)
+                columnOffset = 38.7;
+              } else if (col === 2) {
+                // Left column 3 (positions 2, 5, 8): move 24.5px right (23px + 1.5px)
+                columnOffset = 24.5;
+              }
+              if (columnOffset > 0 && adjustedPos && adjustedPos.left) {
+                const currentLeft = parseFloat(adjustedPos.left.replace('px', ''));
+                adjustedPos = { ...adjustedPos, left: (currentLeft + columnOffset) + 'px' };
+              }
+            }
+            
+            // DPH: Adjust right panel columns on ProjPanels page
+            if (isDPH && isProjPanelsPage && index >= 9 && index <= 17) {
+              const col = (index - 9) % 3; // Column within right panel: 0=col1, 1=col2, 2=col3
+              let columnOffset = 0;
+              if (col === 0) {
+                // Right column 1 (positions 9, 12, 15): move 3px left
+                columnOffset = -3;
+              } else if (col === 1) {
+                // Right column 2 (positions 10, 13, 16): move 15.5px left (18px - 2.5px)
+                columnOffset = -15.5;
+              } else if (col === 2) {
+                // Right column 3 (positions 11, 14, 17): move 27px left
+                columnOffset = -27;
+              }
+              if (columnOffset !== 0 && adjustedPos && adjustedPos.left) {
+                const currentLeft = parseFloat(adjustedPos.left.replace('px', ''));
+                adjustedPos = { ...adjustedPos, left: (currentLeft + columnOffset) + 'px' };
+              }
+            }
+            
+            // DPH: Adjust rows (both left and right panels) on ProjPanels page
+            if (isDPH && isProjPanelsPage && index >= 0 && index <= 17) {
+              let row = 0;
+              if (index >= 0 && index <= 8) {
+                // Left panel: Row 1 = 0-2, Row 2 = 3-5, Row 3 = 6-8
+                row = Math.floor(index / 3);
+              } else if (index >= 9 && index <= 17) {
+                // Right panel: Row 1 = 9-11, Row 2 = 12-14, Row 3 = 15-17
+                row = Math.floor((index - 9) / 3);
+              }
+              
+              let rowOffset = 0;
+              if (row === 0) {
+                // Row 1: move 5px to the top (reduce top value)
+                rowOffset = -5;
+              } else if (row === 1) {
+                // Row 2: move 15px to the top
+                rowOffset = -15;
+              } else if (row === 2) {
+                // Row 3: move 30px to the top (25px + 5px)
+                rowOffset = -30;
+              }
+              
+              if (rowOffset !== 0 && adjustedPos && adjustedPos.top) {
+                const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
+                adjustedPos = { ...adjustedPos, top: (currentTop + rowOffset) + 'px' };
+              }
+            }
+            
             // TAG: lower rows 2 and 3 (indices 3-8) by 30px, and move rows 3 and 4 down by additional 8px
             if (isTAG && adjustedPos && adjustedPos.top && index >= 3 && index <= 8) {
               const topValue = parseInt(adjustedPos.top);
@@ -1077,6 +1203,65 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               const dx = dimension === 'wide' ? 60 : 0;
               const dy = dimension === 'tall' ? 50 : 0;
               adjustedPos = { ...adjustedPos, left: (baseLeft + dx) + 'px', top: (baseTop + dy) + 'px' } as any;
+            }
+            
+            // DPV: Adjust columns (both top and bottom panels) on ProjPanels page
+            if (isDPV && isProjPanelsPage && adjustedPos && adjustedPos.left) {
+              const col = index % 3; // Column: 0=col1, 1=col2, 2=col3
+              let columnOffset = 0;
+              if (col === 0) {
+                // Column 1 (positions 0, 3, 6 for top and 9, 12, 15 for bottom): move 5px left
+                columnOffset = -5;
+              } else if (col === 1) {
+                // Column 2 (positions 1, 4, 7 for top and 10, 13, 16 for bottom): move 18px left (15px + 3px additional)
+                columnOffset = -18;
+              } else if (col === 2) {
+                // Column 3 (positions 2, 5, 8 for top and 11, 14, 17 for bottom): move 33px left (23px + 10px additional)
+                columnOffset = -33;
+              }
+              if (columnOffset !== 0) {
+                const currentLeft = parseFloat(adjustedPos.left.replace('px', ''));
+                adjustedPos = { ...adjustedPos, left: (currentLeft + columnOffset) + 'px' };
+              }
+            }
+            
+            // DPV: Adjust rows (top and bottom panels) on ProjPanels page
+            if (isDPV && isProjPanelsPage && adjustedPos && adjustedPos.top) {
+              let rowOffset = 0;
+              
+              // Top panel (positions 0-8)
+              if (index >= 0 && index <= 8) {
+                const row = Math.floor(index / 3); // Row within top panel: 0=row1, 1=row2, 2=row3
+                if (row === 0) {
+                  // Top row 1 (positions 0, 1, 2): move 55px down (40px + 15px additional)
+                  rowOffset = 55;
+                } else if (row === 1) {
+                  // Top row 2 (positions 3, 4, 5): move 40px down (25px + 15px additional)
+                  rowOffset = 40;
+                } else if (row === 2) {
+                  // Top row 3 (positions 6, 7, 8): move 22px down (20px + 2px additional)
+                  rowOffset = 22;
+                }
+              }
+              // Bottom panel (positions 9-17)
+              else if (index >= 9 && index <= 17) {
+                const row = Math.floor((index - 9) / 3); // Row within bottom panel: 0=row1, 1=row2, 2=row3
+                if (row === 0) {
+                  // Bottom row 1 (positions 9, 10, 11): move 2.5px up (decrease top value)
+                  rowOffset = -2.5;
+                } else if (row === 1) {
+                  // Bottom row 2 (positions 12, 13, 14): move 15px up (decrease top value)
+                  rowOffset = -15;
+                } else if (row === 2) {
+                  // Bottom row 3 (positions 15, 16, 17): move 30px up (25px + 5px additional)
+                  rowOffset = -30;
+                }
+              }
+              
+              if (rowOffset !== 0) {
+                const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
+                adjustedPos = { ...adjustedPos, top: (currentTop + rowOffset) + 'px' };
+              }
             }
             
             // X2V: apply big icon positioning logic to match customizer
@@ -2082,9 +2267,19 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                   console.log('🔍 Entering SP/TAG block for index 3:', { isSP, isTAG, type });
                 }
                 const baseTop = parseInt((pos as any).top || '0', 10);
-                const adjustedTop = `${baseTop}px`;
+                let adjustedTopPx = baseTop;
                 const baseLeft = parseInt((pos as any).left || '0', 10);
                 const rowIndex = Math.floor(index / 3);
+                
+                // Lower first row by 40px for TAG tall on ProjPanels page
+                if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && isProjPanelsPage && rowIndex === 0) {
+                  adjustedTopPx += 40;
+                }
+                // Lower second row by 70px for TAG tall on ProjPanels page
+                if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && isProjPanelsPage && rowIndex === 1) {
+                  adjustedTopPx += 70;
+                }
+                const adjustedTop = `${adjustedTopPx}px`;
                 
                 // Move TAG wide first row 5px to the left
                 let adjustedLeft = baseLeft;
@@ -2108,6 +2303,14 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                     console.log('🔍 Moving TAG wide position 3 right by 20px', { baseLeft, adjustedLeft: adjustedLeft + 20 });
                     adjustedLeft += 20;
                   }
+                }
+                // Move TAG tall position 3 20px to the right
+                if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && index === 3) {
+                  adjustedLeft += 20;
+                }
+                // Move TAG tall position 5 20px to the left
+                if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && index === 5) {
+                  adjustedLeft -= 20;
                 }
                 
                 adjustedPos = { ...pos, top: adjustedTop, left: `${adjustedLeft}px` };

@@ -1142,7 +1142,7 @@ const ProjPanels: React.FC = () => {
                       item.type === 'TAG'
                         ? {
                             ...(item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }),
-                            tagConfig: { dimension: 'wide', ...(item.panelDesign?.tagConfig || {}) },
+                            tagConfig: { ...(item.panelDesign?.tagConfig || { dimension: 'wide' }) },
                           }
                         : (item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' })
                     }

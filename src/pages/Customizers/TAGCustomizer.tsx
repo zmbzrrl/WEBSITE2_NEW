@@ -1326,10 +1326,21 @@ const TAGCustomizer: React.FC = () => {
     // Final fallback
     if (!pos) pos = { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
+    const baseLeft = parseInt((pos as any).left || '0', 10);
     const rowIndex = Math.floor(index / 3);
     
     // Keep TAG grid consistent across dimensions (no per-row offsets)
     const adjustedTop = `${baseTop}px`;
+    let adjustedLeft = `${baseLeft}px`;
+    
+    // Move TAG tall position 3 20px to the right
+    if (dimensionKey === 'tall' && index === 3) {
+      adjustedLeft = `${baseLeft + 20}px`;
+    }
+    // Move TAG tall position 5 20px to the left
+    if (dimensionKey === 'tall' && index === 5) {
+      adjustedLeft = `${baseLeft - 20}px`;
+    }
     
     // Debug logging
     if (dimensionKey === 'tall' && index < 3) {
@@ -1350,6 +1361,7 @@ const TAGCustomizer: React.FC = () => {
           width: (pos as any).width || iconSize,
           height: (pos as any).height || iconSize,
           top: adjustedTop,
+          left: adjustedLeft,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
