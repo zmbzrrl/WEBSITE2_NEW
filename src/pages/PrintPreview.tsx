@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, Button, Typography, Paper, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -1444,6 +1444,14 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             <PanelGrid>
               {pagePanels.map((config, panelIndex) => {
                 const details = getPanelDetails(config);
+                const panelDims = getPanelDimensions(config);
+                const widthPx = panelDims.width;
+                const heightPx = panelDims.height;
+                const gapWidth = 50; // Space for dimension text
+                // Dynamic padding based on panel size (minimum 35px for dimension lines)
+                const dimensionPadding = Math.max(35, Math.ceil(widthPx * 0.05)); // 5% of width, min 35px
+                const dimensionPaddingLeft = Math.max(35, Math.ceil(heightPx * 0.05)); // 5% of height, min 35px
+                
                 return (
                   <PanelContainer key={panelIndex} sx={{
                     flexDirection: config.type?.includes('X1H') || config.type?.includes('X2H') ? 'column' : 'row'
@@ -1456,23 +1464,16 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         justifyContent: 'flex-start', 
                         alignItems: 'flex-start',
                         width: '100%',
-                        transform: 'scale(0.9) translate(50px, 30px)',
-                        transformOrigin: 'top left'
+                        paddingTop: `${dimensionPadding}px`, // Dynamic space for width dimension line
+                        paddingLeft: `${dimensionPaddingLeft}px` // Dynamic space for height dimension line
                       }}>
-                        {/* Width dimension line (top) - using actual panel width */}
-                        {(() => {
-                          const panelDims = getPanelDimensions(config);
-                          const widthPx = panelDims.width;
-                          const heightPx = panelDims.height;
-                          const gapWidth = 50; // Space for dimension text
-                          
-                          return (
+                            {/* Width dimension line (top) - using actual panel width */}
                             <>
                               {/* Left segment */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '-25px',
-                                left: '0',
+                                top: '5px', // Adjusted to account for padding
+                                left: `${dimensionPaddingLeft}px`, // Start after left padding
                                 width: `${(widthPx - gapWidth) / 2}px`,
                                 height: '2px',
                                 backgroundColor: '#999'
@@ -1480,8 +1481,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               {/* Right segment */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '-25px',
-                                left: `${(widthPx + gapWidth) / 2}px`,
+                                top: '5px', // Adjusted to account for padding
+                                left: `${dimensionPaddingLeft + (widthPx + gapWidth) / 2}px`, // Adjusted for padding
                                 width: `${(widthPx - gapWidth) / 2}px`,
                                 height: '2px',
                                 backgroundColor: '#999'
@@ -1489,8 +1490,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               {/* Text in the gap */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '-25px',
-                                left: `${widthPx / 2}px`,
+                                top: '5px', // Adjusted to account for padding
+                                left: `${dimensionPaddingLeft + widthPx / 2}px`, // Adjusted for padding
                                 transform: 'translateX(-50%)',
                                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
                                 fontSize: '14px',
@@ -1515,16 +1516,16 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               {/* Width dimension endpoint lines (vertical lines at ends) */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '-32px',
-                                left: '0',
+                                top: '-2px', // Adjusted to account for padding
+                                left: `${dimensionPaddingLeft}px`, // Start after left padding
                                 width: '3px',
                                 height: '15px',
                                 backgroundColor: '#999'
                               }} />
                               <Box sx={{
                                 position: 'absolute',
-                                top: '-32px',
-                                left: `${widthPx - 3}px`,
+                                top: '-2px', // Adjusted to account for padding
+                                left: `${dimensionPaddingLeft + widthPx - 3}px`, // Adjusted for padding
                                 width: '3px',
                                 height: '15px',
                                 backgroundColor: '#999'
@@ -1534,8 +1535,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               {/* Top segment */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '0',
-                                left: '-25px',
+                                top: `${dimensionPadding}px`, // Start after top padding
+                                left: '5px', // Adjusted to account for padding
                                 width: '2px',
                                 height: `${(heightPx - gapWidth) / 2}px`,
                                 backgroundColor: '#999'
@@ -1543,8 +1544,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               {/* Bottom segment */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${(heightPx + gapWidth) / 2}px`,
-                                left: '-25px',
+                                top: `${dimensionPadding + (heightPx + gapWidth) / 2}px`, // Adjusted for padding
+                                left: '5px', // Adjusted to account for padding
                                 width: '2px',
                                 height: `${(heightPx - gapWidth) / 2}px`,
                                 backgroundColor: '#999'
@@ -1552,8 +1553,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               {/* Text in the gap */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${heightPx / 2}px`,
-                                left: '-25px',
+                                top: `${dimensionPadding + heightPx / 2}px`, // Adjusted for padding
+                                left: '5px', // Adjusted to account for padding
                                 transform: 'translateY(-50%)',
                                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
                                 fontSize: '14px',
@@ -1583,23 +1584,21 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               {/* Height dimension endpoint lines (horizontal lines at ends) */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '0',
-                                left: '-32px',
+                                top: `${dimensionPadding}px`, // Start after top padding
+                                left: '-2px', // Adjusted to account for padding
                                 width: '15px',
                                 height: '3px',
                                 backgroundColor: '#999'
                               }} />
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${heightPx - 3}px`,
-                                left: '-32px',
+                                top: `${dimensionPadding + heightPx - 3}px`, // Adjusted for padding
+                                left: '-2px', // Adjusted to account for padding
                                 width: '15px',
                                 height: '3px',
                                 backgroundColor: '#999'
                               }} />
                             </>
-                          );
-                        })()}
 
                         <PanelPreview
                           icons={config.icons}

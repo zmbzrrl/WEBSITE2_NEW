@@ -228,8 +228,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   onIconHover
 }) => {
   const location = useLocation();
-  const isProjPanelsPage = location.pathname === '/proj-panels';
-  console.log('🔍 PanelPreview - pathname:', location.pathname, 'isProjPanelsPage:', isProjPanelsPage, 'type:', type);
+  const isProjPanelsPage = location.pathname === '/proj-panels' || location.pathname.startsWith('/proj-panels');
+  if (type === 'X1H') {
+    console.log('🔍 PanelPreview X1H - pathname:', location.pathname, 'isProjPanelsPage:', isProjPanelsPage, 'type:', type);
+  }
   
   useEffect(() => {
     if (panelDesign.fonts) {
@@ -532,6 +534,15 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   const config = getPanelLayoutConfig(type);
   const { gridLayout, iconLayout, bigIconLayout, textLayout, specialLayouts, iconPositions: rawIconPositions } = config;
   
+  // Debug: Log bigIconLayout for X1H
+  if (isX1H) {
+    console.log('🔍 X1H bigIconLayout check:', { 
+      bigIconLayout, 
+      hasBigIconLayout: !!bigIconLayout, 
+      size: bigIconLayout?.size
+    });
+  }
+  
   // Scale the default icon positions to match the new panel dimensions
   const iconPositions = rawIconPositions?.map(scaleIconPosition);
   
@@ -781,6 +792,40 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       return `${Math.round(afterThreePercent * 0.965)}px`;
     }
     
+    // Special handling for X1H panels on ProjPanels page - reduce bathroom icons by 10%
+    if (isX1H && isProjPanelsPage && isBathroom) {
+      const baseSize = specialLayouts?.Bathroom?.iconSize || '47px';
+      const sizeStr = baseSize.toString();
+      const sizeValue = parseInt(sizeStr.replace('px', '').trim());
+      if (!isNaN(sizeValue)) {
+        const reducedSize = `${Math.round(sizeValue * 0.9)}px`;
+        console.log('🔍 X1H ProjPanels - Bathroom icon size reduced:', { original: sizeStr, reduced: reducedSize, category: icon?.category });
+        return reducedSize;
+      }
+    }
+    
+    // Special handling for X1V panels on ProjPanels page - reduce bathroom icons to match regular icons (40px)
+    if (isX1V && isProjPanelsPage && isBathroom) {
+      return iconLayout?.size || '40px';
+    }
+    
+    // Return larger size for single icon slots (check BEFORE category checks to ensure big icon slots get correct size)
+    if (isSingleIconSlot) {
+      // X1H and X1V use 150px
+      return '150px';
+    }
+    if (isX2SingleIconSlot) {
+      // X2H big icon slots use 140px
+      if (isX2H) {
+        return '140px';
+      }
+      // X2V big icon slots: use 150px on ProjPanels page, 204px elsewhere
+      if (isX2V) {
+        return isProjPanelsPage ? '150px' : '204px';
+      }
+      return '204px'; // Match X2HCustomizer step 4 preview
+    }
+    
     // Special handling for TAG panel - use special sizes for DISPLAY and FAN icons
     if (isTAG) {
       if (icon?.iconId === 'DISPLAY') {
@@ -829,12 +874,9 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       return specialLayouts?.Bathroom?.iconSize || '47px';
     }
     
-    // Return larger size for single icon slots
-    if (isSingleIconSlot) {
-      return '220px';
-    }
-    if (isX2SingleIconSlot) {
-      return '204px'; // Match X2HCustomizer step 4 preview
+    // Special handling for X2H panels - make all regular grid icons match bathroom icon size (47px)
+    if (isX2H) {
+      return specialLayouts?.Bathroom?.iconSize || '47px';
     }
     
     return convertMmToPx(panelDesign.iconSize || iconLayout?.size || '40px');
@@ -868,13 +910,33 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
       finalWidth = `${currentWidth - 17}px`;
     }
+    // Calculate width for X2H on ProjPanels page (increase by 100px)
+    if (isX2H && isProjPanelsPage) {
+      const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+      finalWidth = `${currentWidth + 100}px`;
+    }
+    // Calculate width for X2V on ProjPanels page (reduce by 15px)
+    if (isX2V && isProjPanelsPage) {
+      const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+      finalWidth = `${currentWidth - 15}px`;
+    }
+    
+    // Calculate height adjustments for ProjPanels page
+    let finalHeight = dimensions.height;
+    if (isX1V && isProjPanelsPage) {
+      const h = typeof dimensions.height === 'string' ? parseInt((dimensions.height as string).replace('px','')) : (dimensions.height as number);
+      finalHeight = `${h + 100}px`;
+    } else if (isX2V && isProjPanelsPage) {
+      const h = typeof dimensions.height === 'string' ? parseInt((dimensions.height as string).replace('px','')) : (dimensions.height as number);
+      finalHeight = `${h + 75}px`;
+    }
     
     return (
       <div
         style={{
           position: 'relative',
           width: isDPH ? (isProjPanelsPage ? '709px' : '704px') : finalWidth,
-          height: dimensions.height,
+          height: finalHeight,
           background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
           padding: '0',
           border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -1010,22 +1072,177 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                   // Move the left 3x3 grid to the right side
                   // Panel is 731px wide, so move grid to right half (around 340px offset)
                   const swappedGridOffset = 340;
-                  adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + swappedGridOffset) + 'px' };
+                  
+                  // On ProjPanels page, apply column and row-specific offsets when grid is on right
+                  let columnOffset = 0;
+                  let rowOffset = 0;
+                  if (isProjPanelsPage) {
+                    const col = index % 3; // 0 = column 1, 1 = column 2, 2 = column 3
+                    if (col === 0) {
+                      // Column 1: move 5px + 2.5px to the right
+                      columnOffset = 7.5;
+                    } else if (col === 2) {
+                      // Column 3: move 5px + 4px to the left, then 2px to the right
+                      columnOffset = -7;
+                    }
+                    // Column 2 stays in place
+                    
+                    const row = Math.floor(index / 3); // 0 = row 1, 1 = row 2, 2 = row 3
+                    if (row === 0) {
+                      // Row 1: move 7px + 5px + 2px + 2px to the bottom
+                      rowOffset = 16;
+                    } else if (row === 1) {
+                      // Row 2: move 5px + 5px + 2px to the bottom
+                      rowOffset = 12;
+                    } else if (row === 2) {
+                      // Row 3: move 2.5px to the bottom
+                      rowOffset = 2.5;
+                    }
+                  }
+                  
+                  adjustedPos = { 
+                    ...adjustedPos, 
+                    left: (parseInt(adjustedPos.left) + swappedGridOffset + columnOffset) + 'px',
+                    top: (parseInt(adjustedPos.top) + rowOffset) + 'px'
+                  };
                 } else if (index === 9) {
-                  // Move the right single slot to the left side, positioned more centrally
-                  // Original position is left: '341px', move it to left side (around 53px from left, moved up 60px total)
-                  adjustedPos = { ...adjustedPos, left: '53px', top: '63px' }; // Center it vertically on the left, moved up 60px total and right 20px
+                  // Move the right single slot to the left side, positioned more centrally, then move right 35px + 45px and down 10px + 25px, then left 5px and up 13px
+                  // Original position is left: '341px', move it to left side (around 53px from left, moved up 60px total), then adjust
+                  adjustedPos = { ...adjustedPos, left: '128px', top: '85px' }; // Center it vertically on the left, moved up 60px total and right 20px, then right 35px + 45px and down 10px + 25px, then left 5px and up 13px
                 }
               } else {
                 // When right button is NOT pressed, apply default offsets
                 if (index >= 0 && index <= 8) {
                   // Move 3x3 grid 20px to the right
                   const gridOffset = 20;
-                  adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + gridOffset) + 'px' };
+                  // On ProjPanels page, apply column-specific offsets
+                  let additionalOffset = 0;
+                  let rowOffset = 0;
+                  if (isProjPanelsPage) {
+                    const col = index % 3; // 0 = column 1, 1 = column 2, 2 = column 3
+                    if (col === 0) {
+                      // Column 1: 15px base + 15px additional + 5px = 35px total
+                      additionalOffset = 35;
+                    } else if (col === 1) {
+                      // Column 2: 15px base + 7px additional + 5px = 27px total
+                      additionalOffset = 27;
+                    } else if (col === 2) {
+                      // Column 3: 15px base + 3px additional = 18px total
+                      additionalOffset = 18;
+                    }
+                    // Apply row-specific vertical offsets
+                    const row = Math.floor(index / 3); // 0 = row 1, 1 = row 2, 2 = row 3
+                    if (row === 0) {
+                      // Row 1: lower by 20px
+                      rowOffset = 20;
+                    } else if (row === 1) {
+                      // Row 2: lower by 15px, then move up by 2.5px = 12.5px
+                      rowOffset = 12.5;
+                    } else if (row === 2) {
+                      // Row 3: lower by 5px, then move up by 2.5px = 2.5px
+                      rowOffset = 2.5;
+                    }
+                  }
+                  adjustedPos = { 
+                    ...adjustedPos, 
+                    left: (parseInt(adjustedPos.left) + gridOffset + additionalOffset) + 'px',
+                    top: (parseInt(adjustedPos.top) + rowOffset) + 'px'
+                  };
                 } else if (index === 9) {
-                  // Move big icon 160px to the left
-                  const iconOffset = -160;
-                  adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + iconOffset) + 'px' };
+                  // Move big icon 160px to the left (base) + 30px more = 190px total
+                  const iconOffset = -190;
+                  // On ProjPanels page, adjust big icon position when grid is on left
+                  if (isProjPanelsPage) {
+                    adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + iconOffset + 35) + 'px', top: (parseInt(adjustedPos.top) + 45) + 'px' };
+                  } else {
+                    adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + iconOffset) + 'px' };
+                  }
+                }
+              }
+            }
+            
+            // Apply column and row adjustments for X2H panels
+            if (isX2H && index >= 0 && index <= 8) {
+              const swapUpDown = (panelDesign as any).swapUpDown || false;
+              // When grid is on the left (swapUpDown is false), adjust columns and rows
+              if (!swapUpDown) {
+                const col = index % 3; // 0 = column 1, 1 = column 2, 2 = column 3
+                let columnOffset = 15; // Base offset: move all columns 15px to the right
+                if (col === 0) {
+                  // Column 1 (positions 0, 3, 6): move 48px to the right (15px base + 30px + 3px additional)
+                  columnOffset = 15 + 30 + 3;
+                } else if (col === 1) {
+                  // Column 2 (positions 1, 4, 7): move 37px to the right (15px base + 20px + 2px additional)
+                  columnOffset = 15 + 20 + 2;
+                } else if (col === 2) {
+                  // Column 3 (positions 2, 5, 8): move 25px to the right (15px base + 15px - 3px - 2px)
+                  columnOffset = 15 + 15 - 3 - 2;
+                }
+                if (columnOffset > 0 && adjustedPos && adjustedPos.left) {
+                  const currentLeft = parseFloat(adjustedPos.left.replace('px', ''));
+                  adjustedPos = { ...adjustedPos, left: (currentLeft + columnOffset) + 'px' };
+                }
+                
+                // Row adjustments: move rows up (negative top offset)
+                const row = Math.floor(index / 3); // 0 = row 1, 1 = row 2, 2 = row 3
+                let rowOffset = 0;
+                if (row === 0) {
+                  // Row 1 (positions 0, 1, 2): move 5px to the top
+                  rowOffset = -5;
+                } else if (row === 1) {
+                  // Row 2 (positions 3, 4, 5): move 15px to the top (10px + 5px additional)
+                  rowOffset = -15;
+                } else if (row === 2) {
+                  // Row 3 (positions 6, 7, 8): move 30px to the top (25px + 5px additional)
+                  rowOffset = -30;
+                }
+                if (rowOffset !== 0 && adjustedPos && adjustedPos.top) {
+                  const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
+                  adjustedPos = { ...adjustedPos, top: (currentTop + rowOffset) + 'px' };
+                }
+              } else {
+                // When swapUpDown is true, grid moves to the right side (big icons on left)
+                // Move grid 530px to the right (matching customizer logic)
+                const swappedGridOffsetX = 530;
+                if (adjustedPos && adjustedPos.left) {
+                  const currentLeft = parseFloat(adjustedPos.left.replace('px', ''));
+                  adjustedPos = { ...adjustedPos, left: (currentLeft + swappedGridOffsetX) + 'px' };
+                }
+                
+                // Additional column adjustments for ProjPanels page when grid is on the right
+                const col = index % 3; // 0 = column 1, 1 = column 2, 2 = column 3
+                let columnOffset = 0;
+                if (col === 0) {
+                  // Column 1 (positions 0, 3, 6): move 58px to the right (50px + 8px)
+                  columnOffset = 58;
+                } else if (col === 1) {
+                  // Column 2 (positions 1, 4, 7): move 45px to the right (30px + 15px)
+                  columnOffset = 45;
+                } else if (col === 2) {
+                  // Column 3 (positions 2, 5, 8): move 30.5px to the right (28px + 2.5px)
+                  columnOffset = 30.5;
+                }
+                if (columnOffset > 0 && adjustedPos && adjustedPos.left) {
+                  const currentLeft = parseFloat(adjustedPos.left.replace('px', ''));
+                  adjustedPos = { ...adjustedPos, left: (currentLeft + columnOffset) + 'px' };
+                }
+                
+                // Row adjustments for ProjPanels page when grid is on the right
+                const row = Math.floor(index / 3); // 0 = row 1, 1 = row 2, 2 = row 3
+                let rowOffset = 0;
+                if (row === 0) {
+                  // Row 1 (positions 0, 1, 2): move 3.5px to the top
+                  rowOffset = -3.5;
+                } else if (row === 1) {
+                  // Row 2 (positions 3, 4, 5): move 15px to the top
+                  rowOffset = -15;
+                } else if (row === 2) {
+                  // Row 3 (positions 6, 7, 8): move 32px to the top (29px + 3px)
+                  rowOffset = -32;
+                }
+                if (rowOffset !== 0 && adjustedPos && adjustedPos.top) {
+                  const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
+                  adjustedPos = { ...adjustedPos, top: (currentTop + rowOffset) + 'px' };
                 }
               }
             }
@@ -1063,19 +1280,75 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                   top: (parseInt(adjustedPos.top) + swappedGridOffset - 50) + 'px',
                   left: (parseInt(adjustedPos.left) - 7) + 'px'
                 };
+                // On ProjPanels, push rows further down, then apply per-row and per-column tweaks
+                if (isProjPanelsPage) {
+                  // Base extra 80px down (previous 50px + additional 30px)
+                  adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) + 80) + 'px' };
+                  // Row-specific upward adjustments
+                  const row = Math.floor(index / 3); // 0,1,2
+                  let rowUpAdjust = 0;
+                  if (row === 0) rowUpAdjust = 3;      // row 1: 3px up
+                  else if (row === 1) rowUpAdjust = 10; // row 2: 10px up
+                  else if (row === 2) rowUpAdjust = 15; // row 3: 15px up
+                  // Additional request: move row 3 another 3px to the top
+                  if (row === 2) rowUpAdjust += 3; // total 18px up for row 3
+                  adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) - rowUpAdjust) + 'px' };
+                  
+                  // Column-specific horizontal adjustments
+                  const col = index % 3; // 0,1,2
+                  let colDeltaX = 0; // positive = move right, negative = move left
+                  if (col === 0) colDeltaX = 3;      // column 1: 3px right
+                  else if (col === 1) colDeltaX = -5;   // column 2: 5px left
+                  else if (col === 2) colDeltaX = -13;  // column 3: 13px left (8px + 5px)
+                  if (colDeltaX !== 0) {
+                    const currentLeft = parseFloat(adjustedPos.left.replace('px',''));
+                    adjustedPos = { ...adjustedPos, left: (currentLeft + colDeltaX) + 'px' };
+                  }
+                }
               } else if (index === 9) {
                 // Move the single slot to the top half, positioned more centrally
                 // Original position is 328px top, 36px left
                 // Move it to center of top half (around 55px from top) and 130px to the left (110px + 20px)
                 adjustedPos = { ...adjustedPos, top: '55px', left: (parseInt(adjustedPos.left) - 130) + 'px' };
+                // On ProjPanels, push big icon further down and to the right, with extra fine-tuning
+                if (isProjPanelsPage) {
+                  // Previously +80px down and +30px right; add +5px right and -5px up => net +75px down, +35px right
+                  adjustedPos = { 
+                    ...adjustedPos, 
+                    top: (parseInt(adjustedPos.top) + 75) + 'px',
+                    left: (parseInt(adjustedPos.left) + 38) + 'px'
+                  };
+                }
               }
             } else if (isX1V) {
               if (index === 9) {
                 // When big icon is at the bottom (swapUpDown is false), move it 125px to the left (110px + 15px)
                 adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) - 125) + 'px' };
+                // On ProjPanels, also nudge 30px to the right and move down by 95px (65px + 30px)
+                if (isProjPanelsPage) {
+                  adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + 30) + 'px', top: (parseInt(adjustedPos.top) + 95) + 'px' };
+                }
               } else if (index >= 0 && index <= 8) {
                 // Move the 3x3 grid 7px to the left when big icon is at the bottom
                 adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) - 7) + 'px' };
+                // On ProjPanels, shift rows down with row-specific adjustments
+                if (isProjPanelsPage) {
+                  const row = Math.floor(index / 3); // 0=row1, 1=row2, 2=row3
+                  let rowDownAdjust = 45; // Base 45px down
+                  if (row === 0) rowDownAdjust += 5;   // row 1: +5px more (total 50px down)
+                  else if (row === 2) rowDownAdjust -= 8; // row 3: -8px (total 37px down)
+                  adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) + rowDownAdjust) + 'px' };
+                  
+                  // Column-specific horizontal adjustments
+                  const col = index % 3; // 0=col1, 1=col2, 2=col3
+                  let colDeltaX = 0; // positive = move right, negative = move left
+                  if (col === 0) colDeltaX = 5.5;  // column 1: 5.5px right (3.5px + 2px)
+                  else if (col === 2) colDeltaX = -8; // column 3: 8px left (5px + 3px)
+                  if (colDeltaX !== 0) {
+                    const currentLeft = parseFloat(adjustedPos.left.replace('px',''));
+                    adjustedPos = { ...adjustedPos, left: (currentLeft + colDeltaX) + 'px' };
+                  }
+                }
               }
             }
             
@@ -1224,6 +1497,46 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 adjustedPos = { ...adjustedPos, left: (currentLeft + columnOffset) + 'px' };
               }
             }
+
+            // X2V: Adjust grid columns on ProjPanels page (positions 0-8)
+            if (isX2V && isProjPanelsPage && adjustedPos && adjustedPos.left && index >= 0 && index <= 8) {
+              const col = index % 3; // 0=col1, 1=col2, 2=col3
+              let columnOffset = 0;
+              if (col === 0) {
+                // Column 1: move 5px left
+                columnOffset = -5;
+              } else if (col === 1) {
+                // Column 2: move 17px left (3px to the right from -20px)
+                columnOffset = -17;
+              } else if (col === 2) {
+                // Column 3: move 30px left (additional 20px)
+                columnOffset = -30;
+              }
+              if (columnOffset !== 0) {
+                const currentLeft = parseFloat(adjustedPos.left.replace('px', ''));
+                adjustedPos = { ...adjustedPos, left: (currentLeft + columnOffset) + 'px' };
+              }
+            }
+
+            // X2V: Adjust grid rows on ProjPanels page (positions 0-8)
+            if (isX2V && isProjPanelsPage && adjustedPos && adjustedPos.top && index >= 0 && index <= 8) {
+              const row = Math.floor(index / 3); // 0=row1, 1=row2, 2=row3
+              let rowOffset = 0;
+              if (row === 0) {
+                // Row 1: move 53px down (previous 50px + 3px)
+                rowOffset = 53;
+              } else if (row === 1) {
+                // Row 2: move 47px down (previous 50px - 3px)
+                rowOffset = 47;
+              } else if (row === 2) {
+                // Row 3: move 29px down (32px - additional 3px)
+                rowOffset = 29;
+              }
+              if (rowOffset !== 0) {
+                const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
+                adjustedPos = { ...adjustedPos, top: (currentTop + rowOffset) + 'px' };
+              }
+            }
             
             // DPV: Adjust rows (top and bottom panels) on ProjPanels page
             if (isDPV && isProjPanelsPage && adjustedPos && adjustedPos.top) {
@@ -1264,11 +1577,43 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               }
             }
             
+            // X2H: apply big icon positioning logic based on swap state
+            if (isX2H && (index === 9 || index === 10)) {
+              const swapUpDown = (panelDesign as any).swapUpDown || false;
+              if (swapUpDown) {
+                // When swap is true, big icons are on the left side (matching customizer logic)
+                // For ProjPanels: move big icons 85px to the right (60px + 25px) from their base positions
+                if (index === 9) {
+                  // First big icon: base position 36px, then add 85px for ProjPanels = 121px
+                  adjustedPos = { ...adjustedPos, left: '121px' };
+                } else if (index === 10) {
+                  // Second big icon: base position 300px, then add 85px for ProjPanels = 385px
+                  adjustedPos = { ...adjustedPos, left: '385px' };
+                }
+                // Move big icons 30px to the bottom (add to top value)
+                if (adjustedPos.top) {
+                  const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
+                  adjustedPos = { ...adjustedPos, top: (currentTop + 30) + 'px' };
+                }
+              } else {
+                // When swap is false, big icons are on the right side
+                // Move both big icons 60px to the right (65px - 5px) and 32px down (40px - 8px)
+              adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) + 60) + 'px' };
+              if (adjustedPos.top) {
+                adjustedPos = { ...adjustedPos, top: (parseInt(adjustedPos.top) + 32) + 'px' };
+                }
+              }
+            }
+            
             // X2V: apply big icon positioning logic to match customizer
             if (isX2V && (index === 9 || index === 10)) {
               const swapUpDown = (panelDesign as any).swapUpDown || false;
-              // Move both big icons to the left by 40px in all states
-              adjustedPos = { ...adjustedPos, left: (parseInt(adjustedPos.left) - 40) + 'px' };
+              // Move big icons left; when grid is on top (swapUpDown=false) on ProjPanels, use 100px, otherwise 60px
+              {
+                const baseLeft = parseInt(adjustedPos.left as string);
+                const shiftLeft = (isProjPanelsPage && !swapUpDown) ? 100 : 60;
+                adjustedPos = { ...adjustedPos, left: (baseLeft - shiftLeft) + 'px' };
+              }
               
               // Apply vertical positioning adjustments
               if (!swapUpDown) {
@@ -1288,6 +1633,20 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 } else if (index === 10) {
                   // Move the first big icon to the top half, positioned more centrally
                   adjustedPos = { ...adjustedPos, top: '55px' };
+                }
+              }
+
+              // On ProjPanels page: push big icons further down as requested
+              if (isProjPanelsPage) {
+                const currentTop = parseInt(adjustedPos.top as string);
+                if (!isNaN(currentTop)) {
+                  if (index === 9) {
+                    // Middle big icon: +60px down
+                    adjustedPos = { ...adjustedPos, top: (currentTop + 60) + 'px' };
+                  } else if (index === 10) {
+                    // Bottom big icon: +40px down
+                    adjustedPos = { ...adjustedPos, top: (currentTop + 40) + 'px' };
+                  }
                 }
               }
             }
@@ -1353,12 +1712,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     // Different panel types use different positions for big icons
     let bigIconPosition = 9; // Default for most panels
     
-    if (isX1H || isX1V) {
-      bigIconPosition = 100; // X1 panels use position 100
-    } else if (isX2H || isX2V) {
-      bigIconPosition = 9; // X2 panels use position 9
-    }
-    
+    // All panels use position 9 for big icons
     const bigIcon = icons.find(icon => icon.position === bigIconPosition);
     
     // Debug: Only log for X1H to avoid spam
@@ -1383,13 +1737,40 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
 
   // Helper function to render big icon container
   const getBigIconContainer = (isReversed = false) => {
-    if (!bigIconLayout) return null;
+    if (isX1H) {
+      console.log('🔍 getBigIconContainer ENTRY for X1H:', { isProjPanelsPage, hasBigIconLayout: !!bigIconLayout, bigIconLayoutSize: bigIconLayout?.size, isReversed });
+    }
+    
+    if (!bigIconLayout) {
+      if (isX1H) {
+        console.log('🔍 getBigIconContainer RETURNING NULL for X1H - no bigIconLayout');
+      }
+      return null;
+    }
+
+    if (isX1H) {
+      console.log('🔍 getBigIconContainer CONTINUING for X1H:', { isProjPanelsPage, bigIconLayoutSize: bigIconLayout?.size });
+    }
 
     const bigIconSrc = getBigIconSrc();
     const bigIcon2Src = getBigIcon2Src();
     const isX2Panel = isX2H || isX2V;
 
-
+    // Calculate big icon size - fixed 150px for X1H, 140px for X2H everywhere
+    const getBigIconSize = () => {
+      if (isX1H) {
+        return '150px';
+      }
+      if (isX2H) {
+        return '140px';
+      }
+      return bigIconLayout?.size || '120px';
+    };
+    const bigIconSize = getBigIconSize();
+    
+    if (isX1H) {
+      console.log('🔍 getBigIconContainer - final bigIconSize:', bigIconSize, 'for rendering');
+    }
 
         return (
       <div
@@ -1411,10 +1792,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 src={bigIconSrc}
               alt="Big Icon"
                 style={{ 
-                width: bigIconLayout.size,
-                height: bigIconLayout.size,
+                width: bigIconSize,
+                height: bigIconSize,
                   objectFit: 'contain', 
-                filter: getBigIconSrc() && icons.find(icon => icon.position === ((isX1H || isX1V) ? 100 : 9))?.category !== 'Sockets' ? computedIconFilter : undefined,
+                filter: getBigIconSrc() && icons.find(icon => icon.position === 9)?.category !== 'Sockets' ? computedIconFilter : undefined,
                   transition: 'filter 0.2s',
                 }}
             />
@@ -1426,8 +1807,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               src={bigIcon2Src}
               alt="Big Icon 2"
                 style={{ 
-                width: bigIconLayout.size,
-                height: bigIconLayout.size,
+                width: bigIconSize,
+                height: bigIconSize,
                   objectFit: 'contain', 
                 filter: getBigIcon2Src() && icons.find(icon => icon.position === 10)?.category !== 'Sockets' ? computedIconFilter : undefined,
                   transition: 'filter 0.2s',
@@ -2159,14 +2540,37 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       );
     } else {
       console.log('🔍 Using standard rendering path for ProjPanels');
+      if (isX1H) {
+        console.log('🔍 X1H in standard path - checking for big icon:', { 
+          hasIcons: icons.length > 0, 
+          bigIconAt9: icons.find(icon => icon.position === 9),
+          hasBigIconLayout: !!bigIconLayout 
+        });
+      }
       console.log('🔍 calculatedGridOffsetX:', calculatedGridOffsetX, 'calculatedGridOffsetY:', calculatedGridOffsetY);
+      // Calculate width and height adjustments for ProjPanels page
+      let finalWidthStandard = dimensions.width;
+      if (isX2V && isProjPanelsPage) {
+        const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+        finalWidthStandard = `${currentWidth - 15}px`;
+      }
+      
+      let finalHeightStandard = dimensions.height;
+      if (isX1V && isProjPanelsPage) {
+        const h = typeof dimensions.height === 'string' ? parseInt((dimensions.height as string).replace('px','')) : (dimensions.height as number);
+        finalHeightStandard = `${h + 100}px`;
+      } else if (isX2V && isProjPanelsPage) {
+        const h = typeof dimensions.height === 'string' ? parseInt((dimensions.height as string).replace('px','')) : (dimensions.height as number);
+        finalHeightStandard = `${h + 75}px`;
+      }
+      
       // Use customizer-style rendering for standard mode (ProjPanels) to match customizer appearance
       return (
         <div
           style={{
             position: 'relative',
-            width: dimensions.width,
-            height: dimensions.height,
+            width: finalWidthStandard,
+            height: finalHeightStandard,
             background: `linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%), ${hexToRgba(panelDesign.backgroundColor, 0.9)}`,
             padding: '0',
             border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -2366,6 +2770,118 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 </div>
               );
             })}
+            
+            {/* Render big icon for X1H/X1V panels in standard rendering path */}
+            {(isX1H || isX1V) && (() => {
+              if (isX1H) {
+                console.log('🔍 X1H big icon rendering check:', { 
+                  isX1H, 
+                  isX1V, 
+                  hasIcons: icons.length > 0,
+                  allIconPositions: icons.map(i => i.position)
+                });
+              }
+              const bigIcon = icons.find(icon => icon.position === 9);
+              if (isX1H) {
+                console.log('🔍 X1H big icon found:', { bigIcon, hasSrc: !!bigIcon?.src });
+              }
+              if (!bigIcon || !bigIcon.src) {
+                if (isX1H) {
+                  console.log('🔍 X1H big icon NOT rendering - no icon or src');
+                }
+                return null;
+              }
+              
+              // Calculate big icon size - fixed 150px for X1H/X1V, 140px for X2H everywhere
+              let bigIconSize = bigIconLayout?.size || '120px';
+              if (isX1H || isX1V) {
+                bigIconSize = '150px';
+              } else if (isX2H) {
+                bigIconSize = '140px';
+              }
+              
+              // Get position from bigIconLayout or use default
+              const bigIconPos = bigIconLayout?.position === 'right' 
+                ? { right: '0', top: '50%', transform: 'translateY(-50%)' }
+                : bigIconLayout?.position === 'left'
+                ? { left: '0', top: '50%', transform: 'translateY(-50%)' }
+                : bigIconLayout?.position === 'top'
+                ? { top: '0', left: '50%', transform: 'translateX(-50%)' }
+                : bigIconLayout?.position === 'bottom'
+                ? { bottom: '0', left: '50%', transform: 'translateX(-50%)' }
+                : { right: '0', top: '50%', transform: 'translateY(-50%)' };
+              
+              // For X1V on ProjPanels, nudge big icon 20px to the right for top/bottom aligned variants
+              const finalBigIconPos = (isX1V && isProjPanelsPage)
+                ? (bigIconLayout?.position === 'bottom' || bigIconLayout?.position === 'top'
+                    ? { ...(bigIconPos as any), left: 'calc(50% + 30px)' }
+                    : bigIconPos)
+                : bigIconPos;
+
+              // Fine-tune for X1V on ProjPanels: adjust based on swapUpDown state
+              const finalBigIconPosWithSwap = (isX1V && isProjPanelsPage)
+                ? (() => {
+                    const pos: any = { ...finalBigIconPos };
+                    const swapUpDown = (panelDesign as any).swapUpDown;
+                    
+                    if (swapUpDown) {
+                      // Grid at bottom (swapUpDown = true): +5px right and -5px up
+                      if (pos.left && typeof pos.left === 'string' && pos.left.includes('calc(50% +')) {
+                        pos.left = 'calc(50% + 38px)';
+                      }
+                      // Move 5px toward top depending on anchor
+                      if (pos.bottom !== undefined) {
+                        pos.bottom = '5px';
+                      } else if (pos.top !== undefined) {
+                        // move 5px up from top 0
+                        const currentTop = typeof pos.top === 'string' && pos.top.endsWith('px') ? parseInt(pos.top) : 0;
+                        pos.top = (currentTop - 5) + 'px';
+                      }
+                    } else {
+                      // Grid at top (swapUpDown = false): move big icon down by 95px (65px + 30px)
+                      if (pos.bottom !== undefined) {
+                        // Convert bottom to top for easier adjustment
+                        const currentBottom = typeof pos.bottom === 'string' && pos.bottom.endsWith('px') ? parseInt(pos.bottom) : 0;
+                        pos.top = `calc(100% - ${currentBottom + 95}px)`;
+                        delete pos.bottom;
+                        delete pos.transform;
+                      } else if (pos.top !== undefined) {
+                        const currentTop = typeof pos.top === 'string' && pos.top.endsWith('px') ? parseInt(pos.top) : 0;
+                        pos.top = (currentTop + 95) + 'px';
+                      }
+                    }
+                    return pos;
+                  })()
+                : finalBigIconPos;
+              
+              return (
+                <div
+                  key="big-icon"
+                  style={{
+                    position: 'absolute',
+                    ...finalBigIconPosWithSwap,
+                    zIndex: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: bigIconLayout?.width || '50%',
+                    height: bigIconLayout?.height || '100%',
+                  }}
+                >
+                  <img
+                    src={bigIcon.src}
+                    alt={bigIcon.label}
+                    style={{
+                      width: bigIconSize,
+                      height: bigIconSize,
+                      objectFit: 'contain',
+                      filter: bigIcon.category !== 'Sockets' ? computedIconFilter : undefined,
+                      transition: 'filter 0.2s',
+                    }}
+                  />
+                </div>
+              );
+            })()}
           </div>
         </div>
       );
@@ -3012,14 +3528,39 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
 
   if (isDoublePanel || isExtendedPanel) {
     // Double and Extended Panels - Grid + Big Icon layout
+    if (isX1H) {
+      console.log('🔍 X1H using extended panel path:', { isDoublePanel, isExtendedPanel, hasBigIconLayout: !!bigIconLayout });
+    }
     const isReversed = panelDesign.isLayoutReversed;
+    
+    // Calculate width for X2H on ProjPanels page (increase by 100px)
+    let finalWidthExtended = dimensions.width;
+    if (isX2H && isProjPanelsPage) {
+      const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+      finalWidthExtended = `${currentWidth + 100}px`;
+    }
+    // Calculate width for X2V on ProjPanels page (reduce by 15px)
+    if (isX2V && isProjPanelsPage) {
+      const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+      finalWidthExtended = `${currentWidth - 15}px`;
+    }
+    
+    // Calculate height adjustments for ProjPanels page
+    let finalHeightExtended = dimensions.height;
+    if (isX1V && isProjPanelsPage) {
+      const h = typeof dimensions.height === 'string' ? parseInt((dimensions.height as string).replace('px','')) : (dimensions.height as number);
+      finalHeightExtended = `${h + 100}px`;
+    } else if (isX2V && isProjPanelsPage) {
+      const h = typeof dimensions.height === 'string' ? parseInt((dimensions.height as string).replace('px','')) : (dimensions.height as number);
+      finalHeightExtended = `${h + 75}px`;
+    }
     
             return (
       <div
         style={{
           ...basePanelStyle,
-          width: dimensions.width,
-          height: dimensions.height,
+          width: finalWidthExtended,
+          height: finalHeightExtended,
             display: 'flex',
           flexDirection: isVerticalPanel ? 'column' : 'row',
                   alignItems: 'center',
@@ -3095,12 +3636,24 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   }
 
   // Default fallback for unknown panel types
+    // Calculate width for X2H on ProjPanels page (increase by 100px)
+    let finalWidthDefault = dimensions.width;
+    if (isX2H && isProjPanelsPage) {
+      const currentWidth = typeof dimensions.width === 'string' ? parseInt(dimensions.width.replace('px', '')) : dimensions.width;
+      finalWidthDefault = `${currentWidth + 100}px`;
+    }
+    
             return (
               <div
                 style={{
         ...basePanelStyle,
-        width: dimensions.width,
-        height: dimensions.height,
+        width: finalWidthDefault,
+        height: (isX1V && isProjPanelsPage)
+          ? (() => {
+              const h = typeof dimensions.height === 'string' ? parseInt((dimensions.height as string).replace('px','')) : (dimensions.height as number);
+              return `${h + 100}px`;
+            })()
+          : dimensions.height,
                   display: 'flex',
                   alignItems: 'center',
         justifyContent: 'center',

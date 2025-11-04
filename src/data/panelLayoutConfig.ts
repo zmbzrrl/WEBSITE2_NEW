@@ -492,16 +492,16 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       height: '640px'
     },
     iconPositions: [
-      // Top SP (first 9 slots) - matching SP standard positions exactly
-      { top: '45px', left: '47px' },   // 0 - matches SP position 0
-      { top: '45px', left: '136px' },  // 1 - matches SP position 1  
-      { top: '45px', left: '226px' },  // 2 - matches SP position 2
-      { top: '133px', left: '47px' },  // 3 - matches SP position 3
-      { top: '133px', left: '136px' }, // 4 - matches SP position 4
-      { top: '133px', left: '226px' }, // 5 - matches SP position 5
-      { top: '225px', left: '47px' },  // 6 - matches SP position 6
-      { top: '225px', left: '136px' }, // 7 - matches SP position 7
-      { top: '225px', left: '226px' }, // 8 - matches SP position 8
+      // Top SP (first 9 slots) - adjusted to match X1H row spacing
+      { top: '53px', left: '47px' },   // 0 - row 1
+      { top: '53px', left: '136px' },  // 1 - row 1  
+      { top: '53px', left: '226px' },  // 2 - row 1
+      { top: '141px', left: '47px' },  // 3 - row 2
+      { top: '141px', left: '136px' }, // 4 - row 2
+      { top: '141px', left: '226px' }, // 5 - row 2
+      { top: '233px', left: '47px' },  // 6 - row 3
+      { top: '233px', left: '136px' }, // 7 - row 3
+      { top: '233px', left: '226px' }, // 8 - row 3
       // Bottom SP (single slot, centered)
       { top: '328px', left: '160px' }, // 9 (centered horizontally: 320/2)
     ],
@@ -517,7 +517,7 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       padding: '-1px'
     },
     bigIconLayout: {
-      size: '120px',
+      size: '150px',
       position: 'bottom',
       width: '100%',
       height: '50%'
