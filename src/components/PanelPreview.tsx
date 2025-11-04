@@ -658,6 +658,11 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
         const h = parseInt(dimensions.height.replace('px', ''), 10);
         dimensions.height = `${h + 3}px`;
       }
+      // For SP wide on ProjPanels page, reduce width by 8px
+      if (dimension === 'wide' && isProjPanelsPage && typeof dimensions.width === 'string') {
+        const w = parseInt(dimensions.width.replace('px', ''), 10);
+        dimensions.width = `${w - 8}px`;
+      }
       // For SP tall on ProjPanels page, reduce width by 20px
       if (dimension === 'tall' && isProjPanelsPage && typeof dimensions.width === 'string') {
         const w = parseInt(dimensions.width.replace('px', ''), 10);
@@ -975,17 +980,25 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
         {/* Proximity indicators overlay */}
         {(panelDesign.features?.Proximity || panelDesign.Proximity) && (() => {
           const positioning = getProximityPositioning(type, dimensions);
-          // For SP tall on ProjPanels page, move proximity circles up by 63px (increase bottom value: 50px + 13px)
-          const adjustedBottom = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-            ? (parseInt(positioning.bottom.replace('px', '')) + 63) + 'px'
-            : positioning.bottom;
-          // For SP tall on ProjPanels page, move proximity circles to the right by 2px (decrease right value)
-          const adjustedRight1 = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-            ? (parseInt(positioning.right1.replace('px', '')) - 2) + 'px'
-            : positioning.right1;
-          const adjustedRight2 = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-            ? (parseInt(positioning.right2.replace('px', '')) - 2) + 'px'
-            : positioning.right2;
+          // Base values
+          let bottomPx = parseInt(positioning.bottom.replace('px', ''));
+          let right1Px = parseInt(positioning.right1.replace('px', ''));
+          let right2Px = parseInt(positioning.right2.replace('px', ''));
+          // SP tall adjustments (ProjPanels): up 63px, right by 2px
+          if (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) {
+            bottomPx += 63;
+            right1Px -= 2;
+            right2Px -= 2;
+          }
+          // SP wide adjustments (ProjPanels): net 0px vertical, left by 57px
+          if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage) {
+            // bottom unchanged overall after latest request
+            right1Px += 57;
+            right2Px += 57;
+          }
+          const adjustedBottom = `${bottomPx}px`;
+          const adjustedRight1 = `${right1Px}px`;
+          const adjustedRight2 = `${right2Px}px`;
           return (
             <>
               <div
@@ -1456,6 +1469,36 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 const currentLeft = parseInt((adjustedPos as any).left || '0', 10);
                 adjustedPos = { ...adjustedPos, left: (currentLeft - 15) + 'px' } as any;
               }
+              // For SP wide on ProjPanels page, move first column (indices 0, 3, 6) 8px to the left
+              if (dimension === 'wide' && isProjPanelsPage && (index === 0 || index === 3 || index === 6)) {
+                const currentLeft = parseInt((adjustedPos as any).left || '0', 10);
+                adjustedPos = { ...adjustedPos, left: (currentLeft - 8) + 'px' } as any;
+              }
+              // For SP wide on ProjPanels page, move second column (indices 1, 4, 7) 13px to the left
+              if (dimension === 'wide' && isProjPanelsPage && (index === 1 || index === 4 || index === 7)) {
+                const currentLeft = parseInt((adjustedPos as any).left || '0', 10);
+                adjustedPos = { ...adjustedPos, left: (currentLeft - 13) + 'px' } as any;
+              }
+              // For SP wide on ProjPanels page, move third column (indices 2, 5, 8) 20px to the left
+              if (dimension === 'wide' && isProjPanelsPage && (index === 2 || index === 5 || index === 8)) {
+                const currentLeft = parseInt((adjustedPos as any).left || '0', 10);
+                adjustedPos = { ...adjustedPos, left: (currentLeft - 20) + 'px' } as any;
+              }
+              // For SP wide on ProjPanels page, bring first row (indices 0, 1, 2) up by 5px
+              if (dimension === 'wide' && isProjPanelsPage && (index === 0 || index === 1 || index === 2)) {
+                const currentTop = parseInt((adjustedPos as any).top || '0', 10);
+                adjustedPos = { ...adjustedPos, top: (currentTop - 5) + 'px' } as any;
+              }
+              // For SP wide on ProjPanels page, bring second row (indices 3, 4, 5) up by 10px
+              if (dimension === 'wide' && isProjPanelsPage && (index === 3 || index === 4 || index === 5)) {
+                const currentTop = parseInt((adjustedPos as any).top || '0', 10);
+                adjustedPos = { ...adjustedPos, top: (currentTop - 10) + 'px' } as any;
+              }
+              // For SP wide on ProjPanels page, bring third row (indices 6, 7, 8) up by 5px
+              if (dimension === 'wide' && isProjPanelsPage && (index === 6 || index === 7 || index === 8)) {
+                const currentTop = parseInt((adjustedPos as any).top || '0', 10);
+                adjustedPos = { ...adjustedPos, top: (currentTop - 15) + 'px' } as any;
+              }
               // For SP tall on ProjPanels page, lower first row (indices 0, 1, 2) by 5.5px (3.5px + 2px)
               if (dimension === 'tall' && isProjPanelsPage && (index === 0 || index === 1 || index === 2)) {
                 const currentTop = parseInt((adjustedPos as any).top || '0', 10);
@@ -1518,19 +1561,28 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               }
             }
 
+            // X2V: If grid is on bottom (swapUpDown === true), drop entire grid (indices 0-8) by 550px on ProjPanels
+            if (isX2V && isProjPanelsPage && index >= 0 && index <= 8) {
+              const swapUpDown = (panelDesign as any).swapUpDown || false;
+              if (swapUpDown && adjustedPos && adjustedPos.top) {
+                const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
+                adjustedPos = { ...adjustedPos, top: (currentTop + 550) + 'px' };
+              }
+            }
+
             // X2V: Adjust grid rows on ProjPanels page (positions 0-8)
             if (isX2V && isProjPanelsPage && adjustedPos && adjustedPos.top && index >= 0 && index <= 8) {
               const row = Math.floor(index / 3); // 0=row1, 1=row2, 2=row3
               let rowOffset = 0;
               if (row === 0) {
-                // Row 1: move 53px down (previous 50px + 3px)
-                rowOffset = 53;
+                // Row 1: move 56px down (+3px)
+                rowOffset = 56;
               } else if (row === 1) {
-                // Row 2: move 47px down (previous 50px - 3px)
-                rowOffset = 47;
+                // Row 2: move 48px down (2px up from 50)
+                rowOffset = 48;
               } else if (row === 2) {
-                // Row 3: move 29px down (32px - additional 3px)
-                rowOffset = 29;
+                // Row 3: move 34px down (2px up from 36)
+                rowOffset = 34;
               }
               if (rowOffset !== 0) {
                 const currentTop = parseFloat(adjustedPos.top.replace('px', ''));
@@ -1608,10 +1660,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             // X2V: apply big icon positioning logic to match customizer
             if (isX2V && (index === 9 || index === 10)) {
               const swapUpDown = (panelDesign as any).swapUpDown || false;
-              // Move big icons left; when grid is on top (swapUpDown=false) on ProjPanels, use 100px, otherwise 60px
+              // Move big icons left; when grid is on top (swapUpDown=false) on ProjPanels, use 140px, otherwise 100px
               {
                 const baseLeft = parseInt(adjustedPos.left as string);
-                const shiftLeft = (isProjPanelsPage && !swapUpDown) ? 100 : 60;
+                const shiftLeft = (isProjPanelsPage && !swapUpDown) ? 140 : 100;
                 adjustedPos = { ...adjustedPos, left: (baseLeft - shiftLeft) + 'px' };
               }
               
@@ -1636,16 +1688,16 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 }
               }
 
-              // On ProjPanels page: push big icons further down as requested
+              // On ProjPanels page: push big icons vertically (middle stays +30, top now +65)
               if (isProjPanelsPage) {
                 const currentTop = parseInt(adjustedPos.top as string);
                 if (!isNaN(currentTop)) {
                   if (index === 9) {
-                    // Middle big icon: +60px down
-                    adjustedPos = { ...adjustedPos, top: (currentTop + 60) + 'px' };
+                    // Middle big icon: +30px down
+                    adjustedPos = { ...adjustedPos, top: (currentTop + 30) + 'px' };
                   } else if (index === 10) {
-                    // Bottom big icon: +40px down
-                    adjustedPos = { ...adjustedPos, top: (currentTop + 40) + 'px' };
+                    // Top/bottom big icon: +65px down
+                    adjustedPos = { ...adjustedPos, top: (currentTop + 65) + 'px' };
                   }
                 }
               }
@@ -2683,6 +2735,18 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && isProjPanelsPage && rowIndex === 1) {
                   adjustedTopPx += 70;
                 }
+                // Bring first row up by 5px for SP wide on ProjPanels page
+                if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage && rowIndex === 0) {
+                  adjustedTopPx -= 5;
+                }
+                // Bring second row up by 10px for SP wide on ProjPanels page
+                if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage && rowIndex === 1) {
+                  adjustedTopPx -= 10;
+                }
+                // Bring third row up by 5px for SP wide on ProjPanels page
+                if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage && rowIndex === 2) {
+                  adjustedTopPx -= 5;
+                }
                 const adjustedTop = `${adjustedTopPx}px`;
                 
                 // Move TAG wide first row 5px to the left
@@ -2714,6 +2778,18 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 }
                 // Move TAG tall position 5 20px to the left
                 if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && index === 5) {
+                  adjustedLeft -= 20;
+                }
+                // Move first column 8px to the left for SP wide on ProjPanels page
+                if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage && (index === 0 || index === 3 || index === 6)) {
+                  adjustedLeft -= 8;
+                }
+                // Move second column 13px to the left for SP wide on ProjPanels page
+                if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage && (index === 1 || index === 4 || index === 7)) {
+                  adjustedLeft -= 13;
+                }
+                // Move third column 20px to the left for SP wide on ProjPanels page
+                if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage && (index === 2 || index === 5 || index === 8)) {
                   adjustedLeft -= 20;
                 }
                 
@@ -3587,17 +3663,25 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
         {/*replace_all Proximity indicators overlay */}
         {(panelDesign.features?.Proximity || panelDesign.Proximity) && (() => {
           const positioning = getProximityPositioning(type, dimensions);
-          // For SP tall on ProjPanels page, move proximity circles up by 63px (increase bottom value: 50px + 13px)
-          const adjustedBottom = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-            ? (parseInt(positioning.bottom.replace('px', '')) + 63) + 'px'
-            : positioning.bottom;
-          // For SP tall on ProjPanels page, move proximity circles to the right by 2px (decrease right value)
-          const adjustedRight1 = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-            ? (parseInt(positioning.right1.replace('px', '')) - 2) + 'px'
-            : positioning.right1;
-          const adjustedRight2 = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-            ? (parseInt(positioning.right2.replace('px', '')) - 2) + 'px'
-            : positioning.right2;
+          // Base values
+          let bottomPx = parseInt(positioning.bottom.replace('px', ''));
+          let right1Px = parseInt(positioning.right1.replace('px', ''));
+          let right2Px = parseInt(positioning.right2.replace('px', ''));
+          // SP tall adjustments (ProjPanels): up 63px, right by 2px
+          if (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) {
+            bottomPx += 63;
+            right1Px -= 2;
+            right2Px -= 2;
+          }
+          // SP wide adjustments (ProjPanels): net 0px vertical, left by 57px
+          if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage) {
+            // bottom unchanged overall after latest request
+            right1Px += 57;
+            right2Px += 57;
+          }
+          const adjustedBottom = `${bottomPx}px`;
+          const adjustedRight1 = `${right1Px}px`;
+          const adjustedRight2 = `${right2Px}px`;
           return (
             <>
               <div
@@ -3665,17 +3749,25 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       {/* Proximity indicators overlay */}
       {(panelDesign.features?.Proximity || panelDesign.Proximity) && (() => {
         const positioning = getProximityPositioning(type, dimensions);
-        // For SP tall on ProjPanels page, move proximity circles up by 63px (increase bottom value: 50px + 13px)
-        const adjustedBottom = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-          ? (parseInt(positioning.bottom.replace('px', '')) + 63) + 'px'
-          : positioning.bottom;
-        // For SP tall on ProjPanels page, move proximity circles to the right by 2px (decrease right value)
-        const adjustedRight1 = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-          ? (parseInt(positioning.right1.replace('px', '')) - 2) + 'px'
-          : positioning.right1;
-        const adjustedRight2 = (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) 
-          ? (parseInt(positioning.right2.replace('px', '')) - 2) + 'px'
-          : positioning.right2;
+        // Base values
+        let bottomPx = parseInt(positioning.bottom.replace('px', ''));
+        let right1Px = parseInt(positioning.right1.replace('px', ''));
+        let right2Px = parseInt(positioning.right2.replace('px', ''));
+        // SP tall adjustments (ProjPanels): up 63px, right by 2px
+        if (isSP && panelDesign.spConfig?.dimension === 'tall' && isProjPanelsPage) {
+          bottomPx += 63;
+          right1Px -= 2;
+          right2Px -= 2;
+        }
+        // SP wide adjustments (ProjPanels): net 0px vertical, left by 57px
+        if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage) {
+          // bottom unchanged overall after latest request
+          right1Px += 57;
+          right2Px += 57;
+        }
+        const adjustedBottom = `${bottomPx}px`;
+        const adjustedRight1 = `${right1Px}px`;
+        const adjustedRight2 = `${right2Px}px`;
         return (
           <>
             <div
@@ -3696,7 +3788,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               style={{
                 position: 'absolute',
                 bottom: adjustedBottom,
-                right: positioning.right2,
+                right: adjustedRight2,
                 width: positioning.size2,
                 height: positioning.size2,
                 borderRadius: '50%',
