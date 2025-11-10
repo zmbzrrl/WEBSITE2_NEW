@@ -228,7 +228,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
   onIconHover
 }) => {
   const location = useLocation();
-  const isProjPanelsPage = location.pathname === '/proj-panels' || location.pathname.startsWith('/proj-panels');
+  const isProjPanelsPage = location.pathname === '/proj-panels' || location.pathname.startsWith('/proj-panels') || location.pathname === '/print-preview' || location.pathname.startsWith('/print-preview');
+  const isPrintPreviewPage = location.pathname === '/print-preview' || location.pathname.startsWith('/print-preview');
   if (type === 'X1H') {
     console.log('🔍 PanelPreview X1H - pathname:', location.pathname, 'isProjPanelsPage:', isProjPanelsPage, 'type:', type);
   }
@@ -831,8 +832,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       return '204px'; // Match X2HCustomizer step 4 preview
     }
     
-    // Special handling for TAG panel - use special sizes for DISPLAY and FAN icons
-    if (isTAG) {
+    // Special handling for TAG panel and X1H with TAG layout - use special sizes for DISPLAY and FAN icons
+    if (isTAG || (isX1H && panelDesign.useTagLayout && icon?.iconId === 'DISPLAY')) {
       if (icon?.iconId === 'DISPLAY') {
         return '237px'; // Large display icon - made 3% bigger
       }
@@ -951,7 +952,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           transition: 'all 0.3s ease',
-          margin: '0 auto',
+          margin: isPrintPreviewPage ? '0' : '0 auto',
           fontFamily: panelDesign.fonts || undefined,
         }}
       >
@@ -1660,10 +1661,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             // X2V: apply big icon positioning logic to match customizer
             if (isX2V && (index === 9 || index === 10)) {
               const swapUpDown = (panelDesign as any).swapUpDown || false;
-              // Move big icons left; when grid is on top (swapUpDown=false) on ProjPanels, use 140px, otherwise 100px
+              // Move big icons left; when grid is on top (swapUpDown=false) on ProjPanels, use 100px (140px - 40px to move right), otherwise 100px
               {
                 const baseLeft = parseInt(adjustedPos.left as string);
-                const shiftLeft = (isProjPanelsPage && !swapUpDown) ? 140 : 100;
+                const shiftLeft = (isProjPanelsPage && !swapUpDown) ? 100 : 100;
                 adjustedPos = { ...adjustedPos, left: (baseLeft - shiftLeft) + 'px' };
               }
               
@@ -1688,16 +1689,29 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 }
               }
 
-              // On ProjPanels page: push big icons vertically (middle stays +30, top now +65)
+              // On ProjPanels page: push big icons vertically
+              // When grid is on top (swapUpDown=false): center icon down by 30px more (+60 total), bottom icon up by 30px (+35 total)
               if (isProjPanelsPage) {
                 const currentTop = parseInt(adjustedPos.top as string);
                 if (!isNaN(currentTop)) {
-                  if (index === 9) {
-                    // Middle big icon: +30px down
-                    adjustedPos = { ...adjustedPos, top: (currentTop + 30) + 'px' };
-                  } else if (index === 10) {
-                    // Top/bottom big icon: +65px down
-                    adjustedPos = { ...adjustedPos, top: (currentTop + 65) + 'px' };
+                  if (!swapUpDown) {
+                    // Grid on top: center icon down 30px more, bottom icon up 30px
+                    if (index === 9) {
+                      // Center big icon: +60px down (30px more than before)
+                      adjustedPos = { ...adjustedPos, top: (currentTop + 60) + 'px' };
+                    } else if (index === 10) {
+                      // Bottom big icon: +35px down (30px less than before, effectively up 30px)
+                      adjustedPos = { ...adjustedPos, top: (currentTop + 35) + 'px' };
+                    }
+                  } else {
+                    // Grid on bottom: original logic
+                    if (index === 9) {
+                      // Middle big icon: +30px down
+                      adjustedPos = { ...adjustedPos, top: (currentTop + 30) + 'px' };
+                    } else if (index === 10) {
+                      // Top/bottom big icon: +65px down
+                      adjustedPos = { ...adjustedPos, top: (currentTop + 65) + 'px' };
+                    }
                   }
                 }
               }
@@ -2445,10 +2459,13 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       >
         {Array.from({ length: getGridCellCount() }).map((_, index) => {
           const icon = icons.find((i) => i.position === index);
-            const isPIR = icon?.category === 'PIR';
+          let forceIcon = null;
+          // X1H panels with TAG layout: DISPLAY icon is rendered as overlay, not in grid cells
+          // So we don't force it here
+            const isPIR = (forceIcon || icon)?.category === 'PIR';
           const text = (iconTexts && iconTexts[index]) || icon?.text;
-            const hasIcon = icon && icon.src;
-          const iconSize = getIconSize(icon);
+            const hasIcon = (icon && icon.src) || forceIcon;
+          const iconSize = getIconSize(forceIcon || icon);
             return (
               <div
               key={index}
@@ -2466,8 +2483,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 {hasIcon && (
                   <div style={{ position: 'relative', display: 'inline-block' }}>
                     <img
-                      src={icon.src}
-                      alt={icon.label}
+                      src={(forceIcon || icon)!.src}
+                      alt={(forceIcon || icon)!.label}
                       style={{
                       width: iconSize,
                       height: iconSize,
@@ -2476,7 +2493,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                         position: 'relative',
                         zIndex: 1,
                       marginTop: isPIR ? (specialLayouts?.PIR?.marginTop || '20px') : '0',
-                        filter: !isPIR && icon?.category !== 'Sockets' ? computedIconFilter : undefined,
+                        filter: !isPIR && (forceIcon || icon)?.category !== 'Sockets' ? computedIconFilter : undefined,
                         transition: 'filter 0.2s',
                       }}
                     />
@@ -3003,6 +3020,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     else if (!cardReader && roomNumber) panelHeight = "470px"; // Room Number only
     else if (cardReader && !roomNumber) panelHeight = "500px"; // Card Reader only
     else if (cardReader && roomNumber) panelHeight = "600px"; // Card Reader + Room Number
+
+    const panelWidth = typeof dimensions.width === 'string' ? dimensions.width : `${dimensions.width}px`;
 
     // Render the appropriate layout based on configuration
     const renderIDPGLayout = () => {
@@ -3543,7 +3562,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     return (
       <div
         style={{
-          width: "295px",
+          width: panelWidth,
           height: panelHeight,
           background: `linear-gradient(135deg, 
             rgba(255, 255, 255, 0.3) 0%, 
@@ -3566,7 +3585,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
           transition: "all 0.3s ease",
           position: "relative",
           transformStyle: "preserve-3d",
-          margin: "0 auto",
+          margin: isPrintPreviewPage ? '0' : '0 auto',
           fontFamily: panelDesign.fonts || undefined,
         }}
       >
@@ -3658,6 +3677,36 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
             {renderGrid()}
             {getBigIconContainer(false)}
           </>
+        )}
+        
+        {/* X1H TAG layout DISPLAY image - render as overlay when useTagLayout is enabled */}
+        {isX1H && (panelDesign.useTagLayout || (panelDesign as any).useTagLayout) && (() => {
+          const hasIconsInTopRow = icons.some(icon => icon.position >= 0 && icon.position <= 2);
+          if (isX1H && panelDesign.useTagLayout) {
+            console.log('🔍 X1H TAG layout DISPLAY check:', { 
+              useTagLayout: panelDesign.useTagLayout, 
+              hasIconsInTopRow,
+              icons: icons.map(i => ({ pos: i.position, id: i.iconId }))
+            });
+          }
+          return hasIconsInTopRow;
+        })() && (
+          <img
+            src={DISPLAY}
+            alt="DISPLAY"
+            style={{
+              position: 'absolute',
+              top: '90px',
+              left: '45%',
+              transform: 'translateX(-50%)',
+              width: '220px',
+              height: '50px',
+              objectFit: 'contain',
+              filter: computedIconFilter,
+              pointerEvents: 'none',
+              zIndex: 10,
+            }}
+          />
         )}
         
         {/*replace_all Proximity indicators overlay */}

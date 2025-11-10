@@ -104,6 +104,8 @@ const Layouts: React.FC = () => {
     placedPanels: PlacedPanel[];
     placedDevices: PlacedDevice[];
     panelSizes: { [key: string]: number };
+    databaseId?: string; // ID in the database (if saved)
+    imageBase64?: string; // Base64 encoded image for database storage
   }>>([{
     id: '1',
     name: 'Layout 1',
@@ -124,8 +126,10 @@ const Layouts: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string>('');
   const [saveError, setSaveError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Load layout state (removed - no longer needed for auto-persistence)
+  // Debounce timer for auto-save
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // JSON import state
   const [isImportingJson, setIsImportingJson] = useState(false);
@@ -190,6 +194,21 @@ const Layouts: React.FC = () => {
     } catch { return ''; }
   });
   
+  // Helper function: Convert File to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  // Helper function: Convert base64 to data URL (if not already)
+  const base64ToDataUrl = (base64: string): string => {
+    if (base64.startsWith('data:')) return base64;
+    return `data:image/jpeg;base64,${base64}`;
+  };
 
   // Clear save messages after 5 seconds
   useEffect(() => {
@@ -202,78 +221,228 @@ const Layouts: React.FC = () => {
     }
   }, [saveMessage, saveError]);
 
-  // Auto-save and restore layout state
+  // Load layouts from database on mount
   useEffect(() => {
-    const userEmail = localStorage.getItem('userEmail');
-    const projectKey = projectCode || sessionProjectCode || localStorage.getItem('projectCode') || 'default';
-    
-    console.log('Layouts: Attempting to restore state', { 
-      userEmail, 
-      projectCode, 
-      sessionProjectCode, 
-      projectKey,
-      localStorageProjectCode: localStorage.getItem('projectCode')
-    });
-    
-    if (userEmail && projectKey) {
-      // Try to restore saved layout state
-      const storageKey = `layout_state_${userEmail}_${projectKey}`;
-      const savedState = localStorage.getItem(storageKey);
-      console.log('Layouts: Looking for saved state with key:', storageKey, 'Found:', !!savedState);
+    const loadLayoutsFromDatabase = async () => {
+      const userEmail = localStorage.getItem('userEmail');
+      const projectKey = projectCode || sessionProjectCode || localStorage.getItem('projectCode');
       
-      if (savedState) {
-        try {
-          const parsedState = JSON.parse(savedState);
-          console.log('Layouts: Restoring state:', parsedState);
-          if (parsedState.layouts && parsedState.currentLayoutId) {
-            setLayouts(parsedState.layouts);
-            setCurrentLayoutId(parsedState.currentLayoutId);
-            setSelectedRoomType(parsedState.selectedRoomType || 'Bedroom');
-            setPanelSizes(parsedState.panelSizes || {});
-            setDeviceSizes(parsedState.deviceSizes || {});
-            console.log('Layouts: State restored successfully');
-          }
-        } catch (error) {
-          console.warn('Failed to restore layout state:', error);
-        }
-      } else {
-        console.log('Layouts: No saved state found, using default layout');
+      if (!userEmail || !projectKey) {
+        console.log('Layouts: Missing userEmail or projectKey, skipping database load');
+        setIsLoading(false);
+        return;
       }
-    } else {
-      console.log('Layouts: Missing userEmail or projectKey, using default layout');
-    }
+
+      setIsLoading(true);
+      try {
+        console.log('Layouts: Loading layouts from database for user:', userEmail, 'project:', projectKey);
+        const result = await getLayouts(userEmail, projectKey);
+        
+        if (result.success && result.layouts && result.layouts.length > 0) {
+          console.log('Layouts: Loaded', result.layouts.length, 'layouts from database');
+          
+          // Convert database layouts to local format
+          const loadedLayouts = await Promise.all(result.layouts.map(async (dbLayout: any) => {
+            const layoutData = dbLayout.layout_data || {};
+            let imageUrl = null;
+            let imageBase64 = null;
+            
+            // Handle image - if we have base64 data, convert to data URL
+            if (layoutData.imageBase64) {
+              imageBase64 = layoutData.imageBase64;
+              imageUrl = base64ToDataUrl(imageBase64);
+            } else if (layoutData.imageUrl && layoutData.imageUrl.startsWith('data:')) {
+              imageUrl = layoutData.imageUrl;
+              imageBase64 = layoutData.imageUrl;
+            }
+            
+            return {
+              id: dbLayout.id || Date.now().toString() + Math.random(),
+              databaseId: dbLayout.id,
+              name: layoutData.layout_name || layoutData.layoutName || dbLayout.layout_name || 'Untitled Layout',
+              imageUrl,
+              imageFile: null, // File objects can't be restored from database
+              imageBase64,
+              imageScale: layoutData.imageScale || 1,
+              imagePosition: layoutData.imagePosition || { x: 0, y: 0 },
+              imageFit: layoutData.imageFit || 'contain',
+              placedPanels: layoutData.placedPanels || [],
+              placedDevices: layoutData.placedDevices || [],
+              panelSizes: layoutData.panelSizes || {}
+            };
+          }));
+          
+          if (loadedLayouts.length > 0) {
+            setLayouts(loadedLayouts);
+            setCurrentLayoutId(loadedLayouts[0].id);
+            setSelectedRoomType(loadedLayouts[0].name || 'Bedroom');
+            // Restore panel and device sizes from first layout or combine from all
+            const allPanelSizes: { [key: string]: number } = {};
+            const allDeviceSizes: { [key: string]: number } = {};
+            loadedLayouts.forEach(layout => {
+              Object.assign(allPanelSizes, layout.panelSizes);
+            });
+            // Device sizes might be in layout data
+            loadedLayouts.forEach(layout => {
+              const layoutData = result.layouts.find((l: any) => l.id === layout.databaseId)?.layout_data;
+              if (layoutData?.deviceSizes) {
+                Object.assign(allDeviceSizes, layoutData.deviceSizes);
+              }
+            });
+            setPanelSizes(allPanelSizes);
+            setDeviceSizes(allDeviceSizes);
+            console.log('Layouts: State restored from database');
+          }
+        } else {
+          console.log('Layouts: No layouts found in database, using default');
+        }
+      } catch (error) {
+        console.error('Layouts: Error loading from database:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadLayoutsFromDatabase();
   }, [projectCode, sessionProjectCode]);
 
-  // Auto-save layout state whenever it changes
+  // Helper functions for current layout (defined early for use in effects)
+  const getCurrentLayout = useCallback(() => {
+    return layouts.find(layout => layout.id === currentLayoutId) || layouts[0];
+  }, [layouts, currentLayoutId]);
+
+  // Auto-save layout to database when it changes (debounced)
   useEffect(() => {
-    const userEmail = localStorage.getItem('userEmail');
-    const projectKey = projectCode || sessionProjectCode || localStorage.getItem('projectCode') || 'default';
-    
-    if (userEmail && projectKey) {
-      const stateToSave = {
-        layouts,
-        currentLayoutId,
-        selectedRoomType,
-        panelSizes,
-        deviceSizes
-      };
-      
-      const storageKey = `layout_state_${userEmail}_${projectKey}`;
-      localStorage.setItem(storageKey, JSON.stringify(stateToSave));
-      console.log('Layouts: Auto-saved state with key:', storageKey, stateToSave);
+    // Clear existing timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
     }
-  }, [layouts, currentLayoutId, selectedRoomType, panelSizes, deviceSizes, projectCode, sessionProjectCode]);
+
+    // Skip auto-save if still loading or if user is not logged in
+    if (isLoading) return;
+    
+    const userEmail = localStorage.getItem('userEmail');
+    const projectKey = projectCode || sessionProjectCode || localStorage.getItem('projectCode');
+    
+    if (!userEmail || !projectKey) {
+      console.log('Layouts: Cannot auto-save - missing userEmail or projectKey');
+      return;
+    }
+
+    // Debounce auto-save by 2 seconds
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const currentLayout = layouts.find(layout => layout.id === currentLayoutId) || layouts[0];
+      
+      // Don't save empty layouts
+      if (!currentLayout || (currentLayout.placedPanels.length === 0 && currentLayout.placedDevices.length === 0 && !currentLayout.imageUrl)) {
+        console.log('Layouts: Skipping auto-save - layout is empty');
+        return;
+      }
+
+      console.log('Layouts: Auto-saving layout to database');
+      
+      try {
+        // Convert image file to base64 if we have a file but no base64
+        let imageBase64 = currentLayout.imageBase64;
+        if (currentLayout.imageFile && !imageBase64) {
+          try {
+            imageBase64 = await fileToBase64(currentLayout.imageFile);
+          } catch (error) {
+            console.error('Layouts: Error converting image to base64:', error);
+          }
+        }
+        
+        // Prepare layout data for database
+        const layoutData = {
+          layoutName: currentLayout.name.trim() || 'Untitled Layout',
+          projectName: currentLayout.name.trim() || 'Untitled Layout',
+          projectCode: projectKey,
+          location: sessionStorage.getItem('ppLocation') || '',
+          operator: sessionStorage.getItem('ppOperator') || '',
+          servicePartner: sessionStorage.getItem('ppServicePartner') || '',
+          imageUrl: currentLayout.imageUrl,
+          imageBase64: imageBase64 || currentLayout.imageUrl, // Store base64 if available
+          imageScale: currentLayout.imageScale,
+          imagePosition: currentLayout.imagePosition,
+          imageFit: currentLayout.imageFit,
+          placedPanels: currentLayout.placedPanels.map(panel => ({
+            ...panel,
+            panelSize: panelSizes[panel.id] || 40
+          })),
+          placedDevices: currentLayout.placedDevices.map(device => ({
+            ...device,
+            deviceSize: deviceSizes[device.id] || 24
+          })),
+          panelSizes: panelSizes,
+          deviceSizes: deviceSizes,
+          totalPanels: currentLayout.placedPanels.length,
+          totalDevices: currentLayout.placedDevices.length,
+          hasImage: !!currentLayout.imageUrl,
+          lastModified: new Date().toISOString()
+        };
+
+        // If layout has databaseId, update it; otherwise create new
+        if (currentLayout.databaseId) {
+          const updateResult = await updateLayout(currentLayout.databaseId, userEmail, {
+            layout_name: layoutData.layoutName,
+            layout_data: layoutData
+          });
+          
+          if (updateResult.success) {
+            console.log('Layouts: Auto-saved layout (updated)');
+          } else {
+            console.error('Layouts: Auto-save failed (update):', updateResult.message);
+          }
+        } else {
+          const saveResult = await saveLayout(userEmail, layoutData, projectKey);
+          
+          if (saveResult.success && saveResult.layoutId) {
+            // Update the layout with the database ID
+            setLayouts(prev => prev.map(layout =>
+              layout.id === currentLayoutId
+                ? { ...layout, databaseId: saveResult.layoutId, imageBase64: imageBase64 || layout.imageBase64 }
+                : layout
+            ));
+            console.log('Layouts: Auto-saved layout (created)');
+          } else {
+            console.error('Layouts: Auto-save failed (create):', saveResult.message);
+          }
+        }
+      } catch (error) {
+        console.error('Layouts: Error during auto-save:', error);
+      }
+    }, 2000); // 2 second debounce
+
+    // Cleanup timer on unmount or dependency change
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [layouts, currentLayoutId, panelSizes, deviceSizes, projectCode, sessionProjectCode, isLoading]);
 
 
   // Handle image upload
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/jpg')) {
       const url = URL.createObjectURL(file);
-      updateCurrentLayout({
-        imageFile: file,
-        imageUrl: url
-      });
+      try {
+        // Convert to base64 for database storage
+        const base64 = await fileToBase64(file);
+        updateCurrentLayout({
+          imageFile: file,
+          imageUrl: url,
+          imageBase64: base64
+        });
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+        // Still update with file and URL even if base64 conversion fails
+        updateCurrentLayout({
+          imageFile: file,
+          imageUrl: url
+        });
+      }
     }
   };
 
@@ -487,11 +656,7 @@ const Layouts: React.FC = () => {
     }
   };
 
-  // Helper functions for current layout
-  const getCurrentLayout = () => {
-    return layouts.find(layout => layout.id === currentLayoutId) || layouts[0];
-  };
-
+  // Helper function to update current layout
   const updateCurrentLayout = (updates: Partial<typeof layouts[0]>) => {
     setLayouts(prev => prev.map(layout => 
       layout.id === currentLayoutId 
@@ -519,8 +684,27 @@ const Layouts: React.FC = () => {
     setCurrentLayoutId(newId);
   };
 
-  const deleteLayout = (layoutId: string) => {
+  const deleteLayout = async (layoutId: string) => {
     if (layouts.length <= 1) return; // Don't delete the last layout
+    
+    const layoutToDelete = layouts.find(layout => layout.id === layoutId);
+    
+    // If layout has a databaseId, delete it from database
+    if (layoutToDelete?.databaseId) {
+      const userEmail = localStorage.getItem('userEmail');
+      if (userEmail) {
+        try {
+          const result = await deleteLayoutApi(layoutToDelete.databaseId, userEmail);
+          if (!result.success) {
+            console.error('Failed to delete layout from database:', result.message);
+            // Still delete from local state even if database delete fails
+          }
+        } catch (error) {
+          console.error('Error deleting layout from database:', error);
+          // Still delete from local state even if database delete fails
+        }
+      }
+    }
     
     setLayouts(prev => prev.filter(layout => layout.id !== layoutId));
     
@@ -539,7 +723,7 @@ const Layouts: React.FC = () => {
     ));
   };
 
-  // Save layout function (same flow as panel designs)
+  // Save layout function (manual save - same flow as panel designs)
   const handleSaveLayout = async () => {
     // Check if user is logged in
     const userEmail = localStorage.getItem('userEmail');
@@ -552,8 +736,8 @@ const Layouts: React.FC = () => {
     const currentLayout = getCurrentLayout();
     
     // Validate that we have something to save
-    if (currentLayout.placedPanels.length === 0 && currentLayout.placedDevices.length === 0) {
-      setSaveError('Please add at least one panel or device to the layout before saving.');
+    if (currentLayout.placedPanels.length === 0 && currentLayout.placedDevices.length === 0 && !currentLayout.imageUrl) {
+      setSaveError('Please add at least one panel, device, or image to the layout before saving.');
       return;
     }
 
@@ -568,16 +752,29 @@ const Layouts: React.FC = () => {
     setSaveMessage('');
 
     try {
+      const projectKey = projectCode || sessionProjectCode || localStorage.getItem('projectCode') || '';
+      
+      // Convert image file to base64 if we have a file but no base64
+      let imageBase64 = currentLayout.imageBase64;
+      if (currentLayout.imageFile && !imageBase64) {
+        try {
+          imageBase64 = await fileToBase64(currentLayout.imageFile);
+        } catch (error) {
+          console.error('Error converting image to base64:', error);
+        }
+      }
+      
       // Prepare layout data for saving (same structure as panel designs)
       const layoutData = {
         layoutName: currentLayout.name.trim(),
         projectName: currentLayout.name.trim(),
-        projectCode: projectCode || sessionProjectCode || '',
+        projectCode: projectKey,
         location: sessionStorage.getItem('ppLocation') || '',
         operator: sessionStorage.getItem('ppOperator') || '',
         servicePartner: sessionStorage.getItem('ppServicePartner') || '',
         // Layout-specific data
         imageUrl: currentLayout.imageUrl,
+        imageBase64: imageBase64 || currentLayout.imageUrl,
         imageScale: currentLayout.imageScale,
         imagePosition: currentLayout.imagePosition,
         imageFit: currentLayout.imageFit,
@@ -594,18 +791,38 @@ const Layouts: React.FC = () => {
         totalPanels: currentLayout.placedPanels.length,
         totalDevices: currentLayout.placedDevices.length,
         hasImage: !!currentLayout.imageUrl,
-        createdAt: new Date().toISOString(),
         lastModified: new Date().toISOString()
       };
 
-      // Save using project context (same as panel designs)
-      const result = await saveLayout(userEmail, layoutData, projectCode || sessionProjectCode);
-      
-      if (result.success) {
-        setSaveMessage(`Layout "${currentLayout.name}" saved successfully!`);
-        setSaveError('');
+      // If layout has databaseId, update it; otherwise create new
+      let result;
+      if (currentLayout.databaseId) {
+        result = await updateLayout(currentLayout.databaseId, userEmail, {
+          layout_name: layoutData.layoutName,
+          layout_data: layoutData
+        });
+        
+        if (result.success) {
+          setSaveMessage(`Layout "${currentLayout.name}" updated successfully!`);
+          setSaveError('');
+        } else {
+          setSaveError(result.message || 'Failed to update layout');
+        }
       } else {
-        setSaveError(result.message || 'Failed to save layout');
+        result = await saveLayout(userEmail, layoutData, projectKey);
+        
+        if (result.success && result.layoutId) {
+          // Update the layout with the database ID
+          setLayouts(prev => prev.map(layout =>
+            layout.id === currentLayoutId
+              ? { ...layout, databaseId: result.layoutId, imageBase64: imageBase64 || layout.imageBase64 }
+              : layout
+          ));
+          setSaveMessage(`Layout "${currentLayout.name}" saved successfully!`);
+          setSaveError('');
+        } else {
+          setSaveError(result.message || 'Failed to save layout');
+        }
       }
     } catch (error) {
       console.error('Error saving layout:', error);

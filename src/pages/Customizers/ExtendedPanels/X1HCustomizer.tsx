@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from '../../../contexts/CartContext';
 import { supabase } from '../../../utils/supabaseClient';
 import '../Customizer.css';
-import { getBackboxOptions } from '../../../utils/backboxOptions';
+import { getBackboxOptions, isNoBackbox, NO_BACKBOX_DISCLAIMER } from '../../../utils/backboxOptions';
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -506,6 +506,20 @@ const InformationBox = ({
                 ))}
               </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
+            {isNoBackbox(backbox) && (
+              <div style={{
+                color: '#856404',
+                fontSize: '12px',
+                marginTop: '8px',
+                fontWeight: '500',
+                backgroundColor: '#fff3cd',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ffc107',
+              }}>
+                ⚠️ {NO_BACKBOX_DISCLAIMER}
+              </div>
+            )}
           </Box>
           <Box sx={{ 
             background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
@@ -773,7 +787,7 @@ const X1HCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign & { swapLeftRight?: boolean; mirrorVertical?: boolean } } = {
+    const design: Design & { panelDesign: typeof panelDesign & { swapLeftRight?: boolean; mirrorVertical?: boolean; useTagLayout?: boolean } } = {
       type: "X1H",
       icons: Array.from({ length: 18 })
         .map((_, index) => {
@@ -789,7 +803,7 @@ const X1HCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, swapLeftRight, mirrorVertical },
+      panelDesign: { ...panelDesign, backbox, extraComments, swapLeftRight, mirrorVertical, useTagLayout },
     };
 
     if (isEditMode && editPanelIndex !== undefined) {
@@ -1765,6 +1779,25 @@ const X1HCustomizer: React.FC = () => {
               pointerEvents: 'none',
               zIndex: 1,
             }} />
+            {/* DISPLAY overlay - show when useTagLayout is enabled and icons are in positions 0-2 */}
+            {useTagLayout && placedIcons.some(icon => icon.position >= 0 && icon.position <= 2) && (
+              <img
+                src={DISPLAY}
+                alt="DISPLAY"
+                style={{
+                  position: 'absolute',
+                  top: '90px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '220px',
+                  height: '50px',
+                  objectFit: 'contain',
+                  filter: getIconColorFilter(panelDesign.backgroundColor),
+                  pointerEvents: 'none',
+                  zIndex: 3,
+                }}
+              />
+            )}
             <div style={{ position: 'relative', zIndex: 2, width: '100%', height: '100%' }}>
               {Array.from({ length: iconPositions ? iconPositions.length : 0 }).map((_, index) => renderAbsoluteCell(index))}
                   </div>
@@ -1947,6 +1980,20 @@ const X1HCustomizer: React.FC = () => {
                   ))}
                 </select>
                 {backboxError && <div style={{ color: 'red', fontSize: '12px', marginTop: '8px' }}>{backboxError}</div>}
+                {isNoBackbox(backbox) && (
+                  <div style={{
+                    color: '#856404',
+                    fontSize: '12px',
+                    marginTop: '8px',
+                    fontWeight: '500',
+                    backgroundColor: '#fff3cd',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #ffc107',
+                  }}>
+                    ⚠️ {NO_BACKBOX_DISCLAIMER}
+                  </div>
+                )}
               </div>
           </div>
 

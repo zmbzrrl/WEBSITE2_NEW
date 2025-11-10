@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, Button, Typography, Paper, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -9,7 +9,8 @@ import PanelPreview from '../components/PanelPreview';
 import logoImage from '../assets/logo.png';
 import { getIconColorName } from '../data/iconColors';
 import { ralColors } from '../data/ralColors';
-import { getBackboxOptions } from '../utils/backboxOptions';
+import { getBackboxOptions, isNoBackbox, NO_BACKBOX_DISCLAIMER } from '../utils/backboxOptions';
+import { getPanelLayoutConfig } from '../data/panelLayoutConfig';
 import page2Png from '../assets/pdf/2.png';
 import page3Png from '../assets/pdf/3.png';
 import page4Png from '../assets/pdf/4.png';
@@ -52,76 +53,150 @@ const hexToRal = (hex: string): string => {
   return hex; // fallback to hex string
 };
 
-// Helper function to convert mm to px (same as PanelPreview)
-const convertMmToPx = (value: string): number => {
+// Helper function to convert mm to px (exactly matching PanelPreview's logic)
+const convertMmToPxString = (value: string): string => {
   if (value.endsWith('mm')) {
     const mm = parseFloat(value);
-    return Math.round(mm * (350 / 95)); // 95mm = 350px
+    const px = Math.round(mm * (350 / 95)); // 95mm = 350px
+    // Apply 24.5px reduction for wide TAG panels (130mm) - matching PanelPreview
+    const adjustedPx = mm === 130 ? px - 24.5 : px;
+    return `${adjustedPx}px`;
   }
-  return parseFloat(value);
+  return value; // Return as-is if already in px or other format
 };
 
-// Helper function to get actual panel dimensions in pixels
+// Helper function to parse px string to number with validation
+const parsePx = (value: string | number | undefined): number => {
+  if (typeof value === 'number') {
+    // Validate number is not NaN or Infinity
+    if (isNaN(value) || !isFinite(value)) {
+      console.warn('Invalid number value for parsePx:', value);
+      return 350; // Default fallback (95mm in pixels)
+    }
+    return value;
+  }
+  
+  if (!value || typeof value !== 'string') {
+    console.warn('Invalid value for parsePx:', value);
+    return 350; // Default fallback
+  }
+  
+  let parsed: number;
+  if (value.endsWith('px')) {
+    parsed = parseFloat(value.replace('px', '').trim());
+  } else if (value.endsWith('mm')) {
+    // Convert mm to px if not already converted
+    const mm = parseFloat(value.replace('mm', '').trim());
+    parsed = Math.round(mm * (350 / 95));
+  } else {
+    parsed = parseFloat(value.trim());
+  }
+  
+  // Validate parsed value
+  if (isNaN(parsed) || !isFinite(parsed) || parsed <= 0) {
+    console.warn('Failed to parse dimension value:', value, 'parsed as:', parsed);
+    return 350; // Default fallback (95mm in pixels)
+  }
+  
+  return parsed;
+};
+
+// Helper function to get actual panel dimensions in pixels (matching PanelPreview exactly)
 const getPanelDimensions = (config: PanelConfig) => {
-  const { panelDesign, type } = config;
-  
-  // Default dimensions for each panel type
-  const defaultDimensions = {
-    'SP': { width: 95, height: 95 }, // mm
-    'DPH': { width: 640, height: 320 }, // px (already converted)
-    'DPV': { width: 320, height: 640 }, // px (already converted)
-    'IDPG': { width: 350, height: 350 }, // px (default square)
-    'TAG': { width: 95, height: 95 }, // mm
-    'X1H': { width: 130, height: 95 }, // mm
-    'X1V': { width: 95, height: 130 }, // mm
-    'X2H': { width: 224, height: 95 }, // mm
-    'X2V': { width: 95, height: 224 }, // mm
-  };
-  
-  let dimensions = defaultDimensions[type as keyof typeof defaultDimensions] || defaultDimensions['SP'];
-  
-  // Handle SP panel dimensions based on configuration
-  if (type === 'SP' && panelDesign?.spConfig?.dimension) {
-    const { dimension } = panelDesign.spConfig;
-    if (dimension === 'wide') {
-      dimensions = { width: 130, height: 95 };
-    } else if (dimension === 'tall') {
-      dimensions = { width: 95, height: 130 };
-    }
-  }
-  
-  // Handle TAG panel dimensions based on configuration
-  if (type === 'TAG' && (panelDesign as any)?.tagConfig?.dimension) {
-    const { dimension } = (panelDesign as any).tagConfig;
-    if (dimension === 'wide') {
-      dimensions = { width: 130, height: 95 };
-    } else if (dimension === 'tall') {
-      dimensions = { width: 95, height: 130 };
-    }
-  }
-  
-  // Handle IDPG panel dimensions based on configuration
-  if (type === 'IDPG' && panelDesign?.idpgConfig) {
-    const { cardReader, roomNumber } = panelDesign.idpgConfig;
+  try {
+    const { panelDesign, type } = config;
+    const panelType = type || 'SP';
+    const panelConfig = getPanelLayoutConfig(panelType);
     
-    if (!cardReader && !roomNumber) {
-      dimensions = { width: 350, height: 350 };
-    } else if (!cardReader && roomNumber) {
-      dimensions = { width: 350, height: 450 };
-    } else if (cardReader && !roomNumber) {
-      dimensions = { width: 350, height: 500 };
-    } else if (cardReader && roomNumber) {
-      dimensions = { width: 350, height: 600 };
+    // Validate panelConfig exists and has dimensions
+    if (!panelConfig || !panelConfig.dimensions) {
+      console.error('Invalid panel config for type:', panelType);
+      return { width: 350, height: 350 }; // Default fallback
     }
+    
+    // Start with config dimensions and convert mm to px
+    let dimensions: { width: string | number; height: string | number } = {
+      width: convertMmToPxString(panelConfig.dimensions.width || '95mm'),
+      height: convertMmToPxString(panelConfig.dimensions.height || '95mm')
+    };
+    
+    // Handle TAG panels - match PanelPreview logic exactly
+    if (panelType === 'TAG') {
+      if (!(panelDesign as any)?.tagConfig) {
+        // No tagConfig means wide dimensions
+        dimensions = {
+          width: convertMmToPxString('130mm'),
+          height: convertMmToPxString('95mm')
+        };
+      } else {
+        const { dimension } = (panelDesign as any).tagConfig;
+        if (dimension === 'wide') {
+          dimensions = {
+            width: convertMmToPxString('130mm'),
+            height: convertMmToPxString('95mm')
+          };
+        } else if (dimension === 'tall') {
+          dimensions = {
+            width: convertMmToPxString('95mm'),
+            height: convertMmToPxString('130mm')
+          };
+        }
+      }
+    }
+    
+    // Handle SP panels - match PanelPreview logic
+    if (panelType === 'SP' && panelDesign?.spConfig?.dimension) {
+      const { dimension } = panelDesign.spConfig;
+      if (dimension === 'wide') {
+        dimensions = {
+          width: convertMmToPxString('130mm'),
+          height: convertMmToPxString('95mm')
+        };
+      } else if (dimension === 'tall') {
+        dimensions = {
+          width: convertMmToPxString('95mm'),
+          height: convertMmToPxString('130mm')
+        };
+      }
+    }
+    
+    // Handle IDPG panels - match PanelPreview exact pixel values
+    if (panelType === 'IDPG' && panelDesign?.idpgConfig) {
+      const { cardReader, roomNumber } = panelDesign.idpgConfig;
+      if (!cardReader && !roomNumber) {
+        dimensions = { width: '350px', height: '350px' };
+      } else if (!cardReader && roomNumber) {
+        dimensions = { width: '330px', height: '470px' };
+      } else if (cardReader && !roomNumber) {
+        dimensions = { width: '350px', height: '500px' };
+      } else if (cardReader && roomNumber) {
+        dimensions = { width: '350px', height: '600px' };
+      }
+    }
+    
+    // Special handling for DPV panels - increase height by 10% (matching PanelPreview)
+    if (panelType === 'DPV') {
+      const currentHeight = parsePx(dimensions.height);
+      if (currentHeight > 0) {
+        dimensions.height = `${Math.round(currentHeight * 1.1)}px`;
+      }
+    }
+    
+    // Convert to numbers for dimension lines with validation
+    const widthPx = parsePx(dimensions.width);
+    const heightPx = parsePx(dimensions.height);
+    
+    // Final validation - ensure both dimensions are valid
+    if (isNaN(widthPx) || isNaN(heightPx) || widthPx <= 0 || heightPx <= 0) {
+      console.error('Invalid dimensions calculated for panel type:', panelType, 'width:', widthPx, 'height:', heightPx);
+      return { width: 350, height: 350 }; // Default fallback
+    }
+    
+    return { width: widthPx, height: heightPx };
+  } catch (error) {
+    console.error('Error calculating panel dimensions:', error, 'config:', config);
+    return { width: 350, height: 350 }; // Default fallback
   }
-  
-  // Convert mm to px if needed
-  const widthPx = type === 'DPH' || type === 'DPV' || type === 'IDPG' ? 
-    dimensions.width : convertMmToPx(`${dimensions.width}mm`);
-  const heightPx = type === 'DPH' || type === 'DPV' || type === 'IDPG' ? 
-    dimensions.height : convertMmToPx(`${dimensions.height}mm`);
-  
-  return { width: widthPx, height: heightPx };
 };
 
 // Helper function to get panel details
@@ -133,21 +208,42 @@ const getPanelDetails = (config: PanelConfig) => {
   const backgroundRal = hexToRal(backgroundColor);
   
   // Get icon color
+  // Icon color is always calculated from background color in the rendering
+  // If iconColor is 'auto' or missing, use backgroundColor to calculate
+  // If iconColor is a named value like 'White' or 'Grey', use it directly
+  // Otherwise, always fall back to calculating from backgroundColor
   const iconColor = panelDesign?.iconColor || '';
-  const iconColorName = iconColor ? getIconColorFromBackground(iconColor) : 'N/A';
+  let iconColorName = 'N/A';
   
-  // Get plastic housing color (derived from icon color)
-  const plasticColor = iconColorName === 'White' ? 'White' : 'Black';
+  if (iconColor && (iconColor === 'White' || iconColor === 'Grey' || iconColor === 'Black')) {
+    // If iconColor is already a named color, use it directly
+    iconColorName = iconColor;
+  } else if (backgroundColor) {
+    // Always calculate from background color (this matches how rendering works)
+    // This handles 'auto', hex values, empty strings, or any other case
+    iconColorName = getIconColorFromBackground(backgroundColor);
+  }
   
-  // Get fonts
-  const fonts = panelDesign?.fonts || 'Default';
+  // Get plastic housing color
+  // First check if it's stored directly in panelDesign, otherwise derive from icon color
+  let plasticColor = (panelDesign as any)?.plasticColor;
+  if (!plasticColor || plasticColor.trim() === '') {
+    // Derive from icon color: White icons = White plastic, Grey icons = Black plastic
+    plasticColor = iconColorName === 'White' ? 'White' : 'Black';
+  }
+  
+  // Get fonts - show "N/A" if no font is set
+  const fonts = (panelDesign?.fonts && panelDesign.fonts.trim() !== '') ? panelDesign.fonts : 'N/A';
   
   // Get panel type
   const panelType = type || 'SP';
   
-  // Get backbox based on panel type and configuration
+  // Format panel type for display: "TAG Flat" for TAG panels, "GS Flat" for all others
+  const panelTypeDisplay = panelType === 'TAG' ? 'TAG Flat' : 'GS Flat';
+  
+  // Get backbox from panelDesign, or default to first option if not set
   const backboxOptions = getBackboxOptions(panelType, panelDesign);
-  const backbox = backboxOptions.length > 0 ? backboxOptions[0].label : 'Standard';
+  const backbox = (panelDesign as any)?.backbox || (backboxOptions.length > 0 ? backboxOptions[0].label : 'Standard');
   
   return {
     panelName: name || 'Panel',
@@ -156,7 +252,7 @@ const getPanelDetails = (config: PanelConfig) => {
     backlight: 'White LED',
     iconColor: iconColorName,
     plasticColor: plasticColor,
-    panelType: panelType,
+    panelType: panelTypeDisplay,
     backbox: backbox
   };
 };
@@ -165,7 +261,8 @@ const getPanelDetails = (config: PanelConfig) => {
 const PrintContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
   padding: 0, // Remove padding to let page margins show
-  backgroundColor: 'white',
+  backgroundColor: '#f5f5f5',
+  backgroundImage: 'none',
   margin: 0,
   border: 'none',
   
@@ -173,22 +270,15 @@ const PrintContainer = styled(Box)(({ theme }) => ({
   '@media print': {
     padding: 0,
     margin: 0,
-    /* Remove forced white background to preserve original colors */
+    backgroundColor: '#f5f5f5',
+    backgroundImage: 'none',
     minHeight: 'auto',
     height: 'auto',
     border: 'none',
     outline: 'none',
-    // Hide browser default headers and footers
-    '@page': {
-      margin: 0, // Remove all margins
-      size: 'A4',
-    },
-    // Additional print styles to remove browser headers/footers
-    '&': {
-      // These styles help remove browser default headers/footers
-      '-webkit-print-color-adjust': 'exact',
-      'color-adjust': 'exact',
-    }
+    '-webkit-print-color-adjust': 'exact',
+    'color-adjust': 'exact',
+    'print-color-adjust': 'exact'
   }
 }));
 
@@ -229,7 +319,7 @@ const CompactHeader = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(1),
   
   '@media print': {
-    padding: '3mm 15mm',
+    padding: '3mm 12.7mm', // Match page padding
     marginBottom: '2mm',
   }
 }));
@@ -261,7 +351,7 @@ const ProjectInfoSection = styled(Box)(({ theme }) => ({
 
 const ProjectRow = styled(Box)(({ theme }) => ({
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   gap: theme.spacing(4),
   fontSize: '11px',
   
@@ -276,19 +366,27 @@ const ProjectLabel = styled(Typography)(({ theme }) => ({
   color: '#666',
   fontSize: 'inherit',
   minWidth: '70px',
+  maxWidth: '70px',
   textAlign: 'left',
+  flexShrink: 0,
 }));
 
 const ProjectValue = styled(Typography)(({ theme }) => ({
   color: '#333',
   fontSize: 'inherit',
   minWidth: '70px',
+  maxWidth: '70px',
   textAlign: 'left',
+  wordWrap: 'break-word',
+  overflowWrap: 'break-word',
+  whiteSpace: 'normal',
+  flexShrink: 0,
 }));
 
 // Cover page component
 const CoverPage = styled(Paper)(({ theme }) => ({
-  width: '250mm', // Increased width to match other pages
+  width: '100%',
+  maxWidth: '250mm', // Increased width to match other pages on screen
   minHeight: '297mm', // A4 height
   padding: '30mm', // Larger margins for cover
   margin: '12.7mm auto 20px auto', // 0.5 inch top margin, auto left/right, 20px bottom
@@ -297,6 +395,7 @@ const CoverPage = styled(Paper)(({ theme }) => ({
   justifyContent: 'center',
   alignItems: 'center',
   backgroundColor: '#f5f5f5', // Light grey background
+  backgroundImage: 'none',
   boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
   textAlign: 'center',
   border: 'none',
@@ -304,17 +403,20 @@ const CoverPage = styled(Paper)(({ theme }) => ({
   '@media print': {
     boxShadow: 'none',
     margin: '0',
-    padding: '0', // Remove padding since @page handles margins
+    maxWidth: 'none',
+    padding: '12.7mm', // Internal padding for content
     pageBreakInside: 'avoid',
     breakInside: 'avoid',
-    width: '100%', // Fill entire page width
-    height: '100%', // Fill entire page height
-    minHeight: '100%', // Ensure it fills the page
-    backgroundColor: 'white', // White background for print
+    height: '100vh', // Fill entire viewport height
+    minHeight: '100vh', // Ensure it fills the page
+    backgroundColor: '#f5f5f5', // Match preview background
+    backgroundImage: 'none',
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
     border: 'none',
-    outline: 'none'
+    outline: 'none',
+    pageBreakAfter: 'always',
+    boxSizing: 'border-box'
   }
 }));
 
@@ -369,7 +471,8 @@ const CoverFooter = styled(Box)(({ theme }) => ({
 
 // A4 page container - fits 2 panels per page
 const A4Page = styled(Paper)(({ theme }) => ({
-  width: '250mm', // Increased width for better content fitting
+  width: '100%',
+  maxWidth: '250mm', // Increased width for better content fitting on screen
   minHeight: '297mm', // A4 height
   padding: '0', // Remove padding to accommodate header
   margin: '12.7mm auto 20px auto', // 0.5 inch top margin, auto left/right, 20px bottom
@@ -382,17 +485,19 @@ const A4Page = styled(Paper)(({ theme }) => ({
   '@media print': {
     boxShadow: 'none',
     margin: '0',
-    padding: '0', // Remove padding since @page handles margins
+    maxWidth: 'none',
+    padding: '0', // No padding - content padding handled by PanelGrid
     pageBreakAfter: 'always',
     pageBreakInside: 'avoid',
     breakInside: 'avoid',
-    width: '100%', // Fill entire page width
-    height: '100vh', // Fill entire page height
+    height: '100vh', // Fill entire viewport height
     minHeight: '100vh', // Ensure it fills the page
-    backgroundColor: 'white', // White background for print
+    backgroundColor: '#f5f5f5', // Match preview background
+    backgroundImage: 'none',
     justifyContent: 'flex-start',
     border: 'none',
-    outline: 'none'
+    outline: 'none',
+    boxSizing: 'border-box'
   }
 }));
 
@@ -406,7 +511,7 @@ const PanelGrid = styled(Box)(({ theme }) => ({
   padding: '0 15mm 12.7mm 15mm', // Increased side padding to match wider page
   '@media print': {
     gap: '5mm',
-    padding: '12.7mm 15mm', // Increased side padding for wider page
+    padding: '12.7mm', // Padding on all sides since @page margins are removed
     height: 'auto',
     minHeight: 'auto',
     alignSelf: 'flex-start'
@@ -428,8 +533,10 @@ const PanelContainer = styled(Box)(({ theme }) => ({
     padding: '2mm',
     minHeight: '60mm',
     maxHeight: 'none', // Remove max height constraint for print
-    height: '100%',
-    gap: '8mm' // Reduced gap for print to accommodate vertical layout for extended panels
+    height: 'auto', // Use auto instead of 100%
+    gap: '8mm', // Reduced gap for print to accommodate vertical layout for extended panels
+    pageBreakInside: 'avoid', // Prevent panel from being split across pages
+    breakInside: 'avoid'
   }
 }));
 
@@ -687,6 +794,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
   const [revision, setRevision] = useState<string>('A');
   const [isLoading, setIsLoading] = useState(true);
   const [showPrintInstructions, setShowPrintInstructions] = useState(false);
+  const [measuredPanels, setMeasuredPanels] = useState<Record<string, { width: number; height: number }>>({});
 
   useEffect(() => {
     // Add comprehensive print styles to remove browser headers/footers and borders
@@ -694,7 +802,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
     style.textContent = `
       @media print {
         @page {
-          margin: 12.7mm !important; /* Set proper page margins */
+          margin: 0 !important; /* Remove margins so background extends to edges */
           size: A4;
           /* Completely hide browser headers and footers */
           @top-left { content: none !important; }
@@ -710,16 +818,22 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
           padding: 0 !important;
           -webkit-print-color-adjust: exact !important;
           color-adjust: exact !important;
-          /* Remove forced white background to preserve original colors */
-          border: none !important;
-          outline: none !important;
+          print-color-adjust: exact !important;
+          background-color: #f5f5f5 !important;
+          background: #f5f5f5 !important;
+          background-image: none !important;
+          width: 100% !important;
+          min-height: 100% !important;
         }
         
         #root {
           margin: 0 !important;
           padding: 0 !important;
-          border: none !important;
-          outline: none !important;
+          background-color: #f5f5f5 !important;
+          background: #f5f5f5 !important;
+          background-image: none !important;
+          width: 100% !important;
+          min-height: 100% !important;
         }
         
         /* Hide any browser UI elements */
@@ -729,15 +843,23 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
           display: none !important;
         }
         
-        /* Ensure no unwanted borders */
+        /* Preserve all colors and backgrounds */
         * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        
+        /* Remove borders from root elements only */
+        html, body, #root {
           border: none !important;
           outline: none !important;
         }
         
-        /* Re-apply borders only to specific elements that need them */
+        /* Remove borders from Paper components in print */
         .MuiPaper-root {
-          border: 1px solid #e0e0e0 !important;
+          border: none !important;
+          box-shadow: none !important;
         }
       }
     `;
@@ -815,6 +937,27 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
     setIsLoading(false);
   }, [location, navigate]);
 
+  const setPanelMeasureRef = useCallback(
+    (key: string) => (node: HTMLDivElement | null) => {
+      if (!node) {
+        return;
+      }
+      const width = Math.round(node.offsetWidth);
+      const height = Math.round(node.offsetHeight);
+      if (!width || !height) {
+        return;
+      }
+      setMeasuredPanels((prev) => {
+        const existing = prev[key];
+        if (existing && existing.width === width && existing.height === height) {
+          return prev;
+        }
+        return { ...prev, [key]: { width, height } };
+      });
+    },
+    [setMeasuredPanels]
+  );
+
   const handlePrint = () => {
     // Show instructions first, then open print dialog
     setShowPrintInstructions(true);
@@ -822,43 +965,99 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 
   const handleConfirmPrint = () => {
     setShowPrintInstructions(false);
-    // Small delay to ensure dialog is closed
-    setTimeout(() => {
-      // Add additional print styles right before printing
-      const printStyle = document.createElement('style');
-      printStyle.textContent = `
-        @media print {
-          @page {
-            margin: 12.7mm !important; /* Set proper page margins */
-            size: A4;
-          }
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            outline: none !important;
-          }
-          #root {
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-          }
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
+    
+    // Validate all panel dimensions before printing
+    try {
+      const invalidPanels = panelConfigs.filter(config => {
+        try {
+          const dims = getPanelDimensions(config);
+          return isNaN(dims.width) || isNaN(dims.height) || dims.width <= 0 || dims.height <= 0;
+        } catch (error) {
+          console.error('Error validating panel dimensions:', error, config);
+          return true;
         }
-      `;
-      document.head.appendChild(printStyle);
+      });
       
-      // Trigger print
-      window.print();
-      
-      // Remove the temporary style after printing
-      setTimeout(() => {
-        document.head.removeChild(printStyle);
-      }, 1000);
-    }, 100);
+      if (invalidPanels.length > 0) {
+        console.error('Cannot print: Some panels have invalid dimensions', invalidPanels);
+        alert('Cannot print: Some panels have invalid dimensions. Please check the console for details.');
+        return;
+      }
+    } catch (error) {
+      console.error('Error validating panels before print:', error);
+      alert('Error validating panels before print. Please check the console.');
+      return;
+    }
+    
+    // Small delay to ensure dialog is closed and DOM is ready
+    setTimeout(() => {
+      // Wait for next frame to ensure all rendering is complete
+      requestAnimationFrame(() => {
+        // Add additional print styles right before printing
+        const printStyle = document.createElement('style');
+        printStyle.id = 'print-preview-styles';
+        printStyle.textContent = `
+          @media print {
+            @page {
+              margin: 0 !important; /* Remove margins so background extends to edges */
+              size: A4;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              outline: none !important;
+              background-color: #f5f5f5 !important;
+              background: #f5f5f5 !important;
+              background-image: none !important;
+              width: 100% !important;
+              min-height: 100% !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            #root {
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              background-color: #f5f5f5 !important;
+              background: #f5f5f5 !important;
+              background-image: none !important;
+              width: 100% !important;
+              min-height: 100% !important;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            .MuiPaper-root {
+              border: none !important;
+              box-shadow: none !important;
+            }
+          }
+        `;
+        
+        // Remove existing print style if present
+        const existingStyle = document.getElementById('print-preview-styles');
+        if (existingStyle) {
+          document.head.removeChild(existingStyle);
+        }
+        
+        document.head.appendChild(printStyle);
+        
+        // Small delay to ensure styles are applied
+        setTimeout(() => {
+          try {
+            // Trigger print
+            window.print();
+          } catch (error) {
+            console.error('Error triggering print:', error);
+            alert('Error opening print dialog. Please try again.');
+          }
+        }, 50);
+      });
+    }, 200);
   };
 
   const handleBack = () => {
@@ -866,11 +1065,32 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
   };
 
   // Group panels two per page (stacked vertically on a single-column grid)
+  // X2V panels get their own separate page
   const groupPanelsIntoPages = (panels: PanelConfig[]) => {
     const pages: PanelConfig[][] = [];
-    for (let i = 0; i < panels.length; i += 2) {
-      pages.push(panels.slice(i, i + 2));
+    let i = 0;
+    
+    while (i < panels.length) {
+      const currentPanel = panels[i];
+      
+      // X2V panels get their own page
+      if (currentPanel.type === 'X2V') {
+        pages.push([currentPanel]);
+        i += 1;
+      } else {
+        // For non-X2V panels, try to group 2 per page
+        // But if the next panel is X2V, only take the current one
+        if (i + 1 < panels.length && panels[i + 1].type !== 'X2V') {
+          pages.push(panels.slice(i, i + 2));
+          i += 2;
+        } else {
+          // Only one panel left or next is X2V, put current one alone
+          pages.push([currentPanel]);
+          i += 1;
+        }
+      }
     }
+    
     return pages;
   };
 
@@ -936,10 +1156,10 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             padding: '12.7mm', // Add padding for print
             '@media print': {
               marginTop: '0px',
-              paddingTop: '40px',
+              paddingTop: '0px',
               width: '100%',
               maxWidth: 'none',
-              padding: '0' // Remove padding since @page handles margins
+              padding: '12.7mm' // Use same padding as @page margin
             }
           }}>
             {/* Logo on first line */}
@@ -1443,20 +1663,83 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 
             <PanelGrid>
               {pagePanels.map((config, panelIndex) => {
-                const details = getPanelDetails(config);
-                const panelDims = getPanelDimensions(config);
-                const widthPx = panelDims.width;
-                const heightPx = panelDims.height;
-                const gapWidth = 50; // Space for dimension text
-                // Dynamic padding based on panel size (minimum 35px for dimension lines)
-                const dimensionPadding = Math.max(35, Math.ceil(widthPx * 0.05)); // 5% of width, min 35px
-                const dimensionPaddingLeft = Math.max(35, Math.ceil(heightPx * 0.05)); // 5% of height, min 35px
+                try {
+                  const details = getPanelDetails(config);
+                  const panelDims = getPanelDimensions(config);
+                  // Ensure dimensions are valid numbers, fallback to defaults if not
+                  const baseWidthPx = (typeof panelDims.width === 'number' && !isNaN(panelDims.width) && isFinite(panelDims.width) && panelDims.width > 0) 
+                    ? panelDims.width 
+                    : 350;
+                  const baseHeightPx = (typeof panelDims.height === 'number' && !isNaN(panelDims.height) && isFinite(panelDims.height) && panelDims.height > 0) 
+                    ? panelDims.height 
+                    : 350;
+                  
+                  // Validate dimensions are safe for calculations
+                  if (!isFinite(baseWidthPx) || !isFinite(baseHeightPx) || baseWidthPx <= 0 || baseHeightPx <= 0) {
+                    console.error('Invalid panel dimensions for panel', panelIndex, 'type:', config.type, 'width:', baseWidthPx, 'height:', baseHeightPx);
+                    return null; // Skip rendering this panel if dimensions are invalid
+                  }
+                  const panelKey = `${pageIndex}-${panelIndex}`;
+                  const isStackedLayout =
+                    config.type === 'DPH' ||
+                    config.type?.includes('X1H') ||
+                    config.type?.includes('X2H');
+                  const measured = measuredPanels[panelKey];
+                  const effectiveWidthPx = Math.max(0, measured?.width ?? baseWidthPx);
+                  const effectiveHeightPx = Math.max(0, measured?.height ?? baseHeightPx);
+                  
+                  const gapWidth = 50; // Space for dimension text
+                  // Dynamic padding based on panel size - reduced to minimize gap
+                  // Use smaller percentage (2%) with a reasonable minimum (25px) and maximum (35px)
+                  const dimensionPadding = Math.min(35, Math.max(25, Math.ceil(Math.max(0, effectiveWidthPx) * 0.02))); // 2% of width, clamped between 25-35px
+                  const dimensionPaddingLeft = Math.min(35, Math.max(25, Math.ceil(Math.max(0, effectiveHeightPx) * 0.02))); // 2% of height, clamped between 25-35px
+                  
+                  // Calculate dimension line widths with validation to prevent negative values
+                  // Use Math.round to ensure integer pixel values for better browser compatibility
+                  const widthSegmentLeft = Math.max(0, Math.round((effectiveWidthPx - gapWidth) / 2));
+                  const widthSegmentRight = Math.max(0, Math.round((effectiveWidthPx - gapWidth) / 2));
+                  const heightSegmentTop = Math.max(0, Math.round((effectiveHeightPx - gapWidth) / 2));
+                  const heightSegmentBottom = Math.max(0, Math.round((effectiveHeightPx - gapWidth) / 2));
+                  
+                  // Calculate positions as integers to avoid decimal precision issues in print
+                  const centerLeft = Math.round(dimensionPaddingLeft + effectiveWidthPx / 2);
+                  const rightSegmentLeft = Math.round(dimensionPaddingLeft + effectiveWidthPx / 2 + gapWidth / 2);
+                  const rightEdgeLeft = Math.round(dimensionPaddingLeft + Math.max(0, effectiveWidthPx - 3));
+                  const centerTop = Math.round(dimensionPadding + effectiveHeightPx / 2);
+                  const bottomSegmentTop = Math.round(dimensionPadding + effectiveHeightPx / 2 + gapWidth / 2);
+                  const bottomEdgeTop = Math.round(dimensionPadding + Math.max(0, effectiveHeightPx - 3));
+                  
+                  // Ensure all calculated values are valid numbers and positive
+                  if (!isFinite(dimensionPadding) || !isFinite(dimensionPaddingLeft) || 
+                      !isFinite(widthSegmentLeft) || !isFinite(widthSegmentRight) ||
+                      !isFinite(heightSegmentTop) || !isFinite(heightSegmentBottom) ||
+                      !isFinite(centerLeft) || !isFinite(rightSegmentLeft) || !isFinite(rightEdgeLeft) ||
+                      !isFinite(centerTop) || !isFinite(bottomSegmentTop) || !isFinite(bottomEdgeTop) ||
+                      dimensionPadding < 0 || dimensionPaddingLeft < 0 ||
+                      widthSegmentLeft < 0 || widthSegmentRight < 0 ||
+                      heightSegmentTop < 0 || heightSegmentBottom < 0) {
+                    console.error('Invalid calculated dimensions for panel', panelIndex, {
+                      dimensionPadding, dimensionPaddingLeft,
+                      widthSegmentLeft, widthSegmentRight,
+                      heightSegmentTop, heightSegmentBottom
+                    });
+                    return null;
+                  }
                 
                 return (
                   <PanelContainer key={panelIndex} sx={{
-                    flexDirection: config.type?.includes('X1H') || config.type?.includes('X2H') ? 'column' : 'row'
+                    flexDirection: isStackedLayout ? 'column' : 'row',
+                    alignItems: config.type === 'X2H' ? 'flex-start' : 'flex-start',
+                    gap: isStackedLayout ? '10px' : undefined,
+                    padding: isStackedLayout ? '0' : undefined
                   }}>
-                    <PanelVisualContainer>
+                    <PanelVisualContainer sx={{
+                      alignItems: config.type === 'X2H' ? 'flex-start' : 'center',
+                      marginLeft: config.type === 'X2H' ? '-20px' : '0',
+                      '@media print': {
+                        marginLeft: config.type === 'X2H' ? '-20px' : '0'
+                      }
+                    }}>
                       {/* Dimension lines and panel preview */}
                       <Box sx={{ 
                         position: 'relative',
@@ -1465,33 +1748,35 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         alignItems: 'flex-start',
                         width: '100%',
                         paddingTop: `${dimensionPadding}px`, // Dynamic space for width dimension line
-                        paddingLeft: `${dimensionPaddingLeft}px` // Dynamic space for height dimension line
+                        paddingLeft: `${dimensionPaddingLeft}px`, // Dynamic space for height dimension line
+                        transform: 'scale(0.85)', // Scale all panels 15% smaller
+                        transformOrigin: 'top left' // Scale from top-left to maintain positioning
                       }}>
-                            {/* Width dimension line (top) - using actual panel width */}
+                            {/* Width dimension line (top) - extends exactly to panel edges */}
                             <>
-                              {/* Left segment */}
+                              {/* Left segment - extends from panel's left edge to center gap */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '5px', // Adjusted to account for padding
-                                left: `${dimensionPaddingLeft}px`, // Start after left padding
-                                width: `${(widthPx - gapWidth) / 2}px`,
+                                top: '5px',
+                                left: `${dimensionPaddingLeft}px`,
+                                width: `${widthSegmentLeft}px`,
                                 height: '2px',
                                 backgroundColor: '#999'
                               }} />
-                              {/* Right segment */}
+                              {/* Right segment - extends from center gap to panel's right edge */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '5px', // Adjusted to account for padding
-                                left: `${dimensionPaddingLeft + (widthPx + gapWidth) / 2}px`, // Adjusted for padding
-                                width: `${(widthPx - gapWidth) / 2}px`,
+                                top: '5px',
+                                left: `${rightSegmentLeft}px`,
+                                width: `${widthSegmentRight}px`,
                                 height: '2px',
                                 backgroundColor: '#999'
                               }} />
                               {/* Text in the gap */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '5px', // Adjusted to account for padding
-                                left: `${dimensionPaddingLeft + widthPx / 2}px`, // Adjusted for padding
+                                top: '5px',
+                                left: `${centerLeft}px`,
                                 transform: 'translateX(-50%)',
                                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
                                 fontSize: '14px',
@@ -1506,55 +1791,60 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                                 {config.type === 'SP' ? 
                                   (config.panelDesign?.spConfig?.dimension === 'wide' ? '130 mm' : 
                                    config.panelDesign?.spConfig?.dimension === 'tall' ? '95 mm' : '95 mm') :
-                                  config.type?.includes('X2') ? '224 mm' : 
-                                  config.type?.includes('X1') ? '130 mm' : 
-                                  config.type === 'DPH' ? '640px' :
-                                  config.type === 'DPV' ? '320px' :
-                                  config.type === 'IDPG' ? '350px' : '95 mm'}
+                                  config.type === 'TAG' ?
+                                  ((config.panelDesign as any)?.tagConfig?.dimension === 'wide' ? '130 mm' :
+                                   (config.panelDesign as any)?.tagConfig?.dimension === 'tall' ? '95 mm' : '95 mm') :
+                                  config.type === 'X2H' ? '303 mm' :
+                                  config.type === 'X2V' ? '95 mm' :
+                                  config.type === 'X1H' ? '217 mm' :
+                                  config.type === 'X1V' ? '95 mm' :
+                                  config.type === 'DPH' ? '224 mm' :
+                                  config.type === 'DPV' ? '95 mm' :
+                                  config.type === 'IDPG' ? (config.panelDesign?.idpgConfig?.cardReader || config.panelDesign?.idpgConfig?.roomNumber ? '130 mm' : '95 mm') : '95 mm'}
                               </Box>
 
-                              {/* Width dimension endpoint lines (vertical lines at ends) */}
+                              {/* Width dimension endpoint lines (vertical lines at panel edges) */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: '-2px', // Adjusted to account for padding
-                                left: `${dimensionPaddingLeft}px`, // Start after left padding
+                                top: '-2px',
+                                left: `${dimensionPaddingLeft}px`,
                                 width: '3px',
                                 height: '15px',
                                 backgroundColor: '#999'
                               }} />
                               <Box sx={{
                                 position: 'absolute',
-                                top: '-2px', // Adjusted to account for padding
-                                left: `${dimensionPaddingLeft + widthPx - 3}px`, // Adjusted for padding
+                                top: '-2px',
+                                left: `${rightEdgeLeft}px`,
                                 width: '3px',
                                 height: '15px',
                                 backgroundColor: '#999'
                               }} />
 
-                              {/* Height dimension line (left) - using actual panel height */}
-                              {/* Top segment */}
+                              {/* Height dimension line (left) - extends exactly to panel edges */}
+                              {/* Top segment - extends from panel's top edge to center gap */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${dimensionPadding}px`, // Start after top padding
-                                left: '5px', // Adjusted to account for padding
+                                top: `${dimensionPadding}px`,
+                                left: '5px',
                                 width: '2px',
-                                height: `${(heightPx - gapWidth) / 2}px`,
+                                height: `${heightSegmentTop}px`,
                                 backgroundColor: '#999'
                               }} />
-                              {/* Bottom segment */}
+                              {/* Bottom segment - extends from center gap to panel's bottom edge */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${dimensionPadding + (heightPx + gapWidth) / 2}px`, // Adjusted for padding
-                                left: '5px', // Adjusted to account for padding
+                                top: `${bottomSegmentTop}px`,
+                                left: '5px',
                                 width: '2px',
-                                height: `${(heightPx - gapWidth) / 2}px`,
+                                height: `${heightSegmentBottom}px`,
                                 backgroundColor: '#999'
                               }} />
                               {/* Text in the gap */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${dimensionPadding + heightPx / 2}px`, // Adjusted for padding
-                                left: '5px', // Adjusted to account for padding
+                                top: `${centerTop}px`,
+                                left: '5px',
                                 transform: 'translateY(-50%)',
                                 fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
                                 fontSize: '14px',
@@ -1572,47 +1862,63 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                                 {config.type === 'SP' ? 
                                   (config.panelDesign?.spConfig?.dimension === 'wide' ? '95 mm' : 
                                    config.panelDesign?.spConfig?.dimension === 'tall' ? '130 mm' : '95 mm') :
-                                  config.type?.includes('X2') ? '95 mm' : 
-                                  config.type?.includes('X1') ? '95 mm' : 
-                                  config.type === 'DPH' ? '320px' :
-                                  config.type === 'DPV' ? '640px' :
-                                  config.type === 'IDPG' ? (config.panelDesign?.idpgConfig?.cardReader && config.panelDesign?.idpgConfig?.roomNumber ? '600px' :
-                                                           config.panelDesign?.idpgConfig?.cardReader ? '500px' :
-                                                           config.panelDesign?.idpgConfig?.roomNumber ? '450px' : '350px') : '95 mm'}
+                                  config.type === 'TAG' ?
+                                  ((config.panelDesign as any)?.tagConfig?.dimension === 'wide' ? '95 mm' :
+                                   (config.panelDesign as any)?.tagConfig?.dimension === 'tall' ? '130 mm' : '95 mm') :
+                                  config.type === 'X2H' ? '95 mm' :
+                                  config.type === 'X2V' ? '303 mm' :
+                                  config.type === 'X1H' ? '95 mm' :
+                                  config.type === 'X1V' ? '217 mm' :
+                                  config.type === 'DPH' ? '95 mm' :
+                                  config.type === 'DPV' ? '224 mm' :
+                                  config.type === 'IDPG' ? (config.panelDesign?.idpgConfig?.cardReader && config.panelDesign?.idpgConfig?.roomNumber ? '263 mm' :
+                                                           config.panelDesign?.idpgConfig?.cardReader ? '180 mm' :
+                                                           config.panelDesign?.idpgConfig?.roomNumber ? '180 mm' : '95 mm') : '95 mm'}
                               </Box>
 
-                              {/* Height dimension endpoint lines (horizontal lines at ends) */}
+                              {/* Height dimension endpoint lines (horizontal lines at panel edges) */}
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${dimensionPadding}px`, // Start after top padding
-                                left: '-2px', // Adjusted to account for padding
+                                top: `${dimensionPadding}px`,
+                                left: '-2px',
                                 width: '15px',
                                 height: '3px',
                                 backgroundColor: '#999'
                               }} />
                               <Box sx={{
                                 position: 'absolute',
-                                top: `${dimensionPadding + heightPx - 3}px`, // Adjusted for padding
-                                left: '-2px', // Adjusted to account for padding
+                                top: `${bottomEdgeTop}px`,
+                                left: '-2px',
                                 width: '15px',
                                 height: '3px',
                                 backgroundColor: '#999'
                               }} />
                             </>
 
-                        <PanelPreview
-                          icons={config.icons}
-                          panelDesign={config.panelDesign}
-                          iconTexts={config.iconTexts}
-                          type={config.type}
-                        />
+                        <Box
+                          ref={setPanelMeasureRef(panelKey)}
+                          sx={{
+                            position: 'relative',
+                            display: 'inline-block',
+                            margin: 0,
+                            padding: 0,
+                          }}
+                        >
+                          <PanelPreview
+                            icons={config.icons}
+                            panelDesign={config.panelDesign}
+                            iconTexts={config.iconTexts}
+                            type={config.type}
+                          />
+                        </Box>
                       </Box>
                     </PanelVisualContainer>
 
                     <PanelDetailsContainer sx={{
-                      marginLeft: config.type?.includes('X1H') || config.type?.includes('X2H') ? '0' : '15mm',
-                      marginTop: config.type?.includes('X1H') || config.type?.includes('X2H') ? '5mm' : '0',
-                      width: config.type?.includes('X1H') || config.type?.includes('X2H') ? '100%' : 'auto'
+                      marginLeft: isStackedLayout ? '0' : '15mm',
+                      marginTop: isStackedLayout ? '0' : '0',
+                      width: isStackedLayout ? '100%' : 'auto',
+                      paddingTop: isStackedLayout ? '10px' : undefined
                     }}>
                       <DetailRow>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1661,9 +1967,38 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         <DetailLabel>Backbox:</DetailLabel>
                         <DetailValue>{details.backbox}</DetailValue>
                       </DetailRow>
+                      {isNoBackbox(details.backbox) && (
+                        <DetailRow style={{ 
+                          marginTop: '8px',
+                          padding: '10px',
+                          backgroundColor: '#fff3cd',
+                          borderRadius: '6px',
+                          border: '1px solid #ffc107'
+                        }}>
+                          <DetailValue style={{ 
+                            color: '#856404',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            width: '100%'
+                          }}>
+                            ⚠️ {NO_BACKBOX_DISCLAIMER}
+                          </DetailValue>
+                        </DetailRow>
+                      )}
                     </PanelDetailsContainer>
                   </PanelContainer>
                 );
+                } catch (error) {
+                  console.error('Error rendering panel', panelIndex, ':', error, config);
+                  // Return a placeholder or skip this panel
+                  return (
+                    <PanelContainer key={panelIndex}>
+                      <Typography color="error">
+                        Error rendering panel {panelIndex + 1}: {error instanceof Error ? error.message : 'Unknown error'}
+                      </Typography>
+                    </PanelContainer>
+                  );
+                }
               })}
             </PanelGrid>
 
@@ -1865,3 +2200,4 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 };
 
 export default PrintPreview;
+

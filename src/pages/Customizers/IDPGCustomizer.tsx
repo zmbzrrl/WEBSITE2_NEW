@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import "./Customizer.css";
-import { getBackboxOptions } from "../../utils/backboxOptions";
+import { getBackboxOptions, isNoBackbox, NO_BACKBOX_DISCLAIMER } from "../../utils/backboxOptions";
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -1049,9 +1049,9 @@ const IDPGCustomizer = () => {
   const [pendingCategory, setPendingCategory] = useState<'SP'|'TAG'|'IDPG'|'DP'|'EXT'>('IDPG');
 
   const handleAddToCart = (): void => {
-    // Check if backbox details are provided
+    // Check if backbox details are provided (allow "No backbox" as valid selection)
     if (!backbox.trim()) {
-      setBackboxError('Please provide backbox details before adding the panel to your project.');
+      setBackboxError('Please select a backbox option before adding the panel to your project.');
       return;
     }
 
@@ -1621,6 +1621,21 @@ const IDPGCustomizer = () => {
                         fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
                       }}>
                         {backboxError}
+                      </div>
+                    )}
+                    {isNoBackbox(backbox) && (
+                      <div style={{
+                        color: '#856404',
+                        fontSize: '12px',
+                        marginTop: '8px',
+                        fontWeight: '500',
+                        fontFamily: '"Myriad Hebrew", "Monsal Gothic", sans-serif',
+                        backgroundColor: '#fff3cd',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #ffc107',
+                      }}>
+                        ⚠️ {NO_BACKBOX_DISCLAIMER}
                       </div>
                     )}
                   </div>

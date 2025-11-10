@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { supabase } from "../../utils/supabaseClient";
 import "./Customizer.css";
-import { getBackboxOptions } from "../../utils/backboxOptions";
+import { getBackboxOptions, isNoBackbox, NO_BACKBOX_DISCLAIMER } from "../../utils/backboxOptions";
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -459,11 +459,25 @@ const InformationBox = ({
               style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
             >
               <option value="">Select a backbox...</option>
-              {getBackboxOptions('TAG').map((option) => (
+              {getBackboxOptions('TAG', { tagConfig: { dimension: dimensionKey || 'standard' } }).map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
+            {isNoBackbox(backbox) && (
+              <div style={{
+                color: '#856404',
+                fontSize: '12px',
+                marginTop: '8px',
+                fontWeight: '500',
+                backgroundColor: '#fff3cd',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ffc107',
+              }}>
+                ⚠️ {NO_BACKBOX_DISCLAIMER}
+              </div>
+            )}
           </Box>
           <Box sx={{ 
             background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
@@ -2242,11 +2256,25 @@ const TAGCustomizer: React.FC = () => {
                       style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
                     >
                       <option value="">Select a backbox...</option>
-                      {getBackboxOptions('TAG').map((option) => (
+                      {getBackboxOptions('TAG', { tagConfig: { dimension: dimensionKey || 'standard' } }).map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                 {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
+                {isNoBackbox(backbox) && (
+                  <div style={{
+                    color: '#856404',
+                    fontSize: '12px',
+                    marginTop: '8px',
+                    fontWeight: '500',
+                    backgroundColor: '#fff3cd',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #ffc107',
+                  }}>
+                    ⚠️ {NO_BACKBOX_DISCLAIMER}
+                  </div>
+                )}
               </Box>
 
               </div>

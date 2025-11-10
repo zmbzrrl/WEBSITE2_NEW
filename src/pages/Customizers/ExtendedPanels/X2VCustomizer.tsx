@@ -6,7 +6,7 @@ import { useCart } from '../../../contexts/CartContext';
 import { supabase } from '../../../utils/supabaseClient';
 
 import '../Customizer.css';
-import { getBackboxOptions } from '../../../utils/backboxOptions';
+import { getBackboxOptions, isNoBackbox, NO_BACKBOX_DISCLAIMER } from '../../../utils/backboxOptions';
 
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
@@ -879,6 +879,20 @@ const InformationBox = ({
               </select>
 
             {backboxError && <div style={{ color: 'red', fontSize: '12px' }}>{backboxError}</div>}
+            {isNoBackbox(backbox) && (
+              <div style={{
+                color: '#856404',
+                fontSize: '12px',
+                marginTop: '8px',
+                fontWeight: '500',
+                backgroundColor: '#fff3cd',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ffc107',
+              }}>
+                ⚠️ {NO_BACKBOX_DISCLAIMER}
+              </div>
+            )}
 
           </Box>
 
@@ -3399,6 +3413,20 @@ const X2VCustomizer: React.FC = () => {
                 </select>
 
                 {backboxError && <div style={{ color: 'red', fontSize: '12px', marginTop: '8px' }}>{backboxError}</div>}
+                {isNoBackbox(backbox) && (
+                  <div style={{
+                    color: '#856404',
+                    fontSize: '12px',
+                    marginTop: '8px',
+                    fontWeight: '500',
+                    backgroundColor: '#fff3cd',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #ffc107',
+                  }}>
+                    ⚠️ {NO_BACKBOX_DISCLAIMER}
+                  </div>
+                )}
 
               </div>
 
