@@ -144,16 +144,15 @@ export const saveLayout = async (userEmail: string, layoutData: any, projectCode
     }
 
     // Insert into layouts table with project context
+    // Match the table structure: layout_name is a direct column, not inside layout_data
     const insertPayload: any = {
       user_email: userEmail,
-      prop_id: projectCode, // Use projectCode as prop_id (required field)
       project_id: projectId,
-      layout_data: {
-        ...layoutData,
-        layout_name: layoutData.layoutName // Store layout name in layout_data
-      },
+      layout_name: layoutData.layoutName || 'Untitled Layout',
+      layout_data: layoutData, // Store all layout data in JSONB
       created_at: new Date().toISOString(),
-      last_modified: new Date().toISOString()
+      last_modified: new Date().toISOString(),
+      is_active: true
     };
     
     console.log('🔍 Inserting layout with payload:', insertPayload);
@@ -186,7 +185,8 @@ export const getLayouts = async (userEmail: string, projectCode?: string) => {
       .from('layouts')
       .select('*')
       .eq('user_email', userEmail)
-      .order('created_at', { ascending: false });
+      .eq('is_active', true)
+      .order('last_modified', { ascending: false });
 
     // If projectCode provided, filter by project
     if (projectCode) {
@@ -198,13 +198,14 @@ export const getLayouts = async (userEmail: string, projectCode?: string) => {
           user_projects!inner(project_description)
         `)
         .eq('user_email', userEmail)
+        .eq('is_active', true)
         .eq('user_projects.project_description', projectCode)
-        .order('created_at', { ascending: false });
+        .order('last_modified', { ascending: false });
     }
 
     const { data, error } = await query;
 
-    console.log('🔍 Get layouts result:', { data, error, projectCode });
+    console.log('🔍 Get layouts result:', { data: data?.length || 0, error, projectCode });
 
     if (error) {
       console.error('❌ Error getting layouts:', error);
@@ -347,12 +348,32 @@ export const loadLayout = async (layoutId: string, userEmail: string) => {
       .select('*')
       .eq('id', layoutId)
       .eq('user_email', userEmail)
+      .eq('is_active', true)
       .single();
 
-    if (error || !data) return { success: false, error: 'not_found', message: 'Layout not found' };
+    if (error || !data) {
+      console.error('❌ Error loading layout:', error);
+      return { success: false, error: 'not_found', message: 'Layout not found' };
+    }
 
-    return { success: true, layout: data, message: `Layout "${data.layout_data?.layout_name || 'Untitled'}" loaded successfully!` };
+    // Extract layout data - layout_name is a direct column, layout_data contains the rest
+    const layoutData = data.layout_data || {};
+    
+    return { 
+      success: true, 
+      layout: {
+        id: data.id,
+        layout_name: data.layout_name,
+        layout_data: layoutData,
+        project_id: data.project_id,
+        user_email: data.user_email,
+        created_at: data.created_at,
+        last_modified: data.last_modified
+      }, 
+      message: `Layout "${data.layout_name || 'Untitled'}" loaded successfully!` 
+    };
   } catch (error) {
+    console.error('❌ Unexpected error loading layout:', error);
     return { success: false, error: 'unexpected', message: 'Failed to load layout' };
   }
 };
@@ -483,7 +504,7 @@ export const updateLayout = async (layoutId: string, userEmail: string, updates:
       last_modified: new Date().toISOString()
     };
     if (typeof updates.layout_name === 'string') payload.layout_name = updates.layout_name;
-    if (typeof updates.layout_data !== 'undefined') payload.layout_data = { ...(updates.layout_data || {}), isEdited: true };
+    if (typeof updates.layout_data !== 'undefined') payload.layout_data = updates.layout_data;
 
     const { error } = await supabase
       .from('layouts')
