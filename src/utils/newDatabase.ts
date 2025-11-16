@@ -143,11 +143,23 @@ export const saveLayout = async (userEmail: string, layoutData: any, projectCode
       console.log('✅ Created new project:', baseProjectName, 'with code:', projectCode);
     }
 
+    // prop_id is required - use projectCode as prop_id
+    const propId = projectCode || layoutData.projectCode;
+    if (!propId) {
+      console.error('❌ prop_id is required but projectCode is missing');
+      return {
+        success: false,
+        error: 'Missing project code',
+        message: 'Project code (prop_id) is required to save layouts. Please select a property first.'
+      };
+    }
+
     // Insert into layouts table with project context
     // Match the table structure: layout_name is a direct column, not inside layout_data
     const insertPayload: any = {
       user_email: userEmail,
       project_id: projectId,
+      prop_id: propId, // prop_id is required and NOT NULL
       layout_name: layoutData.layoutName || 'Untitled Layout',
       layout_data: layoutData, // Store all layout data in JSONB
       created_at: new Date().toISOString(),
@@ -181,31 +193,48 @@ export const getLayouts = async (userEmail: string, projectCode?: string) => {
   try {
     console.log('📋 Getting layouts for user:', userEmail, 'project:', projectCode);
 
+    let projectId: string | null = null;
+
+    // If projectCode provided, first look up the project ID
+    if (projectCode) {
+      console.log('🔍 Looking up project ID for code:', projectCode, 'user:', userEmail);
+      const { data: existingProjects, error: findError } = await supabase
+        .from('user_projects')
+        .select('id, project_name, project_description')
+        .eq('user_email', userEmail)
+        .eq('project_description', projectCode)
+        .maybeSingle();
+      
+      if (findError) {
+        console.error('❌ Error finding project:', findError);
+        return { success: false, error: 'db', message: 'Failed to find project: ' + findError.message };
+      }
+
+      if (existingProjects) {
+        projectId = existingProjects.id;
+        console.log('✅ Found project ID:', projectId, 'for code:', projectCode);
+      } else {
+        console.log('⚠️ No project found for code:', projectCode, '- returning empty layouts');
+        return { success: true, layouts: [], message: 'No project found for this code' };
+      }
+    }
+
+    // Query layouts - filter by project_id if we have one
     let query = supabase
       .from('layouts')
       .select('*')
       .eq('user_email', userEmail)
-      .eq('is_active', true)
-      .order('last_modified', { ascending: false });
-
-    // If projectCode provided, filter by project
-    if (projectCode) {
-      // Join with user_projects to filter by project code (stored in project_description)
-      query = supabase
-        .from('layouts')
-        .select(`
-          *,
-          user_projects!inner(project_description)
-        `)
-        .eq('user_email', userEmail)
-        .eq('is_active', true)
-        .eq('user_projects.project_description', projectCode)
-        .order('last_modified', { ascending: false });
+      .eq('is_active', true);
+    
+    if (projectId) {
+      query = query.eq('project_id', projectId);
     }
+
+    query = query.order('last_modified', { ascending: false });
 
     const { data, error } = await query;
 
-    console.log('🔍 Get layouts result:', { data: data?.length || 0, error, projectCode });
+    console.log('🔍 Get layouts result:', { data: data?.length || 0, error, projectCode, projectId });
 
     if (error) {
       console.error('❌ Error getting layouts:', error);

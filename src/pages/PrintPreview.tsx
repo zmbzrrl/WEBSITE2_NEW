@@ -16,6 +16,7 @@ import page3Png from '../assets/pdf/3.png';
 import page4Png from '../assets/pdf/4.png';
 import page13Png from '../assets/pdf/13.png';
 import { ProjectContext } from '../App';
+import { getLayouts } from '../utils/newDatabase';
 
 // Function to determine icon color based on background (similar to customizers)
 const getIconColorFromBackground = (backgroundColor: string): string => {
@@ -795,6 +796,18 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showPrintInstructions, setShowPrintInstructions] = useState(false);
   const [measuredPanels, setMeasuredPanels] = useState<Record<string, { width: number; height: number }>>({});
+  const [layouts, setLayouts] = useState<Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    imageScale: number;
+    imagePosition: { x: number; y: number };
+    imageFit: string;
+    placedPanels: any[];
+    placedDevices: any[];
+    panelSizes: { [key: string]: number };
+    deviceSizes: { [key: string]: number };
+  }>>([]);
 
   useEffect(() => {
     // Add comprehensive print styles to remove browser headers/footers and borders
@@ -934,8 +947,62 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
       }
     }
     
+    // Load layouts from database if coming from projpanels (has projectCode)
+    const loadLayoutsFromDatabase = async () => {
+      const userEmail = localStorage.getItem('userEmail');
+      // Get projectCode from state or context (projectCode state variable will be set after this)
+      let finalProjectCode = state?.projectCode;
+      if (!finalProjectCode) {
+        finalProjectCode = contextProjectCode && contextProjectCode.trim() !== '' ? contextProjectCode : undefined;
+      }
+      // Try URL params as fallback
+      if (!finalProjectCode) {
+        const urlParams = new URLSearchParams(window.location.search);
+        finalProjectCode = urlParams.get('projectCode') || undefined;
+      }
+      
+      if (userEmail && finalProjectCode) {
+        try {
+          console.log('Loading layouts for print preview:', { userEmail, projectCode: finalProjectCode });
+          const result = await getLayouts(userEmail, finalProjectCode);
+          
+          if (result.success && result.layouts && result.layouts.length > 0) {
+            console.log('Loaded', result.layouts.length, 'layouts for print preview');
+            
+            // Transform database layouts to component format
+            const transformedLayouts = result.layouts.map((dbLayout: any) => {
+              const layoutData = dbLayout.layout_data || {};
+              return {
+                id: dbLayout.id,
+                name: dbLayout.layout_name || 'Untitled Layout',
+                imageUrl: layoutData.imageUrl || null,
+                imageScale: layoutData.imageScale || 1,
+                imagePosition: layoutData.imagePosition || { x: 0, y: 0 },
+                imageFit: layoutData.imageFit || 'contain',
+                placedPanels: layoutData.placedPanels || [],
+                placedDevices: layoutData.placedDevices || [],
+                panelSizes: layoutData.panelSizes || {},
+                deviceSizes: layoutData.deviceSizes || {}
+              };
+            });
+            
+            setLayouts(transformedLayouts);
+          } else {
+            console.log('No layouts found for print preview');
+            setLayouts([]);
+          }
+        } catch (error) {
+          console.error('Error loading layouts for print preview:', error);
+          setLayouts([]);
+        }
+      } else {
+        setLayouts([]);
+      }
+    };
+    
+    loadLayoutsFromDatabase();
     setIsLoading(false);
-  }, [location, navigate]);
+  }, [location, navigate, contextProjectCode]);
 
   const setPanelMeasureRef = useCallback(
     (key: string) => (node: HTMLDivElement | null) => {
@@ -1116,7 +1183,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
   const panelPages = groupPanelsIntoPages(panelConfigs);
   const totalPanels = panelConfigs.length;
   const staticMiddleSvgs: string[] = [page2Png, page3Png, page4Png];
-  const totalPages = 1 /* cover */ + staticMiddleSvgs.length /* pages 2-4 */ + panelPages.length /* panel pages */ + 1 /* last page 13.svg */;
+  const totalPages = 1 /* cover */ + staticMiddleSvgs.length /* pages 2-4 */ + panelPages.length /* panel pages */ + layouts.length /* layout pages */ + 1 /* last page 13.svg */;
   const currentDate = new Date().toLocaleDateString();
 
   return (
@@ -2104,6 +2171,121 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             </Box>
           </A4Page>
         ))}
+
+        {/* Layout Pages - one page per layout */}
+        {layouts.map((layout, layoutIndex) => {
+          const layoutPageNumber = 1 /* cover */ + staticMiddleSvgs.length /* pages 2-4 */ + panelPages.length /* panel pages */ + layoutIndex + 1;
+          return (
+            <A4Page key={layout.id}>
+              <CompactHeader>
+                <LogoSection>
+                  <Logo src={logoImage} alt="INTEREL Logo" />
+                </LogoSection>
+                
+                <ProjectInfoSection>
+                  <ProjectRow>
+                    <ProjectLabel>Project</ProjectLabel>
+                    <ProjectLabel>Code</ProjectLabel>
+                    <ProjectLabel>Layout</ProjectLabel>
+                    <ProjectLabel>Date</ProjectLabel>
+                    <ProjectLabel>Page</ProjectLabel>
+                  </ProjectRow>
+                  <ProjectRow>
+                    <ProjectValue>{projectName.replace(/\s*Rev\.?\s*[A-Z0-9]+/i, '').replace(/[\[\]()]/g, '').trim()}</ProjectValue>
+                    <ProjectValue>{projectCode}</ProjectValue>
+                    <ProjectValue>{layout.name}</ProjectValue>
+                    <ProjectValue>{currentDate}</ProjectValue>
+                    <ProjectValue>{layoutPageNumber} of {totalPages}</ProjectValue>
+                  </ProjectRow>
+                </ProjectInfoSection>
+              </CompactHeader>
+
+              {/* Layout Content Area */}
+              <Box sx={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {/* Layout Image Background */}
+                {layout.imageUrl && (
+                  <Box sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0.3,
+                    zIndex: 0
+                  }}>
+                    <img
+                      src={layout.imageUrl}
+                      alt={layout.name}
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: (['contain', 'cover', 'fill'].includes(layout.imageFit) ? layout.imageFit : 'contain') as 'contain' | 'cover' | 'fill',
+                        transform: `scale(${layout.imageScale || 1}) translate(${layout.imagePosition?.x || 0}px, ${layout.imagePosition?.y || 0}px)`
+                      }}
+                    />
+                  </Box>
+                )}
+
+                {/* Layout Title */}
+                <Typography variant="h5" sx={{
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                  fontWeight: 'bold',
+                  color: '#1b92d1',
+                  marginBottom: '20px',
+                  zIndex: 1,
+                  textAlign: 'center'
+                }}>
+                  {layout.name}
+                </Typography>
+
+                {/* Layout Info */}
+                <Box sx={{
+                  display: 'flex',
+                  gap: '30px',
+                  marginBottom: '30px',
+                  zIndex: 1,
+                  flexWrap: 'wrap',
+                  justifyContent: 'center'
+                }}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#666', fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif' }}>
+                      Panels: {layout.placedPanels?.length || 0}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#666', fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif' }}>
+                      Devices: {layout.placedDevices?.length || 0}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Note about layout visualization */}
+                <Typography variant="body2" sx={{
+                  color: '#999',
+                  fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                  textAlign: 'center',
+                  fontStyle: 'italic',
+                  zIndex: 1,
+                  marginTop: '20px'
+                }}>
+                  Layout visualization with placed panels and devices
+                </Typography>
+              </Box>
+            </A4Page>
+          );
+        })}
 
         {/* Final last page from 13.svg */}
         <A4Page>
