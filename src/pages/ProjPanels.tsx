@@ -27,6 +27,23 @@ const THEME = {
   cardShadow: '0 4px 16px rgba(0,0,0,0.07)',
 };
 
+const PANEL_TYPE_PRIORITY: Record<string, number> = {
+  IDPG: 0,
+  SP: 1,
+  TAG: 2,
+  DPH: 3,
+  X1H: 3,
+  X2H: 3,
+  DPV: 4,
+  X1V: 4,
+  X2V: 4,
+};
+
+const getPanelPriority = (type?: string) => {
+  if (!type) return 99;
+  return PANEL_TYPE_PRIORITY[type] ?? 99;
+};
+
 const getPanelTypeLabel = (type: string) => {
   switch (type) {
     case "SP": return "Single Panel";
@@ -249,6 +266,47 @@ const ProjPanels: React.FC = () => {
       })();
     }
   }, [location.state, loadProjectPanels, projectCode, setProjectName]);
+
+  // Automatically enforce panel ordering and numbering by priority
+  useEffect(() => {
+    if (!projPanels || projPanels.length === 0) return;
+
+    const panelsWithMeta = projPanels.map((panel, index) => ({
+      panel,
+      index,
+      priority: getPanelPriority(panel.type),
+    }));
+
+    const sorted = [...panelsWithMeta].sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return a.index - b.index;
+    });
+
+    const newOrder = sorted.map(item => item.index);
+    const alreadySorted = newOrder.every((originalIndex, sortedIndex) => originalIndex === sortedIndex);
+
+    if (!alreadySorted) {
+      reorderPanels(newOrder);
+      return;
+    }
+
+    let needsDisplayUpdate = false;
+    sorted.forEach((item, idx) => {
+      const desiredNumber = idx + 1;
+      if (item.panel.displayNumber !== desiredNumber) {
+        needsDisplayUpdate = true;
+      }
+    });
+
+    if (!needsDisplayUpdate) return;
+
+    sorted.forEach((item, idx) => {
+      const desiredNumber = idx + 1;
+      if (item.panel.displayNumber === desiredNumber) return;
+      const updatedPanel = { ...item.panel, displayNumber: desiredNumber };
+      updatePanel(item.index, updatedPanel);
+    });
+  }, [projPanels, reorderPanels, updatePanel]);
   
   // Calculate revision number for the project
   const calculateRevisionNumber = async (baseProjectName: string, isEditMode: boolean = false, currentDesignName?: string) => {

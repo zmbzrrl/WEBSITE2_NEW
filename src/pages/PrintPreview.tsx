@@ -34,6 +34,70 @@ const getPanelTypeLabel = (type: string): string => {
   }
 };
 
+const PANEL_STRIP_SPANS: Record<string, { col: number; row: number }> = {
+  SP: { col: 1, row: 1 },
+  TAG: { col: 1, row: 1 },
+  DPH: { col: 2, row: 1 },
+  DPV: { col: 1, row: 2 },
+  X1H: { col: 2, row: 1 },
+  X1V: { col: 1, row: 2 },
+  X2H: { col: 3, row: 1 },
+  X2V: { col: 1, row: 3 },
+  IDPG: { col: 1, row: 1 }
+};
+
+const PANEL_LABEL_OFFSETS_PX: Record<string, number> = {
+  default: 5,
+  TAG: 2,
+  DPH: 8,
+  DPV: 8,
+  X1H: 10,
+  X1V: 8,
+  X2H: 12,
+  X2V: 12,
+  IDPG: 29
+};
+
+const getPanelSpan = (type?: string) => {
+  if (!type) return { col: 1, row: 1 };
+  return PANEL_STRIP_SPANS[type] || { col: 1, row: 1 };
+};
+
+const getPanelLabelOffset = (type?: string) => {
+  if (!type) return `${PANEL_LABEL_OFFSETS_PX.default}px`;
+  const value = PANEL_LABEL_OFFSETS_PX[type] ?? PANEL_LABEL_OFFSETS_PX.default;
+  return `${value}px`;
+};
+
+const buildPanelRows = (
+  panels: any[] = [],
+  maxUnitsPerRow = 12
+): Array<Array<{ panel: any; span: { col: number; row: number } }>> => {
+  const rows: Array<Array<{ panel: any; span: { col: number; row: number } }>> = [];
+  let currentRow: Array<{ panel: any; span: { col: number; row: number } }> = [];
+  let currentUnits = 0;
+
+  panels.forEach((panel) => {
+    const span = getPanelSpan(panel?.panelData?.type);
+    const units = span.col;
+
+    if (currentUnits + units > maxUnitsPerRow && currentRow.length > 0) {
+      rows.push(currentRow);
+      currentRow = [];
+      currentUnits = 0;
+    }
+
+    currentRow.push({ panel, span });
+    currentUnits += units;
+  });
+
+  if (currentRow.length > 0) {
+    rows.push(currentRow);
+  }
+
+  return rows;
+};
+
 // Function to determine icon color based on background (similar to customizers)
 const getIconColorFromBackground = (backgroundColor: string): string => {
   if (!backgroundColor) return 'N/A';
@@ -1726,6 +1790,351 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
           </A4Page>
         ))}
 
+        {/* Layout Pages - one page per layout */}
+        {isLoadingLayouts ? (
+          <A4Page key="loading-layouts">
+            <CompactHeader>
+              <LogoSection>
+                <Logo src={logoImage} alt="INTEREL Logo" />
+              </LogoSection>
+              
+              <ProjectInfoSection>
+                <ProjectRow>
+                  <ProjectLabel>Project</ProjectLabel>
+                  <ProjectLabel>Code</ProjectLabel>
+                  <ProjectLabel>Date</ProjectLabel>
+                  <ProjectLabel>Page</ProjectLabel>
+                </ProjectRow>
+                <ProjectRow>
+                  <ProjectValue>{projectName.replace(/\s*Rev\.?\s*[A-Z0-9]+/i, '').replace(/[\[\]()]/g, '').trim()}</ProjectValue>
+                  <ProjectValue>{projectCode}</ProjectValue>
+                  <ProjectValue>{currentDate}</ProjectValue>
+                  <ProjectValue>...</ProjectValue>
+                </ProjectRow>
+              </ProjectInfoSection>
+            </CompactHeader>
+
+            {/* Loading Indicator */}
+            <Box sx={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '60px 20px',
+              gap: 16,
+              minHeight: '400px'
+            }}>
+              <CircularProgress size={40} sx={{ color: '#1b92d1' }} />
+              <Typography sx={{
+                color: '#666',
+                fontSize: '14px',
+                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                letterSpacing: '0.5px'
+              }}>
+                Loading layouts...
+              </Typography>
+            </Box>
+          </A4Page>
+        ) : (
+          layouts.map((layout, layoutIndex) => {
+          const layoutPageNumber = 2 /* pages start after cover+static */ + staticMiddleSvgs.length + layoutIndex;
+          const canvasWidth = layout.canvasWidth || 1000;
+          const canvasHeight = layout.canvasHeight || 700;
+          const aspectRatioValue = canvasWidth > 0 && canvasHeight > 0 ? `${canvasWidth} / ${canvasHeight}` : '4 / 3';
+          const panelSizeMap = layout.panelSizes || {};
+          const deviceSizeMap = layout.deviceSizes || {};
+          const sortedPlacedPanels = (layout.placedPanels || []).slice().sort((a: any, b: any) => {
+            const aIdx = typeof a?.panelIndex === 'number' ? a.panelIndex : 0;
+            const bIdx = typeof b?.panelIndex === 'number' ? b.panelIndex : 0;
+            return aIdx - bIdx;
+          });
+          const uniquePlacedPanels: any[] = [];
+          const seenPanelIndices = new Set<number>();
+          sortedPlacedPanels.forEach((panel: any) => {
+            const idx = typeof panel?.panelIndex === 'number' ? panel.panelIndex : null;
+            if (idx !== null) {
+              if (seenPanelIndices.has(idx)) return;
+              seenPanelIndices.add(idx);
+            }
+            uniquePlacedPanels.push(panel);
+          });
+
+          const panelCount = uniquePlacedPanels.length;
+          const layoutStripWidthPx = 720; // approx 90% of an A4 page width
+          const PANEL_STRIP_UNITS = 6; // Ensures 3 DPH/X1H or 2 X2H per row
+          const defaultPanelThumbWidth = panelCount > 12 ? 110 : 140;
+          const reducedThumbnailWidth = Math.max(90, defaultPanelThumbWidth - 10);
+          const panelThumbWidth = Math.min(reducedThumbnailWidth, Math.floor(layoutStripWidthPx / PANEL_STRIP_UNITS));
+          const panelThumbHeight = panelCount > 12 ? 130 : 150;
+          const maxUnitsPerRow = PANEL_STRIP_UNITS;
+          const panelRows = buildPanelRows(uniquePlacedPanels, maxUnitsPerRow);
+          const panelStripItems = panelRows.flat();
+
+          return (
+            <A4Page key={layout.id}>
+              <CompactHeader>
+                <LogoSection>
+                  <Logo src={logoImage} alt="INTEREL Logo" />
+                </LogoSection>
+                
+                <ProjectInfoSection>
+                  <ProjectRow>
+                    <ProjectLabel>Project</ProjectLabel>
+                    <ProjectLabel>Code</ProjectLabel>
+                    <ProjectLabel>Layout</ProjectLabel>
+                    <ProjectLabel>Date</ProjectLabel>
+                    <ProjectLabel>Page</ProjectLabel>
+                  </ProjectRow>
+                  <ProjectRow>
+                    <ProjectValue>{projectName.replace(/\s*Rev\.?\s*[A-Z0-9]+/i, '').replace(/[\[\]()]/g, '').trim()}</ProjectValue>
+                    <ProjectValue>{projectCode}</ProjectValue>
+                    <ProjectValue>{layout.name}</ProjectValue>
+                    <ProjectValue>{currentDate}</ProjectValue>
+                    <ProjectValue>{layoutPageNumber} of {totalPages}</ProjectValue>
+                  </ProjectRow>
+                </ProjectInfoSection>
+              </CompactHeader>
+
+              {/* Panel Previews - Show actual panel designs first */}
+              {uniquePlacedPanels.length > 0 && (
+                <Box
+                  sx={{
+                    width: '90%',
+                    maxWidth: '900px',
+                    margin: '20px auto 0 auto',
+                    padding: '10px 0',
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${maxUnitsPerRow}, ${panelThumbWidth}px)`,
+                    gridAutoRows: `${panelThumbHeight}px`,
+                    columnGap: '24px',
+                    rowGap: '26px',
+                    justifyContent: 'flex-start',
+                    alignContent: 'flex-start',
+                    gridAutoFlow: 'dense'
+                  }}
+                >
+                  {panelStripItems.map(({ panel: placedPanel, span }) => {
+                    if (!placedPanel?.panelData) return null;
+                    const panelData = placedPanel.panelData;
+                    const width = panelThumbWidth * span.col;
+                    const height = panelThumbHeight * span.row;
+
+                    return (
+                      <Box
+                        key={placedPanel.id}
+                        sx={{
+                          position: 'relative',
+                          width: '100%',
+                          height: '100%',
+                          minWidth: 0,
+                          gridColumn: `span ${span.col}`,
+                          gridRow: `span ${span.row}`
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: '50%',
+                            transform: 'translateX(-50%) scale(0.3)',
+                            transformOrigin: 'top center'
+                          }}
+                        >
+                          <PanelPreview
+                            icons={
+                              panelData.icons?.map((icon: any) => ({
+                                src: icon.src || '',
+                                label: icon.label || '',
+                                position: icon.position || 0,
+                                text: icon.text || '',
+                                category: icon.category || '',
+                                id: icon.iconId || undefined,
+                                iconId: icon.iconId || undefined
+                              })) || []
+                            }
+                            panelDesign={
+                              panelData.panelDesign || {
+                                backgroundColor: '#ffffff',
+                                iconColor: '#000000',
+                                textColor: '#000000',
+                                fontSize: '12px'
+                              }
+                            }
+                            type={panelData.type || 'SP'}
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            bottom: getPanelLabelOffset(panelData.type),
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            justifyContent: 'center',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              fontSize: '0.8rem',
+                              color: '#1b92d1',
+                              fontWeight: 700,
+                              fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                              '@media print': {
+                                fontSize: '0.7rem'
+                              }
+                            }}
+                          >
+                            {placedPanel.panelIndex + 1})
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: '0.8rem',
+                              color: '#333',
+                              fontWeight: 700,
+                              fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
+                              '@media print': {
+                                fontSize: '0.7rem'
+                              }
+                            }}
+                          >
+                            {getPanelTypeLabel(panelData.type || 'SP')}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              )}
+
+              {/* Layout Content Area - Render exactly like Layouts page (half page size) - Below panel previews */}
+              <Box sx={{
+                position: 'relative',
+                width: '90%',
+                maxWidth: 900,
+                aspectRatio: aspectRatioValue,
+                maxHeight: 420,
+                margin: '20px auto',
+                border: 'none',
+                borderRadius: '14px',
+                background: 'transparent',
+                overflow: 'hidden',
+                flexShrink: 0
+              }}>
+                {/* Layout Image - Full opacity, not greyed out */}
+                {layout.imageUrl && (
+                  <img
+                    src={layout.imageUrl}
+                    alt={layout.name}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: (['contain', 'cover', 'fill'].includes(layout.imageFit) ? layout.imageFit : 'contain') as 'contain' | 'cover' | 'fill',
+                      transform: `scale(${layout.imageScale || 1}) translate(${layout.imagePosition?.x || 0}px, ${layout.imagePosition?.y || 0}px)`,
+                      transformOrigin: 'center center',
+                      opacity: 1
+                    }}
+                  />
+                )}
+
+                {/* Placed Panels - Render as numbered circles */}
+                {layout.placedPanels && layout.placedPanels.map((panel: any) => {
+                  const panelSize = panelSizeMap[panel.id] || 36;
+                  const leftPercent = (panel.x / canvasWidth) * 100;
+                  const topPercent = (panel.y / canvasHeight) * 100;
+                  const panelWidthPercent = (panelSize / canvasWidth) * 100;
+                  const panelHeightPercent = (panelSize / canvasHeight) * 100;
+                  return (
+                    <Box
+                      key={panel.id}
+                      sx={{
+                        position: 'absolute',
+                        left: `${leftPercent}%`,
+                        top: `${topPercent}%`,
+                        width: `${panelWidthPercent}%`,
+                        height: `${panelHeightPercent}%`,
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10
+                      }}
+                    >
+                      {/* Panel Number Circle */}
+                      <Box
+                        sx={{
+                          background: '#1b92d1',
+                          color: '#fff',
+                          borderRadius: '8px',
+                          fontWeight: 700,
+                          fontSize: Math.max(12, Math.min(24, panelSize * 0.5)),
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
+                          border: 'none',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {panel.panelIndex + 1}
+                      </Box>
+                    </Box>
+                  );
+                })}
+
+                {/* Placed Devices - Render as colored circles */}
+                {layout.placedDevices && layout.placedDevices.map((device: any) => {
+                  const DEVICE_TYPES = {
+                    doorContact: { name: 'Door Contact', color: '#4CAF50' },
+                    pirSensor: { name: 'PIR Sensor', color: '#FF9800' },
+                    windowContact: { name: 'Window Contact', color: '#9C27B0' },
+                    inbuiltPir: { name: 'In-built PIR', color: '#F44336' }
+                  };
+                  const deviceSize = deviceSizeMap[device.id] || 24;
+                  const deviceType = DEVICE_TYPES[device.type as keyof typeof DEVICE_TYPES];
+                  const leftPercent = (device.x / canvasWidth) * 100;
+                  const topPercent = (device.y / canvasHeight) * 100;
+                  const deviceWidthPercent = (deviceSize / canvasWidth) * 100;
+                  const deviceHeightPercent = (deviceSize / canvasHeight) * 100;
+                  return (
+                    <Box
+                      key={device.id}
+                      sx={{
+                        position: 'absolute',
+                        left: `${leftPercent}%`,
+                        top: `${topPercent}%`,
+                        width: `${deviceWidthPercent}%`,
+                        height: `${deviceHeightPercent}%`,
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10
+                      }}
+                    >
+                      {/* Device Circle */}
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: '50%',
+                          background: deviceType?.color || '#666',
+                          border: '2px solid #fff',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          userSelect: 'none'
+                        }}
+                      />
+                    </Box>
+                  );
+                })}
+              </Box>
+            </A4Page>
+          );
+          })
+        )}
+
         {/* Panel Pages */}
         {panelPages.map((pagePanels, pageIndex) => (
           <A4Page key={pageIndex}>
@@ -1749,7 +2158,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                   <ProjectValue>{roomType}</ProjectValue>
                   <ProjectValue>{revision}</ProjectValue>
                   <ProjectValue>{currentDate}</ProjectValue>
-                  <ProjectValue>{(staticMiddleSvgs.length + 2) + pageIndex} of {totalPages}</ProjectValue>
+                  <ProjectValue>{(staticMiddleSvgs.length + layouts.length + 2) + pageIndex} of {totalPages}</ProjectValue>
                 </ProjectRow>
               </ProjectInfoSection>
             </CompactHeader>
@@ -2197,331 +2606,6 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
             </Box>
           </A4Page>
         ))}
-
-        {/* Layout Pages - one page per layout */}
-        {isLoadingLayouts ? (
-          <A4Page key="loading-layouts">
-            <CompactHeader>
-              <LogoSection>
-                <Logo src={logoImage} alt="INTEREL Logo" />
-              </LogoSection>
-              
-              <ProjectInfoSection>
-                <ProjectRow>
-                  <ProjectLabel>Project</ProjectLabel>
-                  <ProjectLabel>Code</ProjectLabel>
-                  <ProjectLabel>Date</ProjectLabel>
-                  <ProjectLabel>Page</ProjectLabel>
-                </ProjectRow>
-                <ProjectRow>
-                  <ProjectValue>{projectName.replace(/\s*Rev\.?\s*[A-Z0-9]+/i, '').replace(/[\[\]()]/g, '').trim()}</ProjectValue>
-                  <ProjectValue>{projectCode}</ProjectValue>
-                  <ProjectValue>{currentDate}</ProjectValue>
-                  <ProjectValue>...</ProjectValue>
-                </ProjectRow>
-              </ProjectInfoSection>
-            </CompactHeader>
-
-            {/* Loading Indicator */}
-            <Box sx={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '60px 20px',
-              gap: 16,
-              minHeight: '400px'
-            }}>
-              <CircularProgress size={40} sx={{ color: '#1b92d1' }} />
-              <Typography sx={{
-                color: '#666',
-                fontSize: '14px',
-                fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
-                letterSpacing: '0.5px'
-              }}>
-                Loading layouts...
-              </Typography>
-            </Box>
-          </A4Page>
-        ) : (
-          layouts.map((layout, layoutIndex) => {
-          const layoutPageNumber = 1 /* cover */ + staticMiddleSvgs.length /* pages 2-4 */ + panelPages.length /* panel pages */ + layoutIndex + 1;
-          const canvasWidth = layout.canvasWidth || 1000;
-          const canvasHeight = layout.canvasHeight || 700;
-          const aspectRatioValue = canvasWidth > 0 && canvasHeight > 0 ? `${canvasWidth} / ${canvasHeight}` : '4 / 3';
-          const panelSizeMap = layout.panelSizes || {};
-          const deviceSizeMap = layout.deviceSizes || {};
-          const panelCount = layout.placedPanels ? layout.placedPanels.length : 0;
-          const panelThumbWidth = panelCount > 12 ? 110 : 140;
-          const panelThumbHeight = panelCount > 12 ? 130 : 150;
-
-          const getPanelSpan = (type: string) => {
-            if (type === 'X2H') return { col: 3, row: 1 };
-            if (type === 'X1V' || type === 'DPV') return { col: 1, row: 2 };
-            if (type === 'X2V') return { col: 1, row: 3 };
-            return { col: 1, row: 1 };
-          };
-          return (
-            <A4Page key={layout.id}>
-              <CompactHeader>
-                <LogoSection>
-                  <Logo src={logoImage} alt="INTEREL Logo" />
-                </LogoSection>
-                
-                <ProjectInfoSection>
-                  <ProjectRow>
-                    <ProjectLabel>Project</ProjectLabel>
-                    <ProjectLabel>Code</ProjectLabel>
-                    <ProjectLabel>Layout</ProjectLabel>
-                    <ProjectLabel>Date</ProjectLabel>
-                    <ProjectLabel>Page</ProjectLabel>
-                  </ProjectRow>
-                  <ProjectRow>
-                    <ProjectValue>{projectName.replace(/\s*Rev\.?\s*[A-Z0-9]+/i, '').replace(/[\[\]()]/g, '').trim()}</ProjectValue>
-                    <ProjectValue>{projectCode}</ProjectValue>
-                    <ProjectValue>{layout.name}</ProjectValue>
-                    <ProjectValue>{currentDate}</ProjectValue>
-                    <ProjectValue>{layoutPageNumber} of {totalPages}</ProjectValue>
-                  </ProjectRow>
-                </ProjectInfoSection>
-              </CompactHeader>
-
-              {/* Panel Previews - Show actual panel designs first */}
-              {layout.placedPanels && layout.placedPanels.length > 0 && (
-                <Box sx={{
-                  width: '90%',
-                  margin: '20px auto 0 auto',
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(auto-fill, minmax(${panelThumbWidth + 10}px, 1fr))`,
-                  gap: '16px 12px',
-                  justifyItems: 'center',
-                  padding: '10px 0'
-                }}>
-                  {layout.placedPanels.map((placedPanel: any) => {
-                    if (!placedPanel.panelData) return null;
-
-                    const panelData = placedPanel.panelData;
-                    const span = getPanelSpan(panelData.type);
-                    return (
-                      <Box
-                        key={placedPanel.id}
-                        sx={{
-                          position: 'relative',
-                          width: panelThumbWidth * span.col,
-                          height: panelThumbHeight * span.row,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'visible',
-                          gridColumn: `span ${span.col}`,
-                          gridRow: `span ${span.row}`
-                        }}
-                      >
-                        {/* Panel Preview - Scaled down */}
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: '50%',
-                            transform: 'translateX(-50%) scale(0.35)', // Make panels much smaller (35% of original size)
-                            transformOrigin: 'top center'
-                          }}
-                        >
-                          <PanelPreview
-                            icons={
-                              panelData.icons?.map((icon: any) => ({
-                                src: icon.src || '',
-                                label: icon.label || '',
-                                position: icon.position || 0,
-                                text: icon.text || '',
-                                category: icon.category || '',
-                                id: icon.iconId || undefined,
-                                iconId: icon.iconId || undefined
-                              })) || []
-                            }
-                            panelDesign={
-                              panelData.panelDesign || {
-                                backgroundColor: '#ffffff',
-                                iconColor: '#000000',
-                                textColor: '#000000',
-                                fontSize: '12px'
-                              }
-                            }
-                            type={panelData.type || 'SP'}
-                          />
-                        </Box>
-                        {/* Panel name and number below preview - adjust `bottom` here to move label vertically */}
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            bottom: 5,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            justifyContent: 'center',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: '0.8rem',
-                              color: '#1b92d1',
-                              fontWeight: 700,
-                              fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
-                              '@media print': {
-                                fontSize: '0.7rem'
-                              }
-                            }}
-                          >
-                            {placedPanel.panelIndex + 1})
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontSize: '0.8rem',
-                              color: '#333',
-                              fontWeight: 700, // Make panel name bold
-                              fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif',
-                              '@media print': {
-                                fontSize: '0.7rem'
-                              }
-                            }}
-                          >
-                            {getPanelTypeLabel(panelData.type || 'SP')}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              )}
-
-              {/* Layout Content Area - Render exactly like Layouts page (half page size) - Below panel previews */}
-              <Box sx={{
-                position: 'relative',
-                width: '90%',
-                maxWidth: 900,
-                aspectRatio: aspectRatioValue,
-                maxHeight: 420,
-                margin: '20px auto',
-                border: 'none',
-                borderRadius: '14px',
-                background: 'transparent',
-                overflow: 'hidden',
-                flexShrink: 0
-              }}>
-                {/* Layout Image - Full opacity, not greyed out */}
-                {layout.imageUrl && (
-                  <img
-                    src={layout.imageUrl}
-                    alt={layout.name}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: (['contain', 'cover', 'fill'].includes(layout.imageFit) ? layout.imageFit : 'contain') as 'contain' | 'cover' | 'fill',
-                      transform: `scale(${layout.imageScale || 1}) translate(${layout.imagePosition?.x || 0}px, ${layout.imagePosition?.y || 0}px)`,
-                      transformOrigin: 'center center',
-                      opacity: 1
-                    }}
-                  />
-                )}
-
-                {/* Placed Panels - Render as numbered circles */}
-                {layout.placedPanels && layout.placedPanels.map((panel: any) => {
-                  const panelSize = panelSizeMap[panel.id] || 36;
-                  const leftPercent = (panel.x / canvasWidth) * 100;
-                  const topPercent = (panel.y / canvasHeight) * 100;
-                  const panelWidthPercent = (panelSize / canvasWidth) * 100;
-                  const panelHeightPercent = (panelSize / canvasHeight) * 100;
-                  return (
-                    <Box
-                      key={panel.id}
-                      sx={{
-                        position: 'absolute',
-                        left: `${leftPercent}%`,
-                        top: `${topPercent}%`,
-                        width: `${panelWidthPercent}%`,
-                        height: `${panelHeightPercent}%`,
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10
-                      }}
-                    >
-                      {/* Panel Number Circle */}
-                      <Box
-                        sx={{
-                          background: '#1b92d1',
-                          color: '#fff',
-                          borderRadius: '8px',
-                          fontWeight: 700,
-                          fontSize: Math.max(12, Math.min(24, panelSize * 0.5)),
-                          width: '100%',
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 1px 4px rgba(27,146,209,0.10)',
-                          border: 'none',
-                          userSelect: 'none'
-                        }}
-                      >
-                        {panel.panelIndex + 1}
-                      </Box>
-                    </Box>
-                  );
-                })}
-
-                {/* Placed Devices - Render as colored circles */}
-                {layout.placedDevices && layout.placedDevices.map((device: any) => {
-                  const DEVICE_TYPES = {
-                    doorContact: { name: 'Door Contact', color: '#4CAF50' },
-                    pirSensor: { name: 'PIR Sensor', color: '#FF9800' },
-                    windowContact: { name: 'Window Contact', color: '#9C27B0' },
-                    inbuiltPir: { name: 'In-built PIR', color: '#F44336' }
-                  };
-                  const deviceSize = deviceSizeMap[device.id] || 24;
-                  const deviceType = DEVICE_TYPES[device.type as keyof typeof DEVICE_TYPES];
-                  const leftPercent = (device.x / canvasWidth) * 100;
-                  const topPercent = (device.y / canvasHeight) * 100;
-                  const deviceWidthPercent = (deviceSize / canvasWidth) * 100;
-                  const deviceHeightPercent = (deviceSize / canvasHeight) * 100;
-                  return (
-                    <Box
-                      key={device.id}
-                      sx={{
-                        position: 'absolute',
-                        left: `${leftPercent}%`,
-                        top: `${topPercent}%`,
-                        width: `${deviceWidthPercent}%`,
-                        height: `${deviceHeightPercent}%`,
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10
-                      }}
-                    >
-                      {/* Device Circle */}
-                      <Box
-                        sx={{
-                          width: '100%',
-                          height: '100%',
-                          borderRadius: '50%',
-                          background: deviceType?.color || '#666',
-                          border: '2px solid #fff',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                          userSelect: 'none'
-                        }}
-                      />
-                    </Box>
-                  );
-                })}
-              </Box>
-            </A4Page>
-          );
-          })
-        )}
 
         {/* Final last page from 13.svg */}
         <A4Page>
