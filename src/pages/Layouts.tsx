@@ -106,6 +106,9 @@ const Layouts: React.FC = () => {
     placedPanels: PlacedPanel[];
     placedDevices: PlacedDevice[];
     panelSizes: { [key: string]: number };
+    deviceSizes: { [key: string]: number };
+    canvasWidth?: number;
+    canvasHeight?: number;
   }>>([{
     id: '1',
     name: 'Layout 1',
@@ -116,7 +119,10 @@ const Layouts: React.FC = () => {
     imageFit: 'contain',
     placedPanels: [],
     placedDevices: [],
-    panelSizes: {}
+    panelSizes: {},
+    deviceSizes: {},
+    canvasWidth: 1000,
+    canvasHeight: 700
   }]);
   const [currentLayoutId, setCurrentLayoutId] = useState<string>('1');
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -239,7 +245,10 @@ const Layouts: React.FC = () => {
               imageFit: layoutData.imageFit || 'contain',
               placedPanels: layoutData.placedPanels || [],
               placedDevices: layoutData.placedDevices || [],
-              panelSizes: layoutData.panelSizes || {}
+              panelSizes: layoutData.panelSizes || {},
+              deviceSizes: layoutData.deviceSizes || {},
+              canvasWidth: layoutData.canvasWidth || layoutData.canvas_width || 1000,
+              canvasHeight: layoutData.canvasHeight || layoutData.canvas_height || 700
             };
           });
           
@@ -558,6 +567,7 @@ const Layouts: React.FC = () => {
   // Layout management functions
   const addNewLayout = () => {
     const newId = Date.now().toString();
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
     const newLayout = {
       id: newId,
       name: selectedRoomType || 'Untitled Layout',
@@ -568,7 +578,10 @@ const Layouts: React.FC = () => {
       imageFit: 'contain' as const,
       placedPanels: [],
       placedDevices: [],
-      panelSizes: {}
+      panelSizes: {},
+      deviceSizes: {},
+      canvasWidth: canvasRect?.width || 1000,
+      canvasHeight: canvasRect?.height || 700
     };
     setLayouts(prev => [...prev, newLayout]);
     setCurrentLayoutId(newId);
@@ -615,7 +628,10 @@ const Layouts: React.FC = () => {
             imageFit: layoutData.imageFit || 'contain',
             placedPanels: layoutData.placedPanels || [],
             placedDevices: layoutData.placedDevices || [],
-            panelSizes: layoutData.panelSizes || {}
+            panelSizes: layoutData.panelSizes || {},
+            deviceSizes: layoutData.deviceSizes || {},
+            canvasWidth: layoutData.canvasWidth || layoutData.canvas_width || 1000,
+            canvasHeight: layoutData.canvasHeight || layoutData.canvas_height || 700
           };
         });
         setLayouts(transformedLayouts);
@@ -679,6 +695,15 @@ const Layouts: React.FC = () => {
         }
       }
 
+      // Measure canvas dimensions for consistent scaling across pages
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      const measuredCanvasWidth = canvasRect?.width || currentLayout.canvasWidth || 1000;
+      const measuredCanvasHeight = canvasRect?.height || currentLayout.canvasHeight || 700;
+      updateCurrentLayout({
+        canvasWidth: measuredCanvasWidth,
+        canvasHeight: measuredCanvasHeight
+      });
+
       // Prepare layout data for saving (same structure as panel designs)
       const layoutData = {
         layoutName: currentLayout.name.trim(),
@@ -702,6 +727,8 @@ const Layouts: React.FC = () => {
         })),
         panelSizes: panelSizes,
         deviceSizes: deviceSizes,
+        canvasWidth: measuredCanvasWidth,
+        canvasHeight: measuredCanvasHeight,
         totalPanels: currentLayout.placedPanels.length,
         totalDevices: currentLayout.placedDevices.length,
         hasImage: !!currentLayout.imageUrl,
@@ -731,7 +758,10 @@ const Layouts: React.FC = () => {
               imageFit: layoutData.imageFit || 'contain',
               placedPanels: layoutData.placedPanels || [],
               placedDevices: layoutData.placedDevices || [],
-              panelSizes: layoutData.panelSizes || {}
+              panelSizes: layoutData.panelSizes || {},
+              deviceSizes: layoutData.deviceSizes || {},
+              canvasWidth: layoutData.canvasWidth || layoutData.canvas_width || 1000,
+              canvasHeight: layoutData.canvasHeight || layoutData.canvas_height || 700
             };
           });
           setLayouts(transformedLayouts);
