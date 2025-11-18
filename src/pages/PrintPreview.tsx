@@ -55,7 +55,7 @@ const PANEL_LABEL_OFFSETS_PX: Record<string, number> = {
   X1V: 8,
   X2H: 12,
   X2V: 12,
-  IDPG: 29
+  IDPG: 14
 };
 
 const getPanelSpan = (type?: string) => {
