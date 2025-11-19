@@ -155,7 +155,7 @@ const mapPanelCodeToPanelType = (panelCode: string | undefined, panelData?: any)
   }
   
   // Explicit known mappings for other codes
-  if (code === 'IDPG') return 'IDPG';
+  if (code.startsWith('IDPG')) return 'IDPG';
   if (code.startsWith('TAG')) return 'TAG';
   if (code.startsWith('X1H')) return 'X1H';
   if (code.startsWith('X1V')) return 'X1V';
