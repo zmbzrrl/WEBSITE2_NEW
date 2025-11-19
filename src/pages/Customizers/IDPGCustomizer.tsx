@@ -267,7 +267,7 @@ function loadGoogleFont(font: string) {
     link.id = id;
     link.rel = 'stylesheet';
     link.href = `https://fonts.googleapis.com/css?family=${fontId}`;
-    document.head.appendChild(link);
+    document.head.appendChild(link)
   }
 }
 

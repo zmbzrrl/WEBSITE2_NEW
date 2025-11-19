@@ -404,26 +404,39 @@ const ProjPanels: React.FC = () => {
 
   // Handle panel name editing
   const handlePanelNameEdit = (index: number) => {
+    const panel = projPanels[index];
+    if (!panel) return;
+    const fallbackName = getPanelTypeLabel(panel.type || 'SP');
     setEditingNameIndex(index);
-    setEditingNameValue(projPanels[index].panelName || '');
+    setEditingNameValue(panel.panelName?.trim() || fallbackName);
   };
 
   // Handle panel name save
   const handlePanelNameSave = (index: number) => {
     try {
-      // Update the panel's name using the updatePanel function
-      const updatedPanel = { ...projPanels[index], panelName: editingNameValue.trim() };
+      const panel = projPanels[index];
+      if (!panel) {
+        setEditingNameIndex(null);
+        setEditingNameValue('');
+        return;
+      }
+      const fallbackName = getPanelTypeLabel(panel.type || 'SP');
+      const trimmedName = editingNameValue.trim();
+      const finalName = trimmedName.length > 0 ? trimmedName : fallbackName;
+      const updatedPanel = { ...panel, panelName: finalName };
       updatePanel(index, updatedPanel);
     } catch (error) {
       console.error('Error updating panel name:', error);
     }
     
     setEditingNameIndex(null);
+    setEditingNameValue('');
   };
 
   // Handle panel name cancel
   const handlePanelNameCancel = () => {
     setEditingNameIndex(null);
+    setEditingNameValue('');
   };
 
   // Handle key press in name edit mode
@@ -864,23 +877,38 @@ const ProjPanels: React.FC = () => {
             gap: 32,
             marginBottom: 40,
           }}>
-            {projPanels.map((item, index) => (
-              <div
-                key={index}
-                style={{
-                  background: THEME.card,
-                  borderRadius: THEME.borderRadius,
-                  boxShadow: THEME.cardShadow,
-                  padding: 28,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 18,
-                  alignItems: 'flex-start',
-                  position: 'relative',
-                  minHeight: 220,
-                  border: '1px solid #f0f0f0',
-                }}
-              >
+            {projPanels.map((item, index) => {
+              const displayPanelName = item.panelName && item.panelName.trim() !== ''
+                ? item.panelName
+                : getPanelTypeLabel(item.type || 'SP');
+              const isEditingName = editingNameIndex === index;
+              const canEditPanelName = !isViewMode;
+              const fallbackPanelDesign: any = item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' };
+              const panelDesignForPreview =
+                item.type === 'TAG'
+                  ? ({
+                      ...fallbackPanelDesign,
+                      tagConfig: { ...(((item.panelDesign as any)?.tagConfig) || { dimension: 'wide' }) },
+                    } as any)
+                  : fallbackPanelDesign;
+
+              return (
+                <div
+                  key={index}
+                  style={{
+                    background: THEME.card,
+                    borderRadius: THEME.borderRadius,
+                    boxShadow: THEME.cardShadow,
+                    padding: 28,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 18,
+                    alignItems: 'flex-start',
+                    position: 'relative',
+                    minHeight: 220,
+                    border: '1px solid #f0f0f0',
+                  }}
+                >
                 {/* Panel Number and Type */}
                 <div style={{
                   display: 'flex',
@@ -977,28 +1005,108 @@ const ProjPanels: React.FC = () => {
                   alignItems: 'center',
                   gap: 10,
                   marginBottom: 12,
+                  flexWrap: 'wrap'
                 }}>
                   <span style={{ color: THEME.textSecondary, fontSize: 15, fontWeight: 500 }}>Name:</span>
-                  <div 
-                    style={{
-                      background: '#f8f9fa',
-                      color: THEME.textPrimary,
-                      borderRadius: 6,
-                      fontWeight: 500,
-                      fontSize: 15,
-                      padding: '8px 12px',
-                      border: '1px solid #e9ecef',
-                      cursor: 'default',
-                      minWidth: 200,
-                      maxWidth: 300,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={item.panelName || "Panel name"}
-                  >
-                    {item.panelName || "Panel"}
-                  </div>
+                  {isEditingName ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={editingNameValue}
+                        onChange={(e) => setEditingNameValue(e.target.value)}
+                        onKeyDown={(e) => handleNameKeyPress(e, index)}
+                        autoFocus
+                        style={{
+                          background: '#ffffff',
+                          color: THEME.textPrimary,
+                          borderRadius: 6,
+                          fontSize: 15,
+                          padding: '8px 12px',
+                          border: '1px solid #d0d7de',
+                          minWidth: 220,
+                          maxWidth: 320,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                          fontFamily: '"Myriad Hebrew", "Monsal Gothic", Arial, sans-serif'
+                        }}
+                      />
+                      <button
+                        onClick={() => handlePanelNameSave(index)}
+                        style={{
+                          background: THEME.primary,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '6px 14px',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 3px rgba(27,146,209,0.2)'
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handlePanelNameCancel}
+                        style={{
+                          background: '#f0f0f0',
+                          color: THEME.textSecondary,
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '6px 12px',
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div 
+                        style={{
+                          background: '#f8f9fa',
+                          color: THEME.textPrimary,
+                          borderRadius: 6,
+                          fontWeight: 500,
+                          fontSize: 15,
+                          padding: '8px 12px',
+                          border: '1px solid #e9ecef',
+                          minWidth: 200,
+                          maxWidth: 320,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          cursor: canEditPanelName ? 'pointer' : 'default'
+                        }}
+                        title={displayPanelName}
+                        onClick={canEditPanelName ? () => handlePanelNameEdit(index) : undefined}
+                      >
+                        {displayPanelName}
+                      </div>
+                      {canEditPanelName && (
+                        <button
+                          onClick={() => handlePanelNameEdit(index)}
+                          style={{
+                            background: '#eef4ff',
+                            border: '1px solid #cfdcff',
+                            color: THEME.primary,
+                            borderRadius: 6,
+                            padding: '6px 12px',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Edit sx={{ fontSize: 16 }} />
+                          Rename
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {/* Quantity with editable Allocated and read-only Max Allowed */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
@@ -1196,14 +1304,7 @@ const ProjPanels: React.FC = () => {
                       category: icon.category || '',
                       iconId: icon.iconId || undefined,
                     }))}
-                    panelDesign={
-                      item.type === 'TAG'
-                        ? {
-                            ...(item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' }),
-                            tagConfig: { ...(item.panelDesign?.tagConfig || { dimension: 'wide' }) },
-                          }
-                        : (item.panelDesign || { backgroundColor: '', iconColor: '#000', textColor: '#000', fontSize: '12px' })
-                    }
+                    panelDesign={panelDesignForPreview}
                     type={item.type}
                     iconTexts={item.iconTexts}
                   />
@@ -1216,8 +1317,9 @@ const ProjPanels: React.FC = () => {
                     comments={item.panelDesign?.extraComments}
                   />
                 </div>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
         {/* Action Buttons */}

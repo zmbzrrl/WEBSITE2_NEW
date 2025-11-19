@@ -41,21 +41,47 @@ const PANEL_STRIP_SPANS: Record<string, { col: number; row: number }> = {
   DPV: { col: 1, row: 2 },
   X1H: { col: 2, row: 1 },
   X1V: { col: 1, row: 2 },
-  X2H: { col: 3, row: 1 },
+  X2H: { col: 3, row: 1 }, 
   X2V: { col: 1, row: 3 },
   IDPG: { col: 1, row: 1 }
 };
 
 const PANEL_LABEL_OFFSETS_PX: Record<string, number> = {
   default: 5,
-  TAG: 2,
+  TAG: -15,
   DPH: 8,
   DPV: 8,
   X1H: 10,
-  X1V: 8,
+  X1V: 70,
   X2H: 12,
-  X2V: 12,
-  IDPG: 14
+  X2V: 180,
+  IDPG: -70
+};
+
+type PanelLabelResolver = (panelData: any) => number | undefined;
+
+const PANEL_LABEL_VARIATION_RESOLVERS: Record<string, PanelLabelResolver> = {
+  SP: (panelData) => {
+    const dimension = panelData?.panelDesign?.spConfig?.dimension;
+    if (!dimension || dimension === 'standard') return undefined;
+    const dimensionOffsets: Record<string, number> = {
+      wide: -5,
+      tall: 25
+    };
+    return dimensionOffsets[dimension];
+  },
+  IDPG: (panelData) => {
+    const cfg = panelData?.panelDesign?.idpgConfig;
+    if (!cfg) return undefined;
+    const key = `${cfg.cardReader ? 'CR' : 'noCR'}-${cfg.roomNumber ? 'RN' : 'noRN'}`;
+    const idpgOffsets: Record<string, number> = {
+      'CR-RN': -85,
+      'CR-noRN': -60,
+      'noCR-RN': -40,
+      'noCR-noRN': -20
+    };
+    return idpgOffsets[key];
+  }
 };
 
 const getPanelSpan = (type?: string) => {
@@ -63,10 +89,24 @@ const getPanelSpan = (type?: string) => {
   return PANEL_STRIP_SPANS[type] || { col: 1, row: 1 };
 };
 
-const getPanelLabelOffset = (type?: string) => {
-  if (!type) return `${PANEL_LABEL_OFFSETS_PX.default}px`;
-  const value = PANEL_LABEL_OFFSETS_PX[type] ?? PANEL_LABEL_OFFSETS_PX.default;
-  return `${value}px`;
+const getPanelLabelOffset = (panelOrType?: string | { type?: string }) => {
+  if (!panelOrType) return `${PANEL_LABEL_OFFSETS_PX.default}px`;
+
+  const type = typeof panelOrType === 'string'
+    ? panelOrType
+    : panelOrType?.type || (panelOrType as any)?.panelData?.type || undefined;
+
+  let offset = PANEL_LABEL_OFFSETS_PX[type || 'default'] ?? PANEL_LABEL_OFFSETS_PX.default;
+
+  if (typeof panelOrType !== 'string' && type) {
+    const resolver = PANEL_LABEL_VARIATION_RESOLVERS[type];
+    const variantOffset = resolver?.(panelOrType);
+    if (typeof variantOffset === 'number' && !Number.isNaN(variantOffset)) {
+      offset = variantOffset;
+    }
+  }
+
+  return `${offset}px`;
 };
 
 const buildPanelRows = (
@@ -1967,7 +2007,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         <Box
                           sx={{
                             position: 'absolute',
-                            bottom: getPanelLabelOffset(panelData.type),
+                            bottom: getPanelLabelOffset(panelData),
                             left: '50%',
                             transform: 'translateX(-50%)',
                             display: 'flex',
