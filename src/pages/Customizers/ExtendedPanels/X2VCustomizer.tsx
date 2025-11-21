@@ -1959,7 +1959,7 @@ const X2VCustomizer: React.FC = () => {
     // Default position
     let pos = iconPositions?.[index] || { top: '0px', left: '0px' };
     
-    // Force DISPLAY icon for X2V TAG layout in position 0
+    // Force DISPLAY icon for X2V TAG layout in position 0 (Note: position 0 is actually one of the 3 icons above the separately-rendered DISPLAY icon)
     let forceIcon = null;
     if (useTagLayout && index === 0) {
       forceIcon = {

@@ -154,7 +154,38 @@ export const saveLayout = async (userEmail: string, layoutData: any, projectCode
       };
     }
 
-    // Insert into layouts table with project context
+    // Check if layout already exists (has database ID)
+    const layoutId = layoutData.id || layoutData.layoutId;
+    if (layoutId) {
+      // Verify layout exists and belongs to this user
+      const { data: existingLayout, error: checkError } = await supabase
+        .from('layouts')
+        .select('id, user_email')
+        .eq('id', layoutId)
+        .eq('user_email', userEmail)
+        .single();
+
+      if (!checkError && existingLayout) {
+        // Layout exists - update it instead of creating new
+        console.log('✅ Layout exists, updating:', layoutId);
+        const updateResult = await updateLayout(
+          layoutId,
+          userEmail,
+          {
+            layout_name: layoutData.layoutName || 'Untitled Layout',
+            layout_data: layoutData
+          }
+        );
+
+        if (updateResult.success) {
+          return { success: true, layoutId: layoutId, message: `Layout "${layoutData.layoutName}" updated successfully!` };
+        } else {
+          return { success: false, error: 'db', message: 'Failed to update layout: ' + updateResult.message };
+        }
+      }
+    }
+
+    // Layout doesn't exist or no ID provided - insert new layout
     // Match the table structure: layout_name is a direct column, not inside layout_data
     const insertPayload: any = {
       user_email: userEmail,
@@ -167,7 +198,7 @@ export const saveLayout = async (userEmail: string, layoutData: any, projectCode
       is_active: true
     };
     
-    console.log('🔍 Inserting layout with payload:', insertPayload);
+    console.log('🔍 Inserting new layout with payload:', insertPayload);
     
     const { data, error } = await supabase
       .from('layouts')

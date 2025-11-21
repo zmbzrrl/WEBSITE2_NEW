@@ -706,6 +706,7 @@ const Layouts: React.FC = () => {
 
       // Prepare layout data for saving (same structure as panel designs)
       const layoutData = {
+        id: currentLayout.id, // Include database ID if layout was loaded from database
         layoutName: currentLayout.name.trim(),
         projectName: currentLayout.name.trim(),
         projectCode: projectCode || sessionProjectCode || '',

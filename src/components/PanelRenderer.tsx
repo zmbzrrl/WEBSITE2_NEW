@@ -319,7 +319,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
             if (!pos) pos = { top: '0px', left: '0px' };
             let icon = icons.find((i) => i.position === index);
             let forceIcon = null;
-            // TAG panels always have DISPLAY icon in position 0 (top-left)
+            // TAG panels: Force DISPLAY icon at position 0 (Note: position 0 is actually one of the 3 icons above the separately-rendered DISPLAY icon)
             if (isTAG && index === 0) {
               forceIcon = {
                 src: DISPLAY,
@@ -330,7 +330,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ icons, panelDesign, iconT
                 text: 'DISPLAY',
               };
             }
-            // X2V panels with TAG layout also have DISPLAY icon in position 0 (top-left)
+            // X2V panels with TAG layout: Force DISPLAY icon at position 0 (Note: position 0 is actually one of the 3 icons above the separately-rendered DISPLAY icon)
             if (isX2V && (panelDesign as any).useTagLayout && index === 0) {
               forceIcon = {
                 src: DISPLAY,

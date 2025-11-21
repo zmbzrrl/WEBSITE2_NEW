@@ -254,6 +254,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
     const iconSize = panelDesign.iconSize || iconLayout?.size || '47px';
     const pos = activeIconPositions?.[index] || { top: '0px', left: '0px' };
     const baseTop = parseInt((pos as any).top || '0', 10);
+    const baseLeft = parseInt((pos as any).left || '0', 10);
     const rowIndex = Math.floor(index / 3);
     // Apply TAG-specific first-row offset in preview
     let adjustedTopPx = baseTop;
@@ -261,6 +262,8 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
       adjustedTopPx += 25;
     }
     const adjustedTop = `${adjustedTopPx}px`;
+    
+    const adjustedLeftStr = `${baseLeft}px`;
     
     return (
       <div
@@ -271,6 +274,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
           width: (pos as any).width || iconSize,
           height: (pos as any).height || iconSize,
           top: adjustedTop,
+          left: adjustedLeftStr,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -2701,9 +2705,10 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               
               // Final fallback
               if (!pos) pos = { top: '0px', left: '0px' };
+              
               let icon = icons.find((i) => i.position === index);
               let forceIcon = null;
-              // TAG panels always have DISPLAY icon in position 0 (top-left)
+              // TAG panels: Force DISPLAY icon at position 0 (Note: position 0 is actually one of the 3 icons above the separately-rendered DISPLAY icon)
               if (isTAG && index === 0) {
                 forceIcon = {
                   src: DISPLAY,
@@ -2714,7 +2719,7 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                   text: 'DISPLAY',
                 };
               }
-              // X2V panels with TAG layout also have DISPLAY icon in position 0 (top-left)
+              // X2V panels with TAG layout: Force DISPLAY icon at position 0 (Note: position 0 is actually one of the 3 icons above the separately-rendered DISPLAY icon)
               if (isX2V && panelDesign.useTagLayout && index === 0) {
                 forceIcon = {
                   src: DISPLAY,
@@ -2736,9 +2741,6 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
               // Keep SP/TAG absolute positions consistent across dimensions (no per-row offsets)
               let adjustedPos = pos;
               if (isSP || isTAG) {
-                if (index === 3) {
-                  console.log('🔍 Entering SP/TAG block for index 3:', { isSP, isTAG, type });
-                }
                 const baseTop = parseInt((pos as any).top || '0', 10);
                 let adjustedTopPx = baseTop;
                 const baseLeft = parseInt((pos as any).left || '0', 10);
@@ -2770,32 +2772,6 @@ const PanelPreview: React.FC<PanelPreviewProps> = ({
                 let adjustedLeft = baseLeft;
                 if (isTAG && (panelDesign.tagConfig?.dimension === 'wide' || !panelDesign.tagConfig) && rowIndex === 0) {
                   adjustedLeft -= 5;
-                }
-                // Move TAG wide position 3 (second row, first column) 20px to the right
-                if (isTAG && index === 3) {
-                  console.log('🔍 Position 3 check:', { 
-                    isTAG, 
-                    index, 
-                    tagConfig: panelDesign.tagConfig,
-                    dimension: panelDesign.tagConfig?.dimension,
-                    condition1: panelDesign.tagConfig?.dimension === 'wide',
-                    condition2: !panelDesign.tagConfig,
-                    fullCondition: (panelDesign.tagConfig?.dimension === 'wide' || !panelDesign.tagConfig),
-                    baseLeft,
-                    currentAdjustedLeft: adjustedLeft
-                  });
-                  if (panelDesign.tagConfig?.dimension === 'wide' || !panelDesign.tagConfig) {
-                    console.log('🔍 Moving TAG wide position 3 right by 20px', { baseLeft, adjustedLeft: adjustedLeft + 20 });
-                    adjustedLeft += 20;
-                  }
-                }
-                // Move TAG tall position 3 20px to the right
-                if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && index === 3) {
-                  adjustedLeft += 20;
-                }
-                // Move TAG tall position 5 20px to the left
-                if (isTAG && panelDesign.tagConfig?.dimension === 'tall' && index === 5) {
-                  adjustedLeft -= 20;
                 }
                 // Move first column 8px to the left for SP wide on ProjPanels page
                 if (isSP && panelDesign.spConfig?.dimension === 'wide' && isProjPanelsPage && (index === 0 || index === 3 || index === 6)) {

@@ -41,21 +41,67 @@ const PANEL_STRIP_SPANS: Record<string, { col: number; row: number }> = {
   DPV: { col: 1, row: 2 },
   X1H: { col: 2, row: 1 },
   X1V: { col: 1, row: 2 },
-  X2H: { col: 3, row: 1 }, 
+  X2H: { col: 3, row: 1 },
   X2V: { col: 1, row: 3 },
-  IDPG: { col: 1, row: 1 }
+  IDPG: { col: 1, row: 1 },
+  default: { col: 1, row: 1 }
+};
+
+const MINI_PANEL_MAX_COLUMNS = 6;
+
+const getMiniPanelTransform = (panelData: any) => {
+  let scale = 0.3;
+  let translateY = 0;
+  const type = panelData?.type;
+
+  const setTallAdjustments = (factor = 0.255, offset = -6) => {
+    scale = factor;
+    translateY = offset;
+  };
+
+  if (type === 'SP') {
+    const dimension = panelData?.panelDesign?.spConfig?.dimension;
+    if (dimension === 'tall') {
+      setTallAdjustments();
+    } else if (dimension === 'wide') {
+      scale = 0.27;
+      translateY = -4;
+    }
+  }
+
+  if (type === 'TAG') {
+    const dimension = (panelData?.panelDesign as any)?.tagConfig?.dimension;
+    if (dimension === 'tall') {
+      setTallAdjustments(0.25, -8);
+    } else if (dimension === 'wide') {
+      scale = 0.27;
+      translateY = -5;
+    }
+  }
+
+  if (type === 'IDPG') {
+    const cfg = panelData?.panelDesign?.idpgConfig;
+    if (cfg?.roomNumber && cfg?.cardReader) {
+      setTallAdjustments(0.24, -15);
+    } else if (cfg?.roomNumber || cfg?.cardReader) {
+      setTallAdjustments(0.26, -10);
+    }
+  }
+
+  return { scale, translateY };
 };
 
 const PANEL_LABEL_OFFSETS_PX: Record<string, number> = {
   default: 5,
-  TAG: -15,
+  SP: -5,
+  TAG: -5,
   DPH: 8,
   DPV: 8,
-  X1H: 10,
-  X1V: 70,
-  X2H: 12,
-  X2V: 180,
-  IDPG: -70
+  X1H: 1,
+  X1V: 45,
+  X2H: 10,
+  X2V: 150,
+  IDPG: 50,
 };
 
 type PanelLabelResolver = (panelData: any) => number | undefined;
@@ -65,8 +111,17 @@ const PANEL_LABEL_VARIATION_RESOLVERS: Record<string, PanelLabelResolver> = {
     const dimension = panelData?.panelDesign?.spConfig?.dimension;
     if (!dimension || dimension === 'standard') return undefined;
     const dimensionOffsets: Record<string, number> = {
-      wide: -5,
-      tall: 25
+      wide: 15,
+      tall: -10,
+    };
+    return dimensionOffsets[dimension];
+  },
+  TAG: (panelData) => {
+    const dimension = (panelData?.panelDesign as any)?.tagConfig?.dimension;
+    if (!dimension || dimension === 'standard') return undefined;
+    const dimensionOffsets: Record<string, number> = {
+      wide: 13,
+      tall: -5,
     };
     return dimensionOffsets[dimension];
   },
@@ -75,18 +130,46 @@ const PANEL_LABEL_VARIATION_RESOLVERS: Record<string, PanelLabelResolver> = {
     if (!cfg) return undefined;
     const key = `${cfg.cardReader ? 'CR' : 'noCR'}-${cfg.roomNumber ? 'RN' : 'noRN'}`;
     const idpgOffsets: Record<string, number> = {
-      'CR-RN': -85,
+      'CR-RN': -25,
       'CR-noRN': -60,
-      'noCR-RN': -40,
-      'noCR-noRN': -20
+      'noCR-RN': -10,
+      'noCR-noRN': -5,
     };
     return idpgOffsets[key];
   }
 };
 
-const getPanelSpan = (type?: string) => {
-  if (!type) return { col: 1, row: 1 };
-  return PANEL_STRIP_SPANS[type] || { col: 1, row: 1 };
+type PanelSpan = { col: number; row: number };
+type PanelSpanResolver = (panelData: any, baseSpan: PanelSpan) => PanelSpan;
+
+const PANEL_VARIATION_SPAN_RESOLVERS: Record<string, PanelSpanResolver> = {
+  SP: (_panelData, baseSpan) => baseSpan,
+  TAG: (_panelData, baseSpan) => baseSpan,
+  IDPG: (_panelData, baseSpan) => baseSpan
+};
+
+const clampSpan = (span: PanelSpan): PanelSpan => ({
+  col: Math.min(Math.max(1, span.col), MINI_PANEL_MAX_COLUMNS),
+  row: Math.min(Math.max(1, span.row), MINI_PANEL_MAX_COLUMNS)
+});
+
+const getPanelSpan = (panel?: any): PanelSpan => {
+  if (!panel) return { col: 1, row: 1 };
+
+  if (typeof panel === 'string') {
+    return PANEL_STRIP_SPANS[panel] || PANEL_STRIP_SPANS.default;
+  }
+
+  const panelData = panel.panelData || panel;
+  const type = panelData?.type;
+  let span: PanelSpan = { ...(PANEL_STRIP_SPANS[type] || PANEL_STRIP_SPANS.default) };
+
+  const resolver = type ? PANEL_VARIATION_SPAN_RESOLVERS[type] : undefined;
+  if (resolver) {
+    span = resolver(panelData, span);
+  }
+
+  return clampSpan(span);
 };
 
 const getPanelLabelOffset = (panelOrType?: string | { type?: string }) => {
@@ -111,14 +194,14 @@ const getPanelLabelOffset = (panelOrType?: string | { type?: string }) => {
 
 const buildPanelRows = (
   panels: any[] = [],
-  maxUnitsPerRow = 12
+  maxUnitsPerRow = MINI_PANEL_MAX_COLUMNS
 ): Array<Array<{ panel: any; span: { col: number; row: number } }>> => {
   const rows: Array<Array<{ panel: any; span: { col: number; row: number } }>> = [];
   let currentRow: Array<{ panel: any; span: { col: number; row: number } }> = [];
   let currentUnits = 0;
 
   panels.forEach((panel) => {
-    const span = getPanelSpan(panel?.panelData?.type);
+    const span = getPanelSpan(panel);
     const units = span.col;
 
     if (currentUnits + units > maxUnitsPerRow && currentRow.length > 0) {
@@ -1902,12 +1985,11 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 
           const panelCount = uniquePlacedPanels.length;
           const layoutStripWidthPx = 720; // approx 90% of an A4 page width
-          const PANEL_STRIP_UNITS = 6; // Ensures 3 DPH/X1H or 2 X2H per row
           const defaultPanelThumbWidth = panelCount > 12 ? 110 : 140;
           const reducedThumbnailWidth = Math.max(90, defaultPanelThumbWidth - 10);
-          const panelThumbWidth = Math.min(reducedThumbnailWidth, Math.floor(layoutStripWidthPx / PANEL_STRIP_UNITS));
+          const panelThumbWidth = Math.min(reducedThumbnailWidth, Math.floor(layoutStripWidthPx / MINI_PANEL_MAX_COLUMNS));
           const panelThumbHeight = panelCount > 12 ? 130 : 150;
-          const maxUnitsPerRow = PANEL_STRIP_UNITS;
+          const maxUnitsPerRow = MINI_PANEL_MAX_COLUMNS;
           const panelRows = buildPanelRows(uniquePlacedPanels, maxUnitsPerRow);
           const panelStripItems = panelRows.flat();
 
@@ -1942,16 +2024,16 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                   sx={{
                     width: '90%',
                     maxWidth: '900px',
-                    margin: '20px auto 0 auto',
+                    margin: '20px auto 10px auto',
                     padding: '10px 0',
                     display: 'grid',
                     gridTemplateColumns: `repeat(${maxUnitsPerRow}, ${panelThumbWidth}px)`,
                     gridAutoRows: `${panelThumbHeight}px`,
-                    columnGap: '24px',
-                    rowGap: '26px',
+                    columnGap: '50px',
+                    rowGap: '40px',
                     justifyContent: 'flex-start',
                     alignContent: 'flex-start',
-                    gridAutoFlow: 'dense'
+                    gridAutoFlow: 'row'
                   }}
                 >
                   {panelStripItems.map(({ panel: placedPanel, span }) => {
@@ -1972,12 +2054,15 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                           gridRow: `span ${span.row}`
                         }}
                       >
+                        {(() => {
+                          const { scale, translateY } = getMiniPanelTransform(panelData);
+                          return (
                         <Box
                           sx={{
                             position: 'absolute',
                             top: 0,
                             left: '50%',
-                            transform: 'translateX(-50%) scale(0.3)',
+                            transform: `translate(-50%, ${translateY}px) scale(${scale})`,
                             transformOrigin: 'top center'
                           }}
                         >
@@ -2004,6 +2089,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                             type={panelData.type || 'SP'}
                           />
                         </Box>
+                          );
+                        })()}
                         <Box
                           sx={{
                             position: 'absolute',
@@ -2041,7 +2128,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                               }
                             }}
                           >
-                            {getPanelTypeLabel(panelData.type || 'SP')}
+                            {panelData.name || panelData.panelName || getPanelTypeLabel(panelData.type || 'SP')}
                           </Typography>
                         </Box>
                       </Box>
@@ -2051,19 +2138,21 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
               )}
 
               {/* Layout Content Area - Render exactly like Layouts page (half page size) - Below panel previews */}
-              <Box sx={{
-                position: 'relative',
-                width: '90%',
-                maxWidth: 900,
-                aspectRatio: aspectRatioValue,
-                maxHeight: 420,
-                margin: '20px auto',
-                border: 'none',
-                borderRadius: '14px',
-                background: 'transparent',
-                overflow: 'hidden',
-                flexShrink: 0
-              }}>
+              <Box
+                sx={{
+                  position: 'relative',
+                  width: '90%',
+                  maxWidth: 900,
+                  aspectRatio: aspectRatioValue,
+                  maxHeight: 420,
+                  margin: '0 auto 20px auto',
+                  border: 'none',
+                  borderRadius: '14px',
+                  background: 'transparent',
+                  overflow: 'hidden',
+                  flexShrink: 0
+                }}
+              >
                 {/* Layout Image - Full opacity, not greyed out */}
                 {layout.imageUrl && (
                   <img
@@ -2086,8 +2175,9 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                 {/* Placed Panels - Render as numbered circles */}
                 {layout.placedPanels && layout.placedPanels.map((panel: any) => {
                   const panelSize = panelSizeMap[panel.id] || 36;
-                  const leftPercent = (panel.x / canvasWidth) * 100;
-                  const topPercent = (panel.y / canvasHeight) * 100;
+                  // Calculate position as percentage, then offset by half the panel size (also as percentage)
+                  const leftPercent = ((panel.x - panelSize / 2) / canvasWidth) * 100;
+                  const topPercent = ((panel.y - panelSize / 2) / canvasHeight) * 100;
                   const panelWidthPercent = (panelSize / canvasWidth) * 100;
                   const panelHeightPercent = (panelSize / canvasHeight) * 100;
                   return (
@@ -2099,7 +2189,6 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         top: `${topPercent}%`,
                         width: `${panelWidthPercent}%`,
                         height: `${panelHeightPercent}%`,
-                        transform: 'translate(-50%, -50%)',
                         zIndex: 10
                       }}
                     >
@@ -2137,8 +2226,9 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                   };
                   const deviceSize = deviceSizeMap[device.id] || 24;
                   const deviceType = DEVICE_TYPES[device.type as keyof typeof DEVICE_TYPES];
-                  const leftPercent = (device.x / canvasWidth) * 100;
-                  const topPercent = (device.y / canvasHeight) * 100;
+                  // Calculate position as percentage, then offset by half the device size (also as percentage)
+                  const leftPercent = ((device.x - deviceSize / 2) / canvasWidth) * 100;
+                  const topPercent = ((device.y - deviceSize / 2) / canvasHeight) * 100;
                   const deviceWidthPercent = (deviceSize / canvasWidth) * 100;
                   const deviceHeightPercent = (deviceSize / canvasHeight) * 100;
                   return (
@@ -2150,7 +2240,6 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         top: `${topPercent}%`,
                         width: `${deviceWidthPercent}%`,
                         height: `${deviceHeightPercent}%`,
-                        transform: 'translate(-50%, -50%)',
                         zIndex: 10
                       }}
                     >

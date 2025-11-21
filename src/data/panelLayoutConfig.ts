@@ -150,9 +150,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
           { top: '38px', left: '80px' },  // Cell 0 - raised by 15px from 53px
           { top: '38px', left: '140px' },
           { top: '38px', left: '200px' },
-          { top: '123px', left: '49px' },  // Cell 3 - moved right by 13px total + 3px
+          { top: '123px', left: '74px' },  // Cell 3 - moved 25px to the right (49px + 25px)
           { top: '123px', left: '136px' },
-          { top: '123px', left: '225px' },  // Cell 5 - moved left by 8px
+          { top: '123px', left: '200px' },  // Cell 5 - moved 25px to the left (225px - 25px)
           { top: '188px', left: '49px' },  // Cell 6 - moved right by 13px total + 3px
           { top: '188px', left: '136px' },  // Row 3 - moved up 30px
           { top: '188px', left: '225px' },  // Cell 8 - moved left by 8px
@@ -166,9 +166,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
           { top: '38px', left: '80px' },
           { top: '38px', left: '140px' },
           { top: '38px', left: '200px' },
-          { top: '123px', left: '49px' },
+          { top: '123px', left: '74px' },  // Cell 3 - moved 25px to the right (49px + 25px)
           { top: '123px', left: '136px' },
-          { top: '123px', left: '225px' },
+          { top: '123px', left: '200px' },  // Cell 5 - moved 25px to the left (225px - 25px)
           { top: '188px', left: '49px' },
           { top: '188px', left: '136px' },
           { top: '188px', left: '225px' },
@@ -182,9 +182,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
           { top: '38px', left: '80px' },
           { top: '38px', left: '140px' },
           { top: '38px', left: '200px' },
-          { top: '123px', left: '49px' },
+          { top: '123px', left: '74px' },  // Cell 3 - moved 25px to the right (49px + 25px)
           { top: '123px', left: '136px' },
-          { top: '123px', left: '225px' },
+          { top: '123px', left: '200px' },  // Cell 5 - moved 25px to the left (225px - 25px)
           { top: '188px', left: '49px' },
           { top: '188px', left: '136px' },
           { top: '188px', left: '225px' },
@@ -196,9 +196,9 @@ export const PANEL_LAYOUT_CONFIG: { [key: string]: PanelLayoutConfig } = {
       { top: '38px', left: '80px' },
       { top: '38px', left: '140px' },
       { top: '38px', left: '200px' },
-      { top: '123px', left: '49px' },
+      { top: '123px', left: '74px' },  // Cell 3 - moved 25px to the right (49px + 25px)
       { top: '123px', left: '136px' },
-      { top: '123px', left: '225px' },
+      { top: '123px', left: '200px' },  // Cell 5 - moved 25px to the left (225px - 25px)
       { top: '188px', left: '49px' },
       { top: '188px', left: '136px' },
       { top: '188px', left: '225px' },

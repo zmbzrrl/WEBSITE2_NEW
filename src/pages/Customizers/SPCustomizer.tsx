@@ -1685,8 +1685,8 @@ const SPCustomizer: React.FC = () => {
   const activeIconPositions = (dimensionConfigs && dimensionConfigs[dimensionKey] && dimensionConfigs[dimensionKey].iconPositions)
     ? dimensionConfigs[dimensionKey].iconPositions
     : (iconPositions || []);
-  const gridOffsetX = dimensionKey === 'wide' ? 40 : (dimensionKey === 'standard' ? 20 : (dimensionKey === 'tall' ? 25 : 0));
-  const gridOffsetY = 15;
+  const gridOffsetX = dimensionKey === 'wide' ? 88 : (dimensionKey === 'standard' ? 20 : (dimensionKey === 'tall' ? 25 : 0));
+  const gridOffsetY = dimensionKey === 'tall' ? 60 : 15;
 
   const getAutoTextColor = (backgroundColor: string): string => {
     const hex = (backgroundColor || '#ffffff').replace('#', '');
