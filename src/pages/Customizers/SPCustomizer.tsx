@@ -197,7 +197,7 @@ const GridCell: React.FC<GridCellProps> = ({ index, onDrop, children }) => {
         boxSizing: "border-box",
         verticalAlign: "top",
         cursor: "copy",
-      }}
+      }} 
     >
       {children}
     </div>
@@ -452,7 +452,7 @@ const InformationBox = ({
                   style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
                 >
                   <option value="">Select a backbox...</option>
-                  {getBackboxOptions('SP', { spConfig: { dimension: panelDesign?.spConfig?.dimension || 'standard' } }).map((option) => (
+                  {getBackboxOptions('SP', { spConfig: { dimension: (panelDesign?.spConfig?.dimension || 'standard') as 'standard' | 'wide' | 'tall' } }).map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -522,6 +522,8 @@ const SPCustomizer: React.FC = () => {
     iconSize: string;
     backbox?: string;
     extraComments?: string;
+    spConfig?: { dimension: 'standard' | 'wide' | 'tall' };
+    customPanelRequest?: boolean;
   }>({
     backgroundColor: '',
     fonts: 'Myriad Pro SemiBold SemiCondensed',
@@ -717,6 +719,9 @@ const SPCustomizer: React.FC = () => {
       } else {
         console.log('⚠️ No panel design data found');
       }
+      
+      const customPanelRequested = Boolean(deepCopiedData.customPanelRequest) || Boolean(panelDesignData?.customPanelRequest);
+      setShowCustomPanelComponent(customPanelRequested);
       
       // Load placed icons
       if (iconsData) {
@@ -948,8 +953,12 @@ const SPCustomizer: React.FC = () => {
     
     console.log('✅ Backbox provided, continuing...');
 
-    const design: Design & { panelDesign: typeof panelDesign & { spConfig?: { dimension: string } } } = {
+    const design: Design & { 
+      panelDesign: typeof panelDesign & { spConfig?: { dimension: string } };
+      customPanelRequest?: boolean;
+    } = {
       type: "SP",
+      customPanelRequest: showCustomPanelComponent,
       icons: Array.from({ length: 9 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -964,7 +973,13 @@ const SPCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, spConfig: { dimension: dimensionKey } },
+      panelDesign: { 
+        ...panelDesign, 
+        backbox, 
+        extraComments, 
+        spConfig: { dimension: dimensionKey }, 
+        customPanelRequest: showCustomPanelComponent || panelDesign.customPanelRequest 
+      },
     };
 
     if (isEditMode) {
@@ -996,13 +1011,15 @@ const SPCustomizer: React.FC = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      const selectedDesignId = location.state?.selectedDesignId;
       
       // In free design mode, use default values instead of BOQ values
       const enhancedDesign = {
         ...design,
         panelName: isFreeDesignMode ? getPanelTypeLabel(design.type) : (selectedDesignName || getPanelTypeLabel(design.type)),
         quantity: isFreeDesignMode ? 1 : selectedDesignQuantity, // Use 1 for free design, BOQ quantity for import mode
-        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined)
+        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined),
+        ...(selectedDesignId && !isFreeDesignMode ? { boqDesignId: selectedDesignId } : {})
       };
 
       if (panelAddedToProject) {
@@ -1665,7 +1682,7 @@ const SPCustomizer: React.FC = () => {
 
   const config = getPanelLayoutConfig('SP');
   const { dimensions, iconPositions, iconLayout, textLayout, specialLayouts, dimensionConfigs } = config as any;
-  const [dimensionKey, setDimensionKey] = useState<string>('standard');
+  const [dimensionKey, setDimensionKey] = useState<'standard' | 'wide' | 'tall'>('standard');
   const [panelMode, setPanelMode] = useState<PanelMode>('icons_text');
   
   // Track if panel has been added to project for button text change
@@ -1894,7 +1911,7 @@ const SPCustomizer: React.FC = () => {
                   { key: 'tall', label: '95 × 130 mm', sublabel: "3.7 × 5.1''" },
                 ]}
                 value={dimensionKey}
-                onChange={setDimensionKey}
+                onChange={(key) => setDimensionKey(key as 'standard' | 'wide' | 'tall')}
                 inlineLabel={'Size:'}
               />
               <PanelModeSelector value={panelMode} onChange={(mode) => {
@@ -2125,7 +2142,7 @@ const SPCustomizer: React.FC = () => {
                       style={{ width: '100%', padding: '8px', marginBottom: '8px', border: backboxError ? '1px solid red' : '1px solid #ccc', borderRadius: '4px', background: '#fff' }}
                     >
                       <option value="">Select a backbox...</option>
-                      {getBackboxOptions('SP', { spConfig: { dimension: panelDesign?.spConfig?.dimension || 'standard' } }).map((option) => (
+                      {getBackboxOptions('SP', { spConfig: { dimension: (panelDesign?.spConfig?.dimension || 'standard') as 'standard' | 'wide' | 'tall' } }).map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
@@ -2292,7 +2309,8 @@ const SPCustomizer: React.FC = () => {
                               ...panelDesign,
                               fontSize: '9pt',
                               iconSize: '38px',
-                              fonts: 'Myriad Pro SemiBold SemiCondensed'
+                              fonts: 'Myriad Pro SemiBold SemiCondensed',
+                              customPanelRequest: false
                             });
                             setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
                             setExtraComments('');
@@ -3075,6 +3093,7 @@ const SPCustomizer: React.FC = () => {
             onClick={() => {
               setShowCustomPanelDialog(false);
               setShowCustomPanelComponent(true);
+              setPanelDesign(prev => ({ ...prev, customPanelRequest: true }));
             }}
             variant="contained"
             sx={{

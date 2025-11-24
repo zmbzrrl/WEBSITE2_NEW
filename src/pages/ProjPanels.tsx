@@ -891,6 +891,7 @@ const ProjPanels: React.FC = () => {
                       tagConfig: { ...(((item.panelDesign as any)?.tagConfig) || { dimension: 'wide' }) },
                     } as any)
                   : fallbackPanelDesign;
+              const isCustomPanel = Boolean((item as any).customPanelRequest) || Boolean(item.panelDesign?.customPanelRequest);
 
               return (
                 <div
@@ -997,6 +998,28 @@ const ProjPanels: React.FC = () => {
                   }}>
                     {getPanelTypeLabel(item.type)}
                   </div>
+                  {isCustomPanel && (
+                    <div
+                      style={{
+                        background: 'linear-gradient(135deg, #d7263d 0%, #a81824 100%)',
+                        color: '#fff',
+                        borderRadius: 999,
+                        fontWeight: 800,
+                        fontSize: 12,
+                        padding: '5px 14px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                        boxShadow: '0 3px 8px rgba(215,38,61,0.35)',
+                        border: '1px solid rgba(255,255,255,0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                      title="Custom panel – proposal will be prepared manually"
+                    >
+                      Custom
+                    </div>
+                  )}
                 </div>
                 
                 {/* Panel Name */}

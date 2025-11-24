@@ -555,6 +555,7 @@ const DPHCustomizer: React.FC = () => {
     iconSize: string;
     backbox?: string;
     extraComments?: string;
+    customPanelRequest?: boolean;
   }>({
     backgroundColor: '',
     fonts: '',
@@ -693,6 +694,9 @@ const DPHCustomizer: React.FC = () => {
         setBackbox(editPanelData.panelDesign.backbox || '');
         setExtraComments(editPanelData.panelDesign.extraComments || '');
       }
+
+      const customPanelRequested = Boolean(editPanelData.customPanelRequest) || Boolean(editPanelData.panelDesign?.customPanelRequest);
+      setShowCustomPanelComponent(customPanelRequested);
       
       // Load placed icons
       if (editPanelData.icons) {
@@ -796,8 +800,12 @@ const DPHCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign } = {
+    const design: Design & { 
+      panelDesign: typeof panelDesign;
+      customPanelRequest?: boolean;
+    } = {
       type: "DPH",
+      customPanelRequest: showCustomPanelComponent,
       icons: Array.from({ length: 18 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -812,7 +820,12 @@ const DPHCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments },
+      panelDesign: { 
+        ...panelDesign, 
+        backbox, 
+        extraComments, 
+        customPanelRequest: showCustomPanelComponent || panelDesign.customPanelRequest 
+      },
     };
 
     // Enforce BOQ cap for new additions
@@ -834,11 +847,13 @@ const DPHCustomizer: React.FC = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      const selectedDesignId = location.state?.selectedDesignId;
       const enhancedDesign = {
         ...design,
         panelName: selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity, // Use BOQ allocated quantity
-        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined,
+        ...(selectedDesignId ? { boqDesignId: selectedDesignId } : {})
       };
 
       if (panelAddedToProject) {
@@ -1955,16 +1970,18 @@ const DPHCustomizer: React.FC = () => {
                         ...panelDesign,
                         fontSize: '9pt',
                         iconSize: '38px',
-                        fonts: 'Myriad Pro SemiBold SemiCondensed'
+                      fonts: 'Myriad Pro SemiBold SemiCondensed',
+                      customPanelRequest: false
                       });
                       setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
                       setExtraComments('');
                     }
-                                              if (showCustomPanelComponent) {
-                            setShowCustomPanelComponent(false);
-                          } else {
-                            setShowCustomPanelDialog(true);
-                          }
+                    if (showCustomPanelComponent) {
+                      setShowCustomPanelComponent(false);
+                    } else {
+                      setShowCustomPanelDialog(true);
+                      setPanelDesign(prev => ({ ...prev, customPanelRequest: true }));
+                    }
                   }}
                   style={{
                     padding: '10px 16px',
@@ -2673,6 +2690,7 @@ const DPHCustomizer: React.FC = () => {
             onClick={() => {
               setShowCustomPanelDialog(false);
               setShowCustomPanelComponent(true);
+              setPanelDesign(prev => ({ ...prev, customPanelRequest: true }));
             }}
             variant="contained"
             sx={{

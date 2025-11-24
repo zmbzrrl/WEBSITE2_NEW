@@ -190,7 +190,7 @@ const getPanelLabelOffset = (panelOrType?: string | { type?: string }) => {
   }
 
   return `${offset}px`;
-};
+}; 
 
 const buildPanelRows = (
   panels: any[] = [],
@@ -729,18 +729,23 @@ const PanelContainer = styled(Box)(({ theme }) => ({
   alignItems: 'flex-start',
   justifyContent: 'flex-start', // Changed to flex-start for better space utilization
   minHeight: '100mm', // Reduced minimum height
-  maxHeight: '200mm', // Added maximum height constraint
   padding: '3mm', // Reduced padding
   gap: '15mm', // Increased gap to better utilize wider page
+  width: '100%',
+  maxWidth: '100%',
+  boxSizing: 'border-box',
+  height: 'auto', // Allow container to expand to fit content
   
   '@media print': {
     padding: '2mm',
     minHeight: '60mm',
-    maxHeight: 'none', // Remove max height constraint for print
     height: 'auto', // Use auto instead of 100%
     gap: '8mm', // Reduced gap for print to accommodate vertical layout for extended panels
     pageBreakInside: 'avoid', // Prevent panel from being split across pages
-    breakInside: 'avoid'
+    breakInside: 'avoid',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box'
   }
 }));
 
@@ -754,12 +759,18 @@ const PanelDetailsContainer = styled(Box)(({ theme }) => ({
   maxWidth: '150mm',
   padding: '5mm',
   marginLeft: '20mm',
+  boxSizing: 'border-box',
+  overflow: 'hidden',
+  flex: '0 1 auto',
   
   '@media print': {
     padding: '3mm',
     minWidth: '100mm',
     maxWidth: '120mm',
-    marginLeft: '15mm'
+    marginLeft: '15mm',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    flex: '0 1 auto'
   }
 }));
 
@@ -977,10 +988,12 @@ interface PanelConfig {
     tagConfig?: {
       dimension: 'standard' | 'wide' | 'tall';
     };
+    customPanelRequest?: boolean;
   };
   iconTexts?: { [key: number]: string };
   type?: string;
   name?: string;
+  customPanelRequest?: boolean;
 }
 
 interface PrintPreviewProps {
@@ -1014,6 +1027,9 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
     canvasWidth?: number;
     canvasHeight?: number;
   }>>([]);
+  const hasCustomPanelRequest = panelConfigs.some(
+    (panel) => Boolean(panel.customPanelRequest) || Boolean(panel.panelDesign?.customPanelRequest)
+  );
 
   useEffect(() => {
     // Add comprehensive print styles to remove browser headers/footers and borders
@@ -1382,6 +1398,67 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
     );
   }
 
+  const renderHeader = () => (
+    <PrintHeader>
+      <Typography variant="h4" component="h1">
+        Print Preview: {projectName}
+      </Typography>
+      <ActionButtons>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={handleBack}
+        >
+          Back
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<PrintIcon />}
+          onClick={handlePrint}
+          color="primary"
+        >
+          Export as PDF
+        </Button>
+      </ActionButtons>
+    </PrintHeader>
+  );
+
+  if (hasCustomPanelRequest) {
+    return (
+      <PrintContainer>
+        {renderHeader()}
+        <PrintContent>
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: 720,
+              background: 'linear-gradient(135deg, #ffffff 0%, #f4f6fb 100%)',
+              borderRadius: 3,
+              padding: { xs: 3, md: 5 },
+              textAlign: 'center',
+              boxShadow: '0 20px 55px rgba(0,0,0,0.12)',
+              border: '1px solid rgba(26,31,44,0.08)'
+            }}
+          >
+            <InfoIcon sx={{ fontSize: 48, color: '#1a1f2c', mb: 2 }} />
+            <Typography
+              variant="h5"
+              sx={{ fontWeight: 600, color: '#1a1f2c', mb: 1 }}
+            >
+              Custom panel review in progress
+            </Typography>
+            <Typography sx={{ fontSize: '1rem', color: '#2c3e50', lineHeight: 1.6 }}>
+              Unlike standard panels that generate instant proposals, custom designs undergo a thorough review to confirm they meet our quality standards and technical specifications. Please allow 3–5 business days for our design team to prepare your proposal.
+            </Typography>
+            <Typography sx={{ mt: 2, fontSize: '0.95rem', color: '#5a6c7d' }}>
+              We&apos;ll email you as soon as the curated layouts are ready to download.
+            </Typography>
+          </Box>
+        </PrintContent>
+      </PrintContainer>
+    );
+  }
+
   if (panelConfigs.length === 0) {
     return (
       <PrintContainer>
@@ -1401,28 +1478,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
 
   return (
     <PrintContainer>
-      <PrintHeader>
-        <Typography variant="h4" component="h1">
-          Print Preview: {projectName}
-        </Typography>
-        <ActionButtons>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={handleBack}
-          >
-            Back
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<PrintIcon />}
-            onClick={handlePrint}
-            color="primary"
-          >
-            Export as PDF
-          </Button>
-        </ActionButtons>
-      </PrintHeader>
+      {renderHeader()}
 
       <PrintContent>
         {/* Cover Page */}
@@ -2549,6 +2605,10 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                       marginLeft: isStackedLayout ? '0' : '15mm',
                       marginTop: isStackedLayout ? '0' : '0',
                       width: isStackedLayout ? '100%' : 'auto',
+                      maxWidth: '100%',
+                      minWidth: 0,
+                      boxSizing: 'border-box',
+                      overflow: 'hidden',
                       paddingTop: isStackedLayout ? '10px' : undefined
                     }}>
                       <DetailRow>
@@ -2599,22 +2659,47 @@ const PrintPreview: React.FC<PrintPreviewProps> = () => {
                         <DetailValue>{details.backbox}</DetailValue>
                       </DetailRow>
                       {isNoBackbox(details.backbox) && (
-                        <DetailRow style={{ 
+                        <Box sx={{ 
                           marginTop: '8px',
                           padding: '10px',
                           backgroundColor: '#fff3cd',
                           borderRadius: '6px',
-                          border: '1px solid #ffc107'
+                          border: '1px solid #ffc107',
+                          width: '100%',
+                          maxWidth: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          overflow: 'hidden',
+                          overflowWrap: 'break-word',
+                          wordWrap: 'break-word',
+                          wordBreak: 'break-word',
+                          '& > *': {
+                            maxWidth: '100%',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'normal'
+                          }
                         }}>
-                          <DetailValue style={{ 
+                          <Typography sx={{ 
                             color: '#856404',
                             fontSize: '12px',
                             fontWeight: '500',
-                            width: '100%'
+                            width: '100%',
+                            maxWidth: '100%',
+                            minWidth: 0,
+                            margin: 0,
+                            padding: 0,
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'normal',
+                            boxSizing: 'border-box',
+                            overflow: 'hidden'
                           }}>
                             ⚠️ {NO_BACKBOX_DISCLAIMER}
-                          </DetailValue>
-                        </DetailRow>
+                          </Typography>
+                        </Box>
                       )}
                     </PanelDetailsContainer>
                   </PanelContainer>

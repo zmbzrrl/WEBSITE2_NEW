@@ -58,6 +58,7 @@ import logo from '../../../assets/logo.png';
 import { getPanelLayoutConfig } from '../../../data/panelLayoutConfig';
 import DISPLAY from '../../../assets/icons/DISPLAY.png';
 import iconLibrary from '../../../assets/iconLibrary2';
+import { useSocketToneGuard, SocketTone } from '../../../hooks/useSocketToneGuard';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import FlipIcon from '@mui/icons-material/Flip';
@@ -571,6 +572,7 @@ const X1HCustomizer: React.FC = () => {
     iconSize: string;
     backbox?: string;
     extraComments?: string;
+    customPanelRequest?: boolean;
   }>({
     backgroundColor: '',
     fonts: '',
@@ -589,6 +591,7 @@ const X1HCustomizer: React.FC = () => {
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const fontDropdownRef = useRef<HTMLDivElement>(null);
+  const [socketNotice, setSocketNotice] = useState('');
   // Free design PIR toggle state
   const [pirToggle, setPirToggle] = useState<boolean>(false);
   
@@ -641,6 +644,29 @@ const X1HCustomizer: React.FC = () => {
   const [swapLeftRight, setSwapLeftRight] = useState(false); // NEW: swap state for X1H (left/right)
   const [mirrorVertical, setMirrorVertical] = useState(false); // NEW: mirror state
   const [useTagLayout, setUseTagLayout] = useState(false);
+  const {
+    socketToneMap,
+    isSocketAllowed,
+    requiredTone: socketToneRequirement,
+    isToneReady: isSocketToneReady,
+  } = useSocketToneGuard(icons, panelDesign.backgroundColor || '#ffffff');
+  useEffect(() => {
+    setSocketNotice('');
+  }, [socketToneRequirement]);
+
+  useEffect(() => {
+    if (!socketNotice) return;
+    const timeout = window.setTimeout(() => setSocketNotice(''), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [socketNotice]);
+
+  const remindSocketRestriction = (tone?: SocketTone) => {
+    const targetTone = tone || (socketToneRequirement === 'dark' ? 'light' : 'dark');
+    const toneLabel = targetTone === 'dark' ? 'dark' : 'light';
+    setSocketNotice(
+      `This socket uses a ${toneLabel} finish. Switch the panel background to a ${toneLabel} option to use it.`
+    );
+  };
   
   // Edit mode state
   const isEditMode = location.state?.editMode || false;
@@ -670,6 +696,9 @@ const X1HCustomizer: React.FC = () => {
         setSwapLeftRight(editPanelData.panelDesign.swapLeftRight || false);
         setMirrorVertical(editPanelData.panelDesign.mirrorVertical || false);
       }
+
+      const customPanelRequested = Boolean(editPanelData.customPanelRequest) || Boolean(editPanelData.panelDesign?.customPanelRequest);
+      setShowCustomPanelComponent(customPanelRequested);
       
       // Load placed icons
       if (editPanelData.icons) {
@@ -739,6 +768,10 @@ const X1HCustomizer: React.FC = () => {
 
     // Check if trying to place a Socket icon
     if (selectedIcon.category === "Sockets") {
+      if (!isSocketToneReady || !isSocketAllowed(selectedIcon.id)) {
+        remindSocketRestriction(socketToneMap[selectedIcon.id]);
+        return;
+      }
       // Only allow placement in the single slot (index 9)
       if (cellIndex !== 9) return;
       // Prevent more than one socket in the single slot
@@ -787,8 +820,12 @@ const X1HCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign & { swapLeftRight?: boolean; mirrorVertical?: boolean; useTagLayout?: boolean } } = {
+    const design: Design & { 
+      panelDesign: typeof panelDesign & { swapLeftRight?: boolean; mirrorVertical?: boolean; useTagLayout?: boolean };
+      customPanelRequest?: boolean;
+    } = {
       type: "X1H",
+      customPanelRequest: showCustomPanelComponent,
       icons: Array.from({ length: 18 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -803,7 +840,15 @@ const X1HCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, swapLeftRight, mirrorVertical, useTagLayout },
+      panelDesign: { 
+        ...panelDesign, 
+        backbox, 
+        extraComments, 
+        swapLeftRight, 
+        mirrorVertical, 
+        useTagLayout,
+        customPanelRequest: showCustomPanelComponent || panelDesign.customPanelRequest 
+      },
     };
 
     if (isEditMode && editPanelIndex !== undefined) {
@@ -816,11 +861,13 @@ const X1HCustomizer: React.FC = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      const selectedDesignId = location.state?.selectedDesignId;
       const enhancedDesign = {
         ...design,
         panelName: selectedDesignName || getPanelTypeLabel(design.type),
         quantity: selectedDesignQuantity, // Use BOQ allocated quantity
-        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined
+        maxQuantity: typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined,
+        ...(selectedDesignId ? { boqDesignId: selectedDesignId } : {})
       };
 
       if (panelAddedToProject) {
@@ -892,6 +939,13 @@ const X1HCustomizer: React.FC = () => {
     }));
 
   const handleDragStart = (e: React.DragEvent, icon: IconOption | PlacedIcon) => {
+    if (!('position' in icon) && icon.category === 'Sockets') {
+      if (!isSocketToneReady || !isSocketAllowed(icon.id)) {
+        e.preventDefault();
+        remindSocketRestriction(socketToneMap[icon.id]);
+        return;
+      }
+    }
     if ('position' in icon) {
       // This is a placed icon
       e.dataTransfer.setData('text/plain', JSON.stringify({
@@ -941,6 +995,10 @@ const X1HCustomizer: React.FC = () => {
 
         // Check if trying to place a Socket icon
         if (icon.category === "Sockets") {
+          if (!isSocketToneReady || !isSocketAllowed(icon.id)) {
+            remindSocketRestriction(socketToneMap[icon.id]);
+            return;
+          }
           if (cellIndex !== 9) return;
           const hasSocket = placedIcons.some((icon) => icon.category === "Sockets" && icon.position === 9);
           if (hasSocket) return;
@@ -1126,7 +1184,7 @@ const X1HCustomizer: React.FC = () => {
     }
     
     // Calculate container size to match icon size
-    const containerSize = (index === 9 ? '220px' : (panelDesign.iconSize || '14mm'));
+    const containerSize = (index === 9 ? '150px' : (panelDesign.iconSize || '14mm'));
     
     return (
         <div
@@ -1157,8 +1215,8 @@ const X1HCustomizer: React.FC = () => {
                 draggable={currentStep !== 3}
                 onDragStart={currentStep !== 3 ? (e) => handleDragStart(e, icon) : undefined}
                 style={{
-                width: index === 9 ? '220px' : (panelDesign.iconSize || '14mm'),
-                height: index === 9 ? '220px' : (panelDesign.iconSize || '14mm'),
+                width: index === 9 ? '150px' : (panelDesign.iconSize || '14mm'),
+                height: index === 9 ? '150px' : (panelDesign.iconSize || '14mm'),
                 objectFit: 'contain',
                 marginBottom: '5px',
                 position: 'relative',
@@ -1644,45 +1702,104 @@ const X1HCustomizer: React.FC = () => {
           ))}
         </div>
         {/* Icons grid column */}
-        <div style={{ 
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 72px)',
-                  gap: '10px',
-                  maxHeight: 420,
-                  overflowY: 'auto',
-                  paddingRight: 6
-        }}>
-          {categoryIcons.map((icon) => (
-            <div
-              key={icon.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, icon)}
-              style={{
-                        padding: '10px',
-                        background: 'transparent',
-                        borderRadius: '8px',
-                        cursor: 'grab',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'flex-start',
-                        width: '72px',
-                        minHeight: '72px',
-                        border: '1px solid transparent',
-                        transition: 'border-color 0.2s ease, background 0.2s ease',
-                        boxSizing: 'border-box'
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1a1f2c33'; e.currentTarget.style.background = '#f7f9fc'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
-            >
-              <img
-                src={icon.src}
-                alt={icon.label}
-                    title={icon.label}
-                        style={{ width: '32px', height: '32px', objectFit: 'contain' }}
-              />
-            </div>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+          {selectedCategory === 'Sockets' && (
+            <>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: '13px',
+                  color: '#1a1f2c',
+                  mb: 1,
+                }}
+              >
+                {`Current panel background is treated as ${socketToneRequirement} — only ${socketToneRequirement} sockets are available. ${
+                  socketToneRequirement === 'dark'
+                    ? 'Switch to a lighter background to unlock light sockets.'
+                    : 'Switch to a darker background to unlock dark sockets.'
+                }`}
+                {!isSocketToneReady && ' Checking socket finishes…'}
+              </Typography>
+              {socketNotice && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: '12px',
+                    color: '#c62828',
+                    mb: 1,
+                  }}
+                >
+                  {socketNotice}
+                </Typography>
+              )}
+            </>
+          )}
+          <div style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 72px)',
+                    gap: '10px',
+                    maxHeight: 420,
+                    overflowY: 'auto',
+                    paddingRight: 6
+          }}>
+            {categoryIcons.map((icon) => {
+              const isSocket = icon.category === 'Sockets';
+              const tone = socketToneMap[icon.id];
+              const socketAllowed = !isSocket ? true : (isSocketToneReady && isSocketAllowed(icon.id));
+              const tooltip = !isSocket
+                ? icon.label
+                : !tone
+                  ? 'Checking socket finish...'
+                  : socketAllowed
+                    ? `Compatible with ${socketToneRequirement} backgrounds`
+                    : `This socket is for ${tone} backgrounds. Switch your panel background to ${tone} to use it.`;
+              return (
+                <div
+                  key={icon.id}
+                  draggable={socketAllowed}
+                  onDragStart={(e) => handleDragStart(e, icon)}
+                  onClick={() => {
+                    if (isSocket && !socketAllowed) {
+                      remindSocketRestriction(tone);
+                    }
+                  }}
+                  style={{
+                            padding: '10px',
+                            background: 'transparent',
+                            borderRadius: '8px',
+                            cursor: isSocket ? (socketAllowed ? 'grab' : 'not-allowed') : 'grab',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            width: '72px',
+                            minHeight: '72px',
+                            border: '1px solid transparent',
+                            transition: 'border-color 0.2s ease, background 0.2s ease',
+                            boxSizing: 'border-box',
+                            opacity: socketAllowed ? 1 : 0.4
+                          }}
+                          title={tooltip}
+                          onMouseEnter={(e) => {
+                            if (!socketAllowed) return;
+                            e.currentTarget.style.borderColor = '#1a1f2c33';
+                            e.currentTarget.style.background = '#f7f9fc';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'transparent';
+                            e.currentTarget.style.background = 'transparent';
+                          }}
+                >
+                  <img
+                    src={icon.src}
+                    alt={icon.label}
+                        title={icon.label}
+                            style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
             </div>
 
@@ -2051,16 +2168,18 @@ const X1HCustomizer: React.FC = () => {
                       ...panelDesign,
                       fontSize: '9pt',
                       iconSize: '14mm',
-                      fonts: 'Myriad Pro SemiBold SemiCondensed'
+                    fonts: 'Myriad Pro SemiBold SemiCondensed',
+                    customPanelRequest: false
                     });
                     setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
                     setExtraComments('');
                   }
-                                            if (showCustomPanelComponent) {
-                            setShowCustomPanelComponent(false);
-                          } else {
-                            setShowCustomPanelDialog(true);
-                          }
+                if (showCustomPanelComponent) {
+                  setShowCustomPanelComponent(false);
+                } else {
+                  setShowCustomPanelDialog(true);
+                  setPanelDesign(prev => ({ ...prev, customPanelRequest: true }));
+                }
                 }}
                 style={{
                   padding: '10px 16px',
@@ -2721,6 +2840,7 @@ const X1HCustomizer: React.FC = () => {
             onClick={() => {
               setShowCustomPanelDialog(false);
               setShowCustomPanelComponent(true);
+              setPanelDesign(prev => ({ ...prev, customPanelRequest: true }));
             }}
             variant="contained"
             sx={{

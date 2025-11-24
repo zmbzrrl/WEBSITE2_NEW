@@ -44,6 +44,7 @@ interface CartItem {
     Proximity?: boolean;
   };
   iconTexts?: { [key: number]: string };
+  customPanelRequest?: boolean;
 }
 
 export interface CartContextType {
@@ -187,6 +188,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       type: item.type,
       icons: normalizedIcons,
       panelDesign: panelDesignNormalized,
+      customPanelRequest: Boolean(item.customPanelRequest),
     };
     return stableStringify(keyObj);
   };

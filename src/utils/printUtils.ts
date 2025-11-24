@@ -32,10 +32,15 @@ export interface PanelConfig {
     spConfig?: {
       dimension: 'standard' | 'wide' | 'tall';
     };
+    tagConfig?: {
+      dimension: 'standard' | 'wide' | 'tall';
+    };
+    customPanelRequest?: boolean;
   };
   iconTexts?: { [key: number]: string };
   type?: string;
   name?: string;
+  customPanelRequest?: boolean;
 }
 
 /**

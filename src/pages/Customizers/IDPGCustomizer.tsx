@@ -1150,13 +1150,15 @@ const IDPGCustomizer = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      const selectedDesignId = location.state?.selectedDesignId;
       
       // In free design mode, use default values instead of BOQ values
       const enhancedDesign = {
         ...design,
         panelName: isFreeDesignMode ? getPanelTypeLabel(design.type) : (selectedDesignName || getPanelTypeLabel(design.type)),
         quantity: isFreeDesignMode ? 1 : selectedDesignQuantity, // Use 1 for free design, BOQ quantity for import mode
-        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined)
+        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined),
+        ...(selectedDesignId && !isFreeDesignMode ? { boqDesignId: selectedDesignId } : {})
       };
 
       if (panelAddedToProject) {

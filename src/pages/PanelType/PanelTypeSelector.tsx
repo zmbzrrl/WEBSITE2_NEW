@@ -123,6 +123,55 @@ const itemVariants = {
   }
 };
 
+const normalizePanelName = (value?: string) => {
+  if (!value || typeof value !== 'string') return '';
+  return value.trim().toLowerCase();
+};
+
+const buildDesignKey = (panelType?: string, panelName?: string) => {
+  const typePart = typeof panelType === 'string' ? panelType.trim().toUpperCase() : '';
+  const namePart = normalizePanelName(panelName);
+  if (!typePart && !namePart) return '';
+  return `${typePart}::${namePart}`;
+};
+
+const collectPanelUsageKeys = (panel: any, category: 'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2') => {
+  const keys = new Set<string>();
+  if (panel?.boqDesignId) {
+    keys.add(String(panel.boqDesignId));
+  }
+  const typeKey = buildDesignKey(panel?.type, (panel as any)?.panelName);
+  if (typeKey) keys.add(typeKey);
+  const categoryKey = buildDesignKey(category, (panel as any)?.panelName);
+  if (categoryKey) keys.add(categoryKey);
+  return Array.from(keys).filter(Boolean);
+};
+
+const collectDesignKeys = (
+  panelType: string | undefined,
+  panelName: string | undefined,
+  designId: string | undefined,
+  category: 'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2'
+) => {
+  const keys = new Set<string>();
+  if (designId) keys.add(designId);
+  const typeKey = buildDesignKey(panelType, panelName);
+  if (typeKey) keys.add(typeKey);
+  const categoryKey = buildDesignKey(category, panelName);
+  if (categoryKey) keys.add(categoryKey);
+  return Array.from(keys).filter(Boolean);
+};
+
+const pickUsedQuantity = (usageMap: Record<string, number>, keys: string[]) => {
+  for (const key of keys) {
+    const value = usageMap[key];
+    if (typeof value === 'number' && value > 0) {
+      return value;
+    }
+  }
+  return 0;
+};
+
 const PanelTypeSelector = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -330,17 +379,17 @@ const PanelTypeSelector = () => {
   // Subtract already designed panels (from current project cart) from BOQ allocations per design
   useEffect(() => {
     if (!hasBOQEffective) { setAdjustedBoqData(boqData); return; }
-    const lower = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
     const countsByCategoryAndName: Record<'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2', Record<string, number>> = {
       SP: {}, TAG: {}, IDPG: {}, DP: {}, EXT1: {}, EXT2: {}
     };
     // Tally used quantities from current projPanels by category and panelName (best-available key)
     for (const panel of projPanels) {
-      const cat = mapTypeToCategory(panel.type);
-      const nameKey = lower((panel as any).panelName || '');
+      const cat = mapTypeToCategory(panel.type || '');
+      const usageKeys = collectPanelUsageKeys(panel, cat);
       const qty = (typeof panel.quantity === 'number' && !isNaN(panel.quantity)) ? panel.quantity : 1;
-      if (!nameKey) continue;
-      countsByCategoryAndName[cat][nameKey] = (countsByCategoryAndName[cat][nameKey] || 0) + qty;
+      usageKeys.forEach((key) => {
+        countsByCategoryAndName[cat][key] = (countsByCategoryAndName[cat][key] || 0) + qty;
+      });
     }
     // Build adjusted BOQ data with per-design remaining quantities
     const next: typeof boqData = {};
@@ -348,7 +397,8 @@ const PanelTypeSelector = () => {
       const cat = catKey as 'SP'|'TAG'|'IDPG'|'DP'|'EXT1'|'EXT2';
       const usedMap = countsByCategoryAndName[cat] || {};
       const designs = (entry.designs || []).map(d => {
-        const used = usedMap[lower(d.name)] || 0;
+        const keyCandidates = collectDesignKeys(d.panelType, d.name, d.id, cat);
+        const used = pickUsedQuantity(usedMap, keyCandidates);
         const remaining = Math.max(0, (typeof d.qty === 'number' ? d.qty : 0) - used);
         return { ...d, qty: remaining };
       }).filter(d => d.qty > 0); // hide fully completed designs
@@ -1002,7 +1052,8 @@ const PanelTypeSelector = () => {
                                           proximityFlag,
                                           roomNumberFlag: !!roomNumberFlags[d.id],
                                           cardReaderFlag: !!cardReaderFlags[d.id],
-                                          socketCategory: panel.key // Pass the socket category (EXT1 or EXT2)
+                                          socketCategory: panel.key, // Pass the socket category (EXT1 or EXT2)
+                                          selectedPanelSubtype: d.panelType
                                         } 
                                       });
                                     }}

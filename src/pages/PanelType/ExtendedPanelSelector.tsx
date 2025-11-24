@@ -518,12 +518,8 @@ const ExtendedPanelSelector = () => {
                     <PanelContainer
                       onClick={() => navigate(panel.path, { 
                         state: { 
-                          proximityFlag: location.state?.proximityFlag,
-                          motionFlagData: location.state?.motionFlagData,
-                          selectedDesignId: location.state?.selectedDesignId,
-                          fromBOQ: location.state?.fromBOQ,
-                          projectIds: location.state?.projectIds,
-                          importResults: location.state?.importResults
+                          ...(location.state || {}),
+                          selectedPanelSubtype: panel.subtype
                         } 
                       })}
                       sx={{
@@ -553,12 +549,8 @@ const ExtendedPanelSelector = () => {
                         className="panel-button"
                         onClick={() => navigate(panel.path, { 
                         state: { 
-                          proximityFlag: location.state?.proximityFlag,
-                          motionFlagData: location.state?.motionFlagData,
-                          selectedDesignId: location.state?.selectedDesignId,
-                          fromBOQ: location.state?.fromBOQ,
-                          projectIds: location.state?.projectIds,
-                          importResults: location.state?.importResults
+                          ...(location.state || {}),
+                          selectedPanelSubtype: panel.subtype
                         } 
                       })}
                         sx={{
@@ -620,12 +612,8 @@ const ExtendedPanelSelector = () => {
                     <PanelContainer
                       onClick={() => navigate(panel.path, { 
                         state: { 
-                          proximityFlag: location.state?.proximityFlag,
-                          motionFlagData: location.state?.motionFlagData,
-                          selectedDesignId: location.state?.selectedDesignId,
-                          fromBOQ: location.state?.fromBOQ,
-                          projectIds: location.state?.projectIds,
-                          importResults: location.state?.importResults
+                          ...(location.state || {}),
+                          selectedPanelSubtype: panel.subtype
                         } 
                       })}
                       sx={{
@@ -654,15 +642,11 @@ const ExtendedPanelSelector = () => {
                         size="large"
                         className="panel-button"
                         onClick={() => navigate(panel.path, { 
-                        state: { 
-                          proximityFlag: location.state?.proximityFlag,
-                          motionFlagData: location.state?.motionFlagData,
-                          selectedDesignId: location.state?.selectedDesignId,
-                          fromBOQ: location.state?.fromBOQ,
-                          projectIds: location.state?.projectIds,
-                          importResults: location.state?.importResults
-                        } 
-                      })}
+                          state: { 
+                            ...(location.state || {}),
+                            selectedPanelSubtype: panel.subtype
+                          } 
+                        })}
                         sx={{
                           color: 'rgba(255, 255, 255, 0.7)',
                           textTransform: 'none',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
   Typography,
@@ -106,6 +106,8 @@ const itemVariants = {
 
 const DoublePanelSelector = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const incomingState = useMemo(() => (location.state || {}) as Record<string, any>, [location.state]);
   const theme = useTheme();
   const [showPanels, setShowPanels] = useState(false);
   const { projectName, projectCode } = useContext(ProjectContext);
@@ -140,11 +142,13 @@ const DoublePanelSelector = () => {
       name: "Horizontal Double Panel",
       image: DPH,
       path: "/customizer/dph",
+      subtype: 'DPH' as const,
     },
     {
       name: "Vertical Double Panel",
       image: DPV,
       path: "/customizer/dpv",
+      subtype: 'DPV' as const,
     },
   ];
 
@@ -306,12 +310,8 @@ const DoublePanelSelector = () => {
                     <PanelContainer
                       onClick={() => navigate(panel.path, { 
                         state: { 
-                          proximityFlag: location.state?.proximityFlag,
-                          motionFlagData: location.state?.motionFlagData,
-                          selectedDesignId: location.state?.selectedDesignId,
-                          fromBOQ: location.state?.fromBOQ,
-                          projectIds: location.state?.projectIds,
-                          importResults: location.state?.importResults
+                          ...incomingState,
+                          selectedPanelSubtype: panel.subtype
                         } 
                       })}
                       sx={{
@@ -352,12 +352,8 @@ const DoublePanelSelector = () => {
                         className="panel-button"
                         onClick={() => navigate(panel.path, { 
                           state: { 
-                            proximityFlag: location.state?.proximityFlag,
-                            motionFlagData: location.state?.motionFlagData,
-                            selectedDesignId: location.state?.selectedDesignId,
-                            fromBOQ: location.state?.fromBOQ,
-                            projectIds: location.state?.projectIds,
-                            importResults: location.state?.importResults
+                            ...incomingState,
+                            selectedPanelSubtype: panel.subtype
                           } 
                         })}
                         sx={{

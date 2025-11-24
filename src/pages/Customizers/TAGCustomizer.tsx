@@ -529,6 +529,7 @@ const TAGCustomizer: React.FC = () => {
     iconSize: string;
     backbox?: string;
     extraComments?: string;
+    customPanelRequest?: boolean;
   }>({
     backgroundColor: '',
     fonts: 'Myriad Pro SemiBold SemiCondensed',
@@ -715,6 +716,9 @@ const TAGCustomizer: React.FC = () => {
       } else {
         console.log('⚠️ No panel design data found');
       }
+
+      const customPanelRequested = Boolean(deepCopiedData.customPanelRequest) || Boolean(panelDesignData?.customPanelRequest);
+      setShowCustomPanelComponent(customPanelRequested);
       
       // Load placed icons
       if (iconsData) {
@@ -943,8 +947,12 @@ const TAGCustomizer: React.FC = () => {
       return;
     }
 
-    const design: Design & { panelDesign: typeof panelDesign & { tagConfig?: { dimension: string } } } = {
+    const design: Design & { 
+      panelDesign: typeof panelDesign & { tagConfig?: { dimension: string } };
+      customPanelRequest?: boolean;
+    } = {
       type: "TAG",
+      customPanelRequest: showCustomPanelComponent,
       icons: Array.from({ length: 9 })
         .map((_, index) => {
           const icon = placedIcons.find((i) => i.position === index);
@@ -959,7 +967,13 @@ const TAGCustomizer: React.FC = () => {
         })
         .filter((entry) => entry.iconId || entry.text),
       quantity: 1,
-      panelDesign: { ...panelDesign, backbox, extraComments, tagConfig: { dimension: dimensionKey } },
+      panelDesign: { 
+        ...panelDesign, 
+        backbox, 
+        extraComments, 
+        tagConfig: { dimension: dimensionKey }, 
+        customPanelRequest: showCustomPanelComponent || panelDesign.customPanelRequest 
+      },
     };
 
     if (isEditMode) {
@@ -991,13 +1005,15 @@ const TAGCustomizer: React.FC = () => {
       const selectedDesignName = location.state?.selectedDesignName;
       const selectedDesignQuantity = location.state?.selectedDesignQuantity || 1;
       const selectedDesignMaxQuantity = location.state?.selectedDesignMaxQuantity;
+      const selectedDesignId = location.state?.selectedDesignId;
       
       // In free design mode, use default values instead of BOQ values
       const enhancedDesign = {
         ...design,
         panelName: isFreeDesignMode ? getPanelTypeLabel(design.type) : (selectedDesignName || getPanelTypeLabel(design.type)),
         quantity: isFreeDesignMode ? 1 : selectedDesignQuantity, // Use 1 for free design, BOQ quantity for import mode
-        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined)
+        maxQuantity: isFreeDesignMode ? undefined : (typeof selectedDesignMaxQuantity === 'number' ? selectedDesignMaxQuantity : undefined),
+        ...(selectedDesignId && !isFreeDesignMode ? { boqDesignId: selectedDesignId } : {})
       };
 
       if (panelAddedToProject) {
@@ -2427,7 +2443,8 @@ const TAGCustomizer: React.FC = () => {
                               ...panelDesign,
                               fontSize: '9pt',
                               iconSize: '14mm',
-                              fonts: 'Myriad Pro SemiBold SemiCondensed'
+                              fonts: 'Myriad Pro SemiBold SemiCondensed',
+                              customPanelRequest: false
                             });
                             setFontSearchTerm('Myriad Pro SemiBold SemiCondensed');
                             setExtraComments('');
@@ -3209,6 +3226,7 @@ const TAGCustomizer: React.FC = () => {
             onClick={() => {
               setShowCustomPanelDialog(false);
               setShowCustomPanelComponent(true);
+              setPanelDesign(prev => ({ ...prev, customPanelRequest: true }));
             }}
             variant="contained"
             sx={{

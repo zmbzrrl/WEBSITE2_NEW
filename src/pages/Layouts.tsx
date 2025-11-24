@@ -812,8 +812,7 @@ const Layouts: React.FC = () => {
     // Initialize device size
     setDeviceSizes(prev => ({ ...prev, [newDevice.id]: 24 }));
     
-    setIsPlacingDevice(false);
-    setSelectedDeviceType(null);
+    // Keep menu open - only close when user clicks "Field Devices" button again
   };
 
   const removeDevice = (deviceId: string) => {
