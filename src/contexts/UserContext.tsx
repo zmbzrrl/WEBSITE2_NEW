@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState } from 'react';
 export interface AppUser {
   email: string | null;
   ugId?: string | null;
+  isAdmin?: boolean;
 }
 
 interface UserContextValue {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -15,8 +16,10 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import { supabase } from '../utils/supabaseClient';
 import { isAdminEmail } from '../utils/admin';
+import { useUser } from '../contexts/UserContext';
 
 interface FeedbackItem {
   id: number;
@@ -30,10 +33,11 @@ interface FeedbackItem {
 }
 
 const AdminFeedbackSimple: React.FC = () => {
+  const { user } = useUser();
+  const navigate = useNavigate();
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<number>>(() => {
     try {
       if (typeof window === 'undefined') return new Set();
@@ -46,22 +50,19 @@ const AdminFeedbackSimple: React.FC = () => {
     }
   });
 
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        setUserEmail(localStorage.getItem('userEmail'));
-      }
-    } catch {}
-  }, []);
+  const userEmail = user?.email || null;
+  const isAdmin = user?.isAdmin === true || (userEmail ? isAdminEmail(userEmail) : false);
 
   useEffect(() => {
-    if (userEmail && isAdminEmail(userEmail)) {
+    if (isAdmin) {
       fetchFeedback();
-    } else {
+    } else if (userEmail !== null) {
+      // Only show error if we've checked and user is not admin
+      // (userEmail === null means we're still loading)
       setError('Access denied. Admin privileges required.');
       setLoading(false);
     }
-  }, [userEmail]);
+  }, [isAdmin, userEmail]);
 
   const fetchFeedback = async () => {
     try {
@@ -168,7 +169,7 @@ const AdminFeedbackSimple: React.FC = () => {
     return { label: item.status.replace('_', ' ').toUpperCase(), color: getStatusColor(item.status) } as const;
   };
 
-  if (!userEmail || !isAdminEmail(userEmail)) {
+  if (!isAdmin) {
     return (
       <Box sx={{ 
         minHeight: '100vh', 
@@ -218,21 +219,39 @@ const AdminFeedbackSimple: React.FC = () => {
           >
             Feedback Management
           </Typography>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchFeedback}
-            sx={{
-              color: 'rgba(255, 255, 255, 0.9)',
-              borderColor: 'rgba(255, 255, 255, 0.3)',
-              '&:hover': {
-                borderColor: 'rgba(255, 255, 255, 0.6)',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              },
-            }}
-          >
-            Refresh
-          </Button>
+          <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={fetchFeedback}
+              sx={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+                '&:hover': {
+                  borderColor: 'rgba(255, 255, 255, 0.6)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<DashboardIcon />}
+              onClick={() => navigate('/admin')}
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
+                },
+              }}
+            >
+              Back to Dashboard
+            </Button>
+          </Stack>
         </Box>
 
         {error && (

@@ -93,18 +93,28 @@ export const saveDesign = async (email: string, designData: any, location?: stri
       }
     }
     
+    // Extract prop_id from designData if available (projectCode is the prop_id)
+    const propId = actualDesignData.projectCode || actualDesignData.prop_id || null;
+    
     // Create the design record
+    const insertData: any = {
+      project_id: projectId,
+      user_email: email,
+      design_name: projectName, // Use full name with revision
+      panel_type: panelType,
+      design_data: actualDesignData,
+      created_at: new Date().toISOString(),
+      last_modified: new Date().toISOString()
+    };
+    
+    // Add prop_id if available (required for listPropertyRevisions to find designs)
+    if (propId) {
+      insertData.prop_id = propId;
+    }
+    
     const { data, error } = await supabase
       .from('user_designs')
-      .insert([{
-        project_id: projectId,
-        user_email: email,
-        design_name: projectName, // Use full name with revision
-        panel_type: panelType,
-        design_data: actualDesignData,
-        created_at: new Date().toISOString(),
-        last_modified: new Date().toISOString()
-      }])
+      .insert([insertData])
       .select();
 
     if (error) {

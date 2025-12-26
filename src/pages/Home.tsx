@@ -1,6 +1,6 @@
 //                                        ===== IMPORTS SECTION =====
 
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Box = flexible container, Typography = text styling, Button = clickable buttons
@@ -38,7 +38,6 @@ import { ProjectContext } from '../App';
 import { useUser } from '../contexts/UserContext';
 import { mockSendEmail } from '../utils/mockBackend';
 import { isAdminEmail } from '../utils/admin';
-import { supabase } from '../utils/supabaseClient';
  
 
 
@@ -620,7 +619,17 @@ const Home = () => {
   // Gets functions from ProjectContext (shared storage)
   // These functions can update project data that other components can see
   const { setProjectName, setProjectCode, setLocation, setOperator } = useContext(ProjectContext);
-  const { setUser } = useUser();
+  const { user, setUser } = useUser();
+
+  // Clear login-related localStorage whenever user lands on the homepage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userUgId');
+    } catch (err) {
+      console.warn('Failed to clear localStorage on Home:', err);
+    }
+  }, []);
   
   // ===== STATE MANAGEMENT =====
   // These are like "memory boxes" that store data that can change
@@ -653,10 +662,11 @@ const Home = () => {
     salesManager: '',       // Sales manager name
     operator: '',           // Operator name
     servicePartner: '',     // Service partner name
-    email: ''              // Email address
+    email: '',              // Email address
+    password: ''            // Password (UI only for now)
   });
 
-  const isAdmin = isAdminEmail(typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null);
+  const isAdmin = isAdminEmail(user?.email || null);
 
   // ===== EVENT HANDLERS =====
   // These are functions that run when users interact with the page
@@ -686,66 +696,73 @@ const Home = () => {
   };
 
   // ===== HANDLE EMAIL SUBMIT =====
-  // Runs when user submits their email
+  // Runs when user submits their email and password to the backend auth API
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[LOGIN] Form submitted, preventing default');
     
-    if (!projectDetails.email) {
+    if (!projectDetails.email || !projectDetails.password) {
+      console.log('[LOGIN] Validation failed: missing email or password');
       setShowError(true);
-      setErrorText('Please enter a valid email address.');
+      setErrorText('Please enter both email and password.');
       return;
     }
     
     const normalizedEmail = projectDetails.email.trim().toLowerCase();
+    console.log('[LOGIN] Starting login request for:', normalizedEmail);
 
     try {
-      // Check if this is an admin email first
-      if (isAdminEmail(normalizedEmail)) {
-        // Admin users can bypass database check
-        setUser({ email: normalizedEmail, ugId: 'admin' });
-        
-        // Save to localStorage for persistence
-        try {
-          localStorage.setItem('userEmail', normalizedEmail);
-          localStorage.setItem('userUgId', 'admin');
-        } catch (error) {
-          console.warn('Could not save user data to localStorage:', error);
-        }
-        
-        // Redirect admin users directly to feedback page
-        navigate('/admin/feedback');
-        return;
-      }
+      const response = await fetch('http://localhost:4000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: projectDetails.password,
+        }),
+      });
 
-      // For regular users, check if user exists in database
-      const { data: userData, error: userError } = await supabase
-        .schema('public')
-      .from('users')
-        .select('email, ug_id')
-        .eq('email', normalizedEmail)
-        .eq('is_active', true)
-        .single();
+      console.log('[LOGIN] Response received:', {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
 
-      if (userError || !userData) {
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        console.error('[LOGIN] Login failed:', { status: response.status, error: data?.error });
         setShowError(true);
-        setErrorText('Email not found. Please contact your administrator.');
+        setErrorText(data?.error || 'Login failed. Please check your credentials.');
         return;
       }
 
-      // Set user context with their actual UG ID
-      setUser({ email: normalizedEmail, ugId: userData.ug_id });
-      
-      // Also save to localStorage for persistence across page refreshes
-      try {
-    localStorage.setItem('userEmail', normalizedEmail);
-        localStorage.setItem('userUgId', userData.ug_id || '');
-      } catch (error) {
-        console.warn('Could not save user data to localStorage:', error);
-      }
-      
-    navigate('/properties');
+      const data = await response.json();
+      console.log('[LOGIN] Login successful, received data:', { email: data.email, ugId: data.ugId, isAdmin: data.isAdmin });
+
+      // Set user context with values returned by backend (including isAdmin)
+      console.log('[LOGIN] Setting user context...');
+      setUser({ 
+        email: data.email, 
+        ugId: data.ugId,
+        isAdmin: data.isAdmin 
+      });
+      console.log('[LOGIN] User context set, current user state:', { email: data.email, ugId: data.ugId, isAdmin: data.isAdmin });
+
+      // Wait a bit longer to ensure context propagates and backend cookie is set
+      // The AdminGuard will check the backend directly, but we want to give React time to update
+      console.log('[LOGIN] Waiting for context propagation...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Redirect based on admin flag if provided
+      const targetPath = data.isAdmin ? '/admin' : '/properties';
+      console.log('[LOGIN] Navigating to:', targetPath, 'with replace:true');
+      navigate(targetPath, { replace: true });
+      console.log('[LOGIN] Navigate call completed');
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[LOGIN] Network or other error:', error);
       setShowError(true);
       setErrorText('Login failed. Please try again.');
     }
@@ -982,6 +999,15 @@ const Home = () => {
                   onChange={handleChange('email')}
                   placeholder="Enter your email address"
                   required
+                  fullWidth
+                />
+                <StyledTextField
+                  label="Password"
+                  variant="outlined"
+                  type="password"
+                  value={projectDetails.password}
+                  onChange={handleChange('password')}
+                  placeholder="Enter your password"
                   fullWidth
                 />
                 

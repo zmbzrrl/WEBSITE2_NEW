@@ -5,6 +5,7 @@ import { getAccessibleProperties, createProperty, listPropertyRevisions, getDesi
 import { ProjectContext } from '../App';
 import { useUser } from '../contexts/UserContext';
 import { importDatabaseDataNew, loadJsonFromFile, validateImportDataNew } from '../utils/databaseImporterNew';
+import { isAdminEmail } from '../utils/admin';
 
 const Properties: React.FC = () => {
   const navigate = useNavigate();
@@ -410,6 +411,22 @@ const Properties: React.FC = () => {
           style={{ height: 40, width: 'auto', cursor: 'pointer', filter: 'brightness(0) invert(1)' }}
           onClick={() => navigate('/')}
         />
+        {(user?.isAdmin === true || (user?.email && isAdminEmail(user.email))) && (
+          <button
+            onClick={() => navigate('/admin')}
+            style={{ 
+              padding: '8px 14px', 
+              background: 'rgba(255, 255, 255, 0.2)', 
+              color: '#fff', 
+              border: '1px solid rgba(255, 255, 255, 0.3)', 
+              borderRadius: 4, 
+              cursor: 'pointer',
+              marginLeft: 8
+            }}
+          >
+            Admin Dashboard
+          </button>
+        )}
       </div>
 
       <p style={{ color: '#fff', marginTop: 45 }}>Choose a property to work in, or create a new one.</p>

@@ -1,0 +1,5 @@
+What i have now:
+Simple Fastify + JWT + bcrypt
+- Works for email/password login
+- Minimal dependencies
+- Easy to understand and maintain
