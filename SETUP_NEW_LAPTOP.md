@@ -16,7 +16,7 @@ Create `backend/.env` with these variables:
 SUPABASE_URL=your_supabase_url_here
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 JWT_SECRET=your_jwt_secret_here
-FRONTEND_ORIGIN=http://localhost:5173
+FRONTEND_ORIGIN=http://localhost:3000
 PORT=4000
 ```
 
@@ -49,7 +49,7 @@ npm run dev
 
 ### 5. Verify Everything Works
 - Backend should show: `[backend] Auth server listening on port 4000`
-- Frontend should open at `http://localhost:5173`
+- Frontend should open at `http://localhost:3000`
 - Test database connection by using the app
 
 ## Environment Variables Reference
@@ -59,7 +59,7 @@ Required variables:
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Service role key from Supabase dashboard
 - `JWT_SECRET` - A random secret string for JWT tokens
-- `FRONTEND_ORIGIN` - Frontend URL (default: http://localhost:5173)
+- `FRONTEND_ORIGIN` - Frontend URL (default: http://localhost:3000)
 - `PORT` - Backend port (default: 4000)
 
 ### Frontend (`.env.local` - optional)
@@ -94,7 +94,7 @@ Only needed if frontend connects directly to Supabase:
 ## ✅ Success Checklist
 
 - [ ] Backend starts on port 4000
-- [ ] Frontend starts on port 5173 (or 3000)
+- [ ] Frontend starts on port 3000
 - [ ] No error messages in console
 - [ ] Can access the application in browser
 - [ ] Database operations work (login, save data, etc.)

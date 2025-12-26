@@ -12,7 +12,7 @@ const {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
   JWT_SECRET,
-  FRONTEND_ORIGIN = 'http://localhost:5173',
+  FRONTEND_ORIGIN = 'http://localhost:3000',
   PORT = 4000,
 } = process.env;
 

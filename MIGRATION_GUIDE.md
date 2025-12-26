@@ -22,7 +22,7 @@ You need to copy your environment variables. Check if you have these files:
 
 Note down:
 - Backend port (default: 4000)
-- Frontend port (default: 5173)
+- Frontend port (default: 3000)
 - Any custom configurations
 
 ## 🚀 Migration Steps (On New Laptop)
@@ -64,7 +64,7 @@ On your new laptop, install:
    SUPABASE_URL=your_supabase_url_here
    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
    JWT_SECRET=your_jwt_secret_here
-   FRONTEND_ORIGIN=http://localhost:5173
+   FRONTEND_ORIGIN=http://localhost:3000
    PORT=4000
    ```
 
@@ -106,7 +106,7 @@ Your Supabase database is cloud-hosted, so it should work immediately. To verify
    cd WEBSITE2_NEW
    npm run dev
    ```
-   - Should open at `http://localhost:5173`
+   - Should open at `http://localhost:3000`
 
 3. Test the connection:
    - Open the app in browser
