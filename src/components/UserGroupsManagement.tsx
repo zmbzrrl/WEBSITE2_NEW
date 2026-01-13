@@ -8,27 +8,30 @@ import {
   Alert,
   Paper,
   Stack,
-  FormControlLabel,
-  Checkbox,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Chip,
-  Grid
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
+  Card,
+  CardContent,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction
 } from '@mui/material';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import AddIcon from '@mui/icons-material/Add';
 import { useUser } from '../contexts/UserContext';
 
 interface UserGroup {
@@ -39,34 +42,88 @@ interface UserGroup {
   created_at?: string;
 }
 
-interface UserGroupForm {
-  id: string;
+interface GroupedUserGroup {
   ug: string;
-  propId: string;
-  isActive: boolean;
+  properties: UserGroup[];
 }
 
 const UserGroupsManagement: React.FC = () => {
   const { user: currentUser } = useUser();
   const navigate = useNavigate();
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const [groupedGroups, setGroupedGroups] = useState<GroupedUserGroup[]>([]);
+  const [properties, setProperties] = useState<Array<{ prop_id: string; property_name: string; region: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [fetchingProperties, setFetchingProperties] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
-  const [formData, setFormData] = useState<UserGroupForm>({
-    id: '',
-    ug: '',
-    propId: '',
-    isActive: true,
-  });
+  const [groupToDelete, setGroupToDelete] = useState<{ id: string; ug: string } | null>(null);
+  const [newGroupCode, setNewGroupCode] = useState('');
+  const [newGroupProperty, setNewGroupProperty] = useState('');
+  const [addingPropertyToGroup, setAddingPropertyToGroup] = useState<{ [ug: string]: string }>({});
 
   useEffect(() => {
     fetchUserGroups();
+    fetchProperties();
   }, []);
+
+  useEffect(() => {
+    try {
+      // Group user groups by ug code
+      const grouped = (userGroups || []).reduce((acc, group) => {
+        if (!group || !group.ug) return acc;
+
+        const existingGroup = acc.find(g => g.ug === group.ug);
+        if (existingGroup) {
+          existingGroup.properties.push(group);
+        } else {
+          acc.push({ ug: group.ug, properties: [group] });
+        }
+        return acc;
+      }, [] as GroupedUserGroup[]);
+
+      // Sort properties within each group
+      grouped.forEach(g => {
+        if (g.properties) {
+          g.properties.sort((a, b) => (a.prop_id || '').localeCompare(b.prop_id || ''));
+        }
+      });
+
+      // Sort groups by ug code
+      grouped.sort((a, b) => (a.ug || '').localeCompare(b.ug || ''));
+
+      setGroupedGroups(grouped);
+    } catch (err) {
+      console.error('[USER_GROUPS] Error grouping data:', err);
+      setError('Error processing user groups data');
+    }
+  }, [userGroups]);
+
+  const fetchProperties = async () => {
+    setFetchingProperties(true);
+    try {
+      const response = await fetch('http://localhost:4000/admin/properties', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProperties(data || []);
+      } else {
+        console.error('[USER_GROUPS_MGMT] Failed to fetch properties');
+      }
+    } catch (err) {
+      console.error('[USER_GROUPS_MGMT] Error fetching properties:', err);
+    } finally {
+      setFetchingProperties(false);
+    }
+  };
 
   const fetchUserGroups = async () => {
     setFetching(true);
@@ -96,8 +153,7 @@ const UserGroupsManagement: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log('[USER_GROUPS_MGMT] User groups fetched successfully:', data);
-      setUserGroups(data);
+      setUserGroups(data || []);
     } catch (err) {
       console.error('[USER_GROUPS_MGMT] Error fetching user groups:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch user groups');
@@ -106,42 +162,41 @@ const UserGroupsManagement: React.FC = () => {
     }
   };
 
-  const handleChange = (field: keyof UserGroupForm) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = field === 'isActive' ? e.target.checked : e.target.value;
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (error) setError(null);
-    if (success) setSuccess(null);
+  const handleCreateNewGroupWithProperty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupCode.trim() || !newGroupProperty) {
+      setError('Please enter both a user group code and select a property');
+      return;
+    }
+
+    await handleAddPropertyToGroup(newGroupCode.trim().toUpperCase(), newGroupProperty);
+    if (!error) {
+      setNewGroupCode('');
+      setNewGroupProperty('');
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddPropertyToGroup = async (ug: string, propId: string) => {
+    if (!ug || !propId) {
+      setError('Group code and property are required');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const url = editingGroup
-        ? `http://localhost:4000/admin/user-groups/${editingGroup.id}`
-        : 'http://localhost:4000/admin/user-groups';
-      
-      const method = editingGroup ? 'PUT' : 'POST';
-      const body = editingGroup
-        ? {
-            ug: formData.ug,
-            propId: formData.propId,
-            isActive: formData.isActive,
-          }
-        : {
-            id: formData.id,
-            ug: formData.ug,
-            propId: formData.propId,
-            isActive: formData.isActive,
-          };
+      const id = `${ug}_${propId}`;
+      const body = {
+        id,
+        ug,
+        propId,
+        isActive: true,
+      };
 
-      const response = await fetch(url, {
-        method,
+      const response = await fetch('http://localhost:4000/admin/user-groups', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(body),
@@ -149,39 +204,33 @@ const UserGroupsManagement: React.FC = () => {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(data?.error || `Failed to ${editingGroup ? 'update' : 'create'} user group`);
+        throw new Error(data?.error || 'Failed to add property to group');
       }
 
-      setSuccess(`User group ${editingGroup ? 'updated' : 'created'} successfully!`);
-      setFormData({ id: '', ug: '', propId: '', isActive: true });
-      setEditingGroup(null);
+      const responseData = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(responseData?.error || `Failed to add property to group (${response.status})`);
+      }
+
+      setSuccess(`Property added to group ${ug} successfully!`);
       fetchUserGroups();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save user group');
+      console.error('Error adding property:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add property to group');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (group: UserGroup) => {
-    setEditingGroup(group);
-    setFormData({
-      id: group.id,
-      ug: group.ug,
-      propId: group.prop_id,
-      isActive: group.is_active,
-    });
-    setError(null);
-    setSuccess(null);
+  const getAvailablePropertiesForGroup = (ug: string) => {
+    const group = groupedGroups.find(g => g.ug === ug);
+    const assignedPropIds = group?.properties.map(p => p.prop_id) || [];
+    return (properties || []).filter(p => p && p.prop_id && !assignedPropIds.includes(p.prop_id));
   };
 
-  const handleCancelEdit = () => {
-    setEditingGroup(null);
-    setFormData({ id: '', ug: '', propId: '', isActive: true });
-  };
-
-  const handleDeleteClick = (id: string) => {
-    setGroupToDelete(id);
+  const handleDeleteProperty = (id: string, ug: string) => {
+    setGroupToDelete({ id, ug });
     setDeleteDialogOpen(true);
   };
 
@@ -189,20 +238,20 @@ const UserGroupsManagement: React.FC = () => {
     if (!groupToDelete) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/admin/user-groups/${groupToDelete}`, {
+      const response = await fetch(`http://localhost:4000/admin/user-groups/${groupToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(data?.error || 'Failed to delete user group');
+        throw new Error(data?.error || 'Failed to remove property from group');
       }
 
-      setSuccess('User group deleted successfully!');
+      setSuccess('Property removed from group successfully!');
       fetchUserGroups();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete user group');
+      setError(err instanceof Error ? err.message : 'Failed to remove property from group');
     } finally {
       setDeleteDialogOpen(false);
       setGroupToDelete(null);
@@ -265,170 +314,230 @@ const UserGroupsManagement: React.FC = () => {
           </Button>
         </Box>
 
-        <Grid container spacing={3}>
-          {/* Form Section */}
-          <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3, backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
-              <Typography variant="h5" sx={{ mb: 3, fontWeight: 500 }}>
-                {editingGroup ? 'Edit User Group' : 'Create New User Group'}
-              </Typography>
+        {/* Global Messages */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+            {success}
+          </Alert>
+        )}
 
-              {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-              {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+        {/* Create New Group with Property Form */}
+        <Paper sx={{ p: 3, mb: 3, backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+            Create New User Group with Property
+          </Typography>
+          <form onSubmit={handleCreateNewGroupWithProperty}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-end">
+              <TextField
+                label="User Group Code"
+                value={newGroupCode}
+                onChange={(e) => setNewGroupCode(e.target.value.toUpperCase())}
+                required
+                fullWidth
+                variant="outlined"
+                placeholder="UG001"
+                helperText="Enter a new group code (e.g., UG001, ADMIN, etc.)"
+              />
+              <FormControl fullWidth required>
+                <InputLabel>Property</InputLabel>
+                <Select
+                  value={newGroupProperty}
+                  onChange={(e) => setNewGroupProperty(e.target.value)}
+                  label="Property"
+                  disabled={fetchingProperties}
+                >
+                  <MenuItem value="">
+                    <em>Select a property...</em>
+                  </MenuItem>
+                  {properties && properties.map((property) => {
+                    if (!property || !property.prop_id) return null;
 
-              <form onSubmit={handleSubmit}>
-                <Stack spacing={2}>
-                  <TextField
-                    label="ID"
-                    value={formData.id}
-                    onChange={handleChange('id')}
-                    required={!editingGroup}
-                    disabled={!!editingGroup}
-                    fullWidth
-                    variant="outlined"
-                    placeholder="UG001_PROP001"
-                    helperText={editingGroup ? 'ID cannot be changed' : 'Composite ID (e.g., UG001_PROP001)'}
-                  />
+                    const trimmedCode = newGroupCode.trim().toUpperCase();
+                    const existingGroup = trimmedCode ? groupedGroups.find(g => g.ug === trimmedCode) : null;
+                    const isAssignedToThisGroup = existingGroup?.properties?.some(p => p.prop_id === property.prop_id);
+                    // Show all properties, but we'll handle duplicates in the backend
+                    return (
+                      <MenuItem key={property.prop_id} value={property.prop_id} disabled={isAssignedToThisGroup}>
+                        {property.property_name || 'Unknown'} — {property.region || 'Unknown'} ({property.prop_id})
+                        {isAssignedToThisGroup && ' (already assigned)'}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+                {fetchingProperties && (
+                  <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary' }}>
+                    Loading properties...
+                  </Typography>
+                )}
+              </FormControl>
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <GroupAddIcon />}
+                disabled={loading || !newGroupCode.trim() || !newGroupProperty}
+                sx={{ py: 1.5, minWidth: 150 }}
+              >
+                {loading ? 'Creating...' : 'Create Group'}
+              </Button>
+            </Stack>
+          </form>
+        </Paper>
 
-                  <TextField
-                    label="User Group Code"
-                    value={formData.ug}
-                    onChange={handleChange('ug')}
-                    required
-                    fullWidth
-                    variant="outlined"
-                    placeholder="UG001"
-                  />
 
-                  <TextField
-                    label="Property ID"
-                    value={formData.propId}
-                    onChange={handleChange('propId')}
-                    required
-                    fullWidth
-                    variant="outlined"
-                    placeholder="PROP001"
-                  />
+        {/* User Groups Sections */}
+        {fetching ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : !groupedGroups || groupedGroups.length === 0 ? (
+          <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
+            <Typography variant="h6" color="text.secondary">
+              No user groups found. Create a new group code above to get started.
+            </Typography>
+          </Paper>
+        ) : (
+          <Grid container spacing={3}>
+            {groupedGroups.map((grouped) => {
+              const availableProperties = getAvailablePropertiesForGroup(grouped.ug) || [];
 
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.isActive}
-                        onChange={handleChange('isActive')}
-                      />
-                    }
-                    label="User group is active"
-                  />
+              return (
+                <Grid item xs={12} key={grouped.ug}>
+                  <Card sx={{ backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                          {grouped.ug}
+                        </Typography>
+                        <Chip
+                          label={`${grouped.properties?.length || 0} ${grouped.properties?.length === 1 ? 'property' : 'properties'}`}
+                          color="primary"
+                          variant="outlined"
+                        />
+                      </Box>
 
-                  <Stack direction="row" spacing={2}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <GroupAddIcon />}
-                      disabled={loading}
-                      fullWidth
-                      sx={{ py: 1.5 }}
-                    >
-                      {loading ? 'Saving...' : editingGroup ? 'Update Group' : 'Create Group'}
-                    </Button>
-                    {editingGroup && (
-                      <Button
-                        variant="outlined"
-                        onClick={handleCancelEdit}
-                        fullWidth
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </Stack>
-                </Stack>
-              </form>
-            </Paper>
-          </Grid>
+                      <Divider sx={{ mb: 2 }} />
 
-          {/* Groups List */}
-          <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 3, backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
-              <Typography variant="h5" sx={{ mb: 2, fontWeight: 500 }}>
-                All User Groups ({userGroups.length})
-              </Typography>
-
-              {fetching ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell><strong>ID</strong></TableCell>
-                        <TableCell><strong>User Group</strong></TableCell>
-                        <TableCell><strong>Property ID</strong></TableCell>
-                        <TableCell><strong>Status</strong></TableCell>
-                        <TableCell><strong>Actions</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {userGroups.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center">
-                            No user groups found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        userGroups.map((group) => (
-                          <TableRow key={group.id}>
-                            <TableCell>{group.id}</TableCell>
-                            <TableCell>{group.ug}</TableCell>
-                            <TableCell>{group.prop_id}</TableCell>
-                            <TableCell>
-                              <Chip
-                                label={group.is_active ? 'Active' : 'Inactive'}
-                                color={group.is_active ? 'success' : 'default'}
-                                size="small"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleEdit(group)}
-                                color="primary"
+                      {/* Add Property Section */}
+                      {availableProperties.length > 0 && (
+                        <Box sx={{ mb: 3, p: 2, backgroundColor: 'rgba(0, 0, 0, 0.02)', borderRadius: 1 }}>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <FormControl sx={{ minWidth: 300, flexGrow: 1 }}>
+                              <InputLabel>Add Property to {grouped.ug}</InputLabel>
+                              <Select
+                                value={addingPropertyToGroup[grouped.ug] || ''}
+                                onChange={(e) => setAddingPropertyToGroup(prev => ({ ...prev, [grouped.ug]: e.target.value }))}
+                                label={`Add Property to ${grouped.ug}`}
+                                disabled={fetchingProperties || loading}
                               >
-                                <EditIcon />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDeleteClick(group.id)}
-                                color="error"
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                                <MenuItem value="">
+                                  <em>Select a property...</em>
+                                </MenuItem>
+                                {availableProperties.map((property) => (
+                                  property && property.prop_id ? (
+                                    <MenuItem key={property.prop_id} value={property.prop_id}>
+                                      {property.property_name || 'Unknown'} — {property.region || 'Unknown'} ({property.prop_id})
+                                    </MenuItem>
+                                  ) : null
+                                ))}
+                              </Select>
+                            </FormControl>
+                            <Button
+                              variant="contained"
+                              startIcon={<AddIcon />}
+                              onClick={() => handleAddPropertyToGroup(grouped.ug, addingPropertyToGroup[grouped.ug] || '')}
+                              disabled={!addingPropertyToGroup[grouped.ug] || loading}
+                              sx={{ minWidth: 150 }}
+                            >
+                              Add Property
+                            </Button>
+                          </Stack>
+                        </Box>
                       )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </Paper>
+
+                      {/* Properties List */}
+                      {!grouped.properties || grouped.properties.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                          No properties assigned to this group yet. Use the dropdown above to add properties.
+                        </Typography>
+                      ) : (
+                        <List>
+                          {grouped.properties.map((property, index) => {
+                            const propertyInfo = properties.find(p => p.prop_id === property.prop_id);
+                            const generatedId = `${grouped.ug}_${property.prop_id}`;
+
+                            return (
+                              <React.Fragment key={property.id || index}>
+                                <ListItem>
+                                  <ListItemText
+                                    primary={
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                                          {propertyInfo?.property_name || property.prop_id || 'Unknown'}
+                                        </Typography>
+                                        <Chip
+                                          label={property.is_active ? 'Active' : 'Inactive'}
+                                          color={property.is_active ? 'success' : 'default'}
+                                          size="small"
+                                        />
+                                      </Box>
+                                    }
+                                    secondary={
+                                      <Box sx={{ mt: 0.5 }}>
+                                        <Typography variant="body2" color="text.secondary">
+                                          Property ID: {property.prop_id || 'Unknown'}
+                                          {propertyInfo?.region && ` • Region: ${propertyInfo.region}`}
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ mt: 0.5, fontFamily: 'monospace', color: 'primary.main' }}>
+                                          Generated ID: {generatedId}
+                                        </Typography>
+                                      </Box>
+                                    }
+                                  />
+                                  <ListItemSecondaryAction>
+                                    <IconButton
+                                      edge="end"
+                                      onClick={() => handleDeleteProperty(property.id, grouped.ug)}
+                                      color="error"
+                                      size="small"
+                                      disabled={!property.id}
+                                    >
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </ListItemSecondaryAction>
+                                </ListItem>
+                                {index < grouped.properties.length - 1 && <Divider />}
+                              </React.Fragment>
+                            );
+                          })}
+                        </List>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
-        </Grid>
+        )}
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-          <DialogTitle>Delete User Group</DialogTitle>
+          <DialogTitle>Remove Property from Group</DialogTitle>
           <DialogContent>
             <Typography>
-              Are you sure you want to delete user group <strong>{groupToDelete}</strong>?
-              This will also delete all users assigned to this group. This action cannot be undone.
+              Are you sure you want to remove this property from group <strong>{groupToDelete?.ug}</strong>?
+              This will delete the user group assignment (ID: <strong>{groupToDelete?.id}</strong>). 
+              This action cannot be undone.
             </Typography>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-              Delete
+              Remove
             </Button>
           </DialogActions>
         </Dialog>

@@ -12,7 +12,7 @@ const {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
   JWT_SECRET,
-  FRONTEND_ORIGIN = 'http://localhost:5173',
+  FRONTEND_ORIGIN = 'http://localhost:3000',
   PORT = 4000,
 } = process.env;
 
@@ -415,124 +415,133 @@ fastify.get(
   },
   async (request, reply) => {
     try {
-      // First, try to get data without the problematic id column to see if the table is accessible
-      request.log.info('[ADMIN/USER-GROUPS] Step 1: Testing table access without id column');
-      const { data: testData, error: testError } = await supabase
-        .schema('public')
-        .from('ug')
-        .select('ug, prop_id, is_active, created_at')
-        .limit(1);
+      request.log.info('[ADMIN/USER-GROUPS] Fetching user groups data');
       
-      if (testError) {
-        request.log.error({ error: testError }, '[ADMIN/USER-GROUPS] Cannot access ug table at all');
-        return reply.code(500).send({ 
-          error: `Failed to access user groups table: ${testError.message || 'Database error'}` 
-        });
-      }
-      
-      request.log.info('[ADMIN/USER-GROUPS] Step 2: Table is accessible, now trying to get id column');
-      
-      // Now try to get the id column with different names
-      // Use a raw query approach by trying to select with each possible column name
-      const columnNameAttempts = [
-        { name: 'id', quoted: false },
-        { name: 'UG_PropID', quoted: true },
-        { name: 'ug_propid', quoted: false },
-        { name: 'ug_prop_id', quoted: false },
-      ];
+      // The error "column ug.prop_id does not exist" suggests Supabase/PostgREST
+      // is trying to expand relationships or the column doesn't exist.
+      // Let's try a direct REST API call to avoid any relationship expansion
       
       let data = null;
       let error = null;
-      let successfulColumnName = null;
       
-      // Try each column name variation
-      for (const { name, quoted } of columnNameAttempts) {
-        request.log.info(`[ADMIN/USER-GROUPS] Trying column name: ${name} (quoted: ${quoted})`);
+      // The error suggests the prop_id column doesn't exist in the database
+      // Try querying with minimal columns that should definitely exist
+      // Start with the most basic query possible
+      try {
+        // First, try to get just the ug column to verify table access
+        const testQuery = await supabase
+          .schema('public')
+          .from('ug')
+          .select('ug')
+          .limit(1);
         
-        // Build the select string - for quoted identifiers, we might need special handling
-        const selectString = quoted 
-          ? `"${name}", ug, prop_id, is_active, created_at`
-          : `${name}, ug, prop_id, is_active, created_at`;
-        
-        try {
-          const result = await supabase
+        if (testQuery.error) {
+          request.log.error({ error: testQuery.error }, '[ADMIN/USER-GROUPS] Cannot access ug table at all');
+          error = testQuery.error;
+        } else {
+          // Table is accessible, now try to get all available columns
+          // Use ug_id as the primary key (as per database schema)
+          const basicQuery = await supabase
             .schema('public')
             .from('ug')
-            .select(selectString);
+            .select('ug_id, ug, is_active, created_at, prop_id');
           
-          if (!result.error && result.data) {
-            data = result.data;
-            successfulColumnName = name;
-            request.log.info(`[ADMIN/USER-GROUPS] ✅ Success with column name: ${name}`);
-            break;
+          if (basicQuery.error) {
+            error = basicQuery.error;
+            request.log.error({ error: basicQuery.error }, '[ADMIN/USER-GROUPS] Failed to query with id');
           } else {
-            request.log.warn({ 
-              error: result.error?.message, 
-              code: result.error?.code,
-              column: name 
-            }, `[ADMIN/USER-GROUPS] ❌ Failed with column: ${name}`);
-            error = result.error;
+            data = basicQuery.data;
+            request.log.info({ 
+              rowCount: data?.length || 0,
+              sampleKeys: data && data.length > 0 ? Object.keys(data[0]) : []
+            }, '[ADMIN/USER-GROUPS] ✅ Success with id query');
           }
-        } catch (err) {
-          request.log.warn({ err, column: name }, `[ADMIN/USER-GROUPS] Exception with column: ${name}`);
-          error = err;
         }
-      }
-      
-      // If all specific column names failed, try select(*) as last resort
-      if (!data && error) {
-        request.log.warn('[ADMIN/USER-GROUPS] Step 3: All column names failed, trying select(*)');
-        try {
-          const starResult = await supabase
-            .schema('public')
-            .from('ug')
-            .select('*');
-          
-          if (!starResult.error && starResult.data) {
-            data = starResult.data;
-            error = null;
-            request.log.info('[ADMIN/USER-GROUPS] ✅ select(*) succeeded');
-          } else {
-            error = starResult.error;
-            request.log.error({ error: starResult.error }, '[ADMIN/USER-GROUPS] ❌ select(*) also failed');
+      } catch (fetchErr) {
+        request.log.warn({ fetchErr }, '[ADMIN/USER-GROUPS] Direct REST API failed, trying Supabase client');
+        
+        // Fallback: try multiple column combinations
+        const attempts = [
+          // Attempt 1: Use ug_id as primary key
+          () => supabase.schema('public').from('ug').select('ug_id, ug, is_active, created_at, prop_id'),
+          // Attempt 2: Without schema specification
+          () => supabase.from('ug').select('ug_id, ug, is_active, created_at, prop_id'),
+          // Attempt 3: Just the ug column
+          () => supabase.schema('public').from('ug').select('ug'),
+        ];
+        
+        for (let i = 0; i < attempts.length; i++) {
+          try {
+            request.log.info(`[ADMIN/USER-GROUPS] Fallback attempt ${i + 1}/${attempts.length}`);
+            const result = await attempts[i]();
+            
+            if (!result.error && result.data) {
+              data = result.data;
+              error = null;
+              request.log.info(`[ADMIN/USER-GROUPS] ✅ Success with fallback attempt ${i + 1}`);
+              break;
+            } else if (result.error) {
+              error = result.error;
+              // Continue to next attempt unless it's a non-prop_id error on last attempt
+              if (i < attempts.length - 1 || result.error.message?.includes('prop_id')) {
+                continue;
+              }
+            }
+          } catch (err) {
+            request.log.warn({ err, attempt: i + 1 }, `[ADMIN/USER-GROUPS] Exception in fallback attempt ${i + 1}`);
+            error = err;
+            continue;
           }
-        } catch (err) {
-          request.log.error({ err }, '[ADMIN/USER-GROUPS] Exception with select(*)');
-          error = err;
         }
       }
 
-      if (error || !data) {
+      if (error && !data) {
+        // Only return error if we have no data at all
+        const isPropIdError = error?.message?.includes('prop_id');
         request.log.error({ 
           error, 
           errorMessage: error?.message, 
           errorCode: error?.code,
-          successfulColumn: successfulColumnName,
-          hint: 'The ug table primary key column name does not match any expected pattern. Please check your database schema.'
-        }, '[ADMIN/USER-GROUPS] ❌ All attempts failed');
+          isPropIdError
+        }, '[ADMIN/USER-GROUPS] ❌ All attempts failed to fetch user groups');
+        
+        // Provide helpful error message if it's a prop_id issue
+        if (isPropIdError) {
+          return reply.code(500).send({ 
+            error: `Database schema issue: The 'prop_id' column is missing from the 'ug' table. Please run the SQL script 'add-prop_id-to-ug-table.sql' in your Supabase SQL Editor to fix this. Original error: ${error?.message || 'Database error'}` 
+          });
+        }
+        
         return reply.code(500).send({ 
-          error: `Failed to fetch user groups: ${error?.message || 'Database error'}. The primary key column might be named differently. Please check your database table structure.` 
+          error: `Failed to access user groups table: ${error?.message || 'Database error'}` 
         });
+      }
+
+      if (!data) {
+        request.log.warn('[ADMIN/USER-GROUPS] No data returned from query');
+        return reply.send([]);
       }
 
       request.log.info({ 
         rowCount: data.length, 
-        successfulColumn: successfulColumnName,
         sampleKeys: data.length > 0 ? Object.keys(data[0]) : []
       }, '[ADMIN/USER-GROUPS] ✅ Data retrieved successfully');
 
       // Map the data to use consistent column names
       if (data) {
         data = data.map((item, index) => {
-          // Find the id value from any possible column name
-          const idValue = item.id || item.UG_PropID || item.ug_propid || item.ug_prop_id || item['UG_PropID'] || `temp_${index}`;
-          
+          // Use ug_id as the primary identifier (from database)
+          const ugIdValue = item.ug_id || item.id || `temp_${index}`;
+
+          // Handle prop_id - check various possible column names
+          const propIdValue = item.prop_id || item.propId || item.propID || item['prop_id'] || null;
+
           return {
-            id: idValue,
-            ug: item.ug,
-            prop_id: item.prop_id,
-            is_active: item.is_active !== undefined ? item.is_active : true,
-            created_at: item.created_at
+            id: ugIdValue, // Map ug_id to id for frontend compatibility
+            ug: item.ug || '',
+            prop_id: propIdValue,
+            is_active: item.is_active !== undefined ? item.is_active : (item.isActive !== undefined ? item.isActive : true),
+            created_at: item.created_at || item.createdAt || null
           };
         });
       }
@@ -579,12 +588,9 @@ fastify.get(
       return reply.code(500).send({ error: 'Failed to fetch user group' });
     }
 
-    // Find the matching record by checking all possible id column names
-    const found = allData?.find(item => 
-      item.id === id || 
-      item.UG_PropID === id || 
-      item.ug_propid === id ||
-      item['UG_PropID'] === id
+    // Find the matching record by ug_id (which maps to id in frontend)
+    const found = allData?.find(item =>
+      item.ug_id === id || item.id === id
     );
 
     if (!found) {
@@ -593,7 +599,7 @@ fastify.get(
 
     // Map to consistent format
     const data = {
-      id: found.id || found.UG_PropID || found.ug_propid || found['UG_PropID'],
+      id: found.ug_id || found.id,
       ug: found.ug,
       prop_id: found.prop_id,
       is_active: found.is_active !== undefined ? found.is_active : true,
@@ -619,55 +625,35 @@ fastify.post(
         .send({ error: 'id, ug, and propId are required to create a user group' });
     }
 
-    // Try inserting with 'id' first
-    let insertData = {
-      id,
+    // Use ug_id as the primary key (as per database schema)
+    const insertData = {
+      ug_id: id, // Map id to ug_id for database
       ug,
       prop_id: propId,
       is_active: isActive,
     };
 
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .schema('public')
       .from('ug')
       .insert([insertData])
       .select('*')
       .single();
 
-    // If 'id' column doesn't exist, try with 'UG_PropID'
-    if (error && error.message && (error.message.includes('column') && error.message.includes('does not exist'))) {
-      request.log.warn({ error: error.message }, '[ADMIN/USER-GROUPS] id column not found, trying UG_PropID');
-      insertData = {
-        UG_PropID: id,
-        ug,
-        prop_id: propId,
-        is_active: isActive,
-      };
-      const result = await supabase
-        .schema('public')
-        .from('ug')
-        .insert([insertData])
-        .select('*')
-        .single();
-      data = result.data;
-      error = result.error;
-      // Map UG_PropID back to id for consistency
-      if (data) {
-        data = {
-          id: data.UG_PropID || data.id,
-          ug: data.ug,
-          prop_id: data.prop_id,
-          is_active: data.is_active
-        };
-      }
-    }
-
     if (error) {
       request.log.error({ error }, 'Failed to create user group');
       return reply.code(500).send({ error: error.message || 'Failed to create user group' });
     }
 
-    return reply.code(201).send(data);
+    // Map to consistent format
+    const responseData = {
+      id: data.ug_id || data.id,
+      ug: data.ug,
+      prop_id: data.prop_id,
+      is_active: data.is_active
+    };
+
+    return reply.code(201).send(responseData);
   }
 );
 
@@ -692,52 +678,32 @@ fastify.put(
 
     updateData.last_modified = new Date().toISOString();
 
-    // Try with 'id' first
-    let { data, error } = await supabase
+    // Use ug_id as the primary key (as per database schema)
+    const { data, error } = await supabase
       .schema('public')
       .from('ug')
       .update(updateData)
-      .eq('id', id)
+      .eq('ug_id', id)
       .select('*')
       .single();
 
-    // If 'id' column doesn't exist, try with 'UG_PropID'
-    if (error && error.message && (error.message.includes('column') && error.message.includes('does not exist'))) {
-      request.log.warn({ error: error.message }, '[ADMIN/USER-GROUPS] id column not found, trying UG_PropID');
-      const result = await supabase
-        .schema('public')
-        .from('ug')
-        .update(updateData)
-        .eq('UG_PropID', id)
-        .select('*')
-        .single();
-      data = result.data;
-      error = result.error;
-      // Map UG_PropID back to id for consistency
-      if (data) {
-        data = {
-          id: data.UG_PropID || data.id,
-          ug: data.ug,
-          prop_id: data.prop_id,
-          is_active: data.is_active
-        };
-      }
-    } else if (data) {
-      // Map to consistent format
-      data = {
-        id: data.id || data.UG_PropID || data.ug_propid,
+    // Map to consistent format
+    let responseData = null;
+    if (data) {
+      responseData = {
+        id: data.ug_id || data.id,
         ug: data.ug,
         prop_id: data.prop_id,
         is_active: data.is_active
       };
     }
 
-    if (error || !data) {
+    if (error || !responseData) {
       request.log.error({ error }, 'Failed to update user group');
       return reply.code(500).send({ error: error?.message || 'Failed to update user group' });
     }
 
-    return reply.send(data);
+    return reply.send(responseData);
   }
 );
 
@@ -750,23 +716,12 @@ fastify.delete(
   async (request, reply) => {
     const { id } = request.params;
 
-    // Try with 'id' first
-    let { error } = await supabase
+    // Use ug_id as the primary key (as per database schema)
+    const { error } = await supabase
       .schema('public')
       .from('ug')
       .delete()
-      .eq('id', id);
-
-    // If 'id' column doesn't exist, try with 'UG_PropID'
-    if (error && error.message && (error.message.includes('column') && error.message.includes('does not exist'))) {
-      request.log.warn({ error: error.message }, '[ADMIN/USER-GROUPS] id column not found, trying UG_PropID');
-      const result = await supabase
-        .schema('public')
-        .from('ug')
-        .delete()
-        .eq('UG_PropID', id);
-      error = result.error;
-    }
+      .eq('ug_id', id);
 
     if (error) {
       request.log.error({ error }, 'Failed to delete user group');
